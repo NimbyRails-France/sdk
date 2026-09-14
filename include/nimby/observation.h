@@ -57,6 +57,14 @@ typedef struct NimbyTrackNode {
     uint64_t id, link_a, link_b;
     double x, y;
 } NimbyTrackNode;
+
+// Experimental native query interval on one track, normalized low <= high.
+// Not an ordered route, switch position, signal permission or proof of a free block.
+// Multiple entries may overlap (including multiple cars of the same train).
+typedef struct NimbyTrackUsage {
+    uint64_t train_id, track_id;
+    double fraction_begin, fraction_end;
+} NimbyTrackUsage;
 typedef struct NimbySnapshotInfo {
     uint32_t struct_size, abi_version, process_id, flags;
     uint64_t captured_unix_ms;
@@ -81,6 +89,11 @@ NIMBY_API uint32_t __cdecl NimbySdk_CopyTracks(NimbySnapshot snapshot, NimbyTrac
 NIMBY_API uint32_t __cdecl NimbySdk_CopyStations(NimbySnapshot snapshot, NimbyStation* records, uint32_t capacity, uint32_t* required) NIMBY_NOEXCEPT;
 NIMBY_API uint32_t __cdecl NimbySdk_CopySignals(NimbySnapshot snapshot, NimbySignal* records, uint32_t capacity, uint32_t* required) NIMBY_NOEXCEPT;
 NIMBY_API uint32_t __cdecl NimbySdk_CopyTrackNodes(NimbySnapshot snapshot, NimbyTrackNode* records, uint32_t capacity, uint32_t* required) NIMBY_NOEXCEPT;
+// These components are captured independently. DATA_UNAVAILABLE means unknown,
+// not zero reservations/occupations. NIMBY_OK with count=0 means observed empty.
+// Read-only native reservations; does not invoke script-defined virtual reservations.
+NIMBY_API uint32_t __cdecl NimbySdk_CopyTrackReservations(NimbySnapshot snapshot, NimbyTrackUsage* records, uint32_t capacity, uint32_t* required) NIMBY_NOEXCEPT;
+NIMBY_API uint32_t __cdecl NimbySdk_CopyTrackOccupations(NimbySnapshot snapshot, NimbyTrackUsage* records, uint32_t capacity, uint32_t* required) NIMBY_NOEXCEPT;
 // Stored Path membership in native vector order. NOT reserved/occupied tracks.
 // Direction, branching semantics and remaining-vs-complete route are not established.
 // DATA_UNAVAILABLE if train/path is absent or unstable; count is zero on failure.

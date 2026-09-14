@@ -1,7 +1,7 @@
 # Installation dans le dossier de NIMBY Rails
 
-Télécharger **NimbyRailsSDK-0.4.0-drop-in-windows-x64.zip** dans les Assets de
-https://github.com/NimbyRails-France/sdk/releases/tag/v0.4.0 et extraire tout le ZIP.
+Télécharger **NimbyRailsSDK-0.5.0-drop-in-windows-x64.zip** dans les Assets de
+https://github.com/NimbyRails-France/sdk/releases/tag/v0.5.0 et extraire tout le ZIP.
 Ce paquet contient SDL3.dll (notre proxy), NimbyRailsSDK.dll et
 libwinpthread-1.dll (dépendance MinGW obligatoire). La SDL originale du jeu n'est pas distribuée.
 

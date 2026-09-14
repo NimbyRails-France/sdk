@@ -1,6 +1,7 @@
 #include <nimby/observation.h>
 #include "engine/binary_identity.h"
 #include "engine/network.h"
+#include "engine/track_usage.h"
 #include <windows.h>
 #include <tlhelp32.h>
 #include <algorithm>
@@ -28,6 +29,8 @@ struct Snapshot {
     std::vector<NimbySignal> signals;
     std::vector<NimbyTrackNode> nodes;
     std::map<uint64_t,std::vector<uint64_t>> paths;
+    std::vector<NimbyTrackUsage> reservations,occupations;
+    bool reservations_available=false,occupations_available=false;
 };
 struct Registry {
     uint64_t next=1;
@@ -43,13 +46,14 @@ bool read(void* context,uint64_t address,void* out,size_t size) {
     return size<=0x7fffffffffffULL&&address>=0x10000&&address<=0x7fffffffffffULL-size&&
         ReadProcessMemory(s.process,reinterpret_cast<void*>(address),out,size,&got)&&got==size;
 }
-template<class T> uint32_t copy(NimbySnapshot handle,T* records,uint32_t capacity,uint32_t* required,std::vector<T> Snapshot::*member) noexcept {
+template<class T> uint32_t copy(NimbySnapshot handle,T* records,uint32_t capacity,uint32_t* required,std::vector<T> Snapshot::*member,bool Snapshot::*available=nullptr) noexcept {
     if(!required)return NIMBY_INVALID_ARGUMENT;
     *required=0;
     if(!records&&capacity)return NIMBY_INVALID_ARGUMENT;
     Guard guard;
     auto& r=registry();auto found=r.snapshots.find(handle);
     if(found==r.snapshots.end())return NIMBY_INVALID_HANDLE;
+    if(available&&!(found->second.*available))return NIMBY_DATA_UNAVAILABLE;
     const auto& values=found->second.*member;
     *required=static_cast<uint32_t>(values.size());
     if(!records&&!capacity)return NIMBY_OK;
@@ -109,6 +113,17 @@ uint32_t __cdecl NimbySdk_CaptureSnapshot(NimbySession handle,NimbySnapshot* out
         Snapshot snapshot;
         std::unordered_set<uint64_t> track_ids;
         for(const auto& t:network.tracks)track_ids.insert(t.id);
+        std::unordered_set<uint64_t> train_ids;for(const auto& t:trains)train_ids.insert(t.id);
+        auto usage=[&](auto reader,std::vector<NimbyTrackUsage>& dest){
+            std::vector<nimby::engine::TrackUsage> values;
+            if(!reader(read,&session,state,true,values))return false;
+            for(const auto& v:values)if(!train_ids.contains(v.train_id)||!track_ids.contains(v.track_id))return false;
+            for(const auto& v:values)dest.push_back({v.train_id,v.track_id,v.begin,v.end});
+            return true;
+        };
+        snapshot.reservations_available=usage(nimby::engine::read_reservations,snapshot.reservations);
+        snapshot.occupations_available=usage(nimby::engine::read_occupations,snapshot.occupations);
+        if(!nimby::engine::resolve_live_state(read,&session,session.base,true,after)||state!=after)return NIMBY_DATA_UNAVAILABLE;
         for(const auto& t:trains) {
             NimbyTrain value{};value.id=t.id;
             std::memcpy(value.name_utf8,t.name.data(),t.name.size());
@@ -150,6 +165,8 @@ uint32_t __cdecl NimbySdk_GetSnapshotInfo(NimbySnapshot handle,NimbySnapshotInfo
     *out=found->second.info;return NIMBY_OK;
 }
 uint32_t __cdecl NimbySdk_CopyTrains(NimbySnapshot s,NimbyTrain* out,uint32_t cap,uint32_t* count) noexcept {return copy(s,out,cap,count,&Snapshot::trains);}
+uint32_t __cdecl NimbySdk_CopyTrackReservations(NimbySnapshot s,NimbyTrackUsage* out,uint32_t cap,uint32_t* count) noexcept {return copy(s,out,cap,count,&Snapshot::reservations,&Snapshot::reservations_available);}
+uint32_t __cdecl NimbySdk_CopyTrackOccupations(NimbySnapshot s,NimbyTrackUsage* out,uint32_t cap,uint32_t* count) noexcept {return copy(s,out,cap,count,&Snapshot::occupations,&Snapshot::occupations_available);}
 uint32_t __cdecl NimbySdk_CopyTracks(NimbySnapshot s,NimbyTrack* out,uint32_t cap,uint32_t* count) noexcept {return copy(s,out,cap,count,&Snapshot::tracks);}
 uint32_t __cdecl NimbySdk_CopyStations(NimbySnapshot s,NimbyStation* out,uint32_t cap,uint32_t* count) noexcept {return copy(s,out,cap,count,&Snapshot::stations);}
 uint32_t __cdecl NimbySdk_CopySignals(NimbySnapshot s,NimbySignal* out,uint32_t cap,uint32_t* count) noexcept {return copy(s,out,cap,count,&Snapshot::signals);}

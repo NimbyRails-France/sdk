@@ -1,4 +1,25 @@
-# Développer avec NimbyRailsSDK 0.4
+# Développer avec NimbyRailsSDK 0.5
+
+## Réservations et occupation (nouveau en 0.5)
+
+`NimbySdk_CopyTrackReservations` et `NimbySdk_CopyTrackOccupations` utilisent le
+même protocole buffer/count que `CopyTrains`, avec des éléments `NimbyTrackUsage` :
+`train_id`, `track_id`, `fraction_begin`, `fraction_end`. Filtrer par `train_id`
+pour montrer les portions réservées d'un train sélectionné ; relier `track_id`
+aux voies du même snapshot. Les bornes sont normalisées, finies, dans `[0,1]`.
+Les listes ne sont pas ordonnées et peuvent contenir des intervalles qui se recouvrent.
+
+Chaque composant est disponible indépendamment : `NIMBY_DATA_UNAVAILABLE` met
+`required` à zéro et signifie **inconnu**, même si le snapshot contient des trains.
+`NIMBY_OK` avec zéro entrée signifie **collection observée vide**. Remplacer toute
+la liste à chaque nouveau snapshot, la vider sur indisponibilité/changement de
+sélection, et expirer l'affichage si les captures cessent. Ne jamais conserver une
+ancienne réservation comme état courant. Un snapshot existant reste immuable.
+
+L'ajout conserve les structures et fonctions ABI v1 existantes. Un client lié aux
+nouveaux exports nécessite la DLL 0.5 ou ultérieure : ne pas associer les nouveaux
+headers à la DLL 0.4. Les réservations virtuelles de scripts et l'ordre d'itinéraire
+ne sont pas exposés. [Recherche, preuves, limites](research/reservations.md).
 
 Ajouts expérimentaux 0.3 (ABI v1 existante conservée) :
 `NimbySdk_CopyTrackNodes` copie un graphe principal partiel avec coordonnées natives ;
@@ -23,7 +44,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tools/package.ps1
 ```
 
 Le script compile Release, exécute les tests, installe dans
-`dist/NimbyRailsSDK-0.4.0/`, puis copie et compile l'exemple **depuis le paquet
+`dist/NimbyRailsSDK-0.5.0/`, puis copie et compile l'exemple **depuis le paquet
 installé** dans `build/sdk-consumer/`. Aucune injection ni installation dans le jeu.
 `-SkipBuild` permet de réinstaller un build Release déjà vérifié.
 
@@ -50,7 +71,7 @@ La compatibilité binaire entre ces chaînes n'a pas été testée.
 ```cmake
 cmake_minimum_required(VERSION 3.24)
 project(MyNimbyTool LANGUAGES CXX)
-find_package(NimbyRailsSDK 0.4 CONFIG REQUIRED)
+find_package(NimbyRailsSDK 0.5 CONFIG REQUIRED)
 add_executable(MyNimbyTool main.cpp)
 target_compile_features(MyNimbyTool PRIVATE cxx_std_20)
 target_link_libraries(MyNimbyTool PRIVATE NimbyRailsSDK::SDK)
@@ -63,13 +84,13 @@ add_custom_command(TARGET MyNimbyTool POST_BUILD
 Dans les options CMake de CLion, ajouter :
 
 ```text
--DCMAKE_PREFIX_PATH=C:/chemin/vers/NimbyRailsSDK-0.4.0
+-DCMAKE_PREFIX_PATH=C:/chemin/vers/NimbyRailsSDK-0.5.0
 ```
 
 Ou en terminal avec le compilateur configuré dans PATH :
 
 ```powershell
-cmake -S . -B build -DCMAKE_PREFIX_PATH=C:/chemin/vers/NimbyRailsSDK-0.4.0
+cmake -S . -B build -DCMAKE_PREFIX_PATH=C:/chemin/vers/NimbyRailsSDK-0.5.0
 cmake --build build
 ```
 
@@ -176,7 +197,7 @@ une identité globale entre sauvegardes.
 
 ## Évolution et limites
 
-API publique v1 et version du paquet 0.4.0 sont deux notions distinctes. Les
+API publique v1 et version du paquet 0.5.0 sont deux notions distinctes. Les
 structures de cette ABI sont figées ; une modification incompatible nécessitera
 une nouvelle version d'API. La compatibilité CMake est limitée à la même version
 mineure pendant la phase 0.x. Les offsets du moteur restent dans `engine/` et

@@ -37,6 +37,13 @@ int main(int argc,char** argv) {
             auto stations=records<NimbyStation>(snapshot.value,NimbySdk_CopyStations);
             auto signals=records<NimbySignal>(snapshot.value,NimbySdk_CopySignals);
             std::printf("snapshot %d: %zu trains, %zu tracks, %zu stations, %zu signals\n",tick,trains.size(),tracks.size(),stations.size(),signals.size());
+            for(auto function:{NimbySdk_CopyTrackReservations,NimbySdk_CopyTrackOccupations}){
+                uint32_t count=0;const auto status=function(snapshot.value,nullptr,0,&count);
+                const char* label=function==NimbySdk_CopyTrackReservations?"Reserved portions":"Occupation portions";
+                if(status==NIMBY_DATA_UNAVAILABLE){std::printf("%s: unavailable\n",label);continue;}
+                check(status);auto usage=records<NimbyTrackUsage>(snapshot.value,function);
+                std::printf("%s: %zu (unordered native intervals)\n",label,usage.size());
+            }
             for(const auto& train:trains) {
                 std::printf("%s id=%llx ",train.name_utf8,static_cast<unsigned long long>(train.id));
                 if(train.flags&NIMBY_TRAIN_PRESENT)std::printf("%.1f km/h ",train.speed_mps*3.6);

@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.24)
-project(NimbyRailsSDK VERSION 0.4.0 LANGUAGES C CXX)
+project(NimbyRailsSDK VERSION 0.5.0 LANGUAGES C CXX)
 if(NOT WIN32 OR NOT CMAKE_SIZEOF_VOID_P EQUAL 8)
     message(FATAL_ERROR "NimbyRailsSDK requires Windows x64")
 endif()
@@ -29,6 +29,7 @@ add_library(NimbyRailsSDK SHARED
     src/runtime/observation.cpp
     src/engine/live_state.cpp
     src/engine/network.cpp
+    src/engine/track_usage.cpp
     src/engine/binary_identity.cpp)
 target_compile_definitions(NimbyRailsSDK PRIVATE NIMBY_SDK_BUILD)
 target_include_directories(NimbyRailsSDK
@@ -94,6 +95,10 @@ if(MINGW)
 endif()
 if(BUILD_TESTING)
     enable_testing()
+    add_executable(nimby_track_usage_tests tests/track_usage.cpp src/engine/track_usage.cpp src/engine/live_state.cpp)
+    target_include_directories(nimby_track_usage_tests PRIVATE include)
+    target_link_libraries(nimby_track_usage_tests PRIVATE nimby_build)
+    add_test(NAME track_usage_guards COMMAND nimby_track_usage_tests)
     add_executable(nimby_observation_tests tests/observation.cpp)
     target_link_libraries(nimby_observation_tests PRIVATE NimbyRailsSDK nimby_build)
     add_test(NAME public_observation_abi COMMAND nimby_observation_tests)

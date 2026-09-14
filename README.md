@@ -1,13 +1,21 @@
-# NimbyRailsSDK 0.4.0
+# NimbyRailsSDK 0.5.0
 
 SDK natif C++20 / Windows x64 pour observer NIMBY Rails depuis un autre programme.
-API C versionnée, snapshots de trains, vitesses, voies, gares, signaux et Paths.
+API C versionnée, snapshots de trains, vitesses, voies, gares, signaux, Paths,
+**portions réservées et occupation native**.
 MinHook est compilé dans la DLL ; aucun fichier MinHook.dll à installer.
+
+La version 0.5 ajoute `NimbySdk_CopyTrackReservations` et
+`NimbySdk_CopyTrackOccupations` : ID train, ID voie et bornes normalisées sur la voie.
+Les listes sont actualisées à chaque capture ; `DATA_UNAVAILABLE` signifie inconnu,
+alors que `OK` avec zéro entrée signifie une collection observée vide.
+Ces portions ne forment pas un itinéraire ordonné et n'incluent pas les réservations
+virtuelles des scripts. [Preuves et limites](docs/research/reservations.md).
 
 ## Installer les DLL dans le jeu
 
 Pour le chargement automatique à chaque démarrage, télécharger
-**[NimbyRailsSDK-0.4.0-drop-in-windows-x64.zip](https://github.com/NimbyRails-France/sdk/releases/tag/v0.4.0)**.
+**[NimbyRailsSDK-0.5.0-drop-in-windows-x64.zip](https://github.com/NimbyRails-France/sdk/releases/tag/v0.5.0)**.
 Il contient **SDL3.dll + NimbyRailsSDK.dll**, ainsi que **libwinpthread-1.dll** obligatoire.
 Jeu fermé, extraire le ZIP puis lancer son `install-proxy.ps1` : la SDL originale
 est conservée sous `NimbyRailsSDL3Original.dll`. Ne pas écraser directement la SDL du jeu.
@@ -19,11 +27,11 @@ le paquet `drop-in-windows-x64.zip` est celui à utiliser pour le dossier du jeu
 ## Installer depuis une release
 
 1. Ouvrir les [releases du SDK](https://github.com/NimbyRails-France/sdk/releases).
-2. Télécharger **NimbyRailsSDK-0.4.0-windows-x64-mingw.zip** dans **Assets** (pas « Source code »).
+2. Télécharger **NimbyRailsSDK-0.5.0-windows-x64-mingw.zip** dans **Assets** (pas « Source code »).
 3. Extraire tout le ZIP, par exemple sous `C:/SDK/`. Le dossier obtenu est
-   `C:/SDK/NimbyRailsSDK-0.4.0/`, contenant `include`, `lib`, `bin` et `share`.
+   `C:/SDK/NimbyRailsSDK-0.5.0/`, contenant `include`, `lib`, `bin` et `share`.
 4. Dans CLion, sélectionner une toolchain **MinGW x64**, puis ajouter aux options CMake :
-   `-DCMAKE_PREFIX_PATH=C:/SDK/NimbyRailsSDK-0.4.0`.
+   `-DCMAKE_PREFIX_PATH=C:/SDK/NimbyRailsSDK-0.5.0`.
 5. Lier votre cible à `NimbyRailsSDK::SDK` et copier les DLL de `bin` près de votre `.exe`.
 
 Le paquet est compilé avec MinGW GCC 15.2. Pour MSVC, reconstruire depuis les sources
@@ -35,7 +43,7 @@ Pour utiliser simplement le TCO, télécharger sa [release prête à lancer](htt
 ```cmake
 cmake_minimum_required(VERSION 3.24)
 project(MyNimbyTool LANGUAGES CXX)
-find_package(NimbyRailsSDK 0.4 CONFIG REQUIRED)
+find_package(NimbyRailsSDK 0.5 CONFIG REQUIRED)
 add_executable(MyNimbyTool main.cpp)
 target_compile_features(MyNimbyTool PRIVATE cxx_std_20)
 target_link_libraries(MyNimbyTool PRIVATE NimbyRailsSDK::SDK)
@@ -49,7 +57,7 @@ Un programme complet est fourni dans `share/NimbyRailsSDK/examples/observer` du 
 Copier ce dossier dans votre espace de travail, puis :
 
 ```powershell
-cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH=C:/SDK/NimbyRailsSDK-0.4.0
+cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH=C:/SDK/NimbyRailsSDK-0.5.0
 cmake --build build
 ./build/MyNimbyObserver.exe <PID-du-jeu>
 ```

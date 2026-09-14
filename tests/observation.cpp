@@ -4,8 +4,10 @@
 #include <cstring>
 #include <vector>
 #include <unordered_set>
+#include <cmath>
 #define CHECK(x) do{if(!(x)){std::fprintf(stderr,"FAIL %d: %s\n",__LINE__,#x);return 1;}}while(false)
 int main(int argc,char** argv) {
+    static_assert(sizeof(NimbyTrackUsage)==32);
     NimbySession session=123;NimbySnapshot snapshot=123;uint32_t count=99;
     CHECK(NimbySdk_OpenProcess(99,0,&session)==NIMBY_INVALID_ARGUMENT&&session==0);
     CHECK(NimbySdk_OpenProcess(1,0,&session)==NIMBY_UNSUPPORTED_GAME&&session==0);
@@ -13,6 +15,10 @@ int main(int argc,char** argv) {
     CHECK(NimbySdk_CopyTrains(0,nullptr,0,&count)==NIMBY_INVALID_HANDLE&&count==0);
     CHECK(NimbySdk_CopyTrains(0,nullptr,1,&count)==NIMBY_INVALID_ARGUMENT);
     CHECK(NimbySdk_CopyTrackNodes(0,nullptr,0,&count)==NIMBY_INVALID_HANDLE&&count==0);
+    CHECK(NimbySdk_CopyTrackReservations(0,nullptr,0,&count)==NIMBY_INVALID_HANDLE&&count==0);
+    CHECK(NimbySdk_CopyTrackOccupations(0,nullptr,0,&count)==NIMBY_INVALID_HANDLE&&count==0);
+    CHECK(NimbySdk_CopyTrackReservations(0,nullptr,1,&count)==NIMBY_INVALID_ARGUMENT&&count==0);
+    CHECK(NimbySdk_CopyTrackOccupations(0,nullptr,0,nullptr)==NIMBY_INVALID_ARGUMENT);
     CHECK(NimbySdk_CopyTrainPathTracks(0,0,nullptr,0,&count)==NIMBY_INVALID_HANDLE&&count==0);
     CHECK(NimbySdk_CloseSession(0)==NIMBY_INVALID_HANDLE);
     CHECK(NimbySdk_ReleaseSnapshot(0)==NIMBY_INVALID_HANDLE);
@@ -41,6 +47,22 @@ int main(int argc,char** argv) {
                 for(auto id:ids)CHECK(nodeIds.contains(id));
                 ++pathCount;}}
         std::printf("Experimental graph: %u nodes, %u available train Paths.\n",nodeCount,pathCount);
+        std::unordered_set<uint64_t> trainIds;for(const auto& t:before)trainIds.insert(t.id);
+        for(auto function:{NimbySdk_CopyTrackReservations,NimbySdk_CopyTrackOccupations}){
+            uint32_t n=0;const auto status=function(snapshot,nullptr,0,&n);
+            CHECK(status==NIMBY_OK||status==NIMBY_DATA_UNAVAILABLE);
+            if(status==NIMBY_DATA_UNAVAILABLE){CHECK(n==0);continue;}
+            std::vector<NimbyTrackUsage> a(n),b(n);
+            if(n){NimbyTrackUsage guard{};std::memset(&guard,0x5a,sizeof guard);auto old=guard;
+                CHECK(function(snapshot,&guard,0,&n)==NIMBY_BUFFER_TOO_SMALL);
+                CHECK(std::memcmp(&guard,&old,sizeof guard)==0);}
+            CHECK(function(snapshot,a.data(),n,&n)==NIMBY_OK);
+            CHECK(function(snapshot,b.data(),n,&n)==NIMBY_OK);
+            CHECK(a.empty()||std::memcmp(a.data(),b.data(),n*sizeof(NimbyTrackUsage))==0);
+            for(const auto& u:a)CHECK(trainIds.contains(u.train_id)&&nodeIds.contains(u.track_id)&&
+                std::isfinite(u.fraction_begin)&&std::isfinite(u.fraction_end)&&u.fraction_begin>=0&&u.fraction_end<=1&&u.fraction_begin<=u.fraction_end);
+            std::printf("Track usage: %u records; IDs, ranges, buffers and immutability passed.\n",n);
+        }
         CHECK(NimbySdk_CloseSession(session)==NIMBY_OK);
         NimbySnapshot rejected=99;CHECK(NimbySdk_CaptureSnapshot(session,&rejected)==NIMBY_INVALID_HANDLE&&rejected==0);
         CHECK(NimbySdk_CopyTrains(snapshot,after.data(),count,&count)==NIMBY_OK);
