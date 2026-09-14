@@ -1,0 +1,27 @@
+-- The CXX compiler identification is GNU 15.2.0
+-- Detecting CXX compiler ABI info
+-- Detecting CXX compiler ABI info - done
+-- Check for working CXX compiler: C:/Users/samsv/AppData/Local/Programs/CLion/bin/mingw/bin/c++.exe - skipped
+-- Detecting CXX compile features
+-- Detecting CXX compile features - done
+-- Configuring done (1.3s)
+-- Generating done (0.1s)
+-- Build files have been written to: C:/Users/samsv/CLionProjects/untitled/build-sdk-Debug
+[1/9] Building CXX object CMakeFiles/NimbyRailsSDK.dir/library.cpp.obj
+[2/9] Building CXX object CMakeFiles/nimby_component_tests.dir/tests/components.cpp.obj
+[3/9] Building CXX object CMakeFiles/NimbyRailsSDK.dir/runtime/runtime.cpp.obj
+[4/9] Building CXX object CMakeFiles/NimbyRailsSDK.dir/engine/binary_identity.cpp.obj
+[5/9] Building CXX object CMakeFiles/nimby_component_tests.dir/engine/binary_identity.cpp.obj
+[6/9] Linking CXX executable nimby_component_tests.exe
+[7/9] Building CXX object CMakeFiles/nimby_sdk_host.dir/tests/host.cpp.obj
+[8/9] Linking CXX shared library NimbyRailsSDK.dll
+[9/9] Linking CXX executable nimby_sdk_host.exe
+Test project C:/Users/samsv/CLionProjects/untitled/build-sdk-Debug
+    Start 1: dll_lifecycle
+1/2 Test #1: dll_lifecycle ....................   Passed    0.11 sec
+    Start 2: identity_and_policy
+2/2 Test #2: identity_and_policy ..............   Passed    0.09 sec
+
+100% tests passed, 0 tests failed out of 2
+
+Total Test time (real) =   0.21 sec

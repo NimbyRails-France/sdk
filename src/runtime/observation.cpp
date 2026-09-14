@@ -1,0 +1,178 @@
+#include <nimby/observation.h>
+#include "engine/binary_identity.h"
+#include "engine/network.h"
+#include <windows.h>
+#include <tlhelp32.h>
+#include <algorithm>
+#include <array>
+#include <chrono>
+#include <cstring>
+#include <map>
+#include <memory>
+#include <vector>
+#include <unordered_set>
+
+namespace {
+struct Session {
+    HANDLE process{};
+    uint32_t pid{};
+    uint64_t base{};
+    NimbyBinaryInfo binary{};
+    ~Session() { if(process) CloseHandle(process); }
+};
+struct Snapshot {
+    NimbySnapshotInfo info{};
+    std::vector<NimbyTrain> trains;
+    std::vector<NimbyTrack> tracks;
+    std::vector<NimbyStation> stations;
+    std::vector<NimbySignal> signals;
+    std::vector<NimbyTrackNode> nodes;
+    std::map<uint64_t,std::vector<uint64_t>> paths;
+};
+struct Registry {
+    uint64_t next=1;
+    std::map<uint64_t,std::unique_ptr<Session>> sessions;
+    std::map<uint64_t,Snapshot> snapshots;
+};
+SRWLOCK registry_lock=SRWLOCK_INIT;
+struct Guard { Guard(){AcquireSRWLockExclusive(&registry_lock);} ~Guard(){ReleaseSRWLockExclusive(&registry_lock);} };
+Registry& registry() { static Registry value;return value; }
+bool read(void* context,uint64_t address,void* out,size_t size) {
+    const auto& s=*static_cast<Session*>(context);
+    SIZE_T got{};
+    return size<=0x7fffffffffffULL&&address>=0x10000&&address<=0x7fffffffffffULL-size&&
+        ReadProcessMemory(s.process,reinterpret_cast<void*>(address),out,size,&got)&&got==size;
+}
+template<class T> uint32_t copy(NimbySnapshot handle,T* records,uint32_t capacity,uint32_t* required,std::vector<T> Snapshot::*member) noexcept {
+    if(!required)return NIMBY_INVALID_ARGUMENT;
+    *required=0;
+    if(!records&&capacity)return NIMBY_INVALID_ARGUMENT;
+    Guard guard;
+    auto& r=registry();auto found=r.snapshots.find(handle);
+    if(found==r.snapshots.end())return NIMBY_INVALID_HANDLE;
+    const auto& values=found->second.*member;
+    *required=static_cast<uint32_t>(values.size());
+    if(!records&&!capacity)return NIMBY_OK;
+    if(capacity<values.size())return NIMBY_BUFFER_TOO_SMALL;
+    if(!values.empty())std::memcpy(records,values.data(),values.size()*sizeof(T));
+    return NIMBY_OK;
+}
+}
+uint32_t __cdecl NimbySdk_OpenProcess(uint32_t abi,uint32_t pid,NimbySession* out) noexcept {
+    if(!out)return NIMBY_INVALID_ARGUMENT;
+    *out=0;if(abi!=NIMBY_OBSERVATION_ABI_VERSION)return NIMBY_INVALID_ARGUMENT;
+    try {
+        Guard guard;auto& r=registry();
+        if(r.sessions.size()>=8||!r.next)return NIMBY_RESOURCE_LIMIT;
+        auto s=std::make_unique<Session>();s->pid=pid?pid:GetCurrentProcessId();
+        s->process=OpenProcess(PROCESS_QUERY_INFORMATION|PROCESS_VM_READ|SYNCHRONIZE,FALSE,s->pid);
+        if(!s->process)return NIMBY_IO_ERROR;
+        std::array<wchar_t,32768> path{};DWORD length=static_cast<DWORD>(path.size());
+        if(!QueryFullProcessImageNameW(s->process,0,path.data(),&length))return NIMBY_IO_ERROR;
+        auto result=nimby::engine::identify(path.data(),s->binary);
+        if(result!=NIMBY_OK)return result;
+        if(!s->binary.recognized_research_build)return NIMBY_UNSUPPORTED_GAME;
+        const HANDLE modules=CreateToolhelp32Snapshot(TH32CS_SNAPMODULE,s->pid);
+        if(modules==INVALID_HANDLE_VALUE)return NIMBY_IO_ERROR;
+        MODULEENTRY32W module{};module.dwSize=sizeof module;
+        const bool found=Module32FirstW(modules,&module)!=FALSE;
+        CloseHandle(modules);
+        if(!found)return NIMBY_IO_ERROR;
+        s->base=reinterpret_cast<uint64_t>(module.modBaseAddr);
+        if(WaitForSingleObject(s->process,0)!=WAIT_TIMEOUT)return NIMBY_PROCESS_EXITED;
+        const auto id=r.next++;
+        r.sessions.emplace(id,std::move(s));*out=id;return NIMBY_OK;
+    }catch(...){return NIMBY_INTERNAL_ERROR;}
+}
+uint32_t __cdecl NimbySdk_CloseSession(NimbySession handle) noexcept {
+    Guard guard;return registry().sessions.erase(handle)?NIMBY_OK:NIMBY_INVALID_HANDLE;
+}
+uint32_t __cdecl NimbySdk_ReleaseSnapshot(NimbySnapshot handle) noexcept {
+    Guard guard;return registry().snapshots.erase(handle)?NIMBY_OK:NIMBY_INVALID_HANDLE;
+}
+uint32_t __cdecl NimbySdk_CaptureSnapshot(NimbySession handle,NimbySnapshot* out) noexcept {
+    if(!out)return NIMBY_INVALID_ARGUMENT;
+    *out=0;
+    try {
+        Guard guard;auto& r=registry();auto found=r.sessions.find(handle);
+        if(found==r.sessions.end())return NIMBY_INVALID_HANDLE;
+        auto& session=*found->second;
+        if(WaitForSingleObject(session.process,0)!=WAIT_TIMEOUT)return NIMBY_PROCESS_EXITED;
+        if(r.snapshots.size()>=16||!r.next)return NIMBY_RESOURCE_LIMIT;
+        nimby::engine::LiveState state{},after{};
+        nimby::engine::Network network;
+        std::vector<nimby::engine::Train> trains;
+        if(!nimby::engine::resolve_live_state(read,&session,session.base,true,state)||
+           !nimby::engine::read_trains(read,&session,state,true,trains)||
+           !nimby::engine::read_network(read,&session,state,true,network)||
+           !nimby::engine::resolve_live_state(read,&session,session.base,true,after)||state!=after)return NIMBY_DATA_UNAVAILABLE;
+        Snapshot snapshot;
+        std::unordered_set<uint64_t> track_ids;
+        for(const auto& t:network.tracks)track_ids.insert(t.id);
+        for(const auto& t:trains) {
+            NimbyTrain value{};value.id=t.id;
+            std::memcpy(value.name_utf8,t.name.data(),t.name.size());
+            if(t.present){value.flags|=NIMBY_TRAIN_PRESENT;value.speed_mps=t.speed_mps;}
+            if(t.positioned){
+                if(!track_ids.contains(t.position.track_id))return NIMBY_DATA_UNAVAILABLE;
+                value.flags|=NIMBY_TRAIN_POSITION_VALID;value.track_id=t.position.track_id;
+                value.track_fraction=t.position.fraction;value.direction=t.position.direction;
+            }
+            snapshot.trains.push_back(value);
+            if(t.path_available&&std::all_of(t.path.begin(),t.path.end(),[&](uint64_t id){return track_ids.contains(id);}))snapshot.paths.emplace(t.id,t.path);
+        }
+        for(const auto& t:network.tracks)snapshot.tracks.push_back({t.id,t.station_id,t.limit_mps});
+        for(const auto& s:network.stations){NimbyStation value{};value.id=s.id;std::memcpy(value.name_utf8,s.name.data(),s.name.size());snapshot.stations.push_back(value);}
+        for(const auto& s:network.signals)snapshot.signals.push_back({s.id,s.track_id,s.fraction,s.direction,s.kind});
+        std::map<uint64_t,const nimby::engine::Track*> geometry;
+        for(const auto& t:network.tracks)if(t.geometry)geometry.emplace(t.id,&t);
+        for(const auto& [id,t]:geometry){
+            // Branches can point into a main track without the reverse primary link.
+            auto link=[&](uint64_t target){return target!=id&&geometry.contains(target)?target:uint64_t(0);};
+            snapshot.nodes.push_back({id,link(t->links[0]),link(t->links[1]),t->x,t->y});
+        }
+        auto& info=snapshot.info;
+        info.struct_size=sizeof info;info.abi_version=NIMBY_OBSERVATION_ABI_VERSION;info.process_id=session.pid;
+        info.flags=NIMBY_SNAPSHOT_EXPERIMENTAL|NIMBY_SNAPSHOT_NON_ATOMIC;
+        info.captured_unix_ms=static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count());
+        info.train_count=static_cast<uint32_t>(snapshot.trains.size());info.track_count=static_cast<uint32_t>(snapshot.tracks.size());
+        info.station_count=static_cast<uint32_t>(snapshot.stations.size());info.signal_count=static_cast<uint32_t>(snapshot.signals.size());
+        std::memcpy(info.game_sha256,session.binary.sha256,sizeof info.game_sha256);
+        if(WaitForSingleObject(session.process,0)!=WAIT_TIMEOUT)return NIMBY_PROCESS_EXITED;
+        auto id=r.next++;r.snapshots.emplace(id,std::move(snapshot));*out=id;return NIMBY_OK;
+    }catch(...){return NIMBY_INTERNAL_ERROR;}
+}
+uint32_t __cdecl NimbySdk_GetSnapshotInfo(NimbySnapshot handle,NimbySnapshotInfo* out) noexcept {
+    if(!out||out->struct_size!=sizeof *out)return NIMBY_INVALID_ARGUMENT;
+    *out={};out->struct_size=sizeof *out;
+    Guard guard;auto& r=registry();auto found=r.snapshots.find(handle);
+    if(found==r.snapshots.end())return NIMBY_INVALID_HANDLE;
+    *out=found->second.info;return NIMBY_OK;
+}
+uint32_t __cdecl NimbySdk_CopyTrains(NimbySnapshot s,NimbyTrain* out,uint32_t cap,uint32_t* count) noexcept {return copy(s,out,cap,count,&Snapshot::trains);}
+uint32_t __cdecl NimbySdk_CopyTracks(NimbySnapshot s,NimbyTrack* out,uint32_t cap,uint32_t* count) noexcept {return copy(s,out,cap,count,&Snapshot::tracks);}
+uint32_t __cdecl NimbySdk_CopyStations(NimbySnapshot s,NimbyStation* out,uint32_t cap,uint32_t* count) noexcept {return copy(s,out,cap,count,&Snapshot::stations);}
+uint32_t __cdecl NimbySdk_CopySignals(NimbySnapshot s,NimbySignal* out,uint32_t cap,uint32_t* count) noexcept {return copy(s,out,cap,count,&Snapshot::signals);}
+uint32_t __cdecl NimbySdk_CopyTrackNodes(NimbySnapshot s,NimbyTrackNode* out,uint32_t cap,uint32_t* count) noexcept {return copy(s,out,cap,count,&Snapshot::nodes);}
+uint32_t __cdecl NimbySdk_CopyTrainPathTracks(NimbySnapshot handle,uint64_t train,uint64_t* out,uint32_t cap,uint32_t* count) noexcept {
+    if(!count)return NIMBY_INVALID_ARGUMENT;
+    *count=0;
+    if(!out&&cap)return NIMBY_INVALID_ARGUMENT;
+    Guard guard;auto s=registry().snapshots.find(handle);if(s==registry().snapshots.end())return NIMBY_INVALID_HANDLE;
+    auto p=s->second.paths.find(train);if(p==s->second.paths.end())return NIMBY_DATA_UNAVAILABLE;
+    *count=static_cast<uint32_t>(p->second.size());if(!out&&!cap)return NIMBY_OK;
+    if(cap<p->second.size())return NIMBY_BUFFER_TOO_SMALL;
+    if(!p->second.empty())std::memcpy(out,p->second.data(),p->second.size()*8);
+    return NIMBY_OK;
+}
+const char* __cdecl NimbySdk_StatusString(uint32_t status) noexcept {
+    switch(status){
+    case NIMBY_OK:return "OK";case NIMBY_INVALID_ARGUMENT:return "Invalid argument or ABI version";
+    case NIMBY_IO_ERROR:return "Process or file access failed";case NIMBY_INVALID_BINARY:return "Invalid binary";
+    case NIMBY_ALREADY_INITIALIZED:return "Already initialized";case NIMBY_HOOKS_UNAVAILABLE:return "Hooks unavailable";
+    case NIMBY_INTERNAL_ERROR:return "Internal error";case NIMBY_UNSUPPORTED_GAME:return "Unsupported game binary";
+    case NIMBY_DATA_UNAVAILABLE:return "Game data unavailable or changed; retry later";
+    case NIMBY_INVALID_HANDLE:return "Invalid or released handle";case NIMBY_BUFFER_TOO_SMALL:return "Buffer too small";
+    case NIMBY_PROCESS_EXITED:return "Process exited; open a new session";case NIMBY_RESOURCE_LIMIT:return "Resource limit; release handles";
+    default:return "Unknown status";}
+}

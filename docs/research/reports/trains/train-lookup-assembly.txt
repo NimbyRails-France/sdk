@@ -1,0 +1,41 @@
+﻿
+C:\Users\samsv\IdeaProjects\NimbyRailsResearch\inputs\NimbyRails.exe:     file format pei-x86-64
+
+
+Disassembly of section .text:
+
+000000014033f780 <.text+0x33e780>:
+   14033f780:	48 8b c2             	mov    rax,rdx
+   14033f783:	4c 8b ca             	mov    r9,rdx
+   14033f786:	48 c1 f8 30          	sar    rax,0x30
+   14033f78a:	4c 8b c1             	mov    r8,rcx
+   14033f78d:	66 83 f8 05          	cmp    ax,0x5
+   14033f791:	75 52                	jne    0x14033f7e5
+   14033f793:	44 8b 51 10          	mov    r10d,DWORD PTR [rcx+0x10]
+   14033f797:	48 8b c2             	mov    rax,rdx
+   14033f79a:	4c 8b 59 18          	mov    r11,QWORD PTR [rcx+0x18]
+   14033f79e:	8b 49 04             	mov    ecx,DWORD PTR [rcx+0x4]
+   14033f7a1:	48 c1 f8 10          	sar    rax,0x10
+   14033f7a5:	8b d0                	mov    edx,eax
+   14033f7a7:	44 23 d0             	and    r10d,eax
+   14033f7aa:	49 8b 40 20          	mov    rax,QWORD PTR [r8+0x20]
+   14033f7ae:	49 2b c3             	sub    rax,r11
+   14033f7b1:	48 d3 ea             	shr    rdx,cl
+   14033f7b4:	48 c1 f8 03          	sar    rax,0x3
+   14033f7b8:	48 3b d0             	cmp    rdx,rax
+   14033f7bb:	73 28                	jae    0x14033f7e5
+   14033f7bd:	45 3b 50 08          	cmp    r10d,DWORD PTR [r8+0x8]
+   14033f7c1:	73 22                	jae    0x14033f7e5
+   14033f7c3:	49 8b 14 d3          	mov    rdx,QWORD PTR [r11+rdx*8]
+   14033f7c7:	48 85 d2             	test   rdx,rdx
+   14033f7ca:	74 19                	je     0x14033f7e5
+   14033f7cc:	41 8b c2             	mov    eax,r10d
+   14033f7cf:	48 69 c8 78 01 00 00 	imul   rcx,rax,0x178
+   14033f7d6:	48 03 d1             	add    rdx,rcx
+   14033f7d9:	74 0a                	je     0x14033f7e5
+   14033f7db:	33 c0                	xor    eax,eax
+   14033f7dd:	4c 3b 0a             	cmp    r9,QWORD PTR [rdx]
+   14033f7e0:	48 0f 44 c2          	cmove  rax,rdx
+   14033f7e4:	c3                   	ret
+   14033f7e5:	33 c0                	xor    eax,eax
+   14033f7e7:	c3                   	ret

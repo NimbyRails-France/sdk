@@ -1,0 +1,51 @@
+#include <nimby/observation.h>
+#include <charconv>
+#include <chrono>
+#include <cstdio>
+#include <cstring>
+#include <stdexcept>
+#include <thread>
+#include <vector>
+void check(uint32_t status) {
+    if(status!=NIMBY_OK)throw std::runtime_error(NimbySdk_StatusString(status));
+}
+struct Session {
+    NimbySession value{};
+    ~Session(){if(value)NimbySdk_CloseSession(value);}
+};
+struct Snapshot {
+    NimbySnapshot value{};
+    ~Snapshot(){if(value)NimbySdk_ReleaseSnapshot(value);}
+};
+template<class T,class F> std::vector<T> records(NimbySnapshot snapshot,F copy) {
+    uint32_t count{};check(copy(snapshot,nullptr,0,&count));
+    std::vector<T> result(count);check(copy(snapshot,result.data(),count,&count));return result;
+}
+int main(int argc,char** argv) {
+    if(argc!=2){std::puts("Usage: MyNimbyObserver <game-pid> (5 snapshots, read-only)");return 2;}
+    uint32_t pid{};const auto end=argv[1]+std::strlen(argv[1]);const auto parsed=std::from_chars(argv[1],end,pid);
+    if(parsed.ec!=std::errc{}||parsed.ptr!=end||!pid)return 2;
+    try {
+        Session session;check(NimbySdk_OpenProcess(NIMBY_OBSERVATION_ABI_VERSION,pid,&session.value));
+        for(int tick=0;tick<5;++tick) {
+            Snapshot snapshot;
+            auto status=NimbySdk_CaptureSnapshot(session.value,&snapshot.value);
+            if(status==NIMBY_DATA_UNAVAILABLE){std::puts(NimbySdk_StatusString(status));std::this_thread::sleep_for(std::chrono::milliseconds(250));continue;}
+            check(status);
+            auto trains=records<NimbyTrain>(snapshot.value,NimbySdk_CopyTrains);
+            auto tracks=records<NimbyTrack>(snapshot.value,NimbySdk_CopyTracks);
+            auto stations=records<NimbyStation>(snapshot.value,NimbySdk_CopyStations);
+            auto signals=records<NimbySignal>(snapshot.value,NimbySdk_CopySignals);
+            std::printf("snapshot %d: %zu trains, %zu tracks, %zu stations, %zu signals\n",tick,trains.size(),tracks.size(),stations.size(),signals.size());
+            for(const auto& train:trains) {
+                std::printf("%s id=%llx ",train.name_utf8,static_cast<unsigned long long>(train.id));
+                if(train.flags&NIMBY_TRAIN_PRESENT)std::printf("%.1f km/h ",train.speed_mps*3.6);
+                else std::printf("speed unavailable ");
+                if(train.flags&NIMBY_TRAIN_POSITION_VALID)std::printf("track=%llx %.2f%%",static_cast<unsigned long long>(train.track_id),train.track_fraction*100);
+                std::puts("");
+            }
+            std::this_thread::sleep_for(std::chrono::milliseconds(250));
+        }
+        return 0;
+    }catch(const std::exception& e){std::fprintf(stderr,"SDK: %s\n",e.what());return 1;}
+}

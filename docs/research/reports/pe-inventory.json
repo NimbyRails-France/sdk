@@ -1,0 +1,2610 @@
+{
+  "path": "C:/Program Files (x86)/Steam/steamapps/common/NIMBY Rails/NimbyRails.exe",
+  "sha256": "FFF49AC21720ABFC824C2B4F68B862727630EB0DB71CFE1F9EA8F685D0DB10AE",
+  "size": 12583424,
+  "machine": "0x8664",
+  "coff_timestamp": 1786548013,
+  "coff_symbol_count": 0,
+  "image_base": "0x140000000",
+  "entry_rva": "0x9844f4",
+  "image_size": 13144064,
+  "subsystem": 2,
+  "dll_characteristics": "0x8160",
+  "export_directory": {
+    "rva": 11880208,
+    "size": 504
+  },
+  "tls_directory": {
+    "rva": 11196928,
+    "size": 40
+  },
+  "delay_import_directory": {
+    "rva": 0,
+    "size": 0
+  },
+  "sections": [
+    {
+      "name": ".text",
+      "rva": 4096,
+      "virtual_size": 10130407,
+      "raw_size": 10130432,
+      "raw_offset": 1024,
+      "characteristics": "0x60000020"
+    },
+    {
+      "name": ".rdata",
+      "rva": 10137600,
+      "virtual_size": 1762774,
+      "raw_size": 1762816,
+      "raw_offset": 10131456,
+      "characteristics": "0x40000040"
+    },
+    {
+      "name": ".data",
+      "rva": 11902976,
+      "virtual_size": 663296,
+      "raw_size": 116224,
+      "raw_offset": 11894272,
+      "characteristics": "0xc0000040"
+    },
+    {
+      "name": ".pdata",
+      "rva": 12566528,
+      "virtual_size": 330636,
+      "raw_size": 330752,
+      "raw_offset": 12010496,
+      "characteristics": "0x40000040"
+    },
+    {
+      "name": "_RDATA",
+      "rva": 12898304,
+      "virtual_size": 79112,
+      "raw_size": 79360,
+      "raw_offset": 12341248,
+      "characteristics": "0x40000040"
+    },
+    {
+      "name": ".rsrc",
+      "rva": 12980224,
+      "virtual_size": 141904,
+      "raw_size": 142336,
+      "raw_offset": 12420608,
+      "characteristics": "0x40000040"
+    },
+    {
+      "name": ".reloc",
+      "rva": 13123584,
+      "virtual_size": 20344,
+      "raw_size": 20480,
+      "raw_offset": 12562944,
+      "characteristics": "0x42000040"
+    }
+  ],
+  "imports": [
+    {
+      "dll": "libtcc.dll",
+      "symbols": [
+        {
+          "name": "tcc_list_symbols",
+          "iat_rva": "0x9ac1c0"
+        },
+        {
+          "name": "tcc_get_symbol",
+          "iat_rva": "0x9ac1c8"
+        },
+        {
+          "name": "tcc_relocate",
+          "iat_rva": "0x9ac1d0"
+        },
+        {
+          "name": "tcc_add_symbol",
+          "iat_rva": "0x9ac1d8"
+        },
+        {
+          "name": "tcc_new",
+          "iat_rva": "0x9ac1e0"
+        },
+        {
+          "name": "tcc_set_options",
+          "iat_rva": "0x9ac1e8"
+        },
+        {
+          "name": "tcc_compile_string",
+          "iat_rva": "0x9ac1f0"
+        },
+        {
+          "name": "tcc_delete",
+          "iat_rva": "0x9ac1f8"
+        },
+        {
+          "name": "tcc_set_error_func",
+          "iat_rva": "0x9ac200"
+        },
+        {
+          "name": "tcc_set_output_type",
+          "iat_rva": "0x9ac208"
+        }
+      ]
+    },
+    {
+      "dll": "steam_api64.dll",
+      "symbols": [
+        {
+          "name": "SteamInternal_ContextInit",
+          "iat_rva": "0x9ac240"
+        },
+        {
+          "name": "SteamAPI_UnregisterCallback",
+          "iat_rva": "0x9ac248"
+        },
+        {
+          "name": "SteamAPI_Shutdown",
+          "iat_rva": "0x9ac250"
+        },
+        {
+          "name": "SteamAPI_GetHSteamUser",
+          "iat_rva": "0x9ac258"
+        },
+        {
+          "name": "SteamInternal_SteamAPI_Init",
+          "iat_rva": "0x9ac260"
+        },
+        {
+          "name": "SteamAPI_RegisterCallback",
+          "iat_rva": "0x9ac268"
+        },
+        {
+          "name": "SteamAPI_RestartAppIfNecessary",
+          "iat_rva": "0x9ac270"
+        },
+        {
+          "name": "SteamInternal_FindOrCreateUserInterface",
+          "iat_rva": "0x9ac278"
+        },
+        {
+          "name": "SteamAPI_RunCallbacks",
+          "iat_rva": "0x9ac280"
+        },
+        {
+          "name": "SteamAPI_RegisterCallResult",
+          "iat_rva": "0x9ac288"
+        },
+        {
+          "name": "SteamAPI_UnregisterCallResult",
+          "iat_rva": "0x9ac290"
+        },
+        {
+          "name": "SteamInternal_FindOrCreateGameServerInterface",
+          "iat_rva": "0x9ac298"
+        }
+      ]
+    },
+    {
+      "dll": "BugSplat64.dll",
+      "symbols": [
+        {
+          "name": "??0MiniDmpSender@@QEAA@PEB_W000K@Z",
+          "iat_rva": "0x9ab050"
+        },
+        {
+          "name": "??1MiniDmpSender@@UEAA@XZ",
+          "iat_rva": "0x9ab058"
+        },
+        {
+          "name": "?setGuardByteBufferSize@MiniDmpSender@@QEAAHH@Z",
+          "iat_rva": "0x9ab060"
+        }
+      ]
+    },
+    {
+      "dll": "SDL3.dll",
+      "symbols": [
+        {
+          "name": "SDL_SetWindowPosition",
+          "iat_rva": "0x9ab8d8"
+        },
+        {
+          "name": "SDL_SetHint",
+          "iat_rva": "0x9ab8e0"
+        },
+        {
+          "name": "SDL_GetMouseState",
+          "iat_rva": "0x9ab8e8"
+        },
+        {
+          "name": "SDL_PollEvent",
+          "iat_rva": "0x9ab8f0"
+        },
+        {
+          "name": "SDL_RestoreWindow",
+          "iat_rva": "0x9ab8f8"
+        },
+        {
+          "name": "SDL_GetPrimaryDisplay",
+          "iat_rva": "0x9ab900"
+        },
+        {
+          "name": "SDL_Quit",
+          "iat_rva": "0x9ab908"
+        },
+        {
+          "name": "SDL_SetWindowBordered",
+          "iat_rva": "0x9ab910"
+        },
+        {
+          "name": "SDL_WaitAsyncIOResult",
+          "iat_rva": "0x9ab918"
+        },
+        {
+          "name": "SDL_GetWindowFlags",
+          "iat_rva": "0x9ab920"
+        },
+        {
+          "name": "SDL_SetJoystickEventsEnabled",
+          "iat_rva": "0x9ab928"
+        },
+        {
+          "name": "SDL_GetAsyncIOResult",
+          "iat_rva": "0x9ab930"
+        },
+        {
+          "name": "SDL_SignalAsyncIOQueue",
+          "iat_rva": "0x9ab938"
+        },
+        {
+          "name": "SDL_ReadAsyncIO",
+          "iat_rva": "0x9ab940"
+        },
+        {
+          "name": "SDL_CreateAsyncIOQueue",
+          "iat_rva": "0x9ab948"
+        },
+        {
+          "name": "SDL_DestroyAsyncIOQueue",
+          "iat_rva": "0x9ab950"
+        },
+        {
+          "name": "SDL_AsyncIOFromFile",
+          "iat_rva": "0x9ab958"
+        },
+        {
+          "name": "SDL_DestroyWindow",
+          "iat_rva": "0x9ab960"
+        },
+        {
+          "name": "SDL_CreateWindow",
+          "iat_rva": "0x9ab968"
+        },
+        {
+          "name": "SDL_MinimizeWindow",
+          "iat_rva": "0x9ab970"
+        },
+        {
+          "name": "SDL_SetWindowFullscreen",
+          "iat_rva": "0x9ab978"
+        },
+        {
+          "name": "SDL_GetWindowSize",
+          "iat_rva": "0x9ab980"
+        },
+        {
+          "name": "SDL_GetWindowDisplayScale",
+          "iat_rva": "0x9ab988"
+        },
+        {
+          "name": "SDL_SetClipboardText",
+          "iat_rva": "0x9ab990"
+        },
+        {
+          "name": "SDL_GetClipboardText",
+          "iat_rva": "0x9ab998"
+        },
+        {
+          "name": "SDL_free",
+          "iat_rva": "0x9ab9a0"
+        },
+        {
+          "name": "SDL_ShowOpenFileDialog",
+          "iat_rva": "0x9ab9a8"
+        },
+        {
+          "name": "SDL_GetKeyName",
+          "iat_rva": "0x9ab9b0"
+        },
+        {
+          "name": "SDL_SetTextInputArea",
+          "iat_rva": "0x9ab9b8"
+        },
+        {
+          "name": "SDL_GetScancodeName",
+          "iat_rva": "0x9ab9c0"
+        },
+        {
+          "name": "SDL_GetScancodeFromKey",
+          "iat_rva": "0x9ab9c8"
+        },
+        {
+          "name": "SDL_StartTextInput",
+          "iat_rva": "0x9ab9d0"
+        },
+        {
+          "name": "SDL_StopTextInput",
+          "iat_rva": "0x9ab9d8"
+        },
+        {
+          "name": "SDL_SetWindowResizable",
+          "iat_rva": "0x9ab9e0"
+        },
+        {
+          "name": "SDL_SetWindowHitTest",
+          "iat_rva": "0x9ab9e8"
+        },
+        {
+          "name": "SDL_Init",
+          "iat_rva": "0x9ab9f0"
+        },
+        {
+          "name": "SDL_GetDisplayBounds",
+          "iat_rva": "0x9ab9f8"
+        },
+        {
+          "name": "SDL_GetWindowPixelDensity",
+          "iat_rva": "0x9aba00"
+        },
+        {
+          "name": "SDL_MaximizeWindow",
+          "iat_rva": "0x9aba08"
+        },
+        {
+          "name": "SDL_GetWindowProperties",
+          "iat_rva": "0x9aba10"
+        },
+        {
+          "name": "SDL_GetError",
+          "iat_rva": "0x9aba18"
+        },
+        {
+          "name": "SDL_GetDisplayForWindow",
+          "iat_rva": "0x9aba20"
+        },
+        {
+          "name": "SDL_GetAsyncIOSize",
+          "iat_rva": "0x9aba28"
+        },
+        {
+          "name": "SDL_CloseAsyncIO",
+          "iat_rva": "0x9aba30"
+        },
+        {
+          "name": "SDL_GetPointerProperty",
+          "iat_rva": "0x9aba38"
+        },
+        {
+          "name": "SDL_GetKeyboardState",
+          "iat_rva": "0x9aba40"
+        },
+        {
+          "name": "SDL_RaiseWindow",
+          "iat_rva": "0x9aba48"
+        }
+      ]
+    },
+    {
+      "dll": "WS2_32.dll",
+      "symbols": [
+        {
+          "name": "#9",
+          "iat_rva": "0x9abb80"
+        },
+        {
+          "name": "#15",
+          "iat_rva": "0x9abb88"
+        },
+        {
+          "name": "#115",
+          "iat_rva": "0x9abb90"
+        },
+        {
+          "name": "#3",
+          "iat_rva": "0x9abb98"
+        },
+        {
+          "name": "WSAIoctl",
+          "iat_rva": "0x9abba0"
+        },
+        {
+          "name": "#2",
+          "iat_rva": "0x9abba8"
+        },
+        {
+          "name": "#116",
+          "iat_rva": "0x9abbb0"
+        },
+        {
+          "name": "#7",
+          "iat_rva": "0x9abbb8"
+        },
+        {
+          "name": "#21",
+          "iat_rva": "0x9abbc0"
+        },
+        {
+          "name": "WSACloseEvent",
+          "iat_rva": "0x9abbc8"
+        },
+        {
+          "name": "WSACreateEvent",
+          "iat_rva": "0x9abbd0"
+        },
+        {
+          "name": "WSAEnumNetworkEvents",
+          "iat_rva": "0x9abbd8"
+        },
+        {
+          "name": "WSAEventSelect",
+          "iat_rva": "0x9abbe0"
+        },
+        {
+          "name": "WSAResetEvent",
+          "iat_rva": "0x9abbe8"
+        },
+        {
+          "name": "WSASetEvent",
+          "iat_rva": "0x9abbf0"
+        },
+        {
+          "name": "WSAWaitForMultipleEvents",
+          "iat_rva": "0x9abbf8"
+        },
+        {
+          "name": "#23",
+          "iat_rva": "0x9abc00"
+        },
+        {
+          "name": "#151",
+          "iat_rva": "0x9abc08"
+        },
+        {
+          "name": "#18",
+          "iat_rva": "0x9abc10"
+        },
+        {
+          "name": "#112",
+          "iat_rva": "0x9abc18"
+        },
+        {
+          "name": "#1",
+          "iat_rva": "0x9abc20"
+        },
+        {
+          "name": "#4",
+          "iat_rva": "0x9abc28"
+        },
+        {
+          "name": "#5",
+          "iat_rva": "0x9abc30"
+        },
+        {
+          "name": "#6",
+          "iat_rva": "0x9abc38"
+        },
+        {
+          "name": "#16",
+          "iat_rva": "0x9abc40"
+        },
+        {
+          "name": "#8",
+          "iat_rva": "0x9abc48"
+        },
+        {
+          "name": "#19",
+          "iat_rva": "0x9abc50"
+        },
+        {
+          "name": "#111",
+          "iat_rva": "0x9abc58"
+        },
+        {
+          "name": "#10",
+          "iat_rva": "0x9abc60"
+        },
+        {
+          "name": "getaddrinfo",
+          "iat_rva": "0x9abc68"
+        },
+        {
+          "name": "freeaddrinfo",
+          "iat_rva": "0x9abc70"
+        }
+      ]
+    },
+    {
+      "dll": "CRYPT32.dll",
+      "symbols": [
+        {
+          "name": "CertFreeCertificateChainEngine",
+          "iat_rva": "0x9ab070"
+        },
+        {
+          "name": "CertCreateCertificateChainEngine",
+          "iat_rva": "0x9ab078"
+        },
+        {
+          "name": "CertOpenStore",
+          "iat_rva": "0x9ab080"
+        },
+        {
+          "name": "CertGetNameStringW",
+          "iat_rva": "0x9ab088"
+        },
+        {
+          "name": "CertFindExtension",
+          "iat_rva": "0x9ab090"
+        },
+        {
+          "name": "CertAddCertificateContextToStore",
+          "iat_rva": "0x9ab098"
+        },
+        {
+          "name": "CryptDecodeObjectEx",
+          "iat_rva": "0x9ab0a0"
+        },
+        {
+          "name": "PFXImportCertStore",
+          "iat_rva": "0x9ab0a8"
+        },
+        {
+          "name": "CryptStringToBinaryW",
+          "iat_rva": "0x9ab0b0"
+        },
+        {
+          "name": "CertFreeCertificateContext",
+          "iat_rva": "0x9ab0b8"
+        },
+        {
+          "name": "CertFreeCertificateChain",
+          "iat_rva": "0x9ab0c0"
+        },
+        {
+          "name": "CertCloseStore",
+          "iat_rva": "0x9ab0c8"
+        },
+        {
+          "name": "CertGetCertificateChain",
+          "iat_rva": "0x9ab0d0"
+        },
+        {
+          "name": "CryptQueryObject",
+          "iat_rva": "0x9ab0d8"
+        },
+        {
+          "name": "CertFindCertificateInStore",
+          "iat_rva": "0x9ab0e0"
+        },
+        {
+          "name": "CertEnumCertificatesInStore",
+          "iat_rva": "0x9ab0e8"
+        }
+      ]
+    },
+    {
+      "dll": "ole32.dll",
+      "symbols": [
+        {
+          "name": "CoTaskMemFree",
+          "iat_rva": "0x9ac218"
+        },
+        {
+          "name": "CoInitializeEx",
+          "iat_rva": "0x9ac220"
+        },
+        {
+          "name": "CoCreateInstance",
+          "iat_rva": "0x9ac228"
+        },
+        {
+          "name": "CoUninitialize",
+          "iat_rva": "0x9ac230"
+        }
+      ]
+    },
+    {
+      "dll": "Normaliz.dll",
+      "symbols": [
+        {
+          "name": "IdnToUnicode",
+          "iat_rva": "0x9ab8c0"
+        },
+        {
+          "name": "IdnToAscii",
+          "iat_rva": "0x9ab8c8"
+        }
+      ]
+    },
+    {
+      "dll": "bcrypt.dll",
+      "symbols": [
+        {
+          "name": "BCryptGenRandom",
+          "iat_rva": "0x9ac1b0"
+        }
+      ]
+    },
+    {
+      "dll": "ADVAPI32.dll",
+      "symbols": [
+        {
+          "name": "CryptReleaseContext",
+          "iat_rva": "0x9ab000"
+        },
+        {
+          "name": "RegCreateKeyExW",
+          "iat_rva": "0x9ab008"
+        },
+        {
+          "name": "CryptDestroyHash",
+          "iat_rva": "0x9ab010"
+        },
+        {
+          "name": "CryptHashData",
+          "iat_rva": "0x9ab018"
+        },
+        {
+          "name": "CryptCreateHash",
+          "iat_rva": "0x9ab020"
+        },
+        {
+          "name": "CryptGetHashParam",
+          "iat_rva": "0x9ab028"
+        },
+        {
+          "name": "RegCloseKey",
+          "iat_rva": "0x9ab030"
+        },
+        {
+          "name": "CryptAcquireContextW",
+          "iat_rva": "0x9ab038"
+        },
+        {
+          "name": "RegSetValueExW",
+          "iat_rva": "0x9ab040"
+        }
+      ]
+    },
+    {
+      "dll": "Secur32.dll",
+      "symbols": [
+        {
+          "name": "InitSecurityInterfaceW",
+          "iat_rva": "0x9aba88"
+        }
+      ]
+    },
+    {
+      "dll": "IPHLPAPI.DLL",
+      "symbols": [
+        {
+          "name": "if_nametoindex",
+          "iat_rva": "0x9ab0f8"
+        }
+      ]
+    },
+    {
+      "dll": "KERNEL32.dll",
+      "symbols": [
+        {
+          "name": "UnhandledExceptionFilter",
+          "iat_rva": "0x9ab108"
+        },
+        {
+          "name": "SetUnhandledExceptionFilter",
+          "iat_rva": "0x9ab110"
+        },
+        {
+          "name": "SleepConditionVariableCS",
+          "iat_rva": "0x9ab118"
+        },
+        {
+          "name": "VerifyVersionInfoW",
+          "iat_rva": "0x9ab120"
+        },
+        {
+          "name": "VerSetConditionMask",
+          "iat_rva": "0x9ab128"
+        },
+        {
+          "name": "MoveFileExW",
+          "iat_rva": "0x9ab130"
+        },
+        {
+          "name": "SetLastError",
+          "iat_rva": "0x9ab138"
+        },
+        {
+          "name": "SleepEx",
+          "iat_rva": "0x9ab140"
+        },
+        {
+          "name": "InitializeCriticalSectionEx",
+          "iat_rva": "0x9ab148"
+        },
+        {
+          "name": "CreateThread",
+          "iat_rva": "0x9ab150"
+        },
+        {
+          "name": "GetExitCodeThread",
+          "iat_rva": "0x9ab158"
+        },
+        {
+          "name": "FindClose",
+          "iat_rva": "0x9ab160"
+        },
+        {
+          "name": "FindNextFileW",
+          "iat_rva": "0x9ab168"
+        },
+        {
+          "name": "FindFirstFileExW",
+          "iat_rva": "0x9ab170"
+        },
+        {
+          "name": "K32GetProcessMemoryInfo",
+          "iat_rva": "0x9ab178"
+        },
+        {
+          "name": "CreateSemaphoreA",
+          "iat_rva": "0x9ab180"
+        },
+        {
+          "name": "ReleaseSemaphore",
+          "iat_rva": "0x9ab188"
+        },
+        {
+          "name": "K32EnumProcessModules",
+          "iat_rva": "0x9ab190"
+        },
+        {
+          "name": "K32GetModuleBaseNameA",
+          "iat_rva": "0x9ab198"
+        },
+        {
+          "name": "GetCurrentProcess",
+          "iat_rva": "0x9ab1a0"
+        },
+        {
+          "name": "SetThreadPriority",
+          "iat_rva": "0x9ab1a8"
+        },
+        {
+          "name": "SleepConditionVariableSRW",
+          "iat_rva": "0x9ab1b0"
+        },
+        {
+          "name": "WakeConditionVariable",
+          "iat_rva": "0x9ab1b8"
+        },
+        {
+          "name": "InitializeConditionVariable",
+          "iat_rva": "0x9ab1c0"
+        },
+        {
+          "name": "InitializeSRWLock",
+          "iat_rva": "0x9ab1c8"
+        },
+        {
+          "name": "AcquireSRWLockExclusive",
+          "iat_rva": "0x9ab1d0"
+        },
+        {
+          "name": "ReleaseSRWLockExclusive",
+          "iat_rva": "0x9ab1d8"
+        },
+        {
+          "name": "AllocConsole",
+          "iat_rva": "0x9ab1e0"
+        },
+        {
+          "name": "CreateMailslotW",
+          "iat_rva": "0x9ab1e8"
+        },
+        {
+          "name": "GetMailslotInfo",
+          "iat_rva": "0x9ab1f0"
+        },
+        {
+          "name": "ReleaseMutex",
+          "iat_rva": "0x9ab1f8"
+        },
+        {
+          "name": "GetModuleFileNameW",
+          "iat_rva": "0x9ab200"
+        },
+        {
+          "name": "RtlVirtualUnwind",
+          "iat_rva": "0x9ab208"
+        },
+        {
+          "name": "QueryPerformanceFrequency",
+          "iat_rva": "0x9ab210"
+        },
+        {
+          "name": "IsDebuggerPresent",
+          "iat_rva": "0x9ab218"
+        },
+        {
+          "name": "RaiseException",
+          "iat_rva": "0x9ab220"
+        },
+        {
+          "name": "GetCurrentThread",
+          "iat_rva": "0x9ab228"
+        },
+        {
+          "name": "GetModuleHandleA",
+          "iat_rva": "0x9ab230"
+        },
+        {
+          "name": "GetEnvironmentVariableA",
+          "iat_rva": "0x9ab238"
+        },
+        {
+          "name": "FlushFileBuffers",
+          "iat_rva": "0x9ab240"
+        },
+        {
+          "name": "GetTickCount",
+          "iat_rva": "0x9ab248"
+        },
+        {
+          "name": "QueryPerformanceCounter",
+          "iat_rva": "0x9ab250"
+        },
+        {
+          "name": "MapViewOfFile",
+          "iat_rva": "0x9ab258"
+        },
+        {
+          "name": "CreateFileMappingW",
+          "iat_rva": "0x9ab260"
+        },
+        {
+          "name": "FormatMessageA",
+          "iat_rva": "0x9ab268"
+        },
+        {
+          "name": "GetSystemTime",
+          "iat_rva": "0x9ab270"
+        },
+        {
+          "name": "GetSystemTimeAsFileTime",
+          "iat_rva": "0x9ab278"
+        },
+        {
+          "name": "FreeLibrary",
+          "iat_rva": "0x9ab280"
+        },
+        {
+          "name": "SystemTimeToFileTime",
+          "iat_rva": "0x9ab288"
+        },
+        {
+          "name": "GetProcessHeap",
+          "iat_rva": "0x9ab290"
+        },
+        {
+          "name": "GetCurrentProcessId",
+          "iat_rva": "0x9ab298"
+        },
+        {
+          "name": "DeleteCriticalSection",
+          "iat_rva": "0x9ab2a0"
+        },
+        {
+          "name": "LockFileEx",
+          "iat_rva": "0x9ab2a8"
+        },
+        {
+          "name": "UnlockFile",
+          "iat_rva": "0x9ab2b0"
+        },
+        {
+          "name": "HeapDestroy",
+          "iat_rva": "0x9ab2b8"
+        },
+        {
+          "name": "HeapCompact",
+          "iat_rva": "0x9ab2c0"
+        },
+        {
+          "name": "HeapAlloc",
+          "iat_rva": "0x9ab2c8"
+        },
+        {
+          "name": "LoadLibraryW",
+          "iat_rva": "0x9ab2d0"
+        },
+        {
+          "name": "CloseHandle",
+          "iat_rva": "0x9ab2d8"
+        },
+        {
+          "name": "HeapReAlloc",
+          "iat_rva": "0x9ab2e0"
+        },
+        {
+          "name": "DeleteFileW",
+          "iat_rva": "0x9ab2e8"
+        },
+        {
+          "name": "DeleteFileA",
+          "iat_rva": "0x9ab2f0"
+        },
+        {
+          "name": "WaitForSingleObjectEx",
+          "iat_rva": "0x9ab2f8"
+        },
+        {
+          "name": "LoadLibraryA",
+          "iat_rva": "0x9ab300"
+        },
+        {
+          "name": "CreateFileA",
+          "iat_rva": "0x9ab308"
+        },
+        {
+          "name": "FlushViewOfFile",
+          "iat_rva": "0x9ab310"
+        },
+        {
+          "name": "OutputDebugStringW",
+          "iat_rva": "0x9ab318"
+        },
+        {
+          "name": "RtlLookupFunctionEntry",
+          "iat_rva": "0x9ab320"
+        },
+        {
+          "name": "RtlCaptureContext",
+          "iat_rva": "0x9ab328"
+        },
+        {
+          "name": "InitializeSListHead",
+          "iat_rva": "0x9ab330"
+        },
+        {
+          "name": "WakeAllConditionVariable",
+          "iat_rva": "0x9ab338"
+        },
+        {
+          "name": "AcquireSRWLockShared",
+          "iat_rva": "0x9ab340"
+        },
+        {
+          "name": "ReleaseSRWLockShared",
+          "iat_rva": "0x9ab348"
+        },
+        {
+          "name": "GetFileInformationByHandleEx",
+          "iat_rva": "0x9ab350"
+        },
+        {
+          "name": "SetFileInformationByHandle",
+          "iat_rva": "0x9ab358"
+        },
+        {
+          "name": "GetFileAttributesExW",
+          "iat_rva": "0x9ab360"
+        },
+        {
+          "name": "GetFileAttributesA",
+          "iat_rva": "0x9ab368"
+        },
+        {
+          "name": "GetDiskFreeSpaceA",
+          "iat_rva": "0x9ab370"
+        },
+        {
+          "name": "GetTempPathA",
+          "iat_rva": "0x9ab378"
+        },
+        {
+          "name": "GetStartupInfoW",
+          "iat_rva": "0x9ab380"
+        },
+        {
+          "name": "Sleep",
+          "iat_rva": "0x9ab388"
+        },
+        {
+          "name": "HeapSize",
+          "iat_rva": "0x9ab390"
+        },
+        {
+          "name": "GetFileAttributesW",
+          "iat_rva": "0x9ab398"
+        },
+        {
+          "name": "IsProcessorFeaturePresent",
+          "iat_rva": "0x9ab3a0"
+        },
+        {
+          "name": "TerminateProcess",
+          "iat_rva": "0x9ab3a8"
+        },
+        {
+          "name": "FindFirstFileW",
+          "iat_rva": "0x9ab3b0"
+        },
+        {
+          "name": "CreateDirectoryW",
+          "iat_rva": "0x9ab3b8"
+        },
+        {
+          "name": "GetLocaleInfoEx",
+          "iat_rva": "0x9ab3c0"
+        },
+        {
+          "name": "InitOnceBeginInitialize",
+          "iat_rva": "0x9ab3c8"
+        },
+        {
+          "name": "InitOnceComplete",
+          "iat_rva": "0x9ab3d0"
+        },
+        {
+          "name": "HeapValidate",
+          "iat_rva": "0x9ab3d8"
+        },
+        {
+          "name": "UnmapViewOfFile",
+          "iat_rva": "0x9ab3e0"
+        },
+        {
+          "name": "GetTickCount64",
+          "iat_rva": "0x9ab3e8"
+        },
+        {
+          "name": "GetProcAddress",
+          "iat_rva": "0x9ab3f0"
+        },
+        {
+          "name": "GetModuleHandleW",
+          "iat_rva": "0x9ab3f8"
+        },
+        {
+          "name": "FormatMessageW",
+          "iat_rva": "0x9ab400"
+        },
+        {
+          "name": "GetLastError",
+          "iat_rva": "0x9ab408"
+        },
+        {
+          "name": "GetSystemInfo",
+          "iat_rva": "0x9ab410"
+        },
+        {
+          "name": "LocalFree",
+          "iat_rva": "0x9ab418"
+        },
+        {
+          "name": "GetFileSize",
+          "iat_rva": "0x9ab420"
+        },
+        {
+          "name": "MultiByteToWideChar",
+          "iat_rva": "0x9ab428"
+        },
+        {
+          "name": "WideCharToMultiByte",
+          "iat_rva": "0x9ab430"
+        },
+        {
+          "name": "AreFileApisANSI",
+          "iat_rva": "0x9ab438"
+        },
+        {
+          "name": "ReadFile",
+          "iat_rva": "0x9ab440"
+        },
+        {
+          "name": "TryEnterCriticalSection",
+          "iat_rva": "0x9ab448"
+        },
+        {
+          "name": "HeapCreate",
+          "iat_rva": "0x9ab450"
+        },
+        {
+          "name": "HeapFree",
+          "iat_rva": "0x9ab458"
+        },
+        {
+          "name": "EnterCriticalSection",
+          "iat_rva": "0x9ab460"
+        },
+        {
+          "name": "GetFullPathNameW",
+          "iat_rva": "0x9ab468"
+        },
+        {
+          "name": "WriteFile",
+          "iat_rva": "0x9ab470"
+        },
+        {
+          "name": "GetDiskFreeSpaceW",
+          "iat_rva": "0x9ab478"
+        },
+        {
+          "name": "OutputDebugStringA",
+          "iat_rva": "0x9ab480"
+        },
+        {
+          "name": "LockFile",
+          "iat_rva": "0x9ab488"
+        },
+        {
+          "name": "LeaveCriticalSection",
+          "iat_rva": "0x9ab490"
+        },
+        {
+          "name": "InitializeCriticalSection",
+          "iat_rva": "0x9ab498"
+        },
+        {
+          "name": "SetFilePointer",
+          "iat_rva": "0x9ab4a0"
+        },
+        {
+          "name": "GetFullPathNameA",
+          "iat_rva": "0x9ab4a8"
+        },
+        {
+          "name": "SetEndOfFile",
+          "iat_rva": "0x9ab4b0"
+        },
+        {
+          "name": "UnlockFileEx",
+          "iat_rva": "0x9ab4b8"
+        },
+        {
+          "name": "GetTempPathW",
+          "iat_rva": "0x9ab4c0"
+        },
+        {
+          "name": "CreateMutexW",
+          "iat_rva": "0x9ab4c8"
+        },
+        {
+          "name": "WaitForSingleObject",
+          "iat_rva": "0x9ab4d0"
+        },
+        {
+          "name": "CreateFileW",
+          "iat_rva": "0x9ab4d8"
+        },
+        {
+          "name": "GetCurrentThreadId",
+          "iat_rva": "0x9ab4e0"
+        }
+      ]
+    },
+    {
+      "dll": "USER32.dll",
+      "symbols": [
+        {
+          "name": "MessageBoxW",
+          "iat_rva": "0x9aba98"
+        }
+      ]
+    },
+    {
+      "dll": "SHELL32.dll",
+      "symbols": [
+        {
+          "name": "ShellExecuteW",
+          "iat_rva": "0x9aba58"
+        },
+        {
+          "name": "SHChangeNotify",
+          "iat_rva": "0x9aba60"
+        },
+        {
+          "name": "SHCreateItemFromParsingName",
+          "iat_rva": "0x9aba68"
+        },
+        {
+          "name": "SHFileOperationW",
+          "iat_rva": "0x9aba70"
+        },
+        {
+          "name": "SHGetKnownFolderPath",
+          "iat_rva": "0x9aba78"
+        }
+      ]
+    },
+    {
+      "dll": "MSVCP140.dll",
+      "symbols": [
+        {
+          "name": "?_Getcat@?$codecvt@DDU_Mbstatet@@@std@@SA_KPEAPEBVfacet@locale@2@PEBV42@@Z",
+          "iat_rva": "0x9ab4f0"
+        },
+        {
+          "name": "?setstate@?$basic_ios@DU?$char_traits@D@std@@@std@@QEAAXH_N@Z",
+          "iat_rva": "0x9ab4f8"
+        },
+        {
+          "name": "?eback@?$basic_streambuf@DU?$char_traits@D@std@@@std@@IEBAPEADXZ",
+          "iat_rva": "0x9ab500"
+        },
+        {
+          "name": "?setg@?$basic_streambuf@DU?$char_traits@D@std@@@std@@IEAAXPEAD00@Z",
+          "iat_rva": "0x9ab508"
+        },
+        {
+          "name": "??0?$basic_iostream@DU?$char_traits@D@std@@@std@@QEAA@PEAV?$basic_streambuf@DU?$char_traits@D@std@@@1@@Z",
+          "iat_rva": "0x9ab510"
+        },
+        {
+          "name": "?in@?$codecvt@DDU_Mbstatet@@@std@@QEBAHAEAU_Mbstatet@@PEBD1AEAPEBDPEAD3AEAPEAD@Z",
+          "iat_rva": "0x9ab518"
+        },
+        {
+          "name": "?out@?$codecvt@DDU_Mbstatet@@@std@@QEBAHAEAU_Mbstatet@@PEBD1AEAPEBDPEAD3AEAPEAD@Z",
+          "iat_rva": "0x9ab520"
+        },
+        {
+          "name": "??1?$basic_ios@DU?$char_traits@D@std@@@std@@UEAA@XZ",
+          "iat_rva": "0x9ab528"
+        },
+        {
+          "name": "??1?$basic_streambuf@DU?$char_traits@D@std@@@std@@UEAA@XZ",
+          "iat_rva": "0x9ab530"
+        },
+        {
+          "name": "?_Lock@?$basic_streambuf@DU?$char_traits@D@std@@@std@@UEAAXXZ",
+          "iat_rva": "0x9ab538"
+        },
+        {
+          "name": "?_Unlock@?$basic_streambuf@DU?$char_traits@D@std@@@std@@UEAAXXZ",
+          "iat_rva": "0x9ab540"
+        },
+        {
+          "name": "?showmanyc@?$basic_streambuf@DU?$char_traits@D@std@@@std@@MEAA_JXZ",
+          "iat_rva": "0x9ab548"
+        },
+        {
+          "name": "?uflow@?$basic_streambuf@DU?$char_traits@D@std@@@std@@MEAAHXZ",
+          "iat_rva": "0x9ab550"
+        },
+        {
+          "name": "?xsgetn@?$basic_streambuf@DU?$char_traits@D@std@@@std@@MEAA_JPEAD_J@Z",
+          "iat_rva": "0x9ab558"
+        },
+        {
+          "name": "?xsputn@?$basic_streambuf@DU?$char_traits@D@std@@@std@@MEAA_JPEBD_J@Z",
+          "iat_rva": "0x9ab560"
+        },
+        {
+          "name": "?setbuf@?$basic_streambuf@DU?$char_traits@D@std@@@std@@MEAAPEAV12@PEAD_J@Z",
+          "iat_rva": "0x9ab568"
+        },
+        {
+          "name": "?sync@?$basic_streambuf@DU?$char_traits@D@std@@@std@@MEAAHXZ",
+          "iat_rva": "0x9ab570"
+        },
+        {
+          "name": "?imbue@?$basic_streambuf@DU?$char_traits@D@std@@@std@@MEAAXAEBVlocale@2@@Z",
+          "iat_rva": "0x9ab578"
+        },
+        {
+          "name": "??1?$basic_istream@DU?$char_traits@D@std@@@std@@UEAA@XZ",
+          "iat_rva": "0x9ab580"
+        },
+        {
+          "name": "??6?$basic_ostream@DU?$char_traits@D@std@@@std@@QEAAAEAV01@PEAV?$basic_streambuf@DU?$char_traits@D@std@@@1@@Z",
+          "iat_rva": "0x9ab588"
+        },
+        {
+          "name": "??1?$basic_iostream@DU?$char_traits@D@std@@@std@@UEAA@XZ",
+          "iat_rva": "0x9ab590"
+        },
+        {
+          "name": "?good@ios_base@std@@QEBA_NXZ",
+          "iat_rva": "0x9ab598"
+        },
+        {
+          "name": "?always_noconv@codecvt_base@std@@QEBA_NXZ",
+          "iat_rva": "0x9ab5a0"
+        },
+        {
+          "name": "?uncaught_exceptions@std@@YAHXZ",
+          "iat_rva": "0x9ab5a8"
+        },
+        {
+          "name": "?cerr@std@@3V?$basic_ostream@DU?$char_traits@D@std@@@1@A",
+          "iat_rva": "0x9ab5b0"
+        },
+        {
+          "name": "?_Osfx@?$basic_ostream@DU?$char_traits@D@std@@@std@@QEAAXXZ",
+          "iat_rva": "0x9ab5b8"
+        },
+        {
+          "name": "?widen@?$basic_ios@DU?$char_traits@D@std@@@std@@QEBADD@Z",
+          "iat_rva": "0x9ab5c0"
+        },
+        {
+          "name": "?sputc@?$basic_streambuf@DU?$char_traits@D@std@@@std@@QEAAHD@Z",
+          "iat_rva": "0x9ab5c8"
+        },
+        {
+          "name": "?sputn@?$basic_streambuf@DU?$char_traits@D@std@@@std@@QEAA_JPEBD_J@Z",
+          "iat_rva": "0x9ab5d0"
+        },
+        {
+          "name": "?put@?$basic_ostream@DU?$char_traits@D@std@@@std@@QEAAAEAV12@D@Z",
+          "iat_rva": "0x9ab5d8"
+        },
+        {
+          "name": "?flush@?$basic_ostream@DU?$char_traits@D@std@@@std@@QEAAAEAV12@XZ",
+          "iat_rva": "0x9ab5e0"
+        },
+        {
+          "name": "??6?$basic_ostream@DU?$char_traits@D@std@@@std@@QEAAAEAV01@P6AAEAV01@AEAV01@@Z@Z",
+          "iat_rva": "0x9ab5e8"
+        },
+        {
+          "name": "?_Ipfx@?$basic_istream@DU?$char_traits@D@std@@@std@@QEAA_N_N@Z",
+          "iat_rva": "0x9ab5f0"
+        },
+        {
+          "name": "?sbumpc@?$basic_streambuf@DU?$char_traits@D@std@@@std@@QEAAHXZ",
+          "iat_rva": "0x9ab5f8"
+        },
+        {
+          "name": "?sgetc@?$basic_streambuf@DU?$char_traits@D@std@@@std@@QEAAHXZ",
+          "iat_rva": "0x9ab600"
+        },
+        {
+          "name": "?snextc@?$basic_streambuf@DU?$char_traits@D@std@@@std@@QEAAHXZ",
+          "iat_rva": "0x9ab608"
+        },
+        {
+          "name": "??Bios_base@std@@QEBA_NXZ",
+          "iat_rva": "0x9ab610"
+        },
+        {
+          "name": "?cout@std@@3V?$basic_ostream@DU?$char_traits@D@std@@@1@A",
+          "iat_rva": "0x9ab618"
+        },
+        {
+          "name": "??0?$basic_ostream@DU?$char_traits@D@std@@@std@@QEAA@PEAV?$basic_streambuf@DU?$char_traits@D@std@@@1@_N@Z",
+          "iat_rva": "0x9ab620"
+        },
+        {
+          "name": "??1?$basic_ostream@DU?$char_traits@D@std@@@std@@UEAA@XZ",
+          "iat_rva": "0x9ab628"
+        },
+        {
+          "name": "??6?$basic_ostream@DU?$char_traits@D@std@@@std@@QEAAAEAV01@_J@Z",
+          "iat_rva": "0x9ab630"
+        },
+        {
+          "name": "??6?$basic_ostream@DU?$char_traits@D@std@@@std@@QEAAAEAV01@_K@Z",
+          "iat_rva": "0x9ab638"
+        },
+        {
+          "name": "?_Random_device@std@@YAIXZ",
+          "iat_rva": "0x9ab640"
+        },
+        {
+          "name": "?read@?$basic_istream@DU?$char_traits@D@std@@@std@@QEAAAEAV12@PEAD_J@Z",
+          "iat_rva": "0x9ab648"
+        },
+        {
+          "name": "?seekg@?$basic_istream@DU?$char_traits@D@std@@@std@@QEAAAEAV12@_JH@Z",
+          "iat_rva": "0x9ab650"
+        },
+        {
+          "name": "?tellg@?$basic_istream@DU?$char_traits@D@std@@@std@@QEAA?AV?$fpos@U_Mbstatet@@@2@XZ",
+          "iat_rva": "0x9ab658"
+        },
+        {
+          "name": "_Xtime_get_ticks",
+          "iat_rva": "0x9ab660"
+        },
+        {
+          "name": "?setw@std@@YA?AU?$_Smanip@_J@1@_J@Z",
+          "iat_rva": "0x9ab668"
+        },
+        {
+          "name": "?get@?$basic_istream@DU?$char_traits@D@std@@@std@@QEAAHXZ",
+          "iat_rva": "0x9ab670"
+        },
+        {
+          "name": "?seekg@?$basic_istream@DU?$char_traits@D@std@@@std@@QEAAAEAV12@V?$fpos@U_Mbstatet@@@2@@Z",
+          "iat_rva": "0x9ab678"
+        },
+        {
+          "name": "??6?$basic_ostream@DU?$char_traits@D@std@@@std@@QEAAAEAV01@P6AAEAVios_base@1@AEAV21@@Z@Z",
+          "iat_rva": "0x9ab680"
+        },
+        {
+          "name": "??6?$basic_ostream@DU?$char_traits@D@std@@@std@@QEAAAEAV01@H@Z",
+          "iat_rva": "0x9ab688"
+        },
+        {
+          "name": "?write@?$basic_ostream@DU?$char_traits@D@std@@@std@@QEAAAEAV12@PEBD_J@Z",
+          "iat_rva": "0x9ab690"
+        },
+        {
+          "name": "??_D?$basic_ostream@DU?$char_traits@D@std@@@std@@QEAAXXZ",
+          "iat_rva": "0x9ab698"
+        },
+        {
+          "name": "??_D?$basic_istream@DU?$char_traits@D@std@@@std@@QEAAXXZ",
+          "iat_rva": "0x9ab6a0"
+        },
+        {
+          "name": "?eof@ios_base@std@@QEBA_NXZ",
+          "iat_rva": "0x9ab6a8"
+        },
+        {
+          "name": "??6?$basic_ostream@DU?$char_traits@D@std@@@std@@QEAAAEAV01@N@Z",
+          "iat_rva": "0x9ab6b0"
+        },
+        {
+          "name": "_Strxfrm",
+          "iat_rva": "0x9ab6b8"
+        },
+        {
+          "name": "?_Xregex_error@std@@YAXW4error_type@regex_constants@1@@Z",
+          "iat_rva": "0x9ab6c0"
+        },
+        {
+          "name": "?id@?$ctype@D@std@@2V0locale@2@A",
+          "iat_rva": "0x9ab6c8"
+        },
+        {
+          "name": "?id@?$collate@D@std@@2V0locale@2@A",
+          "iat_rva": "0x9ab6d0"
+        },
+        {
+          "name": "_Strcoll",
+          "iat_rva": "0x9ab6d8"
+        },
+        {
+          "name": "?_Getcat@?$ctype@D@std@@SA_KPEAPEBVfacet@locale@2@PEBV42@@Z",
+          "iat_rva": "0x9ab6e0"
+        },
+        {
+          "name": "?tolower@?$ctype@D@std@@QEBAPEBDPEADPEBD@Z",
+          "iat_rva": "0x9ab6e8"
+        },
+        {
+          "name": "?tolower@?$ctype@D@std@@QEBADD@Z",
+          "iat_rva": "0x9ab6f0"
+        },
+        {
+          "name": "?_Getcoll@_Locinfo@std@@QEBA?AU_Collvec@@XZ",
+          "iat_rva": "0x9ab6f8"
+        },
+        {
+          "name": "??0?$basic_ios@DU?$char_traits@D@std@@@std@@IEAA@XZ",
+          "iat_rva": "0x9ab700"
+        },
+        {
+          "name": "??0?$basic_istream@DU?$char_traits@D@std@@@std@@QEAA@PEAV?$basic_streambuf@DU?$char_traits@D@std@@@1@_N@Z",
+          "iat_rva": "0x9ab708"
+        },
+        {
+          "name": "?unshift@?$codecvt@DDU_Mbstatet@@@std@@QEBAHAEAU_Mbstatet@@PEAD1AEAPEAD@Z",
+          "iat_rva": "0x9ab710"
+        },
+        {
+          "name": "?_Init@?$basic_streambuf@DU?$char_traits@D@std@@@std@@IEAAXXZ",
+          "iat_rva": "0x9ab718"
+        },
+        {
+          "name": "??0?$basic_streambuf@DU?$char_traits@D@std@@@std@@IEAA@XZ",
+          "iat_rva": "0x9ab720"
+        },
+        {
+          "name": "?getloc@?$basic_streambuf@DU?$char_traits@D@std@@@std@@QEBA?AVlocale@2@XZ",
+          "iat_rva": "0x9ab728"
+        },
+        {
+          "name": "?_Fiopen@std@@YAPEAU_iobuf@@PEB_WHH@Z",
+          "iat_rva": "0x9ab730"
+        },
+        {
+          "name": "_Cnd_signal",
+          "iat_rva": "0x9ab738"
+        },
+        {
+          "name": "_Thrd_hardware_concurrency",
+          "iat_rva": "0x9ab740"
+        },
+        {
+          "name": "?__ExceptionPtrCreate@@YAXPEAX@Z",
+          "iat_rva": "0x9ab748"
+        },
+        {
+          "name": "?__ExceptionPtrCopyException@@YAXPEAXPEBX1@Z",
+          "iat_rva": "0x9ab750"
+        },
+        {
+          "name": "?__ExceptionPtrCopy@@YAXPEAXPEBX@Z",
+          "iat_rva": "0x9ab758"
+        },
+        {
+          "name": "?_Throw_Cpp_error@std@@YAXH@Z",
+          "iat_rva": "0x9ab760"
+        },
+        {
+          "name": "?_Xlength_error@std@@YAXPEBD@Z",
+          "iat_rva": "0x9ab768"
+        },
+        {
+          "name": "?_Syserror_map@std@@YAPEBDH@Z",
+          "iat_rva": "0x9ab770"
+        },
+        {
+          "name": "?__ExceptionPtrDestroy@@YAXPEAX@Z",
+          "iat_rva": "0x9ab778"
+        },
+        {
+          "name": "_Mtx_lock",
+          "iat_rva": "0x9ab780"
+        },
+        {
+          "name": "_Cnd_do_broadcast_at_thread_exit",
+          "iat_rva": "0x9ab788"
+        },
+        {
+          "name": "_Cnd_wait",
+          "iat_rva": "0x9ab790"
+        },
+        {
+          "name": "_Thrd_detach",
+          "iat_rva": "0x9ab798"
+        },
+        {
+          "name": "_Mtx_unlock",
+          "iat_rva": "0x9ab7a0"
+        },
+        {
+          "name": "?_Xbad_function_call@std@@YAXXZ",
+          "iat_rva": "0x9ab7a8"
+        },
+        {
+          "name": "_Thrd_id",
+          "iat_rva": "0x9ab7b0"
+        },
+        {
+          "name": "_Thrd_join",
+          "iat_rva": "0x9ab7b8"
+        },
+        {
+          "name": "??1_Lockit@std@@QEAA@XZ",
+          "iat_rva": "0x9ab7c0"
+        },
+        {
+          "name": "??0_Lockit@std@@QEAA@H@Z",
+          "iat_rva": "0x9ab7c8"
+        },
+        {
+          "name": "?_Getgloballocale@locale@std@@CAPEAV_Locimp@12@XZ",
+          "iat_rva": "0x9ab7d0"
+        },
+        {
+          "name": "?_Init@locale@std@@CAPEAV_Locimp@12@_N@Z",
+          "iat_rva": "0x9ab7d8"
+        },
+        {
+          "name": "?_Xbad_alloc@std@@YAXXZ",
+          "iat_rva": "0x9ab7e0"
+        },
+        {
+          "name": "?_Id_cnt@id@locale@std@@0HA",
+          "iat_rva": "0x9ab7e8"
+        },
+        {
+          "name": "?id@?$numpunct@D@std@@2V0locale@2@A",
+          "iat_rva": "0x9ab7f0"
+        },
+        {
+          "name": "??1facet@locale@std@@MEAA@XZ",
+          "iat_rva": "0x9ab7f8"
+        },
+        {
+          "name": "??0facet@locale@std@@IEAA@_K@Z",
+          "iat_rva": "0x9ab800"
+        },
+        {
+          "name": "?_Decref@facet@locale@std@@UEAAPEAV_Facet_base@3@XZ",
+          "iat_rva": "0x9ab808"
+        },
+        {
+          "name": "?_Incref@facet@locale@std@@UEAAXXZ",
+          "iat_rva": "0x9ab810"
+        },
+        {
+          "name": "?_Gettrue@_Locinfo@std@@QEBAPEBDXZ",
+          "iat_rva": "0x9ab818"
+        },
+        {
+          "name": "?_Getfalse@_Locinfo@std@@QEBAPEBDXZ",
+          "iat_rva": "0x9ab820"
+        },
+        {
+          "name": "?_Getlconv@_Locinfo@std@@QEBAPEBUlconv@@XZ",
+          "iat_rva": "0x9ab828"
+        },
+        {
+          "name": "?_Getcvt@_Locinfo@std@@QEBA?AU_Cvtvec@@XZ",
+          "iat_rva": "0x9ab830"
+        },
+        {
+          "name": "??1_Locinfo@std@@QEAA@XZ",
+          "iat_rva": "0x9ab838"
+        },
+        {
+          "name": "??0_Locinfo@std@@QEAA@PEBD@Z",
+          "iat_rva": "0x9ab840"
+        },
+        {
+          "name": "?_Xout_of_range@std@@YAXPEBD@Z",
+          "iat_rva": "0x9ab848"
+        },
+        {
+          "name": "?__ExceptionPtrAssign@@YAXPEAXPEBX@Z",
+          "iat_rva": "0x9ab850"
+        },
+        {
+          "name": "_Cnd_unregister_at_thread_exit",
+          "iat_rva": "0x9ab858"
+        },
+        {
+          "name": "?__ExceptionPtrToBool@@YA_NPEBX@Z",
+          "iat_rva": "0x9ab860"
+        },
+        {
+          "name": "?__ExceptionPtrRethrow@@YAXPEBX@Z",
+          "iat_rva": "0x9ab868"
+        },
+        {
+          "name": "_Cnd_register_at_thread_exit",
+          "iat_rva": "0x9ab870"
+        },
+        {
+          "name": "_Cnd_broadcast",
+          "iat_rva": "0x9ab878"
+        },
+        {
+          "name": "?_Winerror_map@std@@YAHH@Z",
+          "iat_rva": "0x9ab880"
+        },
+        {
+          "name": "?id@?$codecvt@DDU_Mbstatet@@@std@@2V0locale@2@A",
+          "iat_rva": "0x9ab888"
+        },
+        {
+          "name": "_Query_perf_counter",
+          "iat_rva": "0x9ab890"
+        },
+        {
+          "name": "_Query_perf_frequency",
+          "iat_rva": "0x9ab898"
+        }
+      ]
+    },
+    {
+      "dll": "MSVCP140_ATOMIC_WAIT.dll",
+      "symbols": [
+        {
+          "name": "__std_atomic_wait_direct",
+          "iat_rva": "0x9ab8a8"
+        },
+        {
+          "name": "__std_atomic_notify_all_direct",
+          "iat_rva": "0x9ab8b0"
+        }
+      ]
+    },
+    {
+      "dll": "VCRUNTIME140_1.dll",
+      "symbols": [
+        {
+          "name": "__CxxFrameHandler4",
+          "iat_rva": "0x9abb70"
+        }
+      ]
+    },
+    {
+      "dll": "VCRUNTIME140.dll",
+      "symbols": [
+        {
+          "name": "strstr",
+          "iat_rva": "0x9abaa8"
+        },
+        {
+          "name": "_CxxThrowException",
+          "iat_rva": "0x9abab0"
+        },
+        {
+          "name": "memcmp",
+          "iat_rva": "0x9abab8"
+        },
+        {
+          "name": "memcpy",
+          "iat_rva": "0x9abac0"
+        },
+        {
+          "name": "memmove",
+          "iat_rva": "0x9abac8"
+        },
+        {
+          "name": "memset",
+          "iat_rva": "0x9abad0"
+        },
+        {
+          "name": "__std_type_info_name",
+          "iat_rva": "0x9abad8"
+        },
+        {
+          "name": "strrchr",
+          "iat_rva": "0x9abae0"
+        },
+        {
+          "name": "wcschr",
+          "iat_rva": "0x9abae8"
+        },
+        {
+          "name": "__current_exception",
+          "iat_rva": "0x9abaf0"
+        },
+        {
+          "name": "__current_exception_context",
+          "iat_rva": "0x9abaf8"
+        },
+        {
+          "name": "__intrinsic_setjmp",
+          "iat_rva": "0x9abb00"
+        },
+        {
+          "name": "__RTDynamicCast",
+          "iat_rva": "0x9abb08"
+        },
+        {
+          "name": "strchr",
+          "iat_rva": "0x9abb10"
+        },
+        {
+          "name": "_set_purecall_handler",
+          "iat_rva": "0x9abb18"
+        },
+        {
+          "name": "longjmp",
+          "iat_rva": "0x9abb20"
+        },
+        {
+          "name": "set_unexpected",
+          "iat_rva": "0x9abb28"
+        },
+        {
+          "name": "__C_specific_handler",
+          "iat_rva": "0x9abb30"
+        },
+        {
+          "name": "__std_type_info_compare",
+          "iat_rva": "0x9abb38"
+        },
+        {
+          "name": "_purecall",
+          "iat_rva": "0x9abb40"
+        },
+        {
+          "name": "__std_terminate",
+          "iat_rva": "0x9abb48"
+        },
+        {
+          "name": "memchr",
+          "iat_rva": "0x9abb50"
+        },
+        {
+          "name": "__std_exception_destroy",
+          "iat_rva": "0x9abb58"
+        },
+        {
+          "name": "__std_exception_copy",
+          "iat_rva": "0x9abb60"
+        }
+      ]
+    },
+    {
+      "dll": "api-ms-win-crt-heap-l1-1-0.dll",
+      "symbols": [
+        {
+          "name": "calloc",
+          "iat_rva": "0x9abd08"
+        },
+        {
+          "name": "free",
+          "iat_rva": "0x9abd10"
+        },
+        {
+          "name": "_aligned_malloc",
+          "iat_rva": "0x9abd18"
+        },
+        {
+          "name": "_aligned_realloc",
+          "iat_rva": "0x9abd20"
+        },
+        {
+          "name": "_set_new_mode",
+          "iat_rva": "0x9abd28"
+        },
+        {
+          "name": "_callnewh",
+          "iat_rva": "0x9abd30"
+        },
+        {
+          "name": "malloc",
+          "iat_rva": "0x9abd38"
+        },
+        {
+          "name": "_aligned_free",
+          "iat_rva": "0x9abd40"
+        },
+        {
+          "name": "_msize",
+          "iat_rva": "0x9abd48"
+        },
+        {
+          "name": "realloc",
+          "iat_rva": "0x9abd50"
+        }
+      ]
+    },
+    {
+      "dll": "api-ms-win-crt-runtime-l1-1-0.dll",
+      "symbols": [
+        {
+          "name": "_set_new_handler",
+          "iat_rva": "0x9abef0"
+        },
+        {
+          "name": "abort",
+          "iat_rva": "0x9abef8"
+        },
+        {
+          "name": "_endthreadex",
+          "iat_rva": "0x9abf00"
+        },
+        {
+          "name": "_set_invalid_parameter_handler",
+          "iat_rva": "0x9abf08"
+        },
+        {
+          "name": "signal",
+          "iat_rva": "0x9abf10"
+        },
+        {
+          "name": "_invoke_watson",
+          "iat_rva": "0x9abf18"
+        },
+        {
+          "name": "_beginthreadex",
+          "iat_rva": "0x9abf20"
+        },
+        {
+          "name": "_set_abort_behavior",
+          "iat_rva": "0x9abf28"
+        },
+        {
+          "name": "terminate",
+          "iat_rva": "0x9abf30"
+        },
+        {
+          "name": "_register_thread_local_exe_atexit_callback",
+          "iat_rva": "0x9abf38"
+        },
+        {
+          "name": "exit",
+          "iat_rva": "0x9abf40"
+        },
+        {
+          "name": "_c_exit",
+          "iat_rva": "0x9abf48"
+        },
+        {
+          "name": "_exit",
+          "iat_rva": "0x9abf50"
+        },
+        {
+          "name": "_initterm_e",
+          "iat_rva": "0x9abf58"
+        },
+        {
+          "name": "_initterm",
+          "iat_rva": "0x9abf60"
+        },
+        {
+          "name": "_get_wide_winmain_command_line",
+          "iat_rva": "0x9abf68"
+        },
+        {
+          "name": "_initialize_wide_environment",
+          "iat_rva": "0x9abf70"
+        },
+        {
+          "name": "_configure_wide_argv",
+          "iat_rva": "0x9abf78"
+        },
+        {
+          "name": "_set_app_type",
+          "iat_rva": "0x9abf80"
+        },
+        {
+          "name": "_seh_filter_exe",
+          "iat_rva": "0x9abf88"
+        },
+        {
+          "name": "_cexit",
+          "iat_rva": "0x9abf90"
+        },
+        {
+          "name": "_crt_atexit",
+          "iat_rva": "0x9abf98"
+        },
+        {
+          "name": "_register_onexit_function",
+          "iat_rva": "0x9abfa0"
+        },
+        {
+          "name": "_errno",
+          "iat_rva": "0x9abfa8"
+        },
+        {
+          "name": "_initialize_onexit_table",
+          "iat_rva": "0x9abfb0"
+        },
+        {
+          "name": "_wassert",
+          "iat_rva": "0x9abfb8"
+        },
+        {
+          "name": "strerror_s",
+          "iat_rva": "0x9abfc0"
+        },
+        {
+          "name": "set_terminate",
+          "iat_rva": "0x9abfc8"
+        }
+      ]
+    },
+    {
+      "dll": "api-ms-win-crt-convert-l1-1-0.dll",
+      "symbols": [
+        {
+          "name": "strtoll",
+          "iat_rva": "0x9abc80"
+        },
+        {
+          "name": "strtoul",
+          "iat_rva": "0x9abc88"
+        },
+        {
+          "name": "strtoull",
+          "iat_rva": "0x9abc90"
+        },
+        {
+          "name": "strtod",
+          "iat_rva": "0x9abc98"
+        },
+        {
+          "name": "wcstombs",
+          "iat_rva": "0x9abca0"
+        },
+        {
+          "name": "mbstowcs",
+          "iat_rva": "0x9abca8"
+        },
+        {
+          "name": "strtol",
+          "iat_rva": "0x9abcb0"
+        }
+      ]
+    },
+    {
+      "dll": "api-ms-win-crt-environment-l1-1-0.dll",
+      "symbols": [
+        {
+          "name": "_dupenv_s",
+          "iat_rva": "0x9abcc0"
+        }
+      ]
+    },
+    {
+      "dll": "api-ms-win-crt-math-l1-1-0.dll",
+      "symbols": [
+        {
+          "name": "log10f",
+          "iat_rva": "0x9abd88"
+        },
+        {
+          "name": "sinh",
+          "iat_rva": "0x9abd90"
+        },
+        {
+          "name": "log10",
+          "iat_rva": "0x9abd98"
+        },
+        {
+          "name": "log",
+          "iat_rva": "0x9abda0"
+        },
+        {
+          "name": "fmodf",
+          "iat_rva": "0x9abda8"
+        },
+        {
+          "name": "tan",
+          "iat_rva": "0x9abdb0"
+        },
+        {
+          "name": "fmod",
+          "iat_rva": "0x9abdb8"
+        },
+        {
+          "name": "nearbyint",
+          "iat_rva": "0x9abdc0"
+        },
+        {
+          "name": "expf",
+          "iat_rva": "0x9abdc8"
+        },
+        {
+          "name": "sin",
+          "iat_rva": "0x9abdd0"
+        },
+        {
+          "name": "powf",
+          "iat_rva": "0x9abdd8"
+        },
+        {
+          "name": "__setusermatherr",
+          "iat_rva": "0x9abde0"
+        },
+        {
+          "name": "exp",
+          "iat_rva": "0x9abde8"
+        },
+        {
+          "name": "round",
+          "iat_rva": "0x9abdf0"
+        },
+        {
+          "name": "log2",
+          "iat_rva": "0x9abdf8"
+        },
+        {
+          "name": "_fdopen",
+          "iat_rva": "0x9abe00"
+        },
+        {
+          "name": "lroundf",
+          "iat_rva": "0x9abe08"
+        },
+        {
+          "name": "cos",
+          "iat_rva": "0x9abe10"
+        },
+        {
+          "name": "atan2f",
+          "iat_rva": "0x9abe18"
+        },
+        {
+          "name": "atan2",
+          "iat_rva": "0x9abe20"
+        },
+        {
+          "name": "atan",
+          "iat_rva": "0x9abe28"
+        },
+        {
+          "name": "asin",
+          "iat_rva": "0x9abe30"
+        },
+        {
+          "name": "acosf",
+          "iat_rva": "0x9abe38"
+        },
+        {
+          "name": "acos",
+          "iat_rva": "0x9abe40"
+        },
+        {
+          "name": "_ldclass",
+          "iat_rva": "0x9abe48"
+        },
+        {
+          "name": "_dsign",
+          "iat_rva": "0x9abe50"
+        },
+        {
+          "name": "llroundf",
+          "iat_rva": "0x9abe58"
+        },
+        {
+          "name": "llround",
+          "iat_rva": "0x9abe60"
+        },
+        {
+          "name": "roundf",
+          "iat_rva": "0x9abe68"
+        },
+        {
+          "name": "fmax",
+          "iat_rva": "0x9abe70"
+        },
+        {
+          "name": "fmin",
+          "iat_rva": "0x9abe78"
+        },
+        {
+          "name": "fmaxf",
+          "iat_rva": "0x9abe80"
+        },
+        {
+          "name": "fminf",
+          "iat_rva": "0x9abe88"
+        },
+        {
+          "name": "tanf",
+          "iat_rva": "0x9abe90"
+        },
+        {
+          "name": "lround",
+          "iat_rva": "0x9abe98"
+        },
+        {
+          "name": "nextafter",
+          "iat_rva": "0x9abea0"
+        },
+        {
+          "name": "_dclass",
+          "iat_rva": "0x9abea8"
+        },
+        {
+          "name": "_fdclass",
+          "iat_rva": "0x9abeb0"
+        },
+        {
+          "name": "logf",
+          "iat_rva": "0x9abeb8"
+        },
+        {
+          "name": "pow",
+          "iat_rva": "0x9abec0"
+        },
+        {
+          "name": "ceilf",
+          "iat_rva": "0x9abec8"
+        },
+        {
+          "name": "_ldsign",
+          "iat_rva": "0x9abed0"
+        },
+        {
+          "name": "_fdsign",
+          "iat_rva": "0x9abed8"
+        },
+        {
+          "name": "ldexp",
+          "iat_rva": "0x9abee0"
+        }
+      ]
+    },
+    {
+      "dll": "api-ms-win-crt-stdio-l1-1-0.dll",
+      "symbols": [
+        {
+          "name": "_wfsopen",
+          "iat_rva": "0x9abfd8"
+        },
+        {
+          "name": "setvbuf",
+          "iat_rva": "0x9abfe0"
+        },
+        {
+          "name": "fclose",
+          "iat_rva": "0x9abfe8"
+        },
+        {
+          "name": "fgetpos",
+          "iat_rva": "0x9abff0"
+        },
+        {
+          "name": "fgetc",
+          "iat_rva": "0x9abff8"
+        },
+        {
+          "name": "fgets",
+          "iat_rva": "0x9ac000"
+        },
+        {
+          "name": "fopen",
+          "iat_rva": "0x9ac008"
+        },
+        {
+          "name": "ungetc",
+          "iat_rva": "0x9ac010"
+        },
+        {
+          "name": "fputs",
+          "iat_rva": "0x9ac018"
+        },
+        {
+          "name": "fsetpos",
+          "iat_rva": "0x9ac020"
+        },
+        {
+          "name": "fread",
+          "iat_rva": "0x9ac028"
+        },
+        {
+          "name": "fwrite",
+          "iat_rva": "0x9ac030"
+        },
+        {
+          "name": "_fileno",
+          "iat_rva": "0x9ac038"
+        },
+        {
+          "name": "__stdio_common_vfprintf",
+          "iat_rva": "0x9ac040"
+        },
+        {
+          "name": "fflush",
+          "iat_rva": "0x9ac048"
+        },
+        {
+          "name": "_wsopen_s",
+          "iat_rva": "0x9ac050"
+        },
+        {
+          "name": "_fseeki64",
+          "iat_rva": "0x9ac058"
+        },
+        {
+          "name": "_get_stream_buffer_pointers",
+          "iat_rva": "0x9ac060"
+        },
+        {
+          "name": "_ftelli64",
+          "iat_rva": "0x9ac068"
+        },
+        {
+          "name": "freopen",
+          "iat_rva": "0x9ac070"
+        },
+        {
+          "name": "__acrt_iob_func",
+          "iat_rva": "0x9ac078"
+        },
+        {
+          "name": "_set_fmode",
+          "iat_rva": "0x9ac080"
+        },
+        {
+          "name": "fputc",
+          "iat_rva": "0x9ac088"
+        },
+        {
+          "name": "__p__commode",
+          "iat_rva": "0x9ac090"
+        },
+        {
+          "name": "ftell",
+          "iat_rva": "0x9ac098"
+        },
+        {
+          "name": "ferror",
+          "iat_rva": "0x9ac0a0"
+        },
+        {
+          "name": "fseek",
+          "iat_rva": "0x9ac0a8"
+        },
+        {
+          "name": "__stdio_common_vsprintf",
+          "iat_rva": "0x9ac0b0"
+        },
+        {
+          "name": "__stdio_common_vsscanf",
+          "iat_rva": "0x9ac0b8"
+        },
+        {
+          "name": "feof",
+          "iat_rva": "0x9ac0c0"
+        },
+        {
+          "name": "_close",
+          "iat_rva": "0x9ac0c8"
+        }
+      ]
+    },
+    {
+      "dll": "api-ms-win-crt-time-l1-1-0.dll",
+      "symbols": [
+        {
+          "name": "_time64",
+          "iat_rva": "0x9ac160"
+        },
+        {
+          "name": "_gmtime64_s",
+          "iat_rva": "0x9ac168"
+        },
+        {
+          "name": "strftime",
+          "iat_rva": "0x9ac170"
+        },
+        {
+          "name": "_localtime64_s",
+          "iat_rva": "0x9ac178"
+        },
+        {
+          "name": "_localtime64",
+          "iat_rva": "0x9ac180"
+        },
+        {
+          "name": "asctime",
+          "iat_rva": "0x9ac188"
+        }
+      ]
+    },
+    {
+      "dll": "api-ms-win-crt-string-l1-1-0.dll",
+      "symbols": [
+        {
+          "name": "strncpy",
+          "iat_rva": "0x9ac0d8"
+        },
+        {
+          "name": "strlen",
+          "iat_rva": "0x9ac0e0"
+        },
+        {
+          "name": "strncmp",
+          "iat_rva": "0x9ac0e8"
+        },
+        {
+          "name": "strcspn",
+          "iat_rva": "0x9ac0f0"
+        },
+        {
+          "name": "wcslen",
+          "iat_rva": "0x9ac0f8"
+        },
+        {
+          "name": "_stricmp",
+          "iat_rva": "0x9ac100"
+        },
+        {
+          "name": "tolower",
+          "iat_rva": "0x9ac108"
+        },
+        {
+          "name": "isspace",
+          "iat_rva": "0x9ac110"
+        },
+        {
+          "name": "ispunct",
+          "iat_rva": "0x9ac118"
+        },
+        {
+          "name": "toupper",
+          "iat_rva": "0x9ac120"
+        },
+        {
+          "name": "wcsncmp",
+          "iat_rva": "0x9ac128"
+        },
+        {
+          "name": "wcsncpy_s",
+          "iat_rva": "0x9ac130"
+        },
+        {
+          "name": "wcscpy_s",
+          "iat_rva": "0x9ac138"
+        },
+        {
+          "name": "strspn",
+          "iat_rva": "0x9ac140"
+        },
+        {
+          "name": "strcmp",
+          "iat_rva": "0x9ac148"
+        },
+        {
+          "name": "_strdup",
+          "iat_rva": "0x9ac150"
+        }
+      ]
+    },
+    {
+      "dll": "api-ms-win-crt-locale-l1-1-0.dll",
+      "symbols": [
+        {
+          "name": "_configthreadlocale",
+          "iat_rva": "0x9abd60"
+        },
+        {
+          "name": "localeconv",
+          "iat_rva": "0x9abd68"
+        },
+        {
+          "name": "setlocale",
+          "iat_rva": "0x9abd70"
+        },
+        {
+          "name": "___lc_codepage_func",
+          "iat_rva": "0x9abd78"
+        }
+      ]
+    },
+    {
+      "dll": "api-ms-win-crt-filesystem-l1-1-0.dll",
+      "symbols": [
+        {
+          "name": "_fstat64",
+          "iat_rva": "0x9abcd0"
+        },
+        {
+          "name": "_fullpath",
+          "iat_rva": "0x9abcd8"
+        },
+        {
+          "name": "_unlink",
+          "iat_rva": "0x9abce0"
+        },
+        {
+          "name": "_wstat64",
+          "iat_rva": "0x9abce8"
+        },
+        {
+          "name": "_lock_file",
+          "iat_rva": "0x9abcf0"
+        },
+        {
+          "name": "_unlock_file",
+          "iat_rva": "0x9abcf8"
+        }
+      ]
+    },
+    {
+      "dll": "api-ms-win-crt-utility-l1-1-0.dll",
+      "symbols": [
+        {
+          "name": "bsearch",
+          "iat_rva": "0x9ac198"
+        },
+        {
+          "name": "qsort",
+          "iat_rva": "0x9ac1a0"
+        }
+      ]
+    }
+  ],
+  "exports": [
+    {
+      "name": "AmdPowerXpressRequestHighPerformance",
+      "ordinal": 1,
+      "rva": "0xb5b0f0",
+      "forwarder": null
+    },
+    {
+      "name": "NvOptimusEnablement",
+      "ordinal": 2,
+      "rva": "0xb5b0ec",
+      "forwarder": null
+    },
+    {
+      "name": "lerc_computeCompressedSize",
+      "ordinal": 3,
+      "rva": "0x162900",
+      "forwarder": null
+    },
+    {
+      "name": "lerc_computeCompressedSizeForVersion",
+      "ordinal": 4,
+      "rva": "0x162a10",
+      "forwarder": null
+    },
+    {
+      "name": "lerc_computeCompressedSize_4D",
+      "ordinal": 5,
+      "rva": "0x163190",
+      "forwarder": null
+    },
+    {
+      "name": "lerc_decode",
+      "ordinal": 6,
+      "rva": "0x163030",
+      "forwarder": null
+    },
+    {
+      "name": "lerc_decodeToDouble",
+      "ordinal": 7,
+      "rva": "0x163130",
+      "forwarder": null
+    },
+    {
+      "name": "lerc_decodeToDouble_4D",
+      "ordinal": 8,
+      "rva": "0x163520",
+      "forwarder": null
+    },
+    {
+      "name": "lerc_decode_4D",
+      "ordinal": 9,
+      "rva": "0x163420",
+      "forwarder": null
+    },
+    {
+      "name": "lerc_encode",
+      "ordinal": 10,
+      "rva": "0x162b30",
+      "forwarder": null
+    },
+    {
+      "name": "lerc_encodeForVersion",
+      "ordinal": 11,
+      "rva": "0x162c80",
+      "forwarder": null
+    },
+    {
+      "name": "lerc_encode_4D",
+      "ordinal": 12,
+      "rva": "0x1632c0",
+      "forwarder": null
+    },
+    {
+      "name": "lerc_getBlobInfo",
+      "ordinal": 13,
+      "rva": "0x162dd0",
+      "forwarder": null
+    },
+    {
+      "name": "lerc_getDataRanges",
+      "ordinal": 14,
+      "rva": "0x162fc0",
+      "forwarder": null
+    }
+  ],
+  "debug": [
+    {
+      "type": 2,
+      "size": 83,
+      "codeview": {
+        "guid_bytes": "8b24c9404e8904499064dd6366bbfc1a",
+        "age": 1,
+        "pdb_path": "C:\\development\\nimby\\build\\win-msvc\\Release\\NimbyRails.pdb"
+      }
+    },
+    {
+      "type": 12,
+      "size": 20,
+      "codeview": null
+    },
+    {
+      "type": 13,
+      "size": 944,
+      "codeview": null
+    }
+  ]
+}

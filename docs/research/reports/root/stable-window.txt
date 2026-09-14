@@ -1,0 +1,10 @@
+Research PID=64116 SHA256=FFF49AC21720ABFC824C2B4F68B862727630EB0DB71CFE1F9EA8F685D0DB10AE
+RESOLVED base=0x7ff79aa50000 root=0x2827fd6a080 database=0x2829dbf35b0 copy=0x282a6789610 simulation=0x282a64a2fc0 global_rva=0xb81998
+TRAIN id=0x5000000000003 name=B81500
+TRAIN id=0x5000000010003 name=B81501
+TRAIN id=0x5000000020002 name=B81502
+TRAIN id=0x5000000030001 name=TGV-M 900
+TRAIN id=0x5000000040002 name=B81503
+Discovery scanned=0 MiB limit_reached=0 train_candidates=1 motion_candidates=2
+Candidates require UI correlation and lifetime/thread validation; no hooks installed.
+MONITOR visible=1 rows=5 refresh_ms=250

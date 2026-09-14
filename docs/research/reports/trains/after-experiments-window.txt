@@ -1,0 +1,23 @@
+Research PID=73252 SHA256=FFF49AC21720ABFC824C2B4F68B862727630EB0DB71CFE1F9EA8F685D0DB10AE
+CANDIDATE Motion pool=0x1cd80a401e0 blocks=1 slots=512 live=5
+  id=0x5000000000003 address=0x1cd9e204040 presence=1 raw_speed=37.1836226
+  id=0x5000000010003 address=0x1cd9e204678 presence=0 raw_speed=0
+  id=0x5000000020002 address=0x1cd9e204cb0 presence=1 raw_speed=37.6834675
+  id=0x5000000030001 address=0x1cd9e2052e8 presence=1 raw_speed=0.914361611
+  id=0x5000000040002 address=0x1cd9e205920 presence=1 raw_speed=20.8143215
+CANDIDATE Motion pool=0x1cdca7a1c40 blocks=1 slots=512 live=5
+  id=0x5000000000003 address=0x1cd9ded7040 presence=1 raw_speed=38.0427063
+  id=0x5000000010003 address=0x1cd9ded7678 presence=0 raw_speed=0
+  id=0x5000000020002 address=0x1cd9ded7cb0 presence=1 raw_speed=36.9247288
+  id=0x5000000030001 address=0x1cd9ded82e8 presence=1 raw_speed=0
+  id=0x5000000040002 address=0x1cd9ded8920 presence=1 raw_speed=22.3306822
+CANDIDATE Train pool=0x1cdca904500 blocks=1 slots=2048 live=5
+  id=0x5000000000003 address=0x1cd9dcb5040 name=B81500 code=B81500
+  id=0x5000000010003 address=0x1cd9dcb51b8 name=B81501 code=B81501
+  id=0x5000000020002 address=0x1cd9dcb5330 name=B81502 code=B81502
+  id=0x5000000030001 address=0x1cd9dcb54a8 name=TGV-M 900 code=TGV-M 900
+  id=0x5000000040002 address=0x1cd9dcb5620 name=B81503 code=B81503
+Discovery scanned=2824 MiB limit_reached=0 train_candidates=1 motion_candidates=2
+CONTEXT_CANDIDATE address=0x1cdcaab0fa8 vtable=0x7ff79b4bd430 world_owner=0x1cdca904300 motion_pool=0x1cdca7a1c40
+Candidates require UI correlation and lifetime/thread validation; no hooks installed.
+MONITOR visible=1 rows=5 refresh_ms=250

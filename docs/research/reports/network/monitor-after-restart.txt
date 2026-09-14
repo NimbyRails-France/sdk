@@ -1,0 +1,60 @@
+﻿Research PID=53392 SHA256=FFF49AC21720ABFC824C2B4F68B862727630EB0DB71CFE1F9EA8F685D0DB10AE
+RESOLVED base=0x7ff79aa50000 root=0x26741ad2140 database=0x267d67572c0 copy=0x2679cdf4fa0 simulation=0x2679c8e4d00 global_rva=0xb81998
+TRAIN id=0x5000000000003 name=B81500
+TRAIN id=0x5000000010003 name=B81501
+TRAIN id=0x5000000020002 name=B81502
+TRAIN id=0x5000000030001 name=TGV-M 900
+TRAIN id=0x5000000040002 name=B81503
+Discovery scanned=0 MiB limit_reached=0 train_candidates=1 motion_candidates=2
+Candidates require UI correlation and lifetime/thread validation; no hooks installed.
+NETWORK tracks=379 stations=9 signals=27 balises=2
+SAMPLE tick=0 source=0 id=0x5000000000003 name=B81500 presence=1 km_h=4.616494 position_valid=1 track=0x1000000630001 fraction=0.182160565 direction=1
+SAMPLE tick=0 source=0 id=0x5000000010003 name=B81501 presence=1 km_h=30.023759 position_valid=1 track=0x10000005b0001 fraction=0.331193536 direction=1
+SAMPLE tick=0 source=0 id=0x5000000020002 name=B81502 presence=1 km_h=99.049913 position_valid=1 track=0x10000003a0001 fraction=0.327729562 direction=1
+SAMPLE tick=0 source=0 id=0x5000000030001 name=TGV-M 900 presence=1 km_h=106.101113 position_valid=1 track=0x1000000060003 fraction=0.785485517 direction=1
+SAMPLE tick=0 source=0 id=0x5000000040002 name=B81503 presence=1 km_h=116.032029 position_valid=1 track=0x1000000320001 fraction=0.116992147 direction=1
+SAMPLE tick=0 source=1 id=0x5000000000003 name=B81500 presence=1 km_h=4.616494 position_valid=1 track=0x1000000630001 fraction=0.182160565 direction=1
+SAMPLE tick=0 source=1 id=0x5000000010003 name=B81501 presence=1 km_h=30.023759 position_valid=1 track=0x10000005b0001 fraction=0.331193536 direction=1
+SAMPLE tick=0 source=1 id=0x5000000020002 name=B81502 presence=1 km_h=99.049913 position_valid=1 track=0x10000003a0001 fraction=0.327729562 direction=1
+SAMPLE tick=0 source=1 id=0x5000000030001 name=TGV-M 900 presence=1 km_h=106.101113 position_valid=1 track=0x1000000060003 fraction=0.785485517 direction=1
+SAMPLE tick=0 source=1 id=0x5000000040002 name=B81503 presence=1 km_h=116.032029 position_valid=1 track=0x1000000320001 fraction=0.116992147 direction=1
+SAMPLE tick=1 source=0 id=0x5000000000003 name=B81500 presence=1 km_h=3.153994 position_valid=1 track=0x1000000630001 fraction=0.183501763 direction=1
+SAMPLE tick=1 source=0 id=0x5000000010003 name=B81501 presence=1 km_h=30.023759 position_valid=1 track=0x10000005b0001 fraction=0.377579134 direction=1
+SAMPLE tick=1 source=0 id=0x5000000020002 name=B81502 presence=1 km_h=99.567970 position_valid=1 track=0x10000003a0001 fraction=0.442694830 direction=1
+SAMPLE tick=1 source=0 id=0x5000000030001 name=TGV-M 900 presence=1 km_h=107.196257 position_valid=1 track=0x1000000060003 fraction=0.957743770 direction=1
+SAMPLE tick=1 source=0 id=0x5000000040002 name=B81503 presence=1 km_h=114.569529 position_valid=1 track=0x1000000320001 fraction=0.131864474 direction=1
+SAMPLE tick=1 source=1 id=0x5000000000003 name=B81500 presence=1 km_h=3.153994 position_valid=1 track=0x1000000630001 fraction=0.183501763 direction=1
+SAMPLE tick=1 source=1 id=0x5000000010003 name=B81501 presence=1 km_h=30.023759 position_valid=1 track=0x10000005b0001 fraction=0.377579134 direction=1
+SAMPLE tick=1 source=1 id=0x5000000020002 name=B81502 presence=1 km_h=99.567970 position_valid=1 track=0x10000003a0001 fraction=0.442694830 direction=1
+SAMPLE tick=1 source=1 id=0x5000000030001 name=TGV-M 900 presence=1 km_h=107.196257 position_valid=1 track=0x1000000060003 fraction=0.957743770 direction=1
+SAMPLE tick=1 source=1 id=0x5000000040002 name=B81503 presence=1 km_h=114.569529 position_valid=1 track=0x1000000320001 fraction=0.131864474 direction=1
+SAMPLE tick=2 source=0 id=0x5000000000003 name=B81500 presence=1 km_h=1.662244 position_valid=1 track=0x1000000630001 fraction=0.184347713 direction=1
+SAMPLE tick=2 source=0 id=0x5000000010003 name=B81501 presence=1 km_h=29.999999 position_valid=1 track=0x10000005b0001 fraction=0.424892076 direction=1
+SAMPLE tick=2 source=0 id=0x5000000020002 name=B81502 presence=1 km_h=100.093626 position_valid=1 track=0x10000003a0001 fraction=0.560575556 direction=1
+SAMPLE tick=2 source=0 id=0x5000000030001 name=TGV-M 900 presence=1 km_h=108.301895 position_valid=1 track=0x1000000070003 fraction=0.111526162 direction=1
+SAMPLE tick=2 source=0 id=0x5000000040002 name=B81503 presence=1 km_h=113.077779 position_valid=1 track=0x1000000320001 fraction=0.146839883 direction=1
+SAMPLE tick=2 source=1 id=0x5000000000003 name=B81500 presence=1 km_h=1.662244 position_valid=1 track=0x1000000630001 fraction=0.184347713 direction=1
+SAMPLE tick=2 source=1 id=0x5000000010003 name=B81501 presence=1 km_h=29.999999 position_valid=1 track=0x10000005b0001 fraction=0.424892076 direction=1
+SAMPLE tick=2 source=1 id=0x5000000020002 name=B81502 presence=1 km_h=100.093626 position_valid=1 track=0x10000003a0001 fraction=0.560575556 direction=1
+SAMPLE tick=2 source=1 id=0x5000000030001 name=TGV-M 900 presence=1 km_h=108.301895 position_valid=1 track=0x1000000070003 fraction=0.111526162 direction=1
+SAMPLE tick=2 source=1 id=0x5000000040002 name=B81503 presence=1 km_h=113.077779 position_valid=1 track=0x1000000320001 fraction=0.146839883 direction=1
+SAMPLE tick=3 source=0 id=0x5000000000003 name=B81500 presence=1 km_h=0.000000 position_valid=1 track=0x1000000630001 fraction=0.184356158 direction=1
+SAMPLE tick=3 source=0 id=0x5000000010003 name=B81501 presence=1 km_h=30.023759 position_valid=1 track=0x10000005b0001 fraction=0.472205753 direction=1
+SAMPLE tick=3 source=0 id=0x5000000020002 name=B81502 presence=1 km_h=100.616536 position_valid=1 track=0x10000003a0001 fraction=0.679075289 direction=1
+SAMPLE tick=3 source=0 id=0x5000000030001 name=TGV-M 900 presence=1 km_h=109.396356 position_valid=1 track=0x1000000070003 fraction=0.262536173 direction=1
+SAMPLE tick=3 source=0 id=0x5000000040002 name=B81503 presence=1 km_h=111.586029 position_valid=1 track=0x1000000320001 fraction=0.161619002 direction=1
+SAMPLE tick=3 source=1 id=0x5000000000003 name=B81500 presence=1 km_h=0.000000 position_valid=1 track=0x1000000630001 fraction=0.184356158 direction=1
+SAMPLE tick=3 source=1 id=0x5000000010003 name=B81501 presence=1 km_h=30.023759 position_valid=1 track=0x10000005b0001 fraction=0.472205753 direction=1
+SAMPLE tick=3 source=1 id=0x5000000020002 name=B81502 presence=1 km_h=100.616536 position_valid=1 track=0x10000003a0001 fraction=0.679075289 direction=1
+SAMPLE tick=3 source=1 id=0x5000000030001 name=TGV-M 900 presence=1 km_h=109.396356 position_valid=1 track=0x1000000070003 fraction=0.262536173 direction=1
+SAMPLE tick=3 source=1 id=0x5000000040002 name=B81503 presence=1 km_h=111.586029 position_valid=1 track=0x1000000320001 fraction=0.161619002 direction=1
+SAMPLE tick=4 source=0 id=0x5000000000003 name=B81500 presence=1 km_h=0.000000 position_valid=1 track=0x1000000630001 fraction=0.184356158 direction=1
+SAMPLE tick=4 source=0 id=0x5000000010003 name=B81501 presence=1 km_h=29.999999 position_valid=1 track=0x10000005b0001 fraction=0.519518696 direction=1
+SAMPLE tick=4 source=0 id=0x5000000020002 name=B81502 presence=1 km_h=101.136742 position_valid=1 track=0x10000003a0001 fraction=0.798190811 direction=1
+SAMPLE tick=4 source=0 id=0x5000000030001 name=TGV-M 900 presence=1 km_h=110.479973 position_valid=1 track=0x1000000070003 fraction=0.415056699 direction=1
+SAMPLE tick=4 source=0 id=0x5000000040002 name=B81503 presence=1 km_h=110.094279 position_valid=1 track=0x1000000320001 fraction=0.176201830 direction=1
+SAMPLE tick=4 source=1 id=0x5000000000003 name=B81500 presence=1 km_h=0.000000 position_valid=1 track=0x1000000630001 fraction=0.184356158 direction=1
+SAMPLE tick=4 source=1 id=0x5000000010003 name=B81501 presence=1 km_h=30.023759 position_valid=1 track=0x10000005b0001 fraction=0.520446775 direction=1
+SAMPLE tick=4 source=1 id=0x5000000020002 name=B81502 presence=1 km_h=101.146915 position_valid=1 track=0x10000003a0001 fraction=0.800532544 direction=1
+SAMPLE tick=4 source=1 id=0x5000000030001 name=TGV-M 900 presence=1 km_h=110.501115 position_valid=1 track=0x1000000070003 fraction=0.418062296 direction=1
+SAMPLE tick=4 source=1 id=0x5000000040002 name=B81503 presence=1 km_h=110.065029 position_valid=1 track=0x1000000320001 fraction=0.176485806 direction=1

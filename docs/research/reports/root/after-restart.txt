@@ -1,0 +1,59 @@
+﻿Research PID=64116 SHA256=FFF49AC21720ABFC824C2B4F68B862727630EB0DB71CFE1F9EA8F685D0DB10AE
+RESOLVED base=0x7ff79aa50000 root=0x2827fd6a080 database=0x2829dbf35b0 copy=0x282a6789610 simulation=0x282a64a2fc0 global_rva=0xb81998
+TRAIN id=0x5000000000003 name=B81500
+TRAIN id=0x5000000010003 name=B81501
+TRAIN id=0x5000000020002 name=B81502
+TRAIN id=0x5000000030001 name=TGV-M 900
+TRAIN id=0x5000000040002 name=B81503
+Discovery scanned=0 MiB limit_reached=0 train_candidates=1 motion_candidates=2
+Candidates require UI correlation and lifetime/thread validation; no hooks installed.
+SAMPLE tick=0 source=0 id=0x5000000000003 name=B81500 presence=1 km_h=73.810845
+SAMPLE tick=0 source=0 id=0x5000000010003 name=B81501 presence=1 km_h=67.937359
+SAMPLE tick=0 source=0 id=0x5000000020002 name=B81502 presence=1 km_h=127.886515
+SAMPLE tick=0 source=0 id=0x5000000030001 name=TGV-M 900 presence=1 km_h=36.130079
+SAMPLE tick=0 source=0 id=0x5000000040002 name=B81503 presence=1 km_h=61.188129
+SAMPLE tick=0 source=1 id=0x5000000000003 name=B81500 presence=1 km_h=73.852656
+SAMPLE tick=0 source=1 id=0x5000000010003 name=B81501 presence=1 km_h=67.952504
+SAMPLE tick=0 source=1 id=0x5000000020002 name=B81502 presence=1 km_h=127.910650
+SAMPLE tick=0 source=1 id=0x5000000030001 name=TGV-M 900 presence=1 km_h=36.201359
+SAMPLE tick=0 source=1 id=0x5000000040002 name=B81503 presence=1 km_h=61.490102
+SAMPLE tick=1 source=0 id=0x5000000000003 name=B81500 presence=1 km_h=74.546056
+SAMPLE tick=1 source=0 id=0x5000000010003 name=B81501 presence=1 km_h=67.952504
+SAMPLE tick=1 source=0 id=0x5000000020002 name=B81502 presence=1 km_h=127.886515
+SAMPLE tick=1 source=0 id=0x5000000030001 name=TGV-M 900 presence=1 km_h=37.389359
+SAMPLE tick=1 source=0 id=0x5000000040002 name=B81503 presence=1 km_h=62.056485
+SAMPLE tick=1 source=1 id=0x5000000000003 name=B81500 presence=1 km_h=74.559859
+SAMPLE tick=1 source=1 id=0x5000000010003 name=B81501 presence=1 km_h=67.937359
+SAMPLE tick=1 source=1 id=0x5000000020002 name=B81502 presence=1 km_h=128.320246
+SAMPLE tick=1 source=1 id=0x5000000030001 name=TGV-M 900 presence=1 km_h=37.413119
+SAMPLE tick=1 source=1 id=0x5000000040002 name=B81503 presence=1 km_h=62.337747
+SAMPLE tick=2 source=0 id=0x5000000000003 name=B81500 presence=1 km_h=75.246741
+SAMPLE tick=2 source=0 id=0x5000000010003 name=B81501 presence=1 km_h=67.527859
+SAMPLE tick=2 source=0 id=0x5000000020002 name=B81502 presence=1 km_h=128.616588
+SAMPLE tick=2 source=0 id=0x5000000030001 name=TGV-M 900 presence=1 km_h=38.601119
+SAMPLE tick=2 source=0 id=0x5000000040002 name=B81503 presence=1 km_h=62.978246
+SAMPLE tick=2 source=1 id=0x5000000000003 name=B81500 presence=1 km_h=75.260415
+SAMPLE tick=2 source=1 id=0x5000000010003 name=B81501 presence=1 km_h=67.498609
+SAMPLE tick=2 source=1 id=0x5000000020002 name=B81502 presence=1 km_h=128.728539
+SAMPLE tick=2 source=1 id=0x5000000030001 name=TGV-M 900 presence=1 km_h=38.624879
+SAMPLE tick=2 source=1 id=0x5000000040002 name=B81503 presence=1 km_h=63.174016
+SAMPLE tick=3 source=0 id=0x5000000000003 name=B81500 presence=1 km_h=75.940960
+SAMPLE tick=3 source=0 id=0x5000000010003 name=B81501 presence=1 km_h=66.036109
+SAMPLE tick=3 source=0 id=0x5000000020002 name=B81502 presence=1 km_h=128.936191
+SAMPLE tick=3 source=0 id=0x5000000030001 name=TGV-M 900 presence=1 km_h=39.812879
+SAMPLE tick=3 source=0 id=0x5000000040002 name=B81503 presence=1 km_h=63.951102
+SAMPLE tick=3 source=1 id=0x5000000000003 name=B81500 presence=1 km_h=75.954509
+SAMPLE tick=3 source=1 id=0x5000000010003 name=B81501 presence=1 km_h=66.006859
+SAMPLE tick=3 source=1 id=0x5000000020002 name=B81502 presence=1 km_h=129.135541
+SAMPLE tick=3 source=1 id=0x5000000030001 name=TGV-M 900 presence=1 km_h=39.836639
+SAMPLE tick=3 source=1 id=0x5000000040002 name=B81503 presence=1 km_h=63.999356
+SAMPLE tick=4 source=0 id=0x5000000000003 name=B81500 presence=1 km_h=76.628889
+SAMPLE tick=4 source=0 id=0x5000000010003 name=B81501 presence=1 km_h=64.544359
+SAMPLE tick=4 source=0 id=0x5000000020002 name=B81502 presence=1 km_h=129.469759
+SAMPLE tick=4 source=0 id=0x5000000030001 name=TGV-M 900 presence=1 km_h=41.024639
+SAMPLE tick=4 source=0 id=0x5000000040002 name=B81503 presence=1 km_h=64.591530
+SAMPLE tick=4 source=1 id=0x5000000000003 name=B81500 presence=1 km_h=76.642316
+SAMPLE tick=4 source=1 id=0x5000000010003 name=B81501 presence=1 km_h=64.515109
+SAMPLE tick=4 source=1 id=0x5000000020002 name=B81502 presence=1 km_h=129.541264
+SAMPLE tick=4 source=1 id=0x5000000030001 name=TGV-M 900 presence=1 km_h=41.048399
+SAMPLE tick=4 source=1 id=0x5000000040002 name=B81503 presence=1 km_h=64.814185

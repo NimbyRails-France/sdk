@@ -1,0 +1,576 @@
+{
+  "program": "NimbyRails.exe",
+  "language": "x86:LE:64:default",
+  "compiler": "windows",
+  "image_base": "140000000",
+  "function_count": 18914,
+  "candidate_strings": [
+    {
+      "address": "140a6ecd0",
+      "text": "user_max_speed",
+      "references": []
+    },
+    {
+      "address": "140a703e0",
+      "text": "max_speed",
+      "references": [
+        {
+          "from": "1404043f7",
+          "type": "DATA",
+          "function": "FUN_140403ed0",
+          "function_address": "140403ed0"
+        },
+        {
+          "from": "1404043fe",
+          "type": "DATA",
+          "function": "FUN_140403ed0",
+          "function_address": "140403ed0"
+        },
+        {
+          "from": "140401ec9",
+          "type": "DATA",
+          "function": "FUN_140401d50",
+          "function_address": "140401d50"
+        },
+        {
+          "from": "140401ed0",
+          "type": "DATA",
+          "function": "FUN_140401d50",
+          "function_address": "140401d50"
+        },
+        {
+          "from": "14042d2de",
+          "type": "DATA",
+          "function": "FUN_140428790",
+          "function_address": "140428790"
+        },
+        {
+          "from": "140431e1a",
+          "type": "DATA",
+          "function": "FUN_140428790",
+          "function_address": "140428790"
+        }
+      ]
+    },
+    {
+      "address": "140a706a8",
+      "text": "max_regular_braking",
+      "references": [
+        {
+          "from": "1404044f3",
+          "type": "DATA",
+          "function": "FUN_140403ed0",
+          "function_address": "140403ed0"
+        },
+        {
+          "from": "1404044fa",
+          "type": "DATA",
+          "function": "FUN_140403ed0",
+          "function_address": "140403ed0"
+        },
+        {
+          "from": "14042d3ee",
+          "type": "DATA",
+          "function": "FUN_140428790",
+          "function_address": "140428790"
+        }
+      ]
+    },
+    {
+      "address": "140a71c90",
+      "text": "event_signal_lookahead",
+      "references": [
+        {
+          "from": "1404255aa",
+          "type": "DATA",
+          "function": "FUN_140424c00",
+          "function_address": "140424c00"
+        },
+        {
+          "from": "1404255b1",
+          "type": "DATA",
+          "function": "FUN_140424c00",
+          "function_address": "140424c00"
+        },
+        {
+          "from": "140425b70",
+          "type": "DATA",
+          "function": "FUN_140424c00",
+          "function_address": "140424c00"
+        },
+        {
+          "from": "140425b77",
+          "type": "DATA",
+          "function": "FUN_140424c00",
+          "function_address": "140424c00"
+        },
+        {
+          "from": "140425e75",
+          "type": "DATA",
+          "function": "FUN_140424c00",
+          "function_address": "140424c00"
+        },
+        {
+          "from": "140425e7c",
+          "type": "DATA",
+          "function": "FUN_140424c00",
+          "function_address": "140424c00"
+        }
+      ]
+    },
+    {
+      "address": "140a72390",
+      "text": "SignalLookaheadResult",
+      "references": [
+        {
+          "from": "140429a90",
+          "type": "DATA",
+          "function": "FUN_140428790",
+          "function_address": "140428790"
+        }
+      ]
+    },
+    {
+      "address": "140a723e0",
+      "text": "Extrapolator",
+      "references": [
+        {
+          "from": "140429974",
+          "type": "DATA",
+          "function": "FUN_140428790",
+          "function_address": "140428790"
+        }
+      ]
+    },
+    {
+      "address": "140a72570",
+      "text": "Track_M_max_speed",
+      "references": [
+        {
+          "from": "140429e52",
+          "type": "DATA",
+          "function": "FUN_140428790",
+          "function_address": "140428790"
+        }
+      ]
+    },
+    {
+      "address": "140a72950",
+      "text": "waiting_signal_id",
+      "references": [
+        {
+          "from": "14042da98",
+          "type": "DATA",
+          "function": "FUN_140428790",
+          "function_address": "140428790"
+        }
+      ]
+    },
+    {
+      "address": "140a73340",
+      "text": "extrapolator",
+      "references": [
+        {
+          "from": "140430760",
+          "type": "DATA",
+          "function": "FUN_140428790",
+          "function_address": "140428790"
+        },
+        {
+          "from": "140430961",
+          "type": "DATA",
+          "function": "FUN_140428790",
+          "function_address": "140428790"
+        }
+      ]
+    },
+    {
+      "address": "140a73e68",
+      "text": "Extrapolator_M_reservation_probe",
+      "references": [
+        {
+          "from": "140454bd6",
+          "type": "DATA",
+          "function": "FUN_140452f40",
+          "function_address": "140452f40"
+        },
+        {
+          "from": "140454bdd",
+          "type": "DATA",
+          "function": "FUN_140452f40",
+          "function_address": "140452f40"
+        }
+      ]
+    },
+    {
+      "address": "140a73f00",
+      "text": "Extrapolator_M_get_one_occupation",
+      "references": [
+        {
+          "from": "140454e40",
+          "type": "DATA",
+          "function": "FUN_140452f40",
+          "function_address": "140452f40"
+        },
+        {
+          "from": "140454e47",
+          "type": "DATA",
+          "function": "FUN_140452f40",
+          "function_address": "140452f40"
+        }
+      ]
+    },
+    {
+      "address": "140a74020",
+      "text": "Extrapolator_M_week_s",
+      "references": [
+        {
+          "from": "14045551c",
+          "type": "DATA",
+          "function": "FUN_140452f40",
+          "function_address": "140452f40"
+        },
+        {
+          "from": "140455523",
+          "type": "DATA",
+          "function": "FUN_140452f40",
+          "function_address": "140452f40"
+        }
+      ]
+    },
+    {
+      "address": "140a74058",
+      "text": "Extrapolator_M_epoch_s",
+      "references": [
+        {
+          "from": "140455606",
+          "type": "DATA",
+          "function": "FUN_140452f40",
+          "function_address": "140452f40"
+        },
+        {
+          "from": "14045560d",
+          "type": "DATA",
+          "function": "FUN_140452f40",
+          "function_address": "140452f40"
+        }
+      ]
+    },
+    {
+      "address": "140a740a0",
+      "text": "Extrapolator_M_week_monday0000_epoch_s",
+      "references": [
+        {
+          "from": "1404556f0",
+          "type": "DATA",
+          "function": "FUN_140452f40",
+          "function_address": "140452f40"
+        },
+        {
+          "from": "1404556f7",
+          "type": "DATA",
+          "function": "FUN_140452f40",
+          "function_address": "140452f40"
+        }
+      ]
+    },
+    {
+      "address": "140a74120",
+      "text": "Extrapolator_M_clock_us",
+      "references": [
+        {
+          "from": "1404557da",
+          "type": "DATA",
+          "function": "FUN_140452f40",
+          "function_address": "140452f40"
+        },
+        {
+          "from": "1404557e1",
+          "type": "DATA",
+          "function": "FUN_140452f40",
+          "function_address": "140452f40"
+        }
+      ]
+    },
+    {
+      "address": "140a74200",
+      "text": "Extrapolator_M_get_one_reservation",
+      "references": [
+        {
+          "from": "140455007",
+          "type": "DATA",
+          "function": "FUN_140452f40",
+          "function_address": "140452f40"
+        },
+        {
+          "from": "14045500e",
+          "type": "DATA",
+          "function": "FUN_140452f40",
+          "function_address": "140452f40"
+        }
+      ]
+    },
+    {
+      "address": "140a74278",
+      "text": "Extrapolator_M_is_occupying",
+      "references": [
+        {
+          "from": "1404551c7",
+          "type": "DATA",
+          "function": "FUN_140452f40",
+          "function_address": "140452f40"
+        },
+        {
+          "from": "1404551ce",
+          "type": "DATA",
+          "function": "FUN_140452f40",
+          "function_address": "140452f40"
+        }
+      ]
+    },
+    {
+      "address": "140a742d8",
+      "text": "Extrapolator_M_is_reserving",
+      "references": [
+        {
+          "from": "140455375",
+          "type": "DATA",
+          "function": "FUN_140452f40",
+          "function_address": "140452f40"
+        },
+        {
+          "from": "14045537c",
+          "type": "DATA",
+          "function": "FUN_140452f40",
+          "function_address": "140452f40"
+        }
+      ]
+    },
+    {
+      "address": "140a74348",
+      "text": "Extrapolator_M_view_last\u003cMotion\u003e",
+      "references": [
+        {
+          "from": "1404558c4",
+          "type": "DATA",
+          "function": "FUN_140452f40",
+          "function_address": "140452f40"
+        },
+        {
+          "from": "1404558cb",
+          "type": "DATA",
+          "function": "FUN_140452f40",
+          "function_address": "140452f40"
+        }
+      ]
+    },
+    {
+      "address": "140a854a0",
+      "text": "\nevent_signal_lookahead",
+      "references": [
+        {
+          "from": "1405a1aeb",
+          "type": "DATA",
+          "function": "FUN_1405a1740",
+          "function_address": "1405a1740"
+        }
+      ]
+    },
+    {
+      "address": "140a85de0",
+      "text": "icon_max_speed.svg",
+      "references": [
+        {
+          "from": "1405aa76e",
+          "type": "READ",
+          "function": "FUN_1405a9f40",
+          "function_address": "1405a9f40"
+        }
+      ]
+    },
+    {
+      "address": "140a91a98",
+      "text": "max_speed_desc",
+      "references": [
+        {
+          "from": "140690fd8",
+          "type": "DATA",
+          "function": "FUN_140690f20",
+          "function_address": "140690f20"
+        }
+      ]
+    },
+    {
+      "address": "140a9e5a8",
+      "text": "constraint_max_speed",
+      "references": [
+        {
+          "from": "140796e03",
+          "type": "DATA",
+          "function": "FUN_1407960f0",
+          "function_address": "1407960f0"
+        },
+        {
+          "from": "140793dad",
+          "type": "DATA",
+          "function": "FUN_1407934b0",
+          "function_address": "1407934b0"
+        },
+        {
+          "from": "140798db2",
+          "type": "DATA",
+          "function": "FUN_140798660",
+          "function_address": "140798660"
+        }
+      ]
+    },
+    {
+      "address": "140a9e7a8",
+      "text": "constraint_max_speed_tip",
+      "references": [
+        {
+          "from": "140797d02",
+          "type": "DATA",
+          "function": "FUN_140797bb0",
+          "function_address": "140797bb0"
+        },
+        {
+          "from": "14079530c",
+          "type": "DATA",
+          "function": "FUN_140794e80",
+          "function_address": "140794e80"
+        },
+        {
+          "from": "140791ea2",
+          "type": "DATA",
+          "function": "FUN_140791c80",
+          "function_address": "140791c80"
+        }
+      ]
+    },
+    {
+      "address": "140a9fc90",
+      "text": "track_info_max_speed",
+      "references": [
+        {
+          "from": "1407a6ba0",
+          "type": "DATA",
+          "function": "FUN_1407a5ef0",
+          "function_address": "1407a5ef0"
+        }
+      ]
+    },
+    {
+      "address": "140aa2c78",
+      "text": "filter_max_speed",
+      "references": [
+        {
+          "from": "1407e5fae",
+          "type": "DATA",
+          "function": "FUN_1407e5de0",
+          "function_address": "1407e5de0"
+        },
+        {
+          "from": "1407e423e",
+          "type": "DATA",
+          "function": "FUN_1407e4070",
+          "function_address": "1407e4070"
+        }
+      ]
+    },
+    {
+      "address": "140aa2e88",
+      "text": "train_info_max_speed",
+      "references": [
+        {
+          "from": "1407f84f3",
+          "type": "DATA",
+          "function": "FUN_1407f7210",
+          "function_address": "1407f7210"
+        },
+        {
+          "from": "1407e6ed2",
+          "type": "DATA",
+          "function": "FUN_1407e67e0",
+          "function_address": "1407e67e0"
+        },
+        {
+          "from": "1407f58c7",
+          "type": "DATA",
+          "function": "FUN_1407f3600",
+          "function_address": "1407f3600"
+        }
+      ]
+    },
+    {
+      "address": "140b64260",
+      "text": ".?AV\u003clambda_3\u003e@?BE@??init_sim_extrapolator@Lib@scripthost@model@nimby@@AEAAXXZ@",
+      "references": []
+    },
+    {
+      "address": "140b64360",
+      "text": ".?AV\u003clambda_1\u003e@?2???R0?1??init_sim_extrapolator@Lib@scripthost@model@nimby@@AEAAXXZ@QEBA@AEAUFnPtr@nscript@@@Z@",
+      "references": []
+    },
+    {
+      "address": "140b643e0",
+      "text": ".?AV\u003clambda_4\u003e@?BG@??init_sim_extrapolator@Lib@scripthost@model@nimby@@AEAAXXZ@",
+      "references": []
+    },
+    {
+      "address": "140b644a0",
+      "text": ".?AV\u003clambda_5\u003e@?BI@??init_sim_extrapolator@Lib@scripthost@model@nimby@@AEAAXXZ@",
+      "references": []
+    },
+    {
+      "address": "140b64500",
+      "text": ".?AV\u003clambda_2\u003e@?3???R\u003clambda_1\u003e@?1??init_sim_extrapolator@Lib@scripthost@model@nimby@@AEAAXXZ@QEBA@AEAUFnPtr@nscript@@@Z@",
+      "references": []
+    },
+    {
+      "address": "140b64590",
+      "text": ".?AV\u003clambda_1\u003e@?1??train_hits_train@Extrapolator@model@nimby@@QEBA?AV?$optional@UOccHit@Extrapolator@model@nimby@@@std@@PEBUTrain@34@PEBUDynamics@734@AEAUPresence@Motion@34@AEBURange@pathfind@34@@Z@",
+      "references": []
+    },
+    {
+      "address": "140b64670",
+      "text": ".?AV\u003clambda_1\u003e@?2???R\u003clambda_2\u003e@?1??init_sim_extrapolator@Lib@scripthost@model@nimby@@AEAAXXZ@QEBA@AEAUFnPtr@nscript@@@Z@",
+      "references": []
+    },
+    {
+      "address": "140b70730",
+      "text": ".?AV?$_Func_impl_no_alloc@V\u003clambda_2\u003e@?3???R\u003clambda_1\u003e@?1??init_sim_extrapolator@Lib@scripthost@model@nimby@@AEAAXXZ@QEBA@AEAUFnPtr@nscript@@@Z@V?$optional@UType@nscript@@@std@@AEBUTypeTable@9@AEBUFnTable@9@AEBUType@9@@std@@",
+      "references": []
+    },
+    {
+      "address": "140b70830",
+      "text": ".?AV?$_Func_impl_no_alloc@V\u003clambda_3\u003e@?BE@??init_sim_extrapolator@Lib@scripthost@model@nimby@@AEAAXXZ@V?$optional@UType@nscript@@@std@@AEBUTypeTable@nscript@@AEBUFnTable@nscript@@AEBUType@nscript@@@std@@",
+      "references": []
+    },
+    {
+      "address": "140b70a50",
+      "text": ".?AV?$_Func_impl_no_alloc@V\u003clambda_1\u003e@?2???R1?1??init_sim_extrapolator@Lib@scripthost@model@nimby@@AEAAXXZ@QEBA@AEAUFnPtr@nscript@@@Z@V?$optional@UType@nscript@@@std@@AEBUTypeTable@8@AEBUFnTable@8@AEBUType@8@@std@@",
+      "references": []
+    },
+    {
+      "address": "140b70c10",
+      "text": ".?AV?$_Func_impl_no_alloc@V\u003clambda_4\u003e@?BG@??init_sim_extrapolator@Lib@scripthost@model@nimby@@AEAAXXZ@V?$optional@UType@nscript@@@std@@AEBUTypeTable@nscript@@AEBUFnTable@nscript@@AEBUType@nscript@@@std@@",
+      "references": []
+    },
+    {
+      "address": "140b70d30",
+      "text": ".?AV?$_Func_impl_no_alloc@V\u003clambda_5\u003e@?BI@??init_sim_extrapolator@Lib@scripthost@model@nimby@@AEAAXXZ@V?$optional@UType@nscript@@@std@@AEBUTypeTable@nscript@@AEBUFnTable@nscript@@AEBUType@nscript@@@std@@",
+      "references": []
+    },
+    {
+      "address": "140b70e40",
+      "text": ".?AV?$_Func_impl_no_alloc@V\u003clambda_1\u003e@?1??train_hits_train@Extrapolator@model@nimby@@QEBA?AV?$optional@UOccHit@Extrapolator@model@nimby@@@std@@PEBUTrain@45@PEBUDynamics@845@AEAUPresence@Motion@45@AEBURange@pathfind@45@@Z@XAEBUAABB@TrainHitMap@45@@std@@",
+      "references": []
+    },
+    {
+      "address": "140b710d0",
+      "text": ".?AV?$_Func_impl_no_alloc@V\u003clambda_1\u003e@?2???R\u003clambda_2\u003e@?1??init_sim_extrapolator@Lib@scripthost@model@nimby@@AEAAXXZ@QEBA@AEAUFnPtr@nscript@@@Z@V?$optional@UType@nscript@@@std@@AEBUTypeTable@9@AEBUFnTable@9@AEBUType@9@@std@@",
+      "references": []
+    }
+  ]
+}

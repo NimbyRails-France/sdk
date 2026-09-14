@@ -1,0 +1,84 @@
+Window: "NimbyRailsSDK - Observation des trains (experimental)", App: NimbyTrainMonitor.exe.
+	0 fenêtre NimbyRailsSDK - Observation des trains (experimental) Secondary Actions: Raise
+		1 Texte 5 trains | 379 voies | 9 gares | 27 signaux (2 balises) | Reseau experimental : lecture seule
+		2 liste 5 trains | 379 voies | 9 gares | 27 signaux (2 balises) | Reseau experimental : lecture seule
+			3 En-tête ID: Header
+				4 élément en-tête Train
+				5 élément en-tête Identifiant
+				6 élément en-tête Copie (km/h)
+				7 élément en-tête Simulation (km/h)
+				8 élément en-tête Voie actuelle
+				9 élément en-tête Position / sens
+				10 élément en-tête Limite voie (km/h)
+				11 élément en-tête Gare de la voie
+				12 élément en-tête Signaux sur cette voie
+			13 barre de défilement Horizontal ID: NonClientHorizontalScrollBar
+				14 Bouton Colonne vers la gauche ID: UpButton
+				15 thumb Position ID: ScrollbarThumb
+				16 Bouton Page vers la droite ID: DownPageButton
+				17 Bouton Colonne vers la droite ID: DownButton
+			18 élément de liste (selectable) B81500
+				19 Texte B81500
+				20 Texte 0005000000000003
+				21 Texte 46.6
+				22 Texte 46.6
+				23 Texte 0001000000630001
+				24 Texte 50.22 % / +1
+				25 Texte 200.0
+				26 Texte Hors gare
+				27 Texte 00080000001A0001 Path
+			28 élément de liste (selectable) B81501
+				29 Texte B81501
+				30 Texte 0005000000010003
+				31 Texte 30.0
+				32 Texte 30.0
+				33 Texte 00010000005E0001
+				34 Texte 62.91 % / +1
+				35 Texte 200.0
+				36 Texte Hors gare
+				37 Texte Aucun
+			38 élément de liste (selectable) B81502
+				39 Texte B81502
+				40 Texte 0005000000020002
+				41 Texte 131.3
+				42 Texte 131.3
+				43 Texte 0001000000460001
+				44 Texte 39.11 % / +1
+				45 Texte 200.0
+				46 Texte Hors gare
+				47 Texte Aucun
+			48 élément de liste (selectable) TGV-M 900
+				49 Texte TGV-M 900
+				50 Texte 0005000000030001
+				51 Texte 167.6
+				52 Texte 167.6
+				53 Texte 00010000006E0002
+				54 Texte 81.71 % / +1
+				55 Texte 200.0
+				56 Texte Hors gare
+				57 Texte Aucun
+			58 élément de liste (selectable) B81503
+				59 Texte B81503
+				60 Texte 0005000000040002
+				61 Texte 88.0
+				62 Texte 88.0
+				63 Texte 0001000000330002
+				64 Texte 17.40 % / +1
+				65 Texte 200.0
+				66 Texte Hors gare
+				67 Texte Aucun
+		68 zone de liste modifiable 5 trains | 379 voies | 9 gares | 27 signaux (2 balises) | Reseau experimental : lecture seule
+			69 Texte 5 trains | 379 voies | 9 gares | 27 signaux (2 balises) | Reseau experimental : lecture seule
+			70 Bouton Ouvrir ID: DropDown
+		71 Modifier 5 trains | 379 voies | 9 gares | 27 signaux (2 balises) | Reseau experimental : lecture seule
+		72 Texte km/h
+		73 Bouton Appliquer une fois ID: 1001
+		74 Texte Test experimental : choisir une source A/B et un train. La simulation peut ecraser la valeur.
+		75 barre de titre
+			76 barre de menus Système ID: MenuBar
+				77 élément de menu Système
+			78 Bouton Réduire
+			79 Bouton Agrandir
+			80 Bouton Fermer
+
+The focused UI element is 0 fenêtre NimbyRailsSDK - Observation des trains (experimental) Secondary Actions: Raise.

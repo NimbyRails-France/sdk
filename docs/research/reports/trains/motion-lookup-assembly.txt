@@ -1,0 +1,41 @@
+﻿
+C:\Users\samsv\IdeaProjects\NimbyRailsResearch\inputs\NimbyRails.exe:     file format pei-x86-64
+
+
+Disassembly of section .text:
+
+000000014045f300 <.text+0x45e300>:
+   14045f300:	48 8b c2             	mov    rax,rdx
+   14045f303:	4c 8b c1             	mov    r8,rcx
+   14045f306:	48 c1 f8 30          	sar    rax,0x30
+   14045f30a:	b9 ff ff 00 00       	mov    ecx,0xffff
+   14045f30f:	66 3b c1             	cmp    ax,cx
+   14045f312:	74 55                	je     0x14045f369
+   14045f314:	66 83 f8 05          	cmp    ax,0x5
+   14045f318:	75 4f                	jne    0x14045f369
+   14045f31a:	45 8b 48 10          	mov    r9d,DWORD PTR [r8+0x10]
+   14045f31e:	48 8b c2             	mov    rax,rdx
+   14045f321:	4d 8b 58 18          	mov    r11,QWORD PTR [r8+0x18]
+   14045f325:	41 8b 48 04          	mov    ecx,DWORD PTR [r8+0x4]
+   14045f329:	48 c1 f8 10          	sar    rax,0x10
+   14045f32d:	44 8b d0             	mov    r10d,eax
+   14045f330:	44 23 c8             	and    r9d,eax
+   14045f333:	49 8b 40 20          	mov    rax,QWORD PTR [r8+0x20]
+   14045f337:	49 2b c3             	sub    rax,r11
+   14045f33a:	49 d3 ea             	shr    r10,cl
+   14045f33d:	48 c1 f8 03          	sar    rax,0x3
+   14045f341:	4c 3b d0             	cmp    r10,rax
+   14045f344:	73 23                	jae    0x14045f369
+   14045f346:	45 3b 48 08          	cmp    r9d,DWORD PTR [r8+0x8]
+   14045f34a:	73 1d                	jae    0x14045f369
+   14045f34c:	4f 8b 04 d3          	mov    r8,QWORD PTR [r11+r10*8]
+   14045f350:	4d 85 c0             	test   r8,r8
+   14045f353:	74 14                	je     0x14045f369
+   14045f355:	41 8b c1             	mov    eax,r9d
+   14045f358:	48 69 c0 38 06 00 00 	imul   rax,rax,0x638
+   14045f35f:	49 03 c0             	add    rax,r8
+   14045f362:	74 05                	je     0x14045f369
+   14045f364:	48 3b 10             	cmp    rdx,QWORD PTR [rax]
+   14045f367:	74 02                	je     0x14045f36b
+   14045f369:	33 c0                	xor    eax,eax
+   14045f36b:	c3                   	ret

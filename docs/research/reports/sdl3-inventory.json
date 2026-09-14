@@ -1,0 +1,9229 @@
+{
+  "path": "C:/Program Files (x86)/Steam/steamapps/common/NIMBY Rails/SDL3.dll",
+  "sha256": "2A2704678BF6C9C6A944270AB35079DF76F5AFE92B780394ED72D9C8218B98D8",
+  "size": 2840576,
+  "machine": "0x8664",
+  "coff_timestamp": 1782924133,
+  "coff_symbol_count": 0,
+  "image_base": "0x180000000",
+  "entry_rva": "0x1b6f30",
+  "image_size": 2871296,
+  "subsystem": 2,
+  "dll_characteristics": "0x160",
+  "export_directory": {
+    "rva": 2610976,
+    "size": 39312
+  },
+  "tls_directory": {
+    "rva": 0,
+    "size": 0
+  },
+  "delay_import_directory": {
+    "rva": 0,
+    "size": 0
+  },
+  "sections": [
+    {
+      "name": ".text",
+      "rva": 4096,
+      "virtual_size": 1952336,
+      "raw_size": 1952768,
+      "raw_offset": 1024,
+      "characteristics": "0x60000020"
+    },
+    {
+      "name": ".rdata",
+      "rva": 1957888,
+      "virtual_size": 702524,
+      "raw_size": 702976,
+      "raw_offset": 1953792,
+      "characteristics": "0x40000040"
+    },
+    {
+      "name": ".data",
+      "rva": 2662400,
+      "virtual_size": 67504,
+      "raw_size": 53760,
+      "raw_offset": 2656768,
+      "characteristics": "0xc0000040"
+    },
+    {
+      "name": ".pdata",
+      "rva": 2732032,
+      "virtual_size": 117444,
+      "raw_size": 117760,
+      "raw_offset": 2710528,
+      "characteristics": "0x40000040"
+    },
+    {
+      "name": ".fptable",
+      "rva": 2850816,
+      "virtual_size": 256,
+      "raw_size": 512,
+      "raw_offset": 2828288,
+      "characteristics": "0xc0000040"
+    },
+    {
+      "name": ".rsrc",
+      "rva": 2854912,
+      "virtual_size": 1248,
+      "raw_size": 1536,
+      "raw_offset": 2828800,
+      "characteristics": "0x40000040"
+    },
+    {
+      "name": ".reloc",
+      "rva": 2859008,
+      "virtual_size": 10052,
+      "raw_size": 10240,
+      "raw_offset": 2830336,
+      "characteristics": "0x42000040"
+    }
+  ],
+  "imports": [
+    {
+      "dll": "SETUPAPI.dll",
+      "symbols": [
+        {
+          "name": "SetupDiGetDeviceRegistryPropertyW",
+          "iat_rva": "0x1de600"
+        },
+        {
+          "name": "SetupDiGetClassDevsA",
+          "iat_rva": "0x1de608"
+        },
+        {
+          "name": "SetupDiDestroyDeviceInfoList",
+          "iat_rva": "0x1de610"
+        },
+        {
+          "name": "SetupDiEnumDeviceInfo",
+          "iat_rva": "0x1de618"
+        },
+        {
+          "name": "SetupDiGetDeviceInstanceIdA",
+          "iat_rva": "0x1de620"
+        },
+        {
+          "name": "CM_Locate_DevNodeA",
+          "iat_rva": "0x1de628"
+        },
+        {
+          "name": "CM_Get_Parent",
+          "iat_rva": "0x1de630"
+        },
+        {
+          "name": "CM_Get_Device_IDA",
+          "iat_rva": "0x1de638"
+        }
+      ]
+    },
+    {
+      "dll": "WINMM.dll",
+      "symbols": [
+        {
+          "name": "timeBeginPeriod",
+          "iat_rva": "0x1deb20"
+        },
+        {
+          "name": "timeEndPeriod",
+          "iat_rva": "0x1deb28"
+        }
+      ]
+    },
+    {
+      "dll": "IMM32.dll",
+      "symbols": [
+        {
+          "name": "ImmAssociateContext",
+          "iat_rva": "0x1de0e8"
+        },
+        {
+          "name": "ImmGetCompositionStringW",
+          "iat_rva": "0x1de0f0"
+        },
+        {
+          "name": "ImmSetCompositionStringW",
+          "iat_rva": "0x1de0f8"
+        },
+        {
+          "name": "ImmGetCandidateListW",
+          "iat_rva": "0x1de100"
+        },
+        {
+          "name": "ImmGetCompositionFontW",
+          "iat_rva": "0x1de108"
+        },
+        {
+          "name": "ImmReleaseContext",
+          "iat_rva": "0x1de110"
+        },
+        {
+          "name": "ImmGetIMEFileNameA",
+          "iat_rva": "0x1de118"
+        },
+        {
+          "name": "ImmNotifyIME",
+          "iat_rva": "0x1de120"
+        },
+        {
+          "name": "ImmSetCompositionWindow",
+          "iat_rva": "0x1de128"
+        },
+        {
+          "name": "ImmSetCandidateWindow",
+          "iat_rva": "0x1de130"
+        },
+        {
+          "name": "ImmGetContext",
+          "iat_rva": "0x1de138"
+        }
+      ]
+    },
+    {
+      "dll": "VERSION.dll",
+      "symbols": [
+        {
+          "name": "GetFileVersionInfoSizeA",
+          "iat_rva": "0x1deb00"
+        },
+        {
+          "name": "GetFileVersionInfoA",
+          "iat_rva": "0x1deb08"
+        },
+        {
+          "name": "VerQueryValueA",
+          "iat_rva": "0x1deb10"
+        }
+      ]
+    },
+    {
+      "dll": "KERNEL32.dll",
+      "symbols": [
+        {
+          "name": "MoveFileExW",
+          "iat_rva": "0x1de148"
+        },
+        {
+          "name": "CreateFileW",
+          "iat_rva": "0x1de150"
+        },
+        {
+          "name": "GetFileSizeEx",
+          "iat_rva": "0x1de158"
+        },
+        {
+          "name": "CloseHandle",
+          "iat_rva": "0x1de160"
+        },
+        {
+          "name": "SetEvent",
+          "iat_rva": "0x1de168"
+        },
+        {
+          "name": "WaitForSingleObject",
+          "iat_rva": "0x1de170"
+        },
+        {
+          "name": "CreateEventW",
+          "iat_rva": "0x1de178"
+        },
+        {
+          "name": "WaitForMultipleObjects",
+          "iat_rva": "0x1de180"
+        },
+        {
+          "name": "FormatMessageA",
+          "iat_rva": "0x1de188"
+        },
+        {
+          "name": "HeapFree",
+          "iat_rva": "0x1de190"
+        },
+        {
+          "name": "GetProcessHeap",
+          "iat_rva": "0x1de198"
+        },
+        {
+          "name": "WaitForSingleObjectEx",
+          "iat_rva": "0x1de1a0"
+        },
+        {
+          "name": "LoadLibraryA",
+          "iat_rva": "0x1de1a8"
+        },
+        {
+          "name": "VerSetConditionMask",
+          "iat_rva": "0x1de1b0"
+        },
+        {
+          "name": "GetCommandLineW",
+          "iat_rva": "0x1de1b8"
+        },
+        {
+          "name": "HeapAlloc",
+          "iat_rva": "0x1de1c0"
+        },
+        {
+          "name": "GetModuleFileNameW",
+          "iat_rva": "0x1de1c8"
+        },
+        {
+          "name": "GetModuleHandleW",
+          "iat_rva": "0x1de1d0"
+        },
+        {
+          "name": "LoadLibraryExW",
+          "iat_rva": "0x1de1d8"
+        },
+        {
+          "name": "LocalFree",
+          "iat_rva": "0x1de1e0"
+        },
+        {
+          "name": "FormatMessageW",
+          "iat_rva": "0x1de1e8"
+        },
+        {
+          "name": "VerifyVersionInfoW",
+          "iat_rva": "0x1de1f0"
+        },
+        {
+          "name": "WideCharToMultiByte",
+          "iat_rva": "0x1de1f8"
+        },
+        {
+          "name": "GlobalMemoryStatusEx",
+          "iat_rva": "0x1de200"
+        },
+        {
+          "name": "GetSystemInfo",
+          "iat_rva": "0x1de208"
+        },
+        {
+          "name": "MultiByteToWideChar",
+          "iat_rva": "0x1de210"
+        },
+        {
+          "name": "GetEnvironmentVariableA",
+          "iat_rva": "0x1de218"
+        },
+        {
+          "name": "FlushFileBuffers",
+          "iat_rva": "0x1de220"
+        },
+        {
+          "name": "GetFileType",
+          "iat_rva": "0x1de228"
+        },
+        {
+          "name": "ReadFile",
+          "iat_rva": "0x1de230"
+        },
+        {
+          "name": "SetFilePointer",
+          "iat_rva": "0x1de238"
+        },
+        {
+          "name": "SetFilePointerEx",
+          "iat_rva": "0x1de240"
+        },
+        {
+          "name": "WriteFile",
+          "iat_rva": "0x1de248"
+        },
+        {
+          "name": "SetErrorMode",
+          "iat_rva": "0x1de250"
+        },
+        {
+          "name": "GetCurrentDirectoryW",
+          "iat_rva": "0x1de258"
+        },
+        {
+          "name": "DeviceIoControl",
+          "iat_rva": "0x1de260"
+        },
+        {
+          "name": "GetOverlappedResult",
+          "iat_rva": "0x1de268"
+        },
+        {
+          "name": "CancelIo",
+          "iat_rva": "0x1de270"
+        },
+        {
+          "name": "ResetEvent",
+          "iat_rva": "0x1de278"
+        },
+        {
+          "name": "GetFileTime",
+          "iat_rva": "0x1de280"
+        },
+        {
+          "name": "CreateFileA",
+          "iat_rva": "0x1de288"
+        },
+        {
+          "name": "GetLocaleInfoA",
+          "iat_rva": "0x1de290"
+        },
+        {
+          "name": "GetSystemPowerStatus",
+          "iat_rva": "0x1de298"
+        },
+        {
+          "name": "GetStdHandle",
+          "iat_rva": "0x1de2a0"
+        },
+        {
+          "name": "DuplicateHandle",
+          "iat_rva": "0x1de2a8"
+        },
+        {
+          "name": "SetHandleInformation",
+          "iat_rva": "0x1de2b0"
+        },
+        {
+          "name": "CreatePipe",
+          "iat_rva": "0x1de2b8"
+        },
+        {
+          "name": "SetNamedPipeHandleState",
+          "iat_rva": "0x1de2c0"
+        },
+        {
+          "name": "GetCurrentProcess",
+          "iat_rva": "0x1de2c8"
+        },
+        {
+          "name": "TerminateProcess",
+          "iat_rva": "0x1de2d0"
+        },
+        {
+          "name": "GetExitCodeProcess",
+          "iat_rva": "0x1de2d8"
+        },
+        {
+          "name": "CreateProcessW",
+          "iat_rva": "0x1de2e0"
+        },
+        {
+          "name": "GenerateConsoleCtrlEvent",
+          "iat_rva": "0x1de2e8"
+        },
+        {
+          "name": "ExitProcess",
+          "iat_rva": "0x1de2f0"
+        },
+        {
+          "name": "OutputDebugStringW",
+          "iat_rva": "0x1de2f8"
+        },
+        {
+          "name": "AttachConsole",
+          "iat_rva": "0x1de300"
+        },
+        {
+          "name": "GetConsoleMode",
+          "iat_rva": "0x1de308"
+        },
+        {
+          "name": "WriteConsoleW",
+          "iat_rva": "0x1de310"
+        },
+        {
+          "name": "SystemTimeToFileTime",
+          "iat_rva": "0x1de318"
+        },
+        {
+          "name": "GetOEMCP",
+          "iat_rva": "0x1de320"
+        },
+        {
+          "name": "FreeEnvironmentStringsW",
+          "iat_rva": "0x1de328"
+        },
+        {
+          "name": "SetEnvironmentVariableA",
+          "iat_rva": "0x1de330"
+        },
+        {
+          "name": "SetLastError",
+          "iat_rva": "0x1de338"
+        },
+        {
+          "name": "GetCurrentThreadId",
+          "iat_rva": "0x1de340"
+        },
+        {
+          "name": "EnterCriticalSection",
+          "iat_rva": "0x1de348"
+        },
+        {
+          "name": "LeaveCriticalSection",
+          "iat_rva": "0x1de350"
+        },
+        {
+          "name": "InitializeCriticalSectionAndSpinCount",
+          "iat_rva": "0x1de358"
+        },
+        {
+          "name": "TryEnterCriticalSection",
+          "iat_rva": "0x1de360"
+        },
+        {
+          "name": "DeleteCriticalSection",
+          "iat_rva": "0x1de368"
+        },
+        {
+          "name": "ReleaseSemaphore",
+          "iat_rva": "0x1de370"
+        },
+        {
+          "name": "GetLastError",
+          "iat_rva": "0x1de378"
+        },
+        {
+          "name": "RaiseException",
+          "iat_rva": "0x1de380"
+        },
+        {
+          "name": "AddVectoredExceptionHandler",
+          "iat_rva": "0x1de388"
+        },
+        {
+          "name": "RemoveVectoredExceptionHandler",
+          "iat_rva": "0x1de390"
+        },
+        {
+          "name": "CreateThread",
+          "iat_rva": "0x1de398"
+        },
+        {
+          "name": "GetCurrentThread",
+          "iat_rva": "0x1de3a0"
+        },
+        {
+          "name": "SetThreadPriority",
+          "iat_rva": "0x1de3a8"
+        },
+        {
+          "name": "TlsAlloc",
+          "iat_rva": "0x1de3b0"
+        },
+        {
+          "name": "TlsGetValue",
+          "iat_rva": "0x1de3b8"
+        },
+        {
+          "name": "TlsSetValue",
+          "iat_rva": "0x1de3c0"
+        },
+        {
+          "name": "TlsFree",
+          "iat_rva": "0x1de3c8"
+        },
+        {
+          "name": "QueryPerformanceCounter",
+          "iat_rva": "0x1de3d0"
+        },
+        {
+          "name": "QueryPerformanceFrequency",
+          "iat_rva": "0x1de3d8"
+        },
+        {
+          "name": "Sleep",
+          "iat_rva": "0x1de3e0"
+        },
+        {
+          "name": "GetSystemTimeAsFileTime",
+          "iat_rva": "0x1de3e8"
+        },
+        {
+          "name": "SystemTimeToTzSpecificLocalTime",
+          "iat_rva": "0x1de3f0"
+        },
+        {
+          "name": "FileTimeToSystemTime",
+          "iat_rva": "0x1de3f8"
+        },
+        {
+          "name": "GetLocaleInfoW",
+          "iat_rva": "0x1de400"
+        },
+        {
+          "name": "GlobalAlloc",
+          "iat_rva": "0x1de408"
+        },
+        {
+          "name": "GlobalSize",
+          "iat_rva": "0x1de410"
+        },
+        {
+          "name": "GlobalUnlock",
+          "iat_rva": "0x1de418"
+        },
+        {
+          "name": "GlobalLock",
+          "iat_rva": "0x1de420"
+        },
+        {
+          "name": "GlobalFree",
+          "iat_rva": "0x1de428"
+        },
+        {
+          "name": "GetTickCount",
+          "iat_rva": "0x1de430"
+        },
+        {
+          "name": "IsWow64Process",
+          "iat_rva": "0x1de438"
+        },
+        {
+          "name": "EnumResourceNamesW",
+          "iat_rva": "0x1de440"
+        },
+        {
+          "name": "CompareStringA",
+          "iat_rva": "0x1de448"
+        },
+        {
+          "name": "MulDiv",
+          "iat_rva": "0x1de450"
+        },
+        {
+          "name": "SetThreadExecutionState",
+          "iat_rva": "0x1de458"
+        },
+        {
+          "name": "GetModuleHandleExW",
+          "iat_rva": "0x1de460"
+        },
+        {
+          "name": "GetCPInfo",
+          "iat_rva": "0x1de468"
+        },
+        {
+          "name": "GetACP",
+          "iat_rva": "0x1de470"
+        },
+        {
+          "name": "IsValidCodePage",
+          "iat_rva": "0x1de478"
+        },
+        {
+          "name": "HeapReAlloc",
+          "iat_rva": "0x1de480"
+        },
+        {
+          "name": "GetConsoleOutputCP",
+          "iat_rva": "0x1de488"
+        },
+        {
+          "name": "LCMapStringW",
+          "iat_rva": "0x1de490"
+        },
+        {
+          "name": "VirtualProtect",
+          "iat_rva": "0x1de498"
+        },
+        {
+          "name": "UnhandledExceptionFilter",
+          "iat_rva": "0x1de4a0"
+        },
+        {
+          "name": "IsDebuggerPresent",
+          "iat_rva": "0x1de4a8"
+        },
+        {
+          "name": "RtlVirtualUnwind",
+          "iat_rva": "0x1de4b0"
+        },
+        {
+          "name": "RtlCaptureContext",
+          "iat_rva": "0x1de4b8"
+        },
+        {
+          "name": "IsProcessorFeaturePresent",
+          "iat_rva": "0x1de4c0"
+        },
+        {
+          "name": "SetConsoleCtrlHandler",
+          "iat_rva": "0x1de4c8"
+        },
+        {
+          "name": "FreeLibraryAndExitThread",
+          "iat_rva": "0x1de4d0"
+        },
+        {
+          "name": "ExitThread",
+          "iat_rva": "0x1de4d8"
+        },
+        {
+          "name": "RtlPcToFileHeader",
+          "iat_rva": "0x1de4e0"
+        },
+        {
+          "name": "EncodePointer",
+          "iat_rva": "0x1de4e8"
+        },
+        {
+          "name": "RtlLookupFunctionEntry",
+          "iat_rva": "0x1de4f0"
+        },
+        {
+          "name": "InitializeCriticalSectionEx",
+          "iat_rva": "0x1de4f8"
+        },
+        {
+          "name": "FlsFree",
+          "iat_rva": "0x1de500"
+        },
+        {
+          "name": "FlsSetValue",
+          "iat_rva": "0x1de508"
+        },
+        {
+          "name": "FlsGetValue",
+          "iat_rva": "0x1de510"
+        },
+        {
+          "name": "FlsAlloc",
+          "iat_rva": "0x1de518"
+        },
+        {
+          "name": "InterlockedFlushSList",
+          "iat_rva": "0x1de520"
+        },
+        {
+          "name": "RtlUnwindEx",
+          "iat_rva": "0x1de528"
+        },
+        {
+          "name": "GetStartupInfoW",
+          "iat_rva": "0x1de530"
+        },
+        {
+          "name": "SetUnhandledExceptionFilter",
+          "iat_rva": "0x1de538"
+        },
+        {
+          "name": "InitializeSListHead",
+          "iat_rva": "0x1de540"
+        },
+        {
+          "name": "GetCurrentProcessId",
+          "iat_rva": "0x1de548"
+        },
+        {
+          "name": "GetCommandLineA",
+          "iat_rva": "0x1de550"
+        },
+        {
+          "name": "CopyFileExW",
+          "iat_rva": "0x1de558"
+        },
+        {
+          "name": "RemoveDirectoryW",
+          "iat_rva": "0x1de560"
+        },
+        {
+          "name": "GetLogicalDrives",
+          "iat_rva": "0x1de568"
+        },
+        {
+          "name": "GetFileAttributesExW",
+          "iat_rva": "0x1de570"
+        },
+        {
+          "name": "FindNextFileW",
+          "iat_rva": "0x1de578"
+        },
+        {
+          "name": "FindFirstFileExW",
+          "iat_rva": "0x1de580"
+        },
+        {
+          "name": "FindClose",
+          "iat_rva": "0x1de588"
+        },
+        {
+          "name": "DeleteFileW",
+          "iat_rva": "0x1de590"
+        },
+        {
+          "name": "CreateDirectoryW",
+          "iat_rva": "0x1de598"
+        },
+        {
+          "name": "LoadLibraryW",
+          "iat_rva": "0x1de5a0"
+        },
+        {
+          "name": "GetProcAddress",
+          "iat_rva": "0x1de5a8"
+        },
+        {
+          "name": "CreateSemaphoreW",
+          "iat_rva": "0x1de5b0"
+        },
+        {
+          "name": "FreeLibrary",
+          "iat_rva": "0x1de5b8"
+        },
+        {
+          "name": "SetStdHandle",
+          "iat_rva": "0x1de5c0"
+        },
+        {
+          "name": "ReadConsoleW",
+          "iat_rva": "0x1de5c8"
+        },
+        {
+          "name": "GetStringTypeW",
+          "iat_rva": "0x1de5d0"
+        },
+        {
+          "name": "HeapSize",
+          "iat_rva": "0x1de5d8"
+        },
+        {
+          "name": "GetEnvironmentStringsW",
+          "iat_rva": "0x1de5e0"
+        }
+      ]
+    },
+    {
+      "dll": "USER32.dll",
+      "symbols": [
+        {
+          "name": "GetClientRect",
+          "iat_rva": "0x1de698"
+        },
+        {
+          "name": "GetWindowRect",
+          "iat_rva": "0x1de6a0"
+        },
+        {
+          "name": "AdjustWindowRectEx",
+          "iat_rva": "0x1de6a8"
+        },
+        {
+          "name": "SetCursor",
+          "iat_rva": "0x1de6b0"
+        },
+        {
+          "name": "GetCursorPos",
+          "iat_rva": "0x1de6b8"
+        },
+        {
+          "name": "ClientToScreen",
+          "iat_rva": "0x1de6c0"
+        },
+        {
+          "name": "ScreenToClient",
+          "iat_rva": "0x1de6c8"
+        },
+        {
+          "name": "FillRect",
+          "iat_rva": "0x1de6d0"
+        },
+        {
+          "name": "SetRectEmpty",
+          "iat_rva": "0x1de6d8"
+        },
+        {
+          "name": "GetWindowLongW",
+          "iat_rva": "0x1de6e0"
+        },
+        {
+          "name": "CallNextHookEx",
+          "iat_rva": "0x1de6e8"
+        },
+        {
+          "name": "MonitorFromPoint",
+          "iat_rva": "0x1de6f0"
+        },
+        {
+          "name": "MonitorFromWindow",
+          "iat_rva": "0x1de6f8"
+        },
+        {
+          "name": "GetMonitorInfoW",
+          "iat_rva": "0x1de700"
+        },
+        {
+          "name": "GetRawInputBuffer",
+          "iat_rva": "0x1de708"
+        },
+        {
+          "name": "GetKeyboardLayout",
+          "iat_rva": "0x1de710"
+        },
+        {
+          "name": "GetKeyboardState",
+          "iat_rva": "0x1de718"
+        },
+        {
+          "name": "ToUnicode",
+          "iat_rva": "0x1de720"
+        },
+        {
+          "name": "DialogBoxIndirectParamW",
+          "iat_rva": "0x1de728"
+        },
+        {
+          "name": "EndDialog",
+          "iat_rva": "0x1de730"
+        },
+        {
+          "name": "GetDlgItem",
+          "iat_rva": "0x1de738"
+        },
+        {
+          "name": "SetFocus",
+          "iat_rva": "0x1de740"
+        },
+        {
+          "name": "DrawTextW",
+          "iat_rva": "0x1de748"
+        },
+        {
+          "name": "SystemParametersInfoA",
+          "iat_rva": "0x1de750"
+        },
+        {
+          "name": "SystemParametersInfoW",
+          "iat_rva": "0x1de758"
+        },
+        {
+          "name": "ChangeDisplaySettingsExW",
+          "iat_rva": "0x1de760"
+        },
+        {
+          "name": "EnumDisplaySettingsW",
+          "iat_rva": "0x1de768"
+        },
+        {
+          "name": "EnumDisplayDevicesW",
+          "iat_rva": "0x1de770"
+        },
+        {
+          "name": "EnumDisplayMonitors",
+          "iat_rva": "0x1de778"
+        },
+        {
+          "name": "SetCapture",
+          "iat_rva": "0x1de780"
+        },
+        {
+          "name": "ReleaseCapture",
+          "iat_rva": "0x1de788"
+        },
+        {
+          "name": "SetCursorPos",
+          "iat_rva": "0x1de790"
+        },
+        {
+          "name": "LoadCursorW",
+          "iat_rva": "0x1de798"
+        },
+        {
+          "name": "DestroyCursor",
+          "iat_rva": "0x1de7a0"
+        },
+        {
+          "name": "CreateIconFromResourceEx",
+          "iat_rva": "0x1de7a8"
+        },
+        {
+          "name": "GetQueueStatus",
+          "iat_rva": "0x1de7b0"
+        },
+        {
+          "name": "SetWindowRgn",
+          "iat_rva": "0x1de7b8"
+        },
+        {
+          "name": "RegisterWindowMessageA",
+          "iat_rva": "0x1de7c0"
+        },
+        {
+          "name": "AttachThreadInput",
+          "iat_rva": "0x1de7c8"
+        },
+        {
+          "name": "ShowWindow",
+          "iat_rva": "0x1de7d0"
+        },
+        {
+          "name": "SetLayeredWindowAttributes",
+          "iat_rva": "0x1de7d8"
+        },
+        {
+          "name": "FlashWindowEx",
+          "iat_rva": "0x1de7e0"
+        },
+        {
+          "name": "GetClipboardFormatNameA",
+          "iat_rva": "0x1de7e8"
+        },
+        {
+          "name": "GetPropW",
+          "iat_rva": "0x1de7f0"
+        },
+        {
+          "name": "EnableWindow",
+          "iat_rva": "0x1de7f8"
+        },
+        {
+          "name": "SetActiveWindow",
+          "iat_rva": "0x1de800"
+        },
+        {
+          "name": "RemovePropW",
+          "iat_rva": "0x1de808"
+        },
+        {
+          "name": "SetWindowTextW",
+          "iat_rva": "0x1de810"
+        },
+        {
+          "name": "GetWindowTextW",
+          "iat_rva": "0x1de818"
+        },
+        {
+          "name": "GetWindowTextLengthW",
+          "iat_rva": "0x1de820"
+        },
+        {
+          "name": "GetClipCursor",
+          "iat_rva": "0x1de828"
+        },
+        {
+          "name": "ClipCursor",
+          "iat_rva": "0x1de830"
+        },
+        {
+          "name": "IntersectRect",
+          "iat_rva": "0x1de838"
+        },
+        {
+          "name": "PtInRect",
+          "iat_rva": "0x1de840"
+        },
+        {
+          "name": "SetWindowLongW",
+          "iat_rva": "0x1de848"
+        },
+        {
+          "name": "SetParent",
+          "iat_rva": "0x1de850"
+        },
+        {
+          "name": "SetWindowsHookExW",
+          "iat_rva": "0x1de858"
+        },
+        {
+          "name": "UnhookWindowsHookEx",
+          "iat_rva": "0x1de860"
+        },
+        {
+          "name": "CreateIconFromResource",
+          "iat_rva": "0x1de868"
+        },
+        {
+          "name": "ValidateRect",
+          "iat_rva": "0x1de870"
+        },
+        {
+          "name": "IsZoomed",
+          "iat_rva": "0x1de878"
+        },
+        {
+          "name": "IsIconic",
+          "iat_rva": "0x1de880"
+        },
+        {
+          "name": "GetWindowPlacement",
+          "iat_rva": "0x1de888"
+        },
+        {
+          "name": "SetWindowPos",
+          "iat_rva": "0x1de890"
+        },
+        {
+          "name": "GetMessageExtraInfo",
+          "iat_rva": "0x1de898"
+        },
+        {
+          "name": "GetMessageTime",
+          "iat_rva": "0x1de8a0"
+        },
+        {
+          "name": "GetMessagePos",
+          "iat_rva": "0x1de8a8"
+        },
+        {
+          "name": "TrackMouseEvent",
+          "iat_rva": "0x1de8b0"
+        },
+        {
+          "name": "IsClipboardFormatAvailable",
+          "iat_rva": "0x1de8b8"
+        },
+        {
+          "name": "EmptyClipboard",
+          "iat_rva": "0x1de8c0"
+        },
+        {
+          "name": "EnumClipboardFormats",
+          "iat_rva": "0x1de8c8"
+        },
+        {
+          "name": "RegisterClipboardFormatW",
+          "iat_rva": "0x1de8d0"
+        },
+        {
+          "name": "GetClipboardData",
+          "iat_rva": "0x1de8d8"
+        },
+        {
+          "name": "SetClipboardData",
+          "iat_rva": "0x1de8e0"
+        },
+        {
+          "name": "GetClipboardSequenceNumber",
+          "iat_rva": "0x1de8e8"
+        },
+        {
+          "name": "CloseClipboard",
+          "iat_rva": "0x1de8f0"
+        },
+        {
+          "name": "OpenClipboard",
+          "iat_rva": "0x1de8f8"
+        },
+        {
+          "name": "DestroyIcon",
+          "iat_rva": "0x1de900"
+        },
+        {
+          "name": "LoadIconW",
+          "iat_rva": "0x1de908"
+        },
+        {
+          "name": "SetWindowLongPtrW",
+          "iat_rva": "0x1de910"
+        },
+        {
+          "name": "SetForegroundWindow",
+          "iat_rva": "0x1de918"
+        },
+        {
+          "name": "SetMenuItemInfoW",
+          "iat_rva": "0x1de920"
+        },
+        {
+          "name": "GetMenuItemInfoW",
+          "iat_rva": "0x1de928"
+        },
+        {
+          "name": "TrackPopupMenu",
+          "iat_rva": "0x1de930"
+        },
+        {
+          "name": "DeleteMenu",
+          "iat_rva": "0x1de938"
+        },
+        {
+          "name": "InsertMenuW",
+          "iat_rva": "0x1de940"
+        },
+        {
+          "name": "EnableMenuItem",
+          "iat_rva": "0x1de948"
+        },
+        {
+          "name": "CheckMenuItem",
+          "iat_rva": "0x1de950"
+        },
+        {
+          "name": "DestroyMenu",
+          "iat_rva": "0x1de958"
+        },
+        {
+          "name": "GetUpdateRect",
+          "iat_rva": "0x1de960"
+        },
+        {
+          "name": "EndPaint",
+          "iat_rva": "0x1de968"
+        },
+        {
+          "name": "BeginPaint",
+          "iat_rva": "0x1de970"
+        },
+        {
+          "name": "GetForegroundWindow",
+          "iat_rva": "0x1de978"
+        },
+        {
+          "name": "GetMenu",
+          "iat_rva": "0x1de980"
+        },
+        {
+          "name": "MsgWaitForMultipleObjects",
+          "iat_rva": "0x1de988"
+        },
+        {
+          "name": "MapVirtualKeyW",
+          "iat_rva": "0x1de990"
+        },
+        {
+          "name": "GetAsyncKeyState",
+          "iat_rva": "0x1de998"
+        },
+        {
+          "name": "GetFocus",
+          "iat_rva": "0x1de9a0"
+        },
+        {
+          "name": "GetKeyState",
+          "iat_rva": "0x1de9a8"
+        },
+        {
+          "name": "IsWindow",
+          "iat_rva": "0x1de9b0"
+        },
+        {
+          "name": "GetDesktopWindow",
+          "iat_rva": "0x1de9b8"
+        },
+        {
+          "name": "DefWindowProcW",
+          "iat_rva": "0x1de9c0"
+        },
+        {
+          "name": "RegisterClassW",
+          "iat_rva": "0x1de9c8"
+        },
+        {
+          "name": "UnregisterClassW",
+          "iat_rva": "0x1de9d0"
+        },
+        {
+          "name": "CreateWindowExW",
+          "iat_rva": "0x1de9d8"
+        },
+        {
+          "name": "DestroyWindow",
+          "iat_rva": "0x1de9e0"
+        },
+        {
+          "name": "GetDC",
+          "iat_rva": "0x1de9e8"
+        },
+        {
+          "name": "ReleaseDC",
+          "iat_rva": "0x1de9f0"
+        },
+        {
+          "name": "SetPropW",
+          "iat_rva": "0x1de9f8"
+        },
+        {
+          "name": "CreateIconIndirect",
+          "iat_rva": "0x1dea00"
+        },
+        {
+          "name": "SendMessageW",
+          "iat_rva": "0x1dea08"
+        },
+        {
+          "name": "CreatePopupMenu",
+          "iat_rva": "0x1dea10"
+        },
+        {
+          "name": "GetClassInfoExW",
+          "iat_rva": "0x1dea18"
+        },
+        {
+          "name": "RegisterWindowMessageW",
+          "iat_rva": "0x1dea20"
+        },
+        {
+          "name": "GetWindowThreadProcessId",
+          "iat_rva": "0x1dea28"
+        },
+        {
+          "name": "EnumWindows",
+          "iat_rva": "0x1dea30"
+        },
+        {
+          "name": "PostMessageW",
+          "iat_rva": "0x1dea38"
+        },
+        {
+          "name": "KillTimer",
+          "iat_rva": "0x1dea40"
+        },
+        {
+          "name": "SetTimer",
+          "iat_rva": "0x1dea48"
+        },
+        {
+          "name": "RegisterClassExW",
+          "iat_rva": "0x1dea50"
+        },
+        {
+          "name": "PostThreadMessageW",
+          "iat_rva": "0x1dea58"
+        },
+        {
+          "name": "GetMessageW",
+          "iat_rva": "0x1dea60"
+        },
+        {
+          "name": "GetRawInputDeviceList",
+          "iat_rva": "0x1dea68"
+        },
+        {
+          "name": "RegisterRawInputDevices",
+          "iat_rva": "0x1dea70"
+        },
+        {
+          "name": "GetRawInputDeviceInfoA",
+          "iat_rva": "0x1dea78"
+        },
+        {
+          "name": "GetRawInputData",
+          "iat_rva": "0x1dea80"
+        },
+        {
+          "name": "GetSystemMetrics",
+          "iat_rva": "0x1dea88"
+        },
+        {
+          "name": "CallWindowProcW",
+          "iat_rva": "0x1dea90"
+        },
+        {
+          "name": "CreateWindowExA",
+          "iat_rva": "0x1dea98"
+        },
+        {
+          "name": "RegisterClassExA",
+          "iat_rva": "0x1deaa0"
+        },
+        {
+          "name": "UnregisterClassA",
+          "iat_rva": "0x1deaa8"
+        },
+        {
+          "name": "UnregisterDeviceNotification",
+          "iat_rva": "0x1deab0"
+        },
+        {
+          "name": "RegisterDeviceNotificationW",
+          "iat_rva": "0x1deab8"
+        },
+        {
+          "name": "PeekMessageW",
+          "iat_rva": "0x1deac0"
+        },
+        {
+          "name": "DispatchMessageW",
+          "iat_rva": "0x1deac8"
+        },
+        {
+          "name": "TranslateMessage",
+          "iat_rva": "0x1dead0"
+        },
+        {
+          "name": "GetMessageA",
+          "iat_rva": "0x1dead8"
+        },
+        {
+          "name": "GetDoubleClickTime",
+          "iat_rva": "0x1deae0"
+        },
+        {
+          "name": "MessageBoxA",
+          "iat_rva": "0x1deae8"
+        },
+        {
+          "name": "GetWindowLongPtrW",
+          "iat_rva": "0x1deaf0"
+        }
+      ]
+    },
+    {
+      "dll": "GDI32.dll",
+      "symbols": [
+        {
+          "name": "SelectObject",
+          "iat_rva": "0x1de020"
+        },
+        {
+          "name": "SetPixel",
+          "iat_rva": "0x1de028"
+        },
+        {
+          "name": "CreateDIBSection",
+          "iat_rva": "0x1de030"
+        },
+        {
+          "name": "CreateSolidBrush",
+          "iat_rva": "0x1de038"
+        },
+        {
+          "name": "GetTextExtentPoint32A",
+          "iat_rva": "0x1de040"
+        },
+        {
+          "name": "GetTextMetricsW",
+          "iat_rva": "0x1de048"
+        },
+        {
+          "name": "CreateDCW",
+          "iat_rva": "0x1de050"
+        },
+        {
+          "name": "DeleteObject",
+          "iat_rva": "0x1de058"
+        },
+        {
+          "name": "DescribePixelFormat",
+          "iat_rva": "0x1de060"
+        },
+        {
+          "name": "SetPixelFormat",
+          "iat_rva": "0x1de068"
+        },
+        {
+          "name": "SwapBuffers",
+          "iat_rva": "0x1de070"
+        },
+        {
+          "name": "CreateFontIndirectW",
+          "iat_rva": "0x1de078"
+        },
+        {
+          "name": "CombineRgn",
+          "iat_rva": "0x1de080"
+        },
+        {
+          "name": "CreateRectRgn",
+          "iat_rva": "0x1de088"
+        },
+        {
+          "name": "GetPixelFormat",
+          "iat_rva": "0x1de090"
+        },
+        {
+          "name": "GetICMProfileW",
+          "iat_rva": "0x1de098"
+        },
+        {
+          "name": "DeleteDC",
+          "iat_rva": "0x1de0a0"
+        },
+        {
+          "name": "CreateCompatibleDC",
+          "iat_rva": "0x1de0a8"
+        },
+        {
+          "name": "ChoosePixelFormat",
+          "iat_rva": "0x1de0b0"
+        },
+        {
+          "name": "CreateBitmap",
+          "iat_rva": "0x1de0b8"
+        },
+        {
+          "name": "GetDIBits",
+          "iat_rva": "0x1de0c0"
+        },
+        {
+          "name": "CreateCompatibleBitmap",
+          "iat_rva": "0x1de0c8"
+        },
+        {
+          "name": "BitBlt",
+          "iat_rva": "0x1de0d0"
+        },
+        {
+          "name": "GetDeviceCaps",
+          "iat_rva": "0x1de0d8"
+        }
+      ]
+    },
+    {
+      "dll": "ADVAPI32.dll",
+      "symbols": [
+        {
+          "name": "RegOpenKeyExW",
+          "iat_rva": "0x1de000"
+        },
+        {
+          "name": "RegCloseKey",
+          "iat_rva": "0x1de008"
+        },
+        {
+          "name": "RegQueryValueExW",
+          "iat_rva": "0x1de010"
+        }
+      ]
+    },
+    {
+      "dll": "SHELL32.dll",
+      "symbols": [
+        {
+          "name": "DragFinish",
+          "iat_rva": "0x1de648"
+        },
+        {
+          "name": "DragQueryFileW",
+          "iat_rva": "0x1de650"
+        },
+        {
+          "name": "Shell_NotifyIconW",
+          "iat_rva": "0x1de658"
+        },
+        {
+          "name": "ShellExecuteW",
+          "iat_rva": "0x1de660"
+        },
+        {
+          "name": "SHGetFolderPathW",
+          "iat_rva": "0x1de668"
+        },
+        {
+          "name": "SHBrowseForFolderW",
+          "iat_rva": "0x1de670"
+        },
+        {
+          "name": "SHGetPathFromIDListW",
+          "iat_rva": "0x1de678"
+        },
+        {
+          "name": "CommandLineToArgvW",
+          "iat_rva": "0x1de680"
+        },
+        {
+          "name": "DragAcceptFiles",
+          "iat_rva": "0x1de688"
+        }
+      ]
+    },
+    {
+      "dll": "ole32.dll",
+      "symbols": [
+        {
+          "name": "CLSIDFromString",
+          "iat_rva": "0x1deb38"
+        },
+        {
+          "name": "CoUninitialize",
+          "iat_rva": "0x1deb40"
+        },
+        {
+          "name": "CoTaskMemFree",
+          "iat_rva": "0x1deb48"
+        },
+        {
+          "name": "CoInitializeEx",
+          "iat_rva": "0x1deb50"
+        },
+        {
+          "name": "OleInitialize",
+          "iat_rva": "0x1deb58"
+        },
+        {
+          "name": "OleUninitialize",
+          "iat_rva": "0x1deb60"
+        },
+        {
+          "name": "RegisterDragDrop",
+          "iat_rva": "0x1deb68"
+        },
+        {
+          "name": "PropVariantClear",
+          "iat_rva": "0x1deb70"
+        },
+        {
+          "name": "ReleaseStgMedium",
+          "iat_rva": "0x1deb78"
+        },
+        {
+          "name": "RevokeDragDrop",
+          "iat_rva": "0x1deb80"
+        },
+        {
+          "name": "CoCreateInstance",
+          "iat_rva": "0x1deb88"
+        }
+      ]
+    },
+    {
+      "dll": "OLEAUT32.dll",
+      "symbols": [
+        {
+          "name": "#6",
+          "iat_rva": "0x1de5f0"
+        }
+      ]
+    }
+  ],
+  "exports": [
+    {
+      "name": "JNI_OnLoad",
+      "ordinal": 1,
+      "rva": "0x5f6c0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_AcquireCameraFrame",
+      "ordinal": 2,
+      "rva": "0x5f6d0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_AcquireGPUCommandBuffer",
+      "ordinal": 3,
+      "rva": "0x5f6e0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_AcquireGPUSwapchainTexture",
+      "ordinal": 4,
+      "rva": "0x5f6f0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_AddAtomicInt",
+      "ordinal": 5,
+      "rva": "0x5f700",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_AddAtomicU32",
+      "ordinal": 6,
+      "rva": "0x5f710",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_AddEventWatch",
+      "ordinal": 7,
+      "rva": "0x5f720",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_AddGamepadMapping",
+      "ordinal": 8,
+      "rva": "0x5f730",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_AddGamepadMappingsFromFile",
+      "ordinal": 9,
+      "rva": "0x5f740",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_AddGamepadMappingsFromIO",
+      "ordinal": 10,
+      "rva": "0x5f750",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_AddHintCallback",
+      "ordinal": 11,
+      "rva": "0x5f760",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_AddSurfaceAlternateImage",
+      "ordinal": 12,
+      "rva": "0x5f770",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_AddTimer",
+      "ordinal": 13,
+      "rva": "0x5f780",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_AddTimerNS",
+      "ordinal": 14,
+      "rva": "0x5f790",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_AddVulkanRenderSemaphores",
+      "ordinal": 15,
+      "rva": "0x5f7a0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_AsyncIOFromFile",
+      "ordinal": 16,
+      "rva": "0x5f7b0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_AttachVirtualJoystick",
+      "ordinal": 17,
+      "rva": "0x5f7c0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_AudioDevicePaused",
+      "ordinal": 18,
+      "rva": "0x5f7d0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_AudioStreamDevicePaused",
+      "ordinal": 19,
+      "rva": "0x5f7e0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_BeginGPUComputePass",
+      "ordinal": 20,
+      "rva": "0x5f7f0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_BeginGPUCopyPass",
+      "ordinal": 21,
+      "rva": "0x5f800",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_BeginGPURenderPass",
+      "ordinal": 22,
+      "rva": "0x5f810",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_BindAudioStream",
+      "ordinal": 23,
+      "rva": "0x5f820",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_BindAudioStreams",
+      "ordinal": 24,
+      "rva": "0x5f830",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_BindGPUComputePipeline",
+      "ordinal": 25,
+      "rva": "0x5f840",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_BindGPUComputeSamplers",
+      "ordinal": 26,
+      "rva": "0x5f850",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_BindGPUComputeStorageBuffers",
+      "ordinal": 27,
+      "rva": "0x5f860",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_BindGPUComputeStorageTextures",
+      "ordinal": 28,
+      "rva": "0x5f870",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_BindGPUFragmentSamplers",
+      "ordinal": 29,
+      "rva": "0x5f880",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_BindGPUFragmentStorageBuffers",
+      "ordinal": 30,
+      "rva": "0x5f890",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_BindGPUFragmentStorageTextures",
+      "ordinal": 31,
+      "rva": "0x5f8a0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_BindGPUGraphicsPipeline",
+      "ordinal": 32,
+      "rva": "0x5f8b0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_BindGPUIndexBuffer",
+      "ordinal": 33,
+      "rva": "0x5f8c0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_BindGPUVertexBuffers",
+      "ordinal": 34,
+      "rva": "0x5f8d0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_BindGPUVertexSamplers",
+      "ordinal": 35,
+      "rva": "0x5f8e0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_BindGPUVertexStorageBuffers",
+      "ordinal": 36,
+      "rva": "0x5f8f0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_BindGPUVertexStorageTextures",
+      "ordinal": 37,
+      "rva": "0x5f900",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_BlitGPUTexture",
+      "ordinal": 38,
+      "rva": "0x5f910",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_BlitSurface",
+      "ordinal": 39,
+      "rva": "0x5f920",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_BlitSurface9Grid",
+      "ordinal": 40,
+      "rva": "0x5f930",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_BlitSurfaceScaled",
+      "ordinal": 41,
+      "rva": "0x5f940",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_BlitSurfaceTiled",
+      "ordinal": 42,
+      "rva": "0x5f950",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_BlitSurfaceTiledWithScale",
+      "ordinal": 43,
+      "rva": "0x5f960",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_BlitSurfaceUnchecked",
+      "ordinal": 44,
+      "rva": "0x5f970",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_BlitSurfaceUncheckedScaled",
+      "ordinal": 45,
+      "rva": "0x5f980",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_BroadcastCondition",
+      "ordinal": 46,
+      "rva": "0x5f990",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_CalculateGPUTextureFormatSize",
+      "ordinal": 47,
+      "rva": "0x5f9a0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_CancelGPUCommandBuffer",
+      "ordinal": 48,
+      "rva": "0x5f9b0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_CaptureMouse",
+      "ordinal": 49,
+      "rva": "0x5f9c0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_ClaimWindowForGPUDevice",
+      "ordinal": 50,
+      "rva": "0x5f9d0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_CleanupTLS",
+      "ordinal": 51,
+      "rva": "0x5f9e0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_ClearAudioStream",
+      "ordinal": 52,
+      "rva": "0x5f9f0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_ClearClipboardData",
+      "ordinal": 53,
+      "rva": "0x5fa00",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_ClearComposition",
+      "ordinal": 54,
+      "rva": "0x5fa10",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_ClearError",
+      "ordinal": 55,
+      "rva": "0x5fa20",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_ClearProperty",
+      "ordinal": 56,
+      "rva": "0x5fa30",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_ClearSurface",
+      "ordinal": 57,
+      "rva": "0x5fa40",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_ClickTrayEntry",
+      "ordinal": 58,
+      "rva": "0x5fa50",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_CloseAsyncIO",
+      "ordinal": 59,
+      "rva": "0x5fa60",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_CloseAudioDevice",
+      "ordinal": 60,
+      "rva": "0x5fa70",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_CloseCamera",
+      "ordinal": 61,
+      "rva": "0x5fa80",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_CloseGamepad",
+      "ordinal": 62,
+      "rva": "0x5fa90",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_CloseHaptic",
+      "ordinal": 63,
+      "rva": "0x5faa0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_CloseIO",
+      "ordinal": 64,
+      "rva": "0x5fab0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_CloseJoystick",
+      "ordinal": 65,
+      "rva": "0x5fac0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_CloseSensor",
+      "ordinal": 66,
+      "rva": "0x5fad0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_CloseStorage",
+      "ordinal": 67,
+      "rva": "0x5fae0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_CompareAndSwapAtomicInt",
+      "ordinal": 68,
+      "rva": "0x5faf0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_CompareAndSwapAtomicPointer",
+      "ordinal": 69,
+      "rva": "0x5fb00",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_CompareAndSwapAtomicU32",
+      "ordinal": 70,
+      "rva": "0x5fb10",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_ComposeCustomBlendMode",
+      "ordinal": 71,
+      "rva": "0x5fb20",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_ConvertAudioSamples",
+      "ordinal": 72,
+      "rva": "0x5fb30",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_ConvertEventToRenderCoordinates",
+      "ordinal": 73,
+      "rva": "0x5fb40",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_ConvertPixels",
+      "ordinal": 74,
+      "rva": "0x5fb50",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_ConvertPixelsAndColorspace",
+      "ordinal": 75,
+      "rva": "0x5fb60",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_ConvertSurface",
+      "ordinal": 76,
+      "rva": "0x5fb70",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_ConvertSurfaceAndColorspace",
+      "ordinal": 77,
+      "rva": "0x5fb80",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_CopyFile",
+      "ordinal": 78,
+      "rva": "0x5fb90",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_CopyGPUBufferToBuffer",
+      "ordinal": 79,
+      "rva": "0x5fba0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_CopyGPUTextureToTexture",
+      "ordinal": 80,
+      "rva": "0x5fbb0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_CopyProperties",
+      "ordinal": 81,
+      "rva": "0x5fbc0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_CopyStorageFile",
+      "ordinal": 82,
+      "rva": "0x5fbd0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_CreateAnimatedCursor",
+      "ordinal": 83,
+      "rva": "0x5fbe0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_CreateAsyncIOQueue",
+      "ordinal": 84,
+      "rva": "0x5fbf0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_CreateAudioStream",
+      "ordinal": 85,
+      "rva": "0x5fc00",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_CreateColorCursor",
+      "ordinal": 86,
+      "rva": "0x5fc10",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_CreateCondition",
+      "ordinal": 87,
+      "rva": "0x5fc20",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_CreateCursor",
+      "ordinal": 88,
+      "rva": "0x5fc30",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_CreateDirectory",
+      "ordinal": 89,
+      "rva": "0x5fc40",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_CreateEnvironment",
+      "ordinal": 90,
+      "rva": "0x5fc50",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_CreateGPUBuffer",
+      "ordinal": 91,
+      "rva": "0x5fc60",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_CreateGPUComputePipeline",
+      "ordinal": 92,
+      "rva": "0x5fc70",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_CreateGPUDevice",
+      "ordinal": 93,
+      "rva": "0x5fc80",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_CreateGPUDeviceWithProperties",
+      "ordinal": 94,
+      "rva": "0x5fc90",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_CreateGPUGraphicsPipeline",
+      "ordinal": 95,
+      "rva": "0x5fca0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_CreateGPURenderState",
+      "ordinal": 96,
+      "rva": "0x5fcb0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_CreateGPURenderer",
+      "ordinal": 97,
+      "rva": "0x5fcc0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_CreateGPUSampler",
+      "ordinal": 98,
+      "rva": "0x5fcd0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_CreateGPUShader",
+      "ordinal": 99,
+      "rva": "0x5fce0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_CreateGPUTexture",
+      "ordinal": 100,
+      "rva": "0x5fcf0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_CreateGPUTransferBuffer",
+      "ordinal": 101,
+      "rva": "0x5fd00",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_CreateHapticEffect",
+      "ordinal": 102,
+      "rva": "0x5fd10",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_CreateMutex",
+      "ordinal": 103,
+      "rva": "0x5fd20",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_CreatePalette",
+      "ordinal": 104,
+      "rva": "0x5fd30",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_CreatePopupWindow",
+      "ordinal": 105,
+      "rva": "0x5fd40",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_CreateProcess",
+      "ordinal": 106,
+      "rva": "0x5fd50",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_CreateProcessWithProperties",
+      "ordinal": 107,
+      "rva": "0x5fd60",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_CreateProperties",
+      "ordinal": 108,
+      "rva": "0x5fd70",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_CreateRWLock",
+      "ordinal": 109,
+      "rva": "0x5fd80",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_CreateRenderer",
+      "ordinal": 110,
+      "rva": "0x5fd90",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_CreateRendererWithProperties",
+      "ordinal": 111,
+      "rva": "0x5fda0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_CreateSemaphore",
+      "ordinal": 112,
+      "rva": "0x5fdb0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_CreateSoftwareRenderer",
+      "ordinal": 113,
+      "rva": "0x5fdc0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_CreateStorageDirectory",
+      "ordinal": 114,
+      "rva": "0x5fdd0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_CreateSurface",
+      "ordinal": 115,
+      "rva": "0x5fde0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_CreateSurfaceFrom",
+      "ordinal": 116,
+      "rva": "0x5fdf0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_CreateSurfacePalette",
+      "ordinal": 117,
+      "rva": "0x5fe00",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_CreateSystemCursor",
+      "ordinal": 118,
+      "rva": "0x5fe10",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_CreateTexture",
+      "ordinal": 119,
+      "rva": "0x5fe20",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_CreateTextureFromSurface",
+      "ordinal": 120,
+      "rva": "0x5fe30",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_CreateTextureWithProperties",
+      "ordinal": 121,
+      "rva": "0x5fe40",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_CreateThreadRuntime",
+      "ordinal": 122,
+      "rva": "0x5fe50",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_CreateThreadWithPropertiesRuntime",
+      "ordinal": 123,
+      "rva": "0x5fe60",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_CreateTray",
+      "ordinal": 124,
+      "rva": "0x5fe70",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_CreateTrayMenu",
+      "ordinal": 125,
+      "rva": "0x5fe80",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_CreateTraySubmenu",
+      "ordinal": 126,
+      "rva": "0x5fe90",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_CreateWindow",
+      "ordinal": 127,
+      "rva": "0x5fea0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_CreateWindowAndRenderer",
+      "ordinal": 128,
+      "rva": "0x5feb0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_CreateWindowWithProperties",
+      "ordinal": 129,
+      "rva": "0x5fec0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_CursorVisible",
+      "ordinal": 130,
+      "rva": "0x5fed0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_DYNAPI_entry",
+      "ordinal": 131,
+      "rva": "0x5fee0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_DateTimeToTime",
+      "ordinal": 132,
+      "rva": "0x5fef0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_Delay",
+      "ordinal": 133,
+      "rva": "0x5ff00",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_DelayNS",
+      "ordinal": 134,
+      "rva": "0x5ff10",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_DelayPrecise",
+      "ordinal": 135,
+      "rva": "0x5ff20",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_DestroyAsyncIOQueue",
+      "ordinal": 136,
+      "rva": "0x5ff30",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_DestroyAudioStream",
+      "ordinal": 137,
+      "rva": "0x5ff40",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_DestroyCondition",
+      "ordinal": 138,
+      "rva": "0x5ff50",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_DestroyCursor",
+      "ordinal": 139,
+      "rva": "0x5ff60",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_DestroyEnvironment",
+      "ordinal": 140,
+      "rva": "0x5ff70",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_DestroyGPUDevice",
+      "ordinal": 141,
+      "rva": "0x5ff80",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_DestroyGPURenderState",
+      "ordinal": 142,
+      "rva": "0x5ff90",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_DestroyHapticEffect",
+      "ordinal": 143,
+      "rva": "0x5ffa0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_DestroyMutex",
+      "ordinal": 144,
+      "rva": "0x5ffb0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_DestroyPalette",
+      "ordinal": 145,
+      "rva": "0x5ffc0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_DestroyProcess",
+      "ordinal": 146,
+      "rva": "0x5ffd0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_DestroyProperties",
+      "ordinal": 147,
+      "rva": "0x5ffe0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_DestroyRWLock",
+      "ordinal": 148,
+      "rva": "0x5fff0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_DestroyRenderer",
+      "ordinal": 149,
+      "rva": "0x60000",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_DestroySemaphore",
+      "ordinal": 150,
+      "rva": "0x60010",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_DestroySurface",
+      "ordinal": 151,
+      "rva": "0x60020",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_DestroyTexture",
+      "ordinal": 152,
+      "rva": "0x60030",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_DestroyTray",
+      "ordinal": 153,
+      "rva": "0x60040",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_DestroyWindow",
+      "ordinal": 154,
+      "rva": "0x60050",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_DestroyWindowSurface",
+      "ordinal": 155,
+      "rva": "0x60060",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_DetachThread",
+      "ordinal": 156,
+      "rva": "0x60070",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_DetachVirtualJoystick",
+      "ordinal": 157,
+      "rva": "0x60080",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_DisableScreenSaver",
+      "ordinal": 158,
+      "rva": "0x60090",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_DispatchGPUCompute",
+      "ordinal": 159,
+      "rva": "0x600a0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_DispatchGPUComputeIndirect",
+      "ordinal": 160,
+      "rva": "0x600b0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_DownloadFromGPUBuffer",
+      "ordinal": 161,
+      "rva": "0x600c0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_DownloadFromGPUTexture",
+      "ordinal": 162,
+      "rva": "0x600d0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_DrawGPUIndexedPrimitives",
+      "ordinal": 163,
+      "rva": "0x600e0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_DrawGPUIndexedPrimitivesIndirect",
+      "ordinal": 164,
+      "rva": "0x600f0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_DrawGPUPrimitives",
+      "ordinal": 165,
+      "rva": "0x60100",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_DrawGPUPrimitivesIndirect",
+      "ordinal": 166,
+      "rva": "0x60110",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_DuplicateSurface",
+      "ordinal": 167,
+      "rva": "0x60120",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_EGL_GetCurrentConfig",
+      "ordinal": 168,
+      "rva": "0x60130",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_EGL_GetCurrentDisplay",
+      "ordinal": 169,
+      "rva": "0x60140",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_EGL_GetProcAddress",
+      "ordinal": 170,
+      "rva": "0x60150",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_EGL_GetWindowSurface",
+      "ordinal": 171,
+      "rva": "0x60160",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_EGL_SetAttributeCallbacks",
+      "ordinal": 172,
+      "rva": "0x60170",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_EnableScreenSaver",
+      "ordinal": 173,
+      "rva": "0x60180",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_EndGPUComputePass",
+      "ordinal": 174,
+      "rva": "0x60190",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_EndGPUCopyPass",
+      "ordinal": 175,
+      "rva": "0x601a0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_EndGPURenderPass",
+      "ordinal": 176,
+      "rva": "0x601b0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_EnterAppMainCallbacks",
+      "ordinal": 177,
+      "rva": "0x601c0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_EnumerateDirectory",
+      "ordinal": 178,
+      "rva": "0x601d0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_EnumerateProperties",
+      "ordinal": 179,
+      "rva": "0x601e0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_EnumerateStorageDirectory",
+      "ordinal": 180,
+      "rva": "0x601f0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_EventEnabled",
+      "ordinal": 181,
+      "rva": "0x60200",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_FillSurfaceRect",
+      "ordinal": 182,
+      "rva": "0x60210",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_FillSurfaceRects",
+      "ordinal": 183,
+      "rva": "0x60220",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_FilterEvents",
+      "ordinal": 184,
+      "rva": "0x60230",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_FlashWindow",
+      "ordinal": 185,
+      "rva": "0x60240",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_FlipSurface",
+      "ordinal": 186,
+      "rva": "0x60250",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_FlushAudioStream",
+      "ordinal": 187,
+      "rva": "0x60260",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_FlushEvent",
+      "ordinal": 188,
+      "rva": "0x60270",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_FlushEvents",
+      "ordinal": 189,
+      "rva": "0x60280",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_FlushIO",
+      "ordinal": 190,
+      "rva": "0x60290",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_FlushRenderer",
+      "ordinal": 191,
+      "rva": "0x602a0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GDKResumeGPU",
+      "ordinal": 192,
+      "rva": "0x602b0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GDKSuspendComplete",
+      "ordinal": 193,
+      "rva": "0x602c0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GDKSuspendGPU",
+      "ordinal": 194,
+      "rva": "0x602d0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GL_CreateContext",
+      "ordinal": 195,
+      "rva": "0x602e0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GL_DestroyContext",
+      "ordinal": 196,
+      "rva": "0x602f0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GL_ExtensionSupported",
+      "ordinal": 197,
+      "rva": "0x60300",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GL_GetAttribute",
+      "ordinal": 198,
+      "rva": "0x60310",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GL_GetCurrentContext",
+      "ordinal": 199,
+      "rva": "0x60320",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GL_GetCurrentWindow",
+      "ordinal": 200,
+      "rva": "0x60330",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GL_GetProcAddress",
+      "ordinal": 201,
+      "rva": "0x60340",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GL_GetSwapInterval",
+      "ordinal": 202,
+      "rva": "0x60350",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GL_LoadLibrary",
+      "ordinal": 203,
+      "rva": "0x60360",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GL_MakeCurrent",
+      "ordinal": 204,
+      "rva": "0x60370",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GL_ResetAttributes",
+      "ordinal": 205,
+      "rva": "0x60380",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GL_SetAttribute",
+      "ordinal": 206,
+      "rva": "0x60390",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GL_SetSwapInterval",
+      "ordinal": 207,
+      "rva": "0x603a0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GL_SwapWindow",
+      "ordinal": 208,
+      "rva": "0x603b0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GL_UnloadLibrary",
+      "ordinal": 209,
+      "rva": "0x603c0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GPUSupportsProperties",
+      "ordinal": 210,
+      "rva": "0x603d0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GPUSupportsShaderFormats",
+      "ordinal": 211,
+      "rva": "0x603e0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GPUTextureFormatTexelBlockSize",
+      "ordinal": 212,
+      "rva": "0x603f0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GPUTextureSupportsFormat",
+      "ordinal": 213,
+      "rva": "0x60400",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GPUTextureSupportsSampleCount",
+      "ordinal": 214,
+      "rva": "0x60410",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GUIDToString",
+      "ordinal": 215,
+      "rva": "0x60420",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GamepadConnected",
+      "ordinal": 216,
+      "rva": "0x60440",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GamepadEventsEnabled",
+      "ordinal": 217,
+      "rva": "0x60450",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GamepadHasAxis",
+      "ordinal": 218,
+      "rva": "0x60460",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GamepadHasButton",
+      "ordinal": 219,
+      "rva": "0x60470",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GamepadHasSensor",
+      "ordinal": 220,
+      "rva": "0x60480",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GamepadSensorEnabled",
+      "ordinal": 221,
+      "rva": "0x60490",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GenerateMipmapsForGPUTexture",
+      "ordinal": 222,
+      "rva": "0x604a0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetAndroidActivity",
+      "ordinal": 223,
+      "rva": "0x604b0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetAndroidCachePath",
+      "ordinal": 224,
+      "rva": "0x604c0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetAndroidExternalStoragePath",
+      "ordinal": 225,
+      "rva": "0x604d0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetAndroidExternalStorageState",
+      "ordinal": 226,
+      "rva": "0x604e0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetAndroidInternalStoragePath",
+      "ordinal": 227,
+      "rva": "0x604f0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetAndroidJNIEnv",
+      "ordinal": 228,
+      "rva": "0x60500",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetAndroidSDKVersion",
+      "ordinal": 229,
+      "rva": "0x60510",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetAppMetadataProperty",
+      "ordinal": 230,
+      "rva": "0x60520",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetAssertionHandler",
+      "ordinal": 231,
+      "rva": "0x60530",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetAssertionReport",
+      "ordinal": 232,
+      "rva": "0x60540",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetAsyncIOResult",
+      "ordinal": 233,
+      "rva": "0x60550",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetAsyncIOSize",
+      "ordinal": 234,
+      "rva": "0x60560",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetAtomicInt",
+      "ordinal": 235,
+      "rva": "0x60570",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetAtomicPointer",
+      "ordinal": 236,
+      "rva": "0x60580",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetAtomicU32",
+      "ordinal": 237,
+      "rva": "0x60590",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetAudioDeviceChannelMap",
+      "ordinal": 238,
+      "rva": "0x605a0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetAudioDeviceFormat",
+      "ordinal": 239,
+      "rva": "0x605b0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetAudioDeviceGain",
+      "ordinal": 240,
+      "rva": "0x605c0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetAudioDeviceName",
+      "ordinal": 241,
+      "rva": "0x605d0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetAudioDriver",
+      "ordinal": 242,
+      "rva": "0x605e0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetAudioFormatName",
+      "ordinal": 243,
+      "rva": "0x605f0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetAudioPlaybackDevices",
+      "ordinal": 244,
+      "rva": "0x60600",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetAudioRecordingDevices",
+      "ordinal": 245,
+      "rva": "0x60610",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetAudioStreamAvailable",
+      "ordinal": 246,
+      "rva": "0x60620",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetAudioStreamData",
+      "ordinal": 247,
+      "rva": "0x60630",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetAudioStreamDevice",
+      "ordinal": 248,
+      "rva": "0x60640",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetAudioStreamFormat",
+      "ordinal": 249,
+      "rva": "0x60650",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetAudioStreamFrequencyRatio",
+      "ordinal": 250,
+      "rva": "0x60660",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetAudioStreamGain",
+      "ordinal": 251,
+      "rva": "0x60670",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetAudioStreamInputChannelMap",
+      "ordinal": 252,
+      "rva": "0x60680",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetAudioStreamOutputChannelMap",
+      "ordinal": 253,
+      "rva": "0x60690",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetAudioStreamProperties",
+      "ordinal": 254,
+      "rva": "0x606a0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetAudioStreamQueued",
+      "ordinal": 255,
+      "rva": "0x606b0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetBasePath",
+      "ordinal": 256,
+      "rva": "0x606c0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetBooleanProperty",
+      "ordinal": 257,
+      "rva": "0x606d0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetCPUCacheLineSize",
+      "ordinal": 258,
+      "rva": "0x606e0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetCameraDriver",
+      "ordinal": 259,
+      "rva": "0x606f0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetCameraFormat",
+      "ordinal": 260,
+      "rva": "0x60700",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetCameraID",
+      "ordinal": 261,
+      "rva": "0x60710",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetCameraName",
+      "ordinal": 262,
+      "rva": "0x60720",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetCameraPermissionState",
+      "ordinal": 263,
+      "rva": "0x60730",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetCameraPosition",
+      "ordinal": 264,
+      "rva": "0x60740",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetCameraProperties",
+      "ordinal": 265,
+      "rva": "0x60750",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetCameraSupportedFormats",
+      "ordinal": 266,
+      "rva": "0x60760",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetCameras",
+      "ordinal": 267,
+      "rva": "0x60770",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetClipboardData",
+      "ordinal": 268,
+      "rva": "0x60780",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetClipboardMimeTypes",
+      "ordinal": 269,
+      "rva": "0x60790",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetClipboardText",
+      "ordinal": 270,
+      "rva": "0x607a0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetClosestFullscreenDisplayMode",
+      "ordinal": 271,
+      "rva": "0x607b0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetCurrentAudioDriver",
+      "ordinal": 272,
+      "rva": "0x607c0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetCurrentCameraDriver",
+      "ordinal": 273,
+      "rva": "0x607d0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetCurrentDirectory",
+      "ordinal": 274,
+      "rva": "0x607e0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetCurrentDisplayMode",
+      "ordinal": 275,
+      "rva": "0x607f0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetCurrentDisplayOrientation",
+      "ordinal": 276,
+      "rva": "0x60800",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetCurrentRenderOutputSize",
+      "ordinal": 277,
+      "rva": "0x60810",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetCurrentThreadID",
+      "ordinal": 278,
+      "rva": "0x60820",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetCurrentTime",
+      "ordinal": 279,
+      "rva": "0x60830",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetCurrentVideoDriver",
+      "ordinal": 280,
+      "rva": "0x60840",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetCursor",
+      "ordinal": 281,
+      "rva": "0x60850",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetDXGIOutputInfo",
+      "ordinal": 282,
+      "rva": "0x60860",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetDateTimeLocalePreferences",
+      "ordinal": 283,
+      "rva": "0x60870",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetDayOfWeek",
+      "ordinal": 284,
+      "rva": "0x60880",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetDayOfYear",
+      "ordinal": 285,
+      "rva": "0x60890",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetDaysInMonth",
+      "ordinal": 286,
+      "rva": "0x608a0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetDefaultAssertionHandler",
+      "ordinal": 287,
+      "rva": "0x608b0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetDefaultCursor",
+      "ordinal": 288,
+      "rva": "0x608c0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetDefaultLogOutputFunction",
+      "ordinal": 289,
+      "rva": "0x608d0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetDefaultTextureScaleMode",
+      "ordinal": 290,
+      "rva": "0x608e0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetDesktopDisplayMode",
+      "ordinal": 291,
+      "rva": "0x608f0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetDirect3D9AdapterIndex",
+      "ordinal": 292,
+      "rva": "0x60900",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetDisplayBounds",
+      "ordinal": 293,
+      "rva": "0x60910",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetDisplayContentScale",
+      "ordinal": 294,
+      "rva": "0x60920",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetDisplayForPoint",
+      "ordinal": 295,
+      "rva": "0x60930",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetDisplayForRect",
+      "ordinal": 296,
+      "rva": "0x60940",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetDisplayForWindow",
+      "ordinal": 297,
+      "rva": "0x60950",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetDisplayName",
+      "ordinal": 298,
+      "rva": "0x60960",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetDisplayProperties",
+      "ordinal": 299,
+      "rva": "0x60970",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetDisplayUsableBounds",
+      "ordinal": 300,
+      "rva": "0x60980",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetDisplays",
+      "ordinal": 301,
+      "rva": "0x60990",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetEnvironment",
+      "ordinal": 302,
+      "rva": "0x609a0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetEnvironmentVariable",
+      "ordinal": 303,
+      "rva": "0x609b0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetEnvironmentVariables",
+      "ordinal": 304,
+      "rva": "0x609c0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetError",
+      "ordinal": 305,
+      "rva": "0x609d0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetEventDescription",
+      "ordinal": 306,
+      "rva": "0x609e0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetEventFilter",
+      "ordinal": 307,
+      "rva": "0x609f0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetFloatProperty",
+      "ordinal": 308,
+      "rva": "0x60a00",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetFullscreenDisplayModes",
+      "ordinal": 309,
+      "rva": "0x60a10",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetGDKDefaultUser",
+      "ordinal": 310,
+      "rva": "0x60a20",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetGDKTaskQueue",
+      "ordinal": 311,
+      "rva": "0x60a30",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetGPUDeviceDriver",
+      "ordinal": 312,
+      "rva": "0x60a40",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetGPUDeviceProperties",
+      "ordinal": 313,
+      "rva": "0x60a50",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetGPUDriver",
+      "ordinal": 314,
+      "rva": "0x60a60",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetGPURendererDevice",
+      "ordinal": 315,
+      "rva": "0x60a70",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetGPUShaderFormats",
+      "ordinal": 316,
+      "rva": "0x60a80",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetGPUSwapchainTextureFormat",
+      "ordinal": 317,
+      "rva": "0x60a90",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetGPUTextureFormatFromPixelFormat",
+      "ordinal": 318,
+      "rva": "0x60aa0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetGamepadAppleSFSymbolsNameForAxis",
+      "ordinal": 319,
+      "rva": "0x60ab0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetGamepadAppleSFSymbolsNameForButton",
+      "ordinal": 320,
+      "rva": "0x60ac0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetGamepadAxis",
+      "ordinal": 321,
+      "rva": "0x60ad0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetGamepadAxisFromString",
+      "ordinal": 322,
+      "rva": "0x60ae0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetGamepadBindings",
+      "ordinal": 323,
+      "rva": "0x60af0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetGamepadButton",
+      "ordinal": 324,
+      "rva": "0x60b00",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetGamepadButtonFromString",
+      "ordinal": 325,
+      "rva": "0x60b10",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetGamepadButtonLabel",
+      "ordinal": 326,
+      "rva": "0x60b20",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetGamepadButtonLabelForType",
+      "ordinal": 327,
+      "rva": "0x60b30",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetGamepadConnectionState",
+      "ordinal": 328,
+      "rva": "0x60b40",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetGamepadFirmwareVersion",
+      "ordinal": 329,
+      "rva": "0x60b50",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetGamepadFromID",
+      "ordinal": 330,
+      "rva": "0x60b60",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetGamepadFromPlayerIndex",
+      "ordinal": 331,
+      "rva": "0x60b70",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetGamepadGUIDForID",
+      "ordinal": 332,
+      "rva": "0x60b80",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetGamepadID",
+      "ordinal": 333,
+      "rva": "0x60bb0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetGamepadJoystick",
+      "ordinal": 334,
+      "rva": "0x60bc0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetGamepadMapping",
+      "ordinal": 335,
+      "rva": "0x60bd0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetGamepadMappingForGUID",
+      "ordinal": 336,
+      "rva": "0x60be0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetGamepadMappingForID",
+      "ordinal": 337,
+      "rva": "0x60c00",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetGamepadMappings",
+      "ordinal": 338,
+      "rva": "0x60c10",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetGamepadName",
+      "ordinal": 339,
+      "rva": "0x60c20",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetGamepadNameForID",
+      "ordinal": 340,
+      "rva": "0x60c30",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetGamepadPath",
+      "ordinal": 341,
+      "rva": "0x60c40",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetGamepadPathForID",
+      "ordinal": 342,
+      "rva": "0x60c50",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetGamepadPlayerIndex",
+      "ordinal": 343,
+      "rva": "0x60c60",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetGamepadPlayerIndexForID",
+      "ordinal": 344,
+      "rva": "0x60c70",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetGamepadPowerInfo",
+      "ordinal": 345,
+      "rva": "0x60c80",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetGamepadProduct",
+      "ordinal": 346,
+      "rva": "0x60c90",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetGamepadProductForID",
+      "ordinal": 347,
+      "rva": "0x60ca0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetGamepadProductVersion",
+      "ordinal": 348,
+      "rva": "0x60cb0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetGamepadProductVersionForID",
+      "ordinal": 349,
+      "rva": "0x60cc0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetGamepadProperties",
+      "ordinal": 350,
+      "rva": "0x60cd0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetGamepadSensorData",
+      "ordinal": 351,
+      "rva": "0x60ce0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetGamepadSensorDataRate",
+      "ordinal": 352,
+      "rva": "0x60cf0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetGamepadSerial",
+      "ordinal": 353,
+      "rva": "0x60d00",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetGamepadSteamHandle",
+      "ordinal": 354,
+      "rva": "0x60d10",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetGamepadStringForAxis",
+      "ordinal": 355,
+      "rva": "0x60d20",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetGamepadStringForButton",
+      "ordinal": 356,
+      "rva": "0x60d30",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetGamepadStringForType",
+      "ordinal": 357,
+      "rva": "0x60d40",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetGamepadTouchpadFinger",
+      "ordinal": 358,
+      "rva": "0x60d50",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetGamepadType",
+      "ordinal": 359,
+      "rva": "0x60d60",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetGamepadTypeForID",
+      "ordinal": 360,
+      "rva": "0x60d70",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetGamepadTypeFromString",
+      "ordinal": 361,
+      "rva": "0x60d80",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetGamepadVendor",
+      "ordinal": 362,
+      "rva": "0x60d90",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetGamepadVendorForID",
+      "ordinal": 363,
+      "rva": "0x60da0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetGamepads",
+      "ordinal": 364,
+      "rva": "0x60db0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetGlobalMouseState",
+      "ordinal": 365,
+      "rva": "0x60dc0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetGlobalProperties",
+      "ordinal": 366,
+      "rva": "0x60dd0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetGrabbedWindow",
+      "ordinal": 367,
+      "rva": "0x60de0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetHapticEffectStatus",
+      "ordinal": 368,
+      "rva": "0x60df0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetHapticFeatures",
+      "ordinal": 369,
+      "rva": "0x60e00",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetHapticFromID",
+      "ordinal": 370,
+      "rva": "0x60e10",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetHapticID",
+      "ordinal": 371,
+      "rva": "0x60e20",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetHapticName",
+      "ordinal": 372,
+      "rva": "0x60e30",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetHapticNameForID",
+      "ordinal": 373,
+      "rva": "0x60e40",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetHaptics",
+      "ordinal": 374,
+      "rva": "0x60e50",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetHint",
+      "ordinal": 375,
+      "rva": "0x60e60",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetHintBoolean",
+      "ordinal": 376,
+      "rva": "0x60e70",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetIOProperties",
+      "ordinal": 377,
+      "rva": "0x60e80",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetIOSize",
+      "ordinal": 378,
+      "rva": "0x60e90",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetIOStatus",
+      "ordinal": 379,
+      "rva": "0x60ea0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetJoystickAxis",
+      "ordinal": 380,
+      "rva": "0x60eb0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetJoystickAxisInitialState",
+      "ordinal": 381,
+      "rva": "0x60ec0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetJoystickBall",
+      "ordinal": 382,
+      "rva": "0x60ed0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetJoystickButton",
+      "ordinal": 383,
+      "rva": "0x60ee0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetJoystickConnectionState",
+      "ordinal": 384,
+      "rva": "0x60ef0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetJoystickFirmwareVersion",
+      "ordinal": 385,
+      "rva": "0x60f00",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetJoystickFromID",
+      "ordinal": 386,
+      "rva": "0x60f10",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetJoystickFromPlayerIndex",
+      "ordinal": 387,
+      "rva": "0x60f20",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetJoystickGUID",
+      "ordinal": 388,
+      "rva": "0x60f30",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetJoystickGUIDForID",
+      "ordinal": 389,
+      "rva": "0x60f60",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetJoystickGUIDInfo",
+      "ordinal": 390,
+      "rva": "0x60f90",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetJoystickHat",
+      "ordinal": 391,
+      "rva": "0x60fc0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetJoystickID",
+      "ordinal": 392,
+      "rva": "0x60fd0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetJoystickName",
+      "ordinal": 393,
+      "rva": "0x60fe0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetJoystickNameForID",
+      "ordinal": 394,
+      "rva": "0x60ff0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetJoystickPath",
+      "ordinal": 395,
+      "rva": "0x61000",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetJoystickPathForID",
+      "ordinal": 396,
+      "rva": "0x61010",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetJoystickPlayerIndex",
+      "ordinal": 397,
+      "rva": "0x61020",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetJoystickPlayerIndexForID",
+      "ordinal": 398,
+      "rva": "0x61030",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetJoystickPowerInfo",
+      "ordinal": 399,
+      "rva": "0x61040",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetJoystickProduct",
+      "ordinal": 400,
+      "rva": "0x61050",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetJoystickProductForID",
+      "ordinal": 401,
+      "rva": "0x61060",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetJoystickProductVersion",
+      "ordinal": 402,
+      "rva": "0x61070",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetJoystickProductVersionForID",
+      "ordinal": 403,
+      "rva": "0x61080",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetJoystickProperties",
+      "ordinal": 404,
+      "rva": "0x61090",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetJoystickSerial",
+      "ordinal": 405,
+      "rva": "0x610a0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetJoystickType",
+      "ordinal": 406,
+      "rva": "0x610b0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetJoystickTypeForID",
+      "ordinal": 407,
+      "rva": "0x610c0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetJoystickVendor",
+      "ordinal": 408,
+      "rva": "0x610d0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetJoystickVendorForID",
+      "ordinal": 409,
+      "rva": "0x610e0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetJoysticks",
+      "ordinal": 410,
+      "rva": "0x610f0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetKeyFromName",
+      "ordinal": 411,
+      "rva": "0x61100",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetKeyFromScancode",
+      "ordinal": 412,
+      "rva": "0x61110",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetKeyName",
+      "ordinal": 413,
+      "rva": "0x61120",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetKeyboardFocus",
+      "ordinal": 414,
+      "rva": "0x61130",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetKeyboardNameForID",
+      "ordinal": 415,
+      "rva": "0x61140",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetKeyboardState",
+      "ordinal": 416,
+      "rva": "0x61150",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetKeyboards",
+      "ordinal": 417,
+      "rva": "0x61160",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetLogOutputFunction",
+      "ordinal": 418,
+      "rva": "0x61170",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetLogPriority",
+      "ordinal": 419,
+      "rva": "0x61180",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetMasksForPixelFormat",
+      "ordinal": 420,
+      "rva": "0x61190",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetMaxHapticEffects",
+      "ordinal": 421,
+      "rva": "0x611a0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetMaxHapticEffectsPlaying",
+      "ordinal": 422,
+      "rva": "0x611b0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetMemoryFunctions",
+      "ordinal": 423,
+      "rva": "0x611c0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetMice",
+      "ordinal": 424,
+      "rva": "0x611d0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetModState",
+      "ordinal": 425,
+      "rva": "0x611e0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetMouseFocus",
+      "ordinal": 426,
+      "rva": "0x611f0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetMouseNameForID",
+      "ordinal": 427,
+      "rva": "0x61200",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetMouseState",
+      "ordinal": 428,
+      "rva": "0x61210",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetNaturalDisplayOrientation",
+      "ordinal": 429,
+      "rva": "0x61220",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetNumAllocations",
+      "ordinal": 430,
+      "rva": "0x61230",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetNumAudioDrivers",
+      "ordinal": 431,
+      "rva": "0x61240",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetNumCameraDrivers",
+      "ordinal": 432,
+      "rva": "0x61250",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetNumGPUDrivers",
+      "ordinal": 433,
+      "rva": "0x61260",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetNumGamepadTouchpadFingers",
+      "ordinal": 434,
+      "rva": "0x61270",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetNumGamepadTouchpads",
+      "ordinal": 435,
+      "rva": "0x61280",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetNumHapticAxes",
+      "ordinal": 436,
+      "rva": "0x61290",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetNumJoystickAxes",
+      "ordinal": 437,
+      "rva": "0x612a0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetNumJoystickBalls",
+      "ordinal": 438,
+      "rva": "0x612b0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetNumJoystickButtons",
+      "ordinal": 439,
+      "rva": "0x612c0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetNumJoystickHats",
+      "ordinal": 440,
+      "rva": "0x612d0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetNumLogicalCPUCores",
+      "ordinal": 441,
+      "rva": "0x612e0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetNumRenderDrivers",
+      "ordinal": 442,
+      "rva": "0x612f0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetNumVideoDrivers",
+      "ordinal": 443,
+      "rva": "0x61300",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetNumberProperty",
+      "ordinal": 444,
+      "rva": "0x61310",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetOriginalMemoryFunctions",
+      "ordinal": 445,
+      "rva": "0x61320",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetPathInfo",
+      "ordinal": 446,
+      "rva": "0x61330",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetPenDeviceType",
+      "ordinal": 447,
+      "rva": "0x61340",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetPerformanceCounter",
+      "ordinal": 448,
+      "rva": "0x61350",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetPerformanceFrequency",
+      "ordinal": 449,
+      "rva": "0x61360",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetPixelFormatDetails",
+      "ordinal": 450,
+      "rva": "0x61370",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetPixelFormatForMasks",
+      "ordinal": 451,
+      "rva": "0x61380",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetPixelFormatFromGPUTextureFormat",
+      "ordinal": 452,
+      "rva": "0x61390",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetPixelFormatName",
+      "ordinal": 453,
+      "rva": "0x613a0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetPlatform",
+      "ordinal": 454,
+      "rva": "0x613b0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetPointerProperty",
+      "ordinal": 455,
+      "rva": "0x613c0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetPowerInfo",
+      "ordinal": 456,
+      "rva": "0x613d0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetPrefPath",
+      "ordinal": 457,
+      "rva": "0x613e0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetPreferredLocales",
+      "ordinal": 458,
+      "rva": "0x613f0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetPrimaryDisplay",
+      "ordinal": 459,
+      "rva": "0x61400",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetPrimarySelectionText",
+      "ordinal": 460,
+      "rva": "0x61410",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetProcessInput",
+      "ordinal": 461,
+      "rva": "0x61420",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetProcessOutput",
+      "ordinal": 462,
+      "rva": "0x61430",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetProcessProperties",
+      "ordinal": 463,
+      "rva": "0x61440",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetPropertyType",
+      "ordinal": 464,
+      "rva": "0x61450",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetRGB",
+      "ordinal": 465,
+      "rva": "0x61460",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetRGBA",
+      "ordinal": 466,
+      "rva": "0x61470",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetRealGamepadType",
+      "ordinal": 467,
+      "rva": "0x61480",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetRealGamepadTypeForID",
+      "ordinal": 468,
+      "rva": "0x61490",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetRectAndLineIntersection",
+      "ordinal": 469,
+      "rva": "0x614a0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetRectAndLineIntersectionFloat",
+      "ordinal": 470,
+      "rva": "0x614b0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetRectEnclosingPoints",
+      "ordinal": 471,
+      "rva": "0x614c0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetRectEnclosingPointsFloat",
+      "ordinal": 472,
+      "rva": "0x614d0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetRectIntersection",
+      "ordinal": 473,
+      "rva": "0x614e0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetRectIntersectionFloat",
+      "ordinal": 474,
+      "rva": "0x614f0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetRectUnion",
+      "ordinal": 475,
+      "rva": "0x61500",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetRectUnionFloat",
+      "ordinal": 476,
+      "rva": "0x61510",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetRelativeMouseState",
+      "ordinal": 477,
+      "rva": "0x61520",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetRenderClipRect",
+      "ordinal": 478,
+      "rva": "0x61530",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetRenderColorScale",
+      "ordinal": 479,
+      "rva": "0x61540",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetRenderDrawBlendMode",
+      "ordinal": 480,
+      "rva": "0x61550",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetRenderDrawColor",
+      "ordinal": 481,
+      "rva": "0x61560",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetRenderDrawColorFloat",
+      "ordinal": 482,
+      "rva": "0x61570",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetRenderDriver",
+      "ordinal": 483,
+      "rva": "0x61580",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetRenderLogicalPresentation",
+      "ordinal": 484,
+      "rva": "0x61590",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetRenderLogicalPresentationRect",
+      "ordinal": 485,
+      "rva": "0x615a0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetRenderMetalCommandEncoder",
+      "ordinal": 486,
+      "rva": "0x615b0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetRenderMetalLayer",
+      "ordinal": 487,
+      "rva": "0x615c0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetRenderOutputSize",
+      "ordinal": 488,
+      "rva": "0x615d0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetRenderSafeArea",
+      "ordinal": 489,
+      "rva": "0x615e0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetRenderScale",
+      "ordinal": 490,
+      "rva": "0x615f0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetRenderTarget",
+      "ordinal": 491,
+      "rva": "0x61600",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetRenderTextureAddressMode",
+      "ordinal": 492,
+      "rva": "0x61610",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetRenderVSync",
+      "ordinal": 493,
+      "rva": "0x61620",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetRenderViewport",
+      "ordinal": 494,
+      "rva": "0x61630",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetRenderWindow",
+      "ordinal": 495,
+      "rva": "0x61640",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetRenderer",
+      "ordinal": 496,
+      "rva": "0x61650",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetRendererFromTexture",
+      "ordinal": 497,
+      "rva": "0x61660",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetRendererName",
+      "ordinal": 498,
+      "rva": "0x61670",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetRendererProperties",
+      "ordinal": 499,
+      "rva": "0x61680",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetRevision",
+      "ordinal": 500,
+      "rva": "0x61690",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetSIMDAlignment",
+      "ordinal": 501,
+      "rva": "0x616a0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetSandbox",
+      "ordinal": 502,
+      "rva": "0x616b0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetScancodeFromKey",
+      "ordinal": 503,
+      "rva": "0x616c0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetScancodeFromName",
+      "ordinal": 504,
+      "rva": "0x616d0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetScancodeName",
+      "ordinal": 505,
+      "rva": "0x616e0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetSemaphoreValue",
+      "ordinal": 506,
+      "rva": "0x616f0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetSensorData",
+      "ordinal": 507,
+      "rva": "0x61700",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetSensorFromID",
+      "ordinal": 508,
+      "rva": "0x61710",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetSensorID",
+      "ordinal": 509,
+      "rva": "0x61720",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetSensorName",
+      "ordinal": 510,
+      "rva": "0x61730",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetSensorNameForID",
+      "ordinal": 511,
+      "rva": "0x61740",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetSensorNonPortableType",
+      "ordinal": 512,
+      "rva": "0x61750",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetSensorNonPortableTypeForID",
+      "ordinal": 513,
+      "rva": "0x61760",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetSensorProperties",
+      "ordinal": 514,
+      "rva": "0x61770",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetSensorType",
+      "ordinal": 515,
+      "rva": "0x61780",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetSensorTypeForID",
+      "ordinal": 516,
+      "rva": "0x61790",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetSensors",
+      "ordinal": 517,
+      "rva": "0x617a0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetSilenceValueForFormat",
+      "ordinal": 518,
+      "rva": "0x617b0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetStorageFileSize",
+      "ordinal": 519,
+      "rva": "0x617c0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetStoragePathInfo",
+      "ordinal": 520,
+      "rva": "0x617d0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetStorageSpaceRemaining",
+      "ordinal": 521,
+      "rva": "0x617e0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetStringProperty",
+      "ordinal": 522,
+      "rva": "0x617f0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetSurfaceAlphaMod",
+      "ordinal": 523,
+      "rva": "0x61800",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetSurfaceBlendMode",
+      "ordinal": 524,
+      "rva": "0x61810",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetSurfaceClipRect",
+      "ordinal": 525,
+      "rva": "0x61820",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetSurfaceColorKey",
+      "ordinal": 526,
+      "rva": "0x61830",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetSurfaceColorMod",
+      "ordinal": 527,
+      "rva": "0x61840",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetSurfaceColorspace",
+      "ordinal": 528,
+      "rva": "0x61850",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetSurfaceImages",
+      "ordinal": 529,
+      "rva": "0x61860",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetSurfacePalette",
+      "ordinal": 530,
+      "rva": "0x61870",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetSurfaceProperties",
+      "ordinal": 531,
+      "rva": "0x61880",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetSystemPageSize",
+      "ordinal": 532,
+      "rva": "0x61890",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetSystemRAM",
+      "ordinal": 533,
+      "rva": "0x618a0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetSystemTheme",
+      "ordinal": 534,
+      "rva": "0x618b0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetTLS",
+      "ordinal": 535,
+      "rva": "0x618c0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetTextInputArea",
+      "ordinal": 536,
+      "rva": "0x618d0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetTextureAlphaMod",
+      "ordinal": 537,
+      "rva": "0x618e0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetTextureAlphaModFloat",
+      "ordinal": 538,
+      "rva": "0x618f0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetTextureBlendMode",
+      "ordinal": 539,
+      "rva": "0x61900",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetTextureColorMod",
+      "ordinal": 540,
+      "rva": "0x61910",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetTextureColorModFloat",
+      "ordinal": 541,
+      "rva": "0x61920",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetTexturePalette",
+      "ordinal": 542,
+      "rva": "0x61930",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetTextureProperties",
+      "ordinal": 543,
+      "rva": "0x61940",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetTextureScaleMode",
+      "ordinal": 544,
+      "rva": "0x61950",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetTextureSize",
+      "ordinal": 545,
+      "rva": "0x61960",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetThreadID",
+      "ordinal": 546,
+      "rva": "0x61970",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetThreadName",
+      "ordinal": 547,
+      "rva": "0x61980",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetThreadState",
+      "ordinal": 548,
+      "rva": "0x61990",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetTicks",
+      "ordinal": 549,
+      "rva": "0x619a0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetTicksNS",
+      "ordinal": 550,
+      "rva": "0x619b0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetTouchDeviceName",
+      "ordinal": 551,
+      "rva": "0x619c0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetTouchDeviceType",
+      "ordinal": 552,
+      "rva": "0x619d0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetTouchDevices",
+      "ordinal": 553,
+      "rva": "0x619e0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetTouchFingers",
+      "ordinal": 554,
+      "rva": "0x619f0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetTrayEntries",
+      "ordinal": 555,
+      "rva": "0x61a00",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetTrayEntryChecked",
+      "ordinal": 556,
+      "rva": "0x61a10",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetTrayEntryEnabled",
+      "ordinal": 557,
+      "rva": "0x61a20",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetTrayEntryLabel",
+      "ordinal": 558,
+      "rva": "0x61a30",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetTrayEntryParent",
+      "ordinal": 559,
+      "rva": "0x61a40",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetTrayMenu",
+      "ordinal": 560,
+      "rva": "0x61a50",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetTrayMenuParentEntry",
+      "ordinal": 561,
+      "rva": "0x61a60",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetTrayMenuParentTray",
+      "ordinal": 562,
+      "rva": "0x61a70",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetTraySubmenu",
+      "ordinal": 563,
+      "rva": "0x61a80",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetUserFolder",
+      "ordinal": 564,
+      "rva": "0x61a90",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetVersion",
+      "ordinal": 565,
+      "rva": "0x61aa0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetVideoDriver",
+      "ordinal": 566,
+      "rva": "0x61ab0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetWindowAspectRatio",
+      "ordinal": 567,
+      "rva": "0x61ac0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetWindowBordersSize",
+      "ordinal": 568,
+      "rva": "0x61ad0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetWindowDisplayScale",
+      "ordinal": 569,
+      "rva": "0x61ae0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetWindowFlags",
+      "ordinal": 570,
+      "rva": "0x61af0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetWindowFromEvent",
+      "ordinal": 571,
+      "rva": "0x61b00",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetWindowFromID",
+      "ordinal": 572,
+      "rva": "0x61b10",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetWindowFullscreenMode",
+      "ordinal": 573,
+      "rva": "0x61b20",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetWindowICCProfile",
+      "ordinal": 574,
+      "rva": "0x61b30",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetWindowID",
+      "ordinal": 575,
+      "rva": "0x61b40",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetWindowKeyboardGrab",
+      "ordinal": 576,
+      "rva": "0x61b50",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetWindowMaximumSize",
+      "ordinal": 577,
+      "rva": "0x61b60",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetWindowMinimumSize",
+      "ordinal": 578,
+      "rva": "0x61b70",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetWindowMouseGrab",
+      "ordinal": 579,
+      "rva": "0x61b80",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetWindowMouseRect",
+      "ordinal": 580,
+      "rva": "0x61b90",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetWindowOpacity",
+      "ordinal": 581,
+      "rva": "0x61ba0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetWindowParent",
+      "ordinal": 582,
+      "rva": "0x61bb0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetWindowPixelDensity",
+      "ordinal": 583,
+      "rva": "0x61bc0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetWindowPixelFormat",
+      "ordinal": 584,
+      "rva": "0x61bd0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetWindowPosition",
+      "ordinal": 585,
+      "rva": "0x61be0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetWindowProgressState",
+      "ordinal": 586,
+      "rva": "0x61bf0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetWindowProgressValue",
+      "ordinal": 587,
+      "rva": "0x61c00",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetWindowProperties",
+      "ordinal": 588,
+      "rva": "0x61c10",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetWindowRelativeMouseMode",
+      "ordinal": 589,
+      "rva": "0x61c20",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetWindowSafeArea",
+      "ordinal": 590,
+      "rva": "0x61c30",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetWindowSize",
+      "ordinal": 591,
+      "rva": "0x61c40",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetWindowSizeInPixels",
+      "ordinal": 592,
+      "rva": "0x61c50",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetWindowSurface",
+      "ordinal": 593,
+      "rva": "0x61c60",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetWindowSurfaceVSync",
+      "ordinal": 594,
+      "rva": "0x61c70",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetWindowTitle",
+      "ordinal": 595,
+      "rva": "0x61c80",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GetWindows",
+      "ordinal": 596,
+      "rva": "0x61c90",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GlobDirectory",
+      "ordinal": 597,
+      "rva": "0x61ca0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_GlobStorageDirectory",
+      "ordinal": 598,
+      "rva": "0x61cb0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_HapticEffectSupported",
+      "ordinal": 599,
+      "rva": "0x61cc0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_HapticRumbleSupported",
+      "ordinal": 600,
+      "rva": "0x61cd0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_HasARMSIMD",
+      "ordinal": 601,
+      "rva": "0x61ce0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_HasAVX",
+      "ordinal": 602,
+      "rva": "0x61cf0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_HasAVX2",
+      "ordinal": 603,
+      "rva": "0x61d00",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_HasAVX512F",
+      "ordinal": 604,
+      "rva": "0x61d10",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_HasAltiVec",
+      "ordinal": 605,
+      "rva": "0x61d20",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_HasClipboardData",
+      "ordinal": 606,
+      "rva": "0x61d30",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_HasClipboardText",
+      "ordinal": 607,
+      "rva": "0x61d40",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_HasEvent",
+      "ordinal": 608,
+      "rva": "0x61d50",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_HasEvents",
+      "ordinal": 609,
+      "rva": "0x61d60",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_HasGamepad",
+      "ordinal": 610,
+      "rva": "0x61d70",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_HasJoystick",
+      "ordinal": 611,
+      "rva": "0x61d80",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_HasKeyboard",
+      "ordinal": 612,
+      "rva": "0x61d90",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_HasLASX",
+      "ordinal": 613,
+      "rva": "0x61da0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_HasLSX",
+      "ordinal": 614,
+      "rva": "0x61db0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_HasMMX",
+      "ordinal": 615,
+      "rva": "0x61dc0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_HasMouse",
+      "ordinal": 616,
+      "rva": "0x61dd0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_HasNEON",
+      "ordinal": 617,
+      "rva": "0x61de0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_HasPrimarySelectionText",
+      "ordinal": 618,
+      "rva": "0x61df0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_HasProperty",
+      "ordinal": 619,
+      "rva": "0x61e00",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_HasRectIntersection",
+      "ordinal": 620,
+      "rva": "0x61e10",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_HasRectIntersectionFloat",
+      "ordinal": 621,
+      "rva": "0x61e20",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_HasSSE",
+      "ordinal": 622,
+      "rva": "0x61e30",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_HasSSE2",
+      "ordinal": 623,
+      "rva": "0x61e40",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_HasSSE3",
+      "ordinal": 624,
+      "rva": "0x61e50",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_HasSSE41",
+      "ordinal": 625,
+      "rva": "0x61e60",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_HasSSE42",
+      "ordinal": 626,
+      "rva": "0x61e70",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_HasScreenKeyboardSupport",
+      "ordinal": 627,
+      "rva": "0x61e80",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_HideCursor",
+      "ordinal": 628,
+      "rva": "0x61e90",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_HideWindow",
+      "ordinal": 629,
+      "rva": "0x61ea0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_IOFromConstMem",
+      "ordinal": 630,
+      "rva": "0x61eb0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_IOFromDynamicMem",
+      "ordinal": 631,
+      "rva": "0x61ec0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_IOFromFile",
+      "ordinal": 632,
+      "rva": "0x61ed0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_IOFromMem",
+      "ordinal": 633,
+      "rva": "0x61ee0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_IOprintf",
+      "ordinal": 634,
+      "rva": "0x61ef0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_IOvprintf",
+      "ordinal": 635,
+      "rva": "0x61f20",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_Init",
+      "ordinal": 636,
+      "rva": "0x61f30",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_InitHapticRumble",
+      "ordinal": 637,
+      "rva": "0x620d0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_InitSubSystem",
+      "ordinal": 638,
+      "rva": "0x620e0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_InsertGPUDebugLabel",
+      "ordinal": 639,
+      "rva": "0x620f0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_InsertTrayEntryAt",
+      "ordinal": 640,
+      "rva": "0x62100",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_IsAudioDevicePhysical",
+      "ordinal": 641,
+      "rva": "0x62110",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_IsAudioDevicePlayback",
+      "ordinal": 642,
+      "rva": "0x62120",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_IsChromebook",
+      "ordinal": 643,
+      "rva": "0x62130",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_IsDeXMode",
+      "ordinal": 644,
+      "rva": "0x62140",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_IsGamepad",
+      "ordinal": 645,
+      "rva": "0x62150",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_IsJoystickHaptic",
+      "ordinal": 646,
+      "rva": "0x62160",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_IsJoystickVirtual",
+      "ordinal": 647,
+      "rva": "0x62170",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_IsMainThread",
+      "ordinal": 648,
+      "rva": "0x62180",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_IsMouseHaptic",
+      "ordinal": 649,
+      "rva": "0x62190",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_IsTV",
+      "ordinal": 650,
+      "rva": "0x621a0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_IsTablet",
+      "ordinal": 651,
+      "rva": "0x621b0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_JoystickConnected",
+      "ordinal": 652,
+      "rva": "0x621c0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_JoystickEventsEnabled",
+      "ordinal": 653,
+      "rva": "0x621d0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_KillProcess",
+      "ordinal": 654,
+      "rva": "0x621e0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_LoadBMP",
+      "ordinal": 655,
+      "rva": "0x621f0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_LoadBMP_IO",
+      "ordinal": 656,
+      "rva": "0x62200",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_LoadFile",
+      "ordinal": 657,
+      "rva": "0x62210",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_LoadFileAsync",
+      "ordinal": 658,
+      "rva": "0x62220",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_LoadFile_IO",
+      "ordinal": 659,
+      "rva": "0x62230",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_LoadFunction",
+      "ordinal": 660,
+      "rva": "0x62240",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_LoadObject",
+      "ordinal": 661,
+      "rva": "0x62250",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_LoadPNG",
+      "ordinal": 662,
+      "rva": "0x62260",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_LoadPNG_IO",
+      "ordinal": 663,
+      "rva": "0x62270",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_LoadSurface",
+      "ordinal": 664,
+      "rva": "0x62280",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_LoadSurface_IO",
+      "ordinal": 665,
+      "rva": "0x62290",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_LoadWAV",
+      "ordinal": 666,
+      "rva": "0x622a0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_LoadWAV_IO",
+      "ordinal": 667,
+      "rva": "0x622b0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_LockAudioStream",
+      "ordinal": 668,
+      "rva": "0x622c0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_LockJoysticks",
+      "ordinal": 669,
+      "rva": "0x622d0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_LockMutex",
+      "ordinal": 670,
+      "rva": "0x622e0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_LockProperties",
+      "ordinal": 671,
+      "rva": "0x622f0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_LockRWLockForReading",
+      "ordinal": 672,
+      "rva": "0x62300",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_LockRWLockForWriting",
+      "ordinal": 673,
+      "rva": "0x62310",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_LockSpinlock",
+      "ordinal": 674,
+      "rva": "0x62320",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_LockSurface",
+      "ordinal": 675,
+      "rva": "0x62330",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_LockTexture",
+      "ordinal": 676,
+      "rva": "0x62340",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_LockTextureToSurface",
+      "ordinal": 677,
+      "rva": "0x62350",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_Log",
+      "ordinal": 678,
+      "rva": "0x62360",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_LogCritical",
+      "ordinal": 679,
+      "rva": "0x623a0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_LogDebug",
+      "ordinal": 680,
+      "rva": "0x623d0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_LogError",
+      "ordinal": 681,
+      "rva": "0x62400",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_LogInfo",
+      "ordinal": 682,
+      "rva": "0x62430",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_LogMessage",
+      "ordinal": 683,
+      "rva": "0x62460",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_LogMessageV",
+      "ordinal": 684,
+      "rva": "0x62480",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_LogTrace",
+      "ordinal": 685,
+      "rva": "0x62490",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_LogVerbose",
+      "ordinal": 686,
+      "rva": "0x624c0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_LogWarn",
+      "ordinal": 687,
+      "rva": "0x624f0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_MapGPUTransferBuffer",
+      "ordinal": 688,
+      "rva": "0x62520",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_MapRGB",
+      "ordinal": 689,
+      "rva": "0x62530",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_MapRGBA",
+      "ordinal": 690,
+      "rva": "0x62540",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_MapSurfaceRGB",
+      "ordinal": 691,
+      "rva": "0x62560",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_MapSurfaceRGBA",
+      "ordinal": 692,
+      "rva": "0x62570",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_MaximizeWindow",
+      "ordinal": 693,
+      "rva": "0x62580",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_MemoryBarrierAcquireFunction",
+      "ordinal": 694,
+      "rva": "0x62590",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_MemoryBarrierReleaseFunction",
+      "ordinal": 695,
+      "rva": "0x625a0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_Metal_CreateView",
+      "ordinal": 696,
+      "rva": "0x625b0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_Metal_DestroyView",
+      "ordinal": 697,
+      "rva": "0x625c0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_Metal_GetLayer",
+      "ordinal": 698,
+      "rva": "0x625d0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_MinimizeWindow",
+      "ordinal": 699,
+      "rva": "0x625e0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_MixAudio",
+      "ordinal": 700,
+      "rva": "0x625f0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_OnApplicationDidChangeStatusBarOrientation",
+      "ordinal": 701,
+      "rva": "0x62600",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_OnApplicationDidEnterBackground",
+      "ordinal": 702,
+      "rva": "0x62610",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_OnApplicationDidEnterForeground",
+      "ordinal": 703,
+      "rva": "0x62620",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_OnApplicationDidReceiveMemoryWarning",
+      "ordinal": 704,
+      "rva": "0x62630",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_OnApplicationWillEnterBackground",
+      "ordinal": 705,
+      "rva": "0x62640",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_OnApplicationWillEnterForeground",
+      "ordinal": 706,
+      "rva": "0x62650",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_OnApplicationWillTerminate",
+      "ordinal": 707,
+      "rva": "0x62660",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_OpenAudioDevice",
+      "ordinal": 708,
+      "rva": "0x62670",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_OpenAudioDeviceStream",
+      "ordinal": 709,
+      "rva": "0x62680",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_OpenCamera",
+      "ordinal": 710,
+      "rva": "0x62690",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_OpenFileStorage",
+      "ordinal": 711,
+      "rva": "0x626a0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_OpenGamepad",
+      "ordinal": 712,
+      "rva": "0x626b0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_OpenHaptic",
+      "ordinal": 713,
+      "rva": "0x626c0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_OpenHapticFromJoystick",
+      "ordinal": 714,
+      "rva": "0x626d0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_OpenHapticFromMouse",
+      "ordinal": 715,
+      "rva": "0x626e0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_OpenIO",
+      "ordinal": 716,
+      "rva": "0x626f0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_OpenJoystick",
+      "ordinal": 717,
+      "rva": "0x62700",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_OpenSensor",
+      "ordinal": 718,
+      "rva": "0x62710",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_OpenStorage",
+      "ordinal": 719,
+      "rva": "0x62720",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_OpenTitleStorage",
+      "ordinal": 720,
+      "rva": "0x62730",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_OpenURL",
+      "ordinal": 721,
+      "rva": "0x62740",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_OpenUserStorage",
+      "ordinal": 722,
+      "rva": "0x62750",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_OutOfMemory",
+      "ordinal": 723,
+      "rva": "0x62760",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_PauseAudioDevice",
+      "ordinal": 724,
+      "rva": "0x62770",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_PauseAudioStreamDevice",
+      "ordinal": 725,
+      "rva": "0x62780",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_PauseHaptic",
+      "ordinal": 726,
+      "rva": "0x62790",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_PeepEvents",
+      "ordinal": 727,
+      "rva": "0x627a0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_PlayHapticRumble",
+      "ordinal": 728,
+      "rva": "0x627b0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_PollEvent",
+      "ordinal": 729,
+      "rva": "0x627c0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_PopGPUDebugGroup",
+      "ordinal": 730,
+      "rva": "0x627d0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_PremultiplyAlpha",
+      "ordinal": 731,
+      "rva": "0x627e0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_PremultiplySurfaceAlpha",
+      "ordinal": 732,
+      "rva": "0x627f0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_PumpEvents",
+      "ordinal": 733,
+      "rva": "0x62800",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_PushEvent",
+      "ordinal": 734,
+      "rva": "0x62810",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_PushGPUComputeUniformData",
+      "ordinal": 735,
+      "rva": "0x62820",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_PushGPUDebugGroup",
+      "ordinal": 736,
+      "rva": "0x62830",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_PushGPUFragmentUniformData",
+      "ordinal": 737,
+      "rva": "0x62840",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_PushGPUVertexUniformData",
+      "ordinal": 738,
+      "rva": "0x62850",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_PutAudioStreamData",
+      "ordinal": 739,
+      "rva": "0x62860",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_PutAudioStreamDataNoCopy",
+      "ordinal": 740,
+      "rva": "0x62870",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_PutAudioStreamPlanarData",
+      "ordinal": 741,
+      "rva": "0x62880",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_QueryGPUFence",
+      "ordinal": 742,
+      "rva": "0x62890",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_Quit",
+      "ordinal": 743,
+      "rva": "0x628a0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_QuitSubSystem",
+      "ordinal": 744,
+      "rva": "0x628b0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_RaiseWindow",
+      "ordinal": 745,
+      "rva": "0x628c0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_ReadAsyncIO",
+      "ordinal": 746,
+      "rva": "0x628d0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_ReadIO",
+      "ordinal": 747,
+      "rva": "0x628e0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_ReadProcess",
+      "ordinal": 748,
+      "rva": "0x628f0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_ReadS16BE",
+      "ordinal": 749,
+      "rva": "0x62900",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_ReadS16LE",
+      "ordinal": 750,
+      "rva": "0x62910",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_ReadS32BE",
+      "ordinal": 751,
+      "rva": "0x62920",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_ReadS32LE",
+      "ordinal": 752,
+      "rva": "0x62930",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_ReadS64BE",
+      "ordinal": 753,
+      "rva": "0x62940",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_ReadS64LE",
+      "ordinal": 754,
+      "rva": "0x62950",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_ReadS8",
+      "ordinal": 755,
+      "rva": "0x62960",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_ReadStorageFile",
+      "ordinal": 756,
+      "rva": "0x62970",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_ReadSurfacePixel",
+      "ordinal": 757,
+      "rva": "0x62980",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_ReadSurfacePixelFloat",
+      "ordinal": 758,
+      "rva": "0x62990",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_ReadU16BE",
+      "ordinal": 759,
+      "rva": "0x629a0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_ReadU16LE",
+      "ordinal": 760,
+      "rva": "0x629b0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_ReadU32BE",
+      "ordinal": 761,
+      "rva": "0x629c0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_ReadU32LE",
+      "ordinal": 762,
+      "rva": "0x629d0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_ReadU64BE",
+      "ordinal": 763,
+      "rva": "0x629e0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_ReadU64LE",
+      "ordinal": 764,
+      "rva": "0x629f0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_ReadU8",
+      "ordinal": 765,
+      "rva": "0x62a00",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_RegisterApp",
+      "ordinal": 766,
+      "rva": "0x62a10",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_RegisterEvents",
+      "ordinal": 767,
+      "rva": "0x62a20",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_ReleaseCameraFrame",
+      "ordinal": 768,
+      "rva": "0x62a30",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_ReleaseGPUBuffer",
+      "ordinal": 769,
+      "rva": "0x62a40",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_ReleaseGPUComputePipeline",
+      "ordinal": 770,
+      "rva": "0x62a50",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_ReleaseGPUFence",
+      "ordinal": 771,
+      "rva": "0x62a60",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_ReleaseGPUGraphicsPipeline",
+      "ordinal": 772,
+      "rva": "0x62a70",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_ReleaseGPUSampler",
+      "ordinal": 773,
+      "rva": "0x62a80",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_ReleaseGPUShader",
+      "ordinal": 774,
+      "rva": "0x62a90",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_ReleaseGPUTexture",
+      "ordinal": 775,
+      "rva": "0x62aa0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_ReleaseGPUTransferBuffer",
+      "ordinal": 776,
+      "rva": "0x62ab0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_ReleaseWindowFromGPUDevice",
+      "ordinal": 777,
+      "rva": "0x62ac0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_ReloadGamepadMappings",
+      "ordinal": 778,
+      "rva": "0x62ad0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_RemoveEventWatch",
+      "ordinal": 779,
+      "rva": "0x62ae0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_RemoveHintCallback",
+      "ordinal": 780,
+      "rva": "0x62af0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_RemovePath",
+      "ordinal": 781,
+      "rva": "0x62b00",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_RemoveStoragePath",
+      "ordinal": 782,
+      "rva": "0x62b10",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_RemoveSurfaceAlternateImages",
+      "ordinal": 783,
+      "rva": "0x62b20",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_RemoveTimer",
+      "ordinal": 784,
+      "rva": "0x62b30",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_RemoveTrayEntry",
+      "ordinal": 785,
+      "rva": "0x62b40",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_RenamePath",
+      "ordinal": 786,
+      "rva": "0x62b50",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_RenameStoragePath",
+      "ordinal": 787,
+      "rva": "0x62b60",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_RenderClear",
+      "ordinal": 788,
+      "rva": "0x62b70",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_RenderClipEnabled",
+      "ordinal": 789,
+      "rva": "0x62b80",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_RenderCoordinatesFromWindow",
+      "ordinal": 790,
+      "rva": "0x62b90",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_RenderCoordinatesToWindow",
+      "ordinal": 791,
+      "rva": "0x62ba0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_RenderDebugText",
+      "ordinal": 792,
+      "rva": "0x62bb0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_RenderDebugTextFormat",
+      "ordinal": 793,
+      "rva": "0x62bc0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_RenderFillRect",
+      "ordinal": 794,
+      "rva": "0x62cb0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_RenderFillRects",
+      "ordinal": 795,
+      "rva": "0x62cc0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_RenderGeometry",
+      "ordinal": 796,
+      "rva": "0x62cd0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_RenderGeometryRaw",
+      "ordinal": 797,
+      "rva": "0x62ce0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_RenderLine",
+      "ordinal": 798,
+      "rva": "0x62cf0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_RenderLines",
+      "ordinal": 799,
+      "rva": "0x62d00",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_RenderPoint",
+      "ordinal": 800,
+      "rva": "0x62d10",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_RenderPoints",
+      "ordinal": 801,
+      "rva": "0x62d20",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_RenderPresent",
+      "ordinal": 802,
+      "rva": "0x62d30",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_RenderReadPixels",
+      "ordinal": 803,
+      "rva": "0x62d40",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_RenderRect",
+      "ordinal": 804,
+      "rva": "0x62d50",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_RenderRects",
+      "ordinal": 805,
+      "rva": "0x62d60",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_RenderTexture",
+      "ordinal": 806,
+      "rva": "0x62d70",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_RenderTexture9Grid",
+      "ordinal": 807,
+      "rva": "0x62d80",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_RenderTexture9GridTiled",
+      "ordinal": 808,
+      "rva": "0x62d90",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_RenderTextureAffine",
+      "ordinal": 809,
+      "rva": "0x62da0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_RenderTextureRotated",
+      "ordinal": 810,
+      "rva": "0x62db0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_RenderTextureTiled",
+      "ordinal": 811,
+      "rva": "0x62dc0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_RenderViewportSet",
+      "ordinal": 812,
+      "rva": "0x62dd0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_ReportAssertion",
+      "ordinal": 813,
+      "rva": "0x62de0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_RequestAndroidPermission",
+      "ordinal": 814,
+      "rva": "0x62df0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_ResetAssertionReport",
+      "ordinal": 815,
+      "rva": "0x62e00",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_ResetHint",
+      "ordinal": 816,
+      "rva": "0x62e10",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_ResetHints",
+      "ordinal": 817,
+      "rva": "0x62e20",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_ResetKeyboard",
+      "ordinal": 818,
+      "rva": "0x62e30",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_ResetLogPriorities",
+      "ordinal": 819,
+      "rva": "0x62e40",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_RestoreWindow",
+      "ordinal": 820,
+      "rva": "0x62e50",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_ResumeAudioDevice",
+      "ordinal": 821,
+      "rva": "0x62e60",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_ResumeAudioStreamDevice",
+      "ordinal": 822,
+      "rva": "0x62e70",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_ResumeHaptic",
+      "ordinal": 823,
+      "rva": "0x62e80",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_RotateSurface",
+      "ordinal": 824,
+      "rva": "0x62e90",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_RumbleGamepad",
+      "ordinal": 825,
+      "rva": "0x62ea0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_RumbleGamepadTriggers",
+      "ordinal": 826,
+      "rva": "0x62eb0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_RumbleJoystick",
+      "ordinal": 827,
+      "rva": "0x62ec0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_RumbleJoystickTriggers",
+      "ordinal": 828,
+      "rva": "0x62ed0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_RunApp",
+      "ordinal": 829,
+      "rva": "0x62ee0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_RunHapticEffect",
+      "ordinal": 830,
+      "rva": "0x62ef0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_RunOnMainThread",
+      "ordinal": 831,
+      "rva": "0x62f00",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SaveBMP",
+      "ordinal": 832,
+      "rva": "0x62f10",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SaveBMP_IO",
+      "ordinal": 833,
+      "rva": "0x62f20",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SaveFile",
+      "ordinal": 834,
+      "rva": "0x62f30",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SaveFile_IO",
+      "ordinal": 835,
+      "rva": "0x62f40",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SavePNG",
+      "ordinal": 836,
+      "rva": "0x62f50",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SavePNG_IO",
+      "ordinal": 837,
+      "rva": "0x62f60",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_ScaleSurface",
+      "ordinal": 838,
+      "rva": "0x62f70",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_ScreenKeyboardShown",
+      "ordinal": 839,
+      "rva": "0x62f80",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_ScreenSaverEnabled",
+      "ordinal": 840,
+      "rva": "0x62f90",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SeekIO",
+      "ordinal": 841,
+      "rva": "0x62fa0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SendAndroidBackButton",
+      "ordinal": 842,
+      "rva": "0x62fb0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SendAndroidMessage",
+      "ordinal": 843,
+      "rva": "0x62fc0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SendGamepadEffect",
+      "ordinal": 844,
+      "rva": "0x62fd0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SendJoystickEffect",
+      "ordinal": 845,
+      "rva": "0x62fe0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SendJoystickVirtualSensorData",
+      "ordinal": 846,
+      "rva": "0x62ff0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SetAppMetadata",
+      "ordinal": 847,
+      "rva": "0x63000",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SetAppMetadataProperty",
+      "ordinal": 848,
+      "rva": "0x63010",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SetAssertionHandler",
+      "ordinal": 849,
+      "rva": "0x63020",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SetAtomicInt",
+      "ordinal": 850,
+      "rva": "0x63030",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SetAtomicPointer",
+      "ordinal": 851,
+      "rva": "0x63040",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SetAtomicU32",
+      "ordinal": 852,
+      "rva": "0x63050",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SetAudioDeviceGain",
+      "ordinal": 853,
+      "rva": "0x63060",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SetAudioPostmixCallback",
+      "ordinal": 854,
+      "rva": "0x63070",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SetAudioStreamFormat",
+      "ordinal": 855,
+      "rva": "0x63080",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SetAudioStreamFrequencyRatio",
+      "ordinal": 856,
+      "rva": "0x63090",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SetAudioStreamGain",
+      "ordinal": 857,
+      "rva": "0x630a0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SetAudioStreamGetCallback",
+      "ordinal": 858,
+      "rva": "0x630b0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SetAudioStreamInputChannelMap",
+      "ordinal": 859,
+      "rva": "0x630c0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SetAudioStreamOutputChannelMap",
+      "ordinal": 860,
+      "rva": "0x630d0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SetAudioStreamPutCallback",
+      "ordinal": 861,
+      "rva": "0x630e0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SetBooleanProperty",
+      "ordinal": 862,
+      "rva": "0x630f0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SetClipboardData",
+      "ordinal": 863,
+      "rva": "0x63100",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SetClipboardText",
+      "ordinal": 864,
+      "rva": "0x63110",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SetCurrentThreadPriority",
+      "ordinal": 865,
+      "rva": "0x63120",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SetCursor",
+      "ordinal": 866,
+      "rva": "0x63130",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SetDefaultTextureScaleMode",
+      "ordinal": 867,
+      "rva": "0x63140",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SetEnvironmentVariable",
+      "ordinal": 868,
+      "rva": "0x63150",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SetError",
+      "ordinal": 869,
+      "rva": "0x63160",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SetErrorV",
+      "ordinal": 870,
+      "rva": "0x63200",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SetEventEnabled",
+      "ordinal": 871,
+      "rva": "0x63210",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SetEventFilter",
+      "ordinal": 872,
+      "rva": "0x63220",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SetFloatProperty",
+      "ordinal": 873,
+      "rva": "0x63230",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SetGPUAllowedFramesInFlight",
+      "ordinal": 874,
+      "rva": "0x63240",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SetGPUBlendConstants",
+      "ordinal": 875,
+      "rva": "0x63250",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SetGPUBufferName",
+      "ordinal": 876,
+      "rva": "0x63270",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SetGPURenderState",
+      "ordinal": 877,
+      "rva": "0x63280",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SetGPURenderStateFragmentUniforms",
+      "ordinal": 878,
+      "rva": "0x63290",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SetGPUScissor",
+      "ordinal": 879,
+      "rva": "0x632a0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SetGPUStencilReference",
+      "ordinal": 880,
+      "rva": "0x632b0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SetGPUSwapchainParameters",
+      "ordinal": 881,
+      "rva": "0x632c0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SetGPUTextureName",
+      "ordinal": 882,
+      "rva": "0x632d0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SetGPUViewport",
+      "ordinal": 883,
+      "rva": "0x632e0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SetGamepadEventsEnabled",
+      "ordinal": 884,
+      "rva": "0x632f0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SetGamepadLED",
+      "ordinal": 885,
+      "rva": "0x63300",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SetGamepadMapping",
+      "ordinal": 886,
+      "rva": "0x63310",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SetGamepadPlayerIndex",
+      "ordinal": 887,
+      "rva": "0x63320",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SetGamepadSensorEnabled",
+      "ordinal": 888,
+      "rva": "0x63330",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SetHapticAutocenter",
+      "ordinal": 889,
+      "rva": "0x63340",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SetHapticGain",
+      "ordinal": 890,
+      "rva": "0x63350",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SetHint",
+      "ordinal": 891,
+      "rva": "0x63360",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SetHintWithPriority",
+      "ordinal": 892,
+      "rva": "0x63370",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SetInitialized",
+      "ordinal": 893,
+      "rva": "0x63380",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SetJoystickEventsEnabled",
+      "ordinal": 894,
+      "rva": "0x63390",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SetJoystickLED",
+      "ordinal": 895,
+      "rva": "0x633a0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SetJoystickPlayerIndex",
+      "ordinal": 896,
+      "rva": "0x633b0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SetJoystickVirtualAxis",
+      "ordinal": 897,
+      "rva": "0x633c0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SetJoystickVirtualBall",
+      "ordinal": 898,
+      "rva": "0x633d0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SetJoystickVirtualButton",
+      "ordinal": 899,
+      "rva": "0x633e0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SetJoystickVirtualHat",
+      "ordinal": 900,
+      "rva": "0x633f0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SetJoystickVirtualTouchpad",
+      "ordinal": 901,
+      "rva": "0x63400",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SetLinuxThreadPriority",
+      "ordinal": 902,
+      "rva": "0x63410",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SetLinuxThreadPriorityAndPolicy",
+      "ordinal": 903,
+      "rva": "0x63420",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SetLogOutputFunction",
+      "ordinal": 904,
+      "rva": "0x63430",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SetLogPriorities",
+      "ordinal": 905,
+      "rva": "0x63440",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SetLogPriority",
+      "ordinal": 906,
+      "rva": "0x63450",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SetLogPriorityPrefix",
+      "ordinal": 907,
+      "rva": "0x63460",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SetMainReady",
+      "ordinal": 908,
+      "rva": "0x63470",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SetMemoryFunctions",
+      "ordinal": 909,
+      "rva": "0x63480",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SetModState",
+      "ordinal": 910,
+      "rva": "0x63490",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SetNumberProperty",
+      "ordinal": 911,
+      "rva": "0x634a0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SetPaletteColors",
+      "ordinal": 912,
+      "rva": "0x634b0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SetPointerProperty",
+      "ordinal": 913,
+      "rva": "0x634c0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SetPointerPropertyWithCleanup",
+      "ordinal": 914,
+      "rva": "0x634d0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SetPrimarySelectionText",
+      "ordinal": 915,
+      "rva": "0x634e0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SetRelativeMouseTransform",
+      "ordinal": 916,
+      "rva": "0x634f0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SetRenderClipRect",
+      "ordinal": 917,
+      "rva": "0x63500",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SetRenderColorScale",
+      "ordinal": 918,
+      "rva": "0x63510",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SetRenderDrawBlendMode",
+      "ordinal": 919,
+      "rva": "0x63520",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SetRenderDrawColor",
+      "ordinal": 920,
+      "rva": "0x63530",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SetRenderDrawColorFloat",
+      "ordinal": 921,
+      "rva": "0x63540",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SetRenderLogicalPresentation",
+      "ordinal": 922,
+      "rva": "0x63550",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SetRenderScale",
+      "ordinal": 923,
+      "rva": "0x63560",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SetRenderTarget",
+      "ordinal": 924,
+      "rva": "0x63570",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SetRenderTextureAddressMode",
+      "ordinal": 925,
+      "rva": "0x63580",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SetRenderVSync",
+      "ordinal": 926,
+      "rva": "0x63590",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SetRenderViewport",
+      "ordinal": 927,
+      "rva": "0x635a0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SetScancodeName",
+      "ordinal": 928,
+      "rva": "0x635b0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SetStringProperty",
+      "ordinal": 929,
+      "rva": "0x635c0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SetSurfaceAlphaMod",
+      "ordinal": 930,
+      "rva": "0x635d0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SetSurfaceBlendMode",
+      "ordinal": 931,
+      "rva": "0x635e0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SetSurfaceClipRect",
+      "ordinal": 932,
+      "rva": "0x635f0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SetSurfaceColorKey",
+      "ordinal": 933,
+      "rva": "0x63600",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SetSurfaceColorMod",
+      "ordinal": 934,
+      "rva": "0x63610",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SetSurfaceColorspace",
+      "ordinal": 935,
+      "rva": "0x63620",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SetSurfacePalette",
+      "ordinal": 936,
+      "rva": "0x63630",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SetSurfaceRLE",
+      "ordinal": 937,
+      "rva": "0x63640",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SetTLS",
+      "ordinal": 938,
+      "rva": "0x63650",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SetTextInputArea",
+      "ordinal": 939,
+      "rva": "0x63660",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SetTextureAlphaMod",
+      "ordinal": 940,
+      "rva": "0x63670",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SetTextureAlphaModFloat",
+      "ordinal": 941,
+      "rva": "0x63680",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SetTextureBlendMode",
+      "ordinal": 942,
+      "rva": "0x63690",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SetTextureColorMod",
+      "ordinal": 943,
+      "rva": "0x636a0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SetTextureColorModFloat",
+      "ordinal": 944,
+      "rva": "0x636b0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SetTexturePalette",
+      "ordinal": 945,
+      "rva": "0x636c0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SetTextureScaleMode",
+      "ordinal": 946,
+      "rva": "0x636d0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SetTrayEntryCallback",
+      "ordinal": 947,
+      "rva": "0x636e0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SetTrayEntryChecked",
+      "ordinal": 948,
+      "rva": "0x636f0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SetTrayEntryEnabled",
+      "ordinal": 949,
+      "rva": "0x63700",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SetTrayEntryLabel",
+      "ordinal": 950,
+      "rva": "0x63710",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SetTrayIcon",
+      "ordinal": 951,
+      "rva": "0x63720",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SetTrayTooltip",
+      "ordinal": 952,
+      "rva": "0x63730",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SetWindowAlwaysOnTop",
+      "ordinal": 953,
+      "rva": "0x63740",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SetWindowAspectRatio",
+      "ordinal": 954,
+      "rva": "0x63750",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SetWindowBordered",
+      "ordinal": 955,
+      "rva": "0x63760",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SetWindowFillDocument",
+      "ordinal": 956,
+      "rva": "0x63770",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SetWindowFocusable",
+      "ordinal": 957,
+      "rva": "0x63780",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SetWindowFullscreen",
+      "ordinal": 958,
+      "rva": "0x63790",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SetWindowFullscreenMode",
+      "ordinal": 959,
+      "rva": "0x637a0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SetWindowHitTest",
+      "ordinal": 960,
+      "rva": "0x637b0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SetWindowIcon",
+      "ordinal": 961,
+      "rva": "0x637c0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SetWindowKeyboardGrab",
+      "ordinal": 962,
+      "rva": "0x637d0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SetWindowMaximumSize",
+      "ordinal": 963,
+      "rva": "0x637e0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SetWindowMinimumSize",
+      "ordinal": 964,
+      "rva": "0x637f0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SetWindowModal",
+      "ordinal": 965,
+      "rva": "0x63800",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SetWindowMouseGrab",
+      "ordinal": 966,
+      "rva": "0x63810",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SetWindowMouseRect",
+      "ordinal": 967,
+      "rva": "0x63820",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SetWindowOpacity",
+      "ordinal": 968,
+      "rva": "0x63830",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SetWindowParent",
+      "ordinal": 969,
+      "rva": "0x63840",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SetWindowPosition",
+      "ordinal": 970,
+      "rva": "0x63850",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SetWindowProgressState",
+      "ordinal": 971,
+      "rva": "0x63860",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SetWindowProgressValue",
+      "ordinal": 972,
+      "rva": "0x63870",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SetWindowRelativeMouseMode",
+      "ordinal": 973,
+      "rva": "0x63880",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SetWindowResizable",
+      "ordinal": 974,
+      "rva": "0x63890",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SetWindowShape",
+      "ordinal": 975,
+      "rva": "0x638a0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SetWindowSize",
+      "ordinal": 976,
+      "rva": "0x638b0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SetWindowSurfaceVSync",
+      "ordinal": 977,
+      "rva": "0x638c0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SetWindowTitle",
+      "ordinal": 978,
+      "rva": "0x638d0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SetWindowsMessageHook",
+      "ordinal": 979,
+      "rva": "0x638e0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SetX11EventHook",
+      "ordinal": 980,
+      "rva": "0x638f0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SetiOSAnimationCallback",
+      "ordinal": 981,
+      "rva": "0x63900",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SetiOSEventPump",
+      "ordinal": 982,
+      "rva": "0x63910",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_ShouldInit",
+      "ordinal": 983,
+      "rva": "0x63920",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_ShouldQuit",
+      "ordinal": 984,
+      "rva": "0x63930",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_ShowAndroidToast",
+      "ordinal": 985,
+      "rva": "0x63940",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_ShowCursor",
+      "ordinal": 986,
+      "rva": "0x63950",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_ShowFileDialogWithProperties",
+      "ordinal": 987,
+      "rva": "0x63960",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_ShowMessageBox",
+      "ordinal": 988,
+      "rva": "0x63970",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_ShowOpenFileDialog",
+      "ordinal": 989,
+      "rva": "0x63980",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_ShowOpenFolderDialog",
+      "ordinal": 990,
+      "rva": "0x63990",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_ShowSaveFileDialog",
+      "ordinal": 991,
+      "rva": "0x639a0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_ShowSimpleMessageBox",
+      "ordinal": 992,
+      "rva": "0x639b0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_ShowWindow",
+      "ordinal": 993,
+      "rva": "0x639c0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_ShowWindowSystemMenu",
+      "ordinal": 994,
+      "rva": "0x639d0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SignalAsyncIOQueue",
+      "ordinal": 995,
+      "rva": "0x639e0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SignalCondition",
+      "ordinal": 996,
+      "rva": "0x639f0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SignalSemaphore",
+      "ordinal": 997,
+      "rva": "0x63a00",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_StartTextInput",
+      "ordinal": 998,
+      "rva": "0x63a10",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_StartTextInputWithProperties",
+      "ordinal": 999,
+      "rva": "0x63a20",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_StepBackUTF8",
+      "ordinal": 1000,
+      "rva": "0x63a30",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_StepUTF8",
+      "ordinal": 1001,
+      "rva": "0x63a40",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_StopHapticEffect",
+      "ordinal": 1002,
+      "rva": "0x63a50",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_StopHapticEffects",
+      "ordinal": 1003,
+      "rva": "0x63a60",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_StopHapticRumble",
+      "ordinal": 1004,
+      "rva": "0x63a70",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_StopTextInput",
+      "ordinal": 1005,
+      "rva": "0x63a80",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_StorageReady",
+      "ordinal": 1006,
+      "rva": "0x63a90",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_StretchSurface",
+      "ordinal": 1007,
+      "rva": "0x63aa0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_StringToGUID",
+      "ordinal": 1008,
+      "rva": "0x63ab0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SubmitGPUCommandBuffer",
+      "ordinal": 1009,
+      "rva": "0x63ae0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SubmitGPUCommandBufferAndAcquireFence",
+      "ordinal": 1010,
+      "rva": "0x63af0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SurfaceHasAlternateImages",
+      "ordinal": 1011,
+      "rva": "0x63b00",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SurfaceHasColorKey",
+      "ordinal": 1012,
+      "rva": "0x63b10",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SurfaceHasRLE",
+      "ordinal": 1013,
+      "rva": "0x63b20",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_SyncWindow",
+      "ordinal": 1014,
+      "rva": "0x63b30",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_TellIO",
+      "ordinal": 1015,
+      "rva": "0x63b40",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_TextInputActive",
+      "ordinal": 1016,
+      "rva": "0x63b50",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_TimeFromWindows",
+      "ordinal": 1017,
+      "rva": "0x63b60",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_TimeToDateTime",
+      "ordinal": 1018,
+      "rva": "0x63b70",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_TimeToWindows",
+      "ordinal": 1019,
+      "rva": "0x63b80",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_TryLockMutex",
+      "ordinal": 1020,
+      "rva": "0x63b90",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_TryLockRWLockForReading",
+      "ordinal": 1021,
+      "rva": "0x63ba0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_TryLockRWLockForWriting",
+      "ordinal": 1022,
+      "rva": "0x63bb0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_TryLockSpinlock",
+      "ordinal": 1023,
+      "rva": "0x63bc0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_TryWaitSemaphore",
+      "ordinal": 1024,
+      "rva": "0x63bd0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_UCS4ToUTF8",
+      "ordinal": 1025,
+      "rva": "0x63be0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_UnbindAudioStream",
+      "ordinal": 1026,
+      "rva": "0x63bf0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_UnbindAudioStreams",
+      "ordinal": 1027,
+      "rva": "0x63c00",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_UnloadObject",
+      "ordinal": 1028,
+      "rva": "0x63c10",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_UnlockAudioStream",
+      "ordinal": 1029,
+      "rva": "0x63c20",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_UnlockJoysticks",
+      "ordinal": 1030,
+      "rva": "0x63c30",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_UnlockMutex",
+      "ordinal": 1031,
+      "rva": "0x63c40",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_UnlockProperties",
+      "ordinal": 1032,
+      "rva": "0x63c50",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_UnlockRWLock",
+      "ordinal": 1033,
+      "rva": "0x63c60",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_UnlockSpinlock",
+      "ordinal": 1034,
+      "rva": "0x63c70",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_UnlockSurface",
+      "ordinal": 1035,
+      "rva": "0x63c80",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_UnlockTexture",
+      "ordinal": 1036,
+      "rva": "0x63c90",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_UnmapGPUTransferBuffer",
+      "ordinal": 1037,
+      "rva": "0x63ca0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_UnregisterApp",
+      "ordinal": 1038,
+      "rva": "0x63cb0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_UnsetEnvironmentVariable",
+      "ordinal": 1039,
+      "rva": "0x63cc0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_UpdateGamepads",
+      "ordinal": 1040,
+      "rva": "0x63cd0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_UpdateHapticEffect",
+      "ordinal": 1041,
+      "rva": "0x63ce0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_UpdateJoysticks",
+      "ordinal": 1042,
+      "rva": "0x63cf0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_UpdateNVTexture",
+      "ordinal": 1043,
+      "rva": "0x63d00",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_UpdateSensors",
+      "ordinal": 1044,
+      "rva": "0x63d10",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_UpdateTexture",
+      "ordinal": 1045,
+      "rva": "0x63d20",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_UpdateTrays",
+      "ordinal": 1046,
+      "rva": "0x63d30",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_UpdateWindowSurface",
+      "ordinal": 1047,
+      "rva": "0x63d40",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_UpdateWindowSurfaceRects",
+      "ordinal": 1048,
+      "rva": "0x63d50",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_UpdateYUVTexture",
+      "ordinal": 1049,
+      "rva": "0x63d60",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_UploadToGPUBuffer",
+      "ordinal": 1050,
+      "rva": "0x63d70",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_UploadToGPUTexture",
+      "ordinal": 1051,
+      "rva": "0x63d80",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_Vulkan_CreateSurface",
+      "ordinal": 1052,
+      "rva": "0x63d90",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_Vulkan_DestroySurface",
+      "ordinal": 1053,
+      "rva": "0x63da0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_Vulkan_GetInstanceExtensions",
+      "ordinal": 1054,
+      "rva": "0x63db0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_Vulkan_GetPresentationSupport",
+      "ordinal": 1055,
+      "rva": "0x63dc0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_Vulkan_GetVkGetInstanceProcAddr",
+      "ordinal": 1056,
+      "rva": "0x63dd0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_Vulkan_LoadLibrary",
+      "ordinal": 1057,
+      "rva": "0x63de0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_Vulkan_UnloadLibrary",
+      "ordinal": 1058,
+      "rva": "0x63df0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_WaitAndAcquireGPUSwapchainTexture",
+      "ordinal": 1059,
+      "rva": "0x63e00",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_WaitAsyncIOResult",
+      "ordinal": 1060,
+      "rva": "0x63e10",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_WaitCondition",
+      "ordinal": 1061,
+      "rva": "0x63e20",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_WaitConditionTimeout",
+      "ordinal": 1062,
+      "rva": "0x63e30",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_WaitEvent",
+      "ordinal": 1063,
+      "rva": "0x63e40",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_WaitEventTimeout",
+      "ordinal": 1064,
+      "rva": "0x63e50",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_WaitForGPUFences",
+      "ordinal": 1065,
+      "rva": "0x63e60",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_WaitForGPUIdle",
+      "ordinal": 1066,
+      "rva": "0x63e70",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_WaitForGPUSwapchain",
+      "ordinal": 1067,
+      "rva": "0x63e80",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_WaitProcess",
+      "ordinal": 1068,
+      "rva": "0x63e90",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_WaitSemaphore",
+      "ordinal": 1069,
+      "rva": "0x63ea0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_WaitSemaphoreTimeout",
+      "ordinal": 1070,
+      "rva": "0x63eb0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_WaitThread",
+      "ordinal": 1071,
+      "rva": "0x63ec0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_WarpMouseGlobal",
+      "ordinal": 1072,
+      "rva": "0x63ed0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_WarpMouseInWindow",
+      "ordinal": 1073,
+      "rva": "0x63ee0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_WasInit",
+      "ordinal": 1074,
+      "rva": "0x63ef0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_WindowHasSurface",
+      "ordinal": 1075,
+      "rva": "0x63f00",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_WindowSupportsGPUPresentMode",
+      "ordinal": 1076,
+      "rva": "0x63f10",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_WindowSupportsGPUSwapchainComposition",
+      "ordinal": 1077,
+      "rva": "0x63f20",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_WriteAsyncIO",
+      "ordinal": 1078,
+      "rva": "0x63f30",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_WriteIO",
+      "ordinal": 1079,
+      "rva": "0x63f40",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_WriteS16BE",
+      "ordinal": 1080,
+      "rva": "0x63f50",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_WriteS16LE",
+      "ordinal": 1081,
+      "rva": "0x63f60",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_WriteS32BE",
+      "ordinal": 1082,
+      "rva": "0x63f70",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_WriteS32LE",
+      "ordinal": 1083,
+      "rva": "0x63f80",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_WriteS64BE",
+      "ordinal": 1084,
+      "rva": "0x63f90",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_WriteS64LE",
+      "ordinal": 1085,
+      "rva": "0x63fa0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_WriteS8",
+      "ordinal": 1086,
+      "rva": "0x63fb0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_WriteStorageFile",
+      "ordinal": 1087,
+      "rva": "0x63fc0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_WriteSurfacePixel",
+      "ordinal": 1088,
+      "rva": "0x63fd0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_WriteSurfacePixelFloat",
+      "ordinal": 1089,
+      "rva": "0x64000",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_WriteU16BE",
+      "ordinal": 1090,
+      "rva": "0x64010",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_WriteU16LE",
+      "ordinal": 1091,
+      "rva": "0x64020",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_WriteU32BE",
+      "ordinal": 1092,
+      "rva": "0x64030",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_WriteU32LE",
+      "ordinal": 1093,
+      "rva": "0x64040",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_WriteU64BE",
+      "ordinal": 1094,
+      "rva": "0x64050",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_WriteU64LE",
+      "ordinal": 1095,
+      "rva": "0x64060",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_WriteU8",
+      "ordinal": 1096,
+      "rva": "0x64070",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_abs",
+      "ordinal": 1097,
+      "rva": "0x64080",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_acos",
+      "ordinal": 1098,
+      "rva": "0x64090",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_acosf",
+      "ordinal": 1099,
+      "rva": "0x640a0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_aligned_alloc",
+      "ordinal": 1100,
+      "rva": "0x640b0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_aligned_free",
+      "ordinal": 1101,
+      "rva": "0x640c0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_asin",
+      "ordinal": 1102,
+      "rva": "0x640d0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_asinf",
+      "ordinal": 1103,
+      "rva": "0x640e0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_asprintf",
+      "ordinal": 1104,
+      "rva": "0x640f0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_atan",
+      "ordinal": 1105,
+      "rva": "0x64120",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_atan2",
+      "ordinal": 1106,
+      "rva": "0x64130",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_atan2f",
+      "ordinal": 1107,
+      "rva": "0x64140",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_atanf",
+      "ordinal": 1108,
+      "rva": "0x64150",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_atof",
+      "ordinal": 1109,
+      "rva": "0x64160",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_atoi",
+      "ordinal": 1110,
+      "rva": "0x64170",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_bsearch",
+      "ordinal": 1111,
+      "rva": "0x64180",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_bsearch_r",
+      "ordinal": 1112,
+      "rva": "0x64190",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_calloc",
+      "ordinal": 1113,
+      "rva": "0x641a0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_ceil",
+      "ordinal": 1114,
+      "rva": "0x641b0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_ceilf",
+      "ordinal": 1115,
+      "rva": "0x641c0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_copysign",
+      "ordinal": 1116,
+      "rva": "0x641d0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_copysignf",
+      "ordinal": 1117,
+      "rva": "0x641e0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_cos",
+      "ordinal": 1118,
+      "rva": "0x641f0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_cosf",
+      "ordinal": 1119,
+      "rva": "0x64200",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_crc16",
+      "ordinal": 1120,
+      "rva": "0x64210",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_crc32",
+      "ordinal": 1121,
+      "rva": "0x64220",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_exp",
+      "ordinal": 1122,
+      "rva": "0x64230",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_expf",
+      "ordinal": 1123,
+      "rva": "0x64240",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_fabs",
+      "ordinal": 1124,
+      "rva": "0x64250",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_fabsf",
+      "ordinal": 1125,
+      "rva": "0x64260",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_floor",
+      "ordinal": 1126,
+      "rva": "0x64270",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_floorf",
+      "ordinal": 1127,
+      "rva": "0x64280",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_fmod",
+      "ordinal": 1128,
+      "rva": "0x64290",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_fmodf",
+      "ordinal": 1129,
+      "rva": "0x642a0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_free",
+      "ordinal": 1130,
+      "rva": "0x642b0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_getenv",
+      "ordinal": 1131,
+      "rva": "0x642c0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_getenv_unsafe",
+      "ordinal": 1132,
+      "rva": "0x642d0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_hid_ble_scan",
+      "ordinal": 1133,
+      "rva": "0x642e0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_hid_close",
+      "ordinal": 1134,
+      "rva": "0x642f0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_hid_device_change_count",
+      "ordinal": 1135,
+      "rva": "0x64300",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_hid_enumerate",
+      "ordinal": 1136,
+      "rva": "0x64310",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_hid_exit",
+      "ordinal": 1137,
+      "rva": "0x64320",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_hid_free_enumeration",
+      "ordinal": 1138,
+      "rva": "0x64330",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_hid_get_device_info",
+      "ordinal": 1139,
+      "rva": "0x64340",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_hid_get_feature_report",
+      "ordinal": 1140,
+      "rva": "0x64350",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_hid_get_indexed_string",
+      "ordinal": 1141,
+      "rva": "0x64360",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_hid_get_input_report",
+      "ordinal": 1142,
+      "rva": "0x64370",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_hid_get_manufacturer_string",
+      "ordinal": 1143,
+      "rva": "0x64380",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_hid_get_product_string",
+      "ordinal": 1144,
+      "rva": "0x64390",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_hid_get_properties",
+      "ordinal": 1145,
+      "rva": "0x643a0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_hid_get_report_descriptor",
+      "ordinal": 1146,
+      "rva": "0x643b0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_hid_get_serial_number_string",
+      "ordinal": 1147,
+      "rva": "0x643c0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_hid_init",
+      "ordinal": 1148,
+      "rva": "0x643d0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_hid_open",
+      "ordinal": 1149,
+      "rva": "0x643e0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_hid_open_path",
+      "ordinal": 1150,
+      "rva": "0x643f0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_hid_read",
+      "ordinal": 1151,
+      "rva": "0x64400",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_hid_read_timeout",
+      "ordinal": 1152,
+      "rva": "0x64410",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_hid_send_feature_report",
+      "ordinal": 1153,
+      "rva": "0x64420",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_hid_set_nonblocking",
+      "ordinal": 1154,
+      "rva": "0x64430",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_hid_write",
+      "ordinal": 1155,
+      "rva": "0x64440",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_iconv",
+      "ordinal": 1156,
+      "rva": "0x64450",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_iconv_close",
+      "ordinal": 1157,
+      "rva": "0x64460",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_iconv_open",
+      "ordinal": 1158,
+      "rva": "0x64470",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_iconv_string",
+      "ordinal": 1159,
+      "rva": "0x64480",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_isalnum",
+      "ordinal": 1160,
+      "rva": "0x64490",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_isalpha",
+      "ordinal": 1161,
+      "rva": "0x644a0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_isblank",
+      "ordinal": 1162,
+      "rva": "0x644b0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_iscntrl",
+      "ordinal": 1163,
+      "rva": "0x644c0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_isdigit",
+      "ordinal": 1164,
+      "rva": "0x644d0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_isgraph",
+      "ordinal": 1165,
+      "rva": "0x644e0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_isinf",
+      "ordinal": 1166,
+      "rva": "0x644f0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_isinff",
+      "ordinal": 1167,
+      "rva": "0x64500",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_islower",
+      "ordinal": 1168,
+      "rva": "0x64510",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_isnan",
+      "ordinal": 1169,
+      "rva": "0x64520",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_isnanf",
+      "ordinal": 1170,
+      "rva": "0x64530",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_isprint",
+      "ordinal": 1171,
+      "rva": "0x64540",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_ispunct",
+      "ordinal": 1172,
+      "rva": "0x64550",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_isspace",
+      "ordinal": 1173,
+      "rva": "0x64560",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_isupper",
+      "ordinal": 1174,
+      "rva": "0x64570",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_isxdigit",
+      "ordinal": 1175,
+      "rva": "0x64580",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_itoa",
+      "ordinal": 1176,
+      "rva": "0x64590",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_lltoa",
+      "ordinal": 1177,
+      "rva": "0x645a0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_log",
+      "ordinal": 1178,
+      "rva": "0x645b0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_log10",
+      "ordinal": 1179,
+      "rva": "0x645c0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_log10f",
+      "ordinal": 1180,
+      "rva": "0x645d0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_logf",
+      "ordinal": 1181,
+      "rva": "0x645e0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_lround",
+      "ordinal": 1182,
+      "rva": "0x645f0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_lroundf",
+      "ordinal": 1183,
+      "rva": "0x64600",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_ltoa",
+      "ordinal": 1184,
+      "rva": "0x64610",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_malloc",
+      "ordinal": 1185,
+      "rva": "0x64620",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_memcmp",
+      "ordinal": 1186,
+      "rva": "0x64630",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_memcpy",
+      "ordinal": 1187,
+      "rva": "0x64640",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_memmove",
+      "ordinal": 1188,
+      "rva": "0x64650",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_memset",
+      "ordinal": 1189,
+      "rva": "0x64660",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_memset4",
+      "ordinal": 1190,
+      "rva": "0x64670",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_modf",
+      "ordinal": 1191,
+      "rva": "0x64680",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_modff",
+      "ordinal": 1192,
+      "rva": "0x64690",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_murmur3_32",
+      "ordinal": 1193,
+      "rva": "0x646a0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_pow",
+      "ordinal": 1194,
+      "rva": "0x646b0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_powf",
+      "ordinal": 1195,
+      "rva": "0x646c0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_qsort",
+      "ordinal": 1196,
+      "rva": "0x646d0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_qsort_r",
+      "ordinal": 1197,
+      "rva": "0x646e0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_rand",
+      "ordinal": 1198,
+      "rva": "0x646f0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_rand_bits",
+      "ordinal": 1199,
+      "rva": "0x64700",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_rand_bits_r",
+      "ordinal": 1200,
+      "rva": "0x64710",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_rand_r",
+      "ordinal": 1201,
+      "rva": "0x64720",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_randf",
+      "ordinal": 1202,
+      "rva": "0x64730",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_randf_r",
+      "ordinal": 1203,
+      "rva": "0x64740",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_realloc",
+      "ordinal": 1204,
+      "rva": "0x64750",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_round",
+      "ordinal": 1205,
+      "rva": "0x64760",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_roundf",
+      "ordinal": 1206,
+      "rva": "0x64770",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_scalbn",
+      "ordinal": 1207,
+      "rva": "0x64780",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_scalbnf",
+      "ordinal": 1208,
+      "rva": "0x64790",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_setenv_unsafe",
+      "ordinal": 1209,
+      "rva": "0x647a0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_sin",
+      "ordinal": 1210,
+      "rva": "0x647b0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_sinf",
+      "ordinal": 1211,
+      "rva": "0x647c0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_snprintf",
+      "ordinal": 1212,
+      "rva": "0x647d0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_sqrt",
+      "ordinal": 1213,
+      "rva": "0x647f0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_sqrtf",
+      "ordinal": 1214,
+      "rva": "0x64800",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_srand",
+      "ordinal": 1215,
+      "rva": "0x64810",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_sscanf",
+      "ordinal": 1216,
+      "rva": "0x64820",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_strcasecmp",
+      "ordinal": 1217,
+      "rva": "0x64850",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_strcasestr",
+      "ordinal": 1218,
+      "rva": "0x64860",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_strchr",
+      "ordinal": 1219,
+      "rva": "0x64870",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_strcmp",
+      "ordinal": 1220,
+      "rva": "0x64880",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_strdup",
+      "ordinal": 1221,
+      "rva": "0x64890",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_strlcat",
+      "ordinal": 1222,
+      "rva": "0x648a0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_strlcpy",
+      "ordinal": 1223,
+      "rva": "0x648b0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_strlen",
+      "ordinal": 1224,
+      "rva": "0x648c0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_strlwr",
+      "ordinal": 1225,
+      "rva": "0x648d0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_strncasecmp",
+      "ordinal": 1226,
+      "rva": "0x648e0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_strncmp",
+      "ordinal": 1227,
+      "rva": "0x648f0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_strndup",
+      "ordinal": 1228,
+      "rva": "0x64900",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_strnlen",
+      "ordinal": 1229,
+      "rva": "0x64910",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_strnstr",
+      "ordinal": 1230,
+      "rva": "0x64920",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_strpbrk",
+      "ordinal": 1231,
+      "rva": "0x64930",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_strrchr",
+      "ordinal": 1232,
+      "rva": "0x64940",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_strrev",
+      "ordinal": 1233,
+      "rva": "0x64950",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_strstr",
+      "ordinal": 1234,
+      "rva": "0x64960",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_strtod",
+      "ordinal": 1235,
+      "rva": "0x64970",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_strtok_r",
+      "ordinal": 1236,
+      "rva": "0x64980",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_strtol",
+      "ordinal": 1237,
+      "rva": "0x64990",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_strtoll",
+      "ordinal": 1238,
+      "rva": "0x649a0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_strtoul",
+      "ordinal": 1239,
+      "rva": "0x649b0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_strtoull",
+      "ordinal": 1240,
+      "rva": "0x649c0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_strupr",
+      "ordinal": 1241,
+      "rva": "0x649d0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_swprintf",
+      "ordinal": 1242,
+      "rva": "0x649e0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_tan",
+      "ordinal": 1243,
+      "rva": "0x64a00",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_tanf",
+      "ordinal": 1244,
+      "rva": "0x64a10",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_tolower",
+      "ordinal": 1245,
+      "rva": "0x64a20",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_toupper",
+      "ordinal": 1246,
+      "rva": "0x64a30",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_trunc",
+      "ordinal": 1247,
+      "rva": "0x64a40",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_truncf",
+      "ordinal": 1248,
+      "rva": "0x64a50",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_uitoa",
+      "ordinal": 1249,
+      "rva": "0x64a60",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_ulltoa",
+      "ordinal": 1250,
+      "rva": "0x64a70",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_ultoa",
+      "ordinal": 1251,
+      "rva": "0x64a80",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_unsetenv_unsafe",
+      "ordinal": 1252,
+      "rva": "0x64a90",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_utf8strlcpy",
+      "ordinal": 1253,
+      "rva": "0x64aa0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_utf8strlen",
+      "ordinal": 1254,
+      "rva": "0x64ab0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_utf8strnlen",
+      "ordinal": 1255,
+      "rva": "0x64ac0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_vasprintf",
+      "ordinal": 1256,
+      "rva": "0x64ad0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_vsnprintf",
+      "ordinal": 1257,
+      "rva": "0x64ae0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_vsscanf",
+      "ordinal": 1258,
+      "rva": "0x64af0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_vswprintf",
+      "ordinal": 1259,
+      "rva": "0x64b00",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_wcscasecmp",
+      "ordinal": 1260,
+      "rva": "0x64b10",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_wcscmp",
+      "ordinal": 1261,
+      "rva": "0x64b20",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_wcsdup",
+      "ordinal": 1262,
+      "rva": "0x64b30",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_wcslcat",
+      "ordinal": 1263,
+      "rva": "0x64b40",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_wcslcpy",
+      "ordinal": 1264,
+      "rva": "0x64b50",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_wcslen",
+      "ordinal": 1265,
+      "rva": "0x64b60",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_wcsncasecmp",
+      "ordinal": 1266,
+      "rva": "0x64b70",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_wcsncmp",
+      "ordinal": 1267,
+      "rva": "0x64b80",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_wcsnlen",
+      "ordinal": 1268,
+      "rva": "0x64b90",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_wcsnstr",
+      "ordinal": 1269,
+      "rva": "0x64ba0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_wcsstr",
+      "ordinal": 1270,
+      "rva": "0x64bb0",
+      "forwarder": null
+    },
+    {
+      "name": "SDL_wcstol",
+      "ordinal": 1271,
+      "rva": "0x64bc0",
+      "forwarder": null
+    }
+  ],
+  "debug": [
+    {
+      "type": 2,
+      "size": 77,
+      "codeview": {
+        "guid_bytes": "99fdbf886c65db469e4b0b053a268fcc",
+        "age": 1,
+        "pdb_path": "C:\\temp\\SDL3-3.4.12\\VisualC\\SDL\\x64\\Release\\SDL3.pdb"
+      }
+    },
+    {
+      "type": 12,
+      "size": 20,
+      "codeview": null
+    },
+    {
+      "type": 13,
+      "size": 796,
+      "codeview": null
+    }
+  ]
+}

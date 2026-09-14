@@ -1,0 +1,14 @@
+{
+  "before_pid": 64116,
+  "after_pid": 53392,
+  "before_root": "2827fd6a080",
+  "after_root": "26741ad2140",
+  "before_records": 415,
+  "after_records": 415,
+  "records_identical": true,
+  "unknown_or_invalid_collections": [
+    "COLLECTION type=1 count=379 invalid=0",
+    "COLLECTION type=2 count=9 invalid=0",
+    "COLLECTION type=8 count=27 invalid=0"
+  ]
+}

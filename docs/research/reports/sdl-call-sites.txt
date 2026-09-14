@@ -1,0 +1,33 @@
+﻿
+     1402ccbbc:	80 3d 71 ae 8a 00 00 	cmpb   $0x0,0x8aae71(%rip)        # 0x140b77a34
+     1402ccbc3:	74 1a                	je     0x1402ccbdf
+     1402ccbc5:	48 8b 0d 34 ea 8a 00 	mov    0x8aea34(%rip),%rcx        # 0x140b7b600
+     1402ccbcc:	ff 15 8e ed 6d 00    	call   *0x6ded8e(%rip)        # 0x1409ab960
+>    1402ccbd2:	ff 15 30 ed 6d 00    	call   *0x6ded30(%rip)        # 0x1409ab908
+     1402ccbd8:	c6 05 55 ae 8a 00 00 	movb   $0x0,0x8aae55(%rip)        # 0x140b77a34
+     1402ccbdf:	e8 4c a9 f7 ff       	call   0x140247530
+     1402ccbe4:	48 8b 0d b5 ae 8a 00 	mov    0x8aaeb5(%rip),%rcx        # 0x140b77aa0
+     1402ccbeb:	e8 00 68 f7 ff       	call   0x1402433f0
+     1402ccbf0:	e8 5b 58 60 00       	call   0x1408d2450
+     1402d5d69:	45 33 ed             	xor    %r13d,%r13d
+     1402d5d6c:	44 38 2d c1 1c 8a 00 	cmp    %r13b,0x8a1cc1(%rip)        # 0x140b77a34
+     1402d5d73:	75 16                	jne    0x1402d5d8b
+     1402d5d75:	b9 20 00 00 00       	mov    $0x20,%ecx
+>    1402d5d7a:	ff 15 70 5c 6d 00    	call   *0x6d5c70(%rip)        # 0x1409ab9f0
+     1402d5d80:	84 c0                	test   %al,%al
+     1402d5d82:	75 07                	jne    0x1402d5d8b
+     1402d5d84:	c6 05 a9 1c 8a 00 01 	movb   $0x1,0x8a1ca9(%rip)        # 0x140b77a34
+     1402d5d8b:	48 8d 15 a6 3d 77 00 	lea    0x773da6(%rip),%rdx        # 0x140a49b38
+     1402d5d92:	48 8d 0d ef 8c 78 00 	lea    0x788cef(%rip),%rcx        # 0x140a5ea88
+     1402d6439:	33 c9                	xor    %ecx,%ecx
+     1402d643b:	ff 15 d7 5a 6d 00    	call   *0x6d5ad7(%rip)        # 0x1409abf18
+     1402d6441:	cc                   	int3
+     1402d6442:	e8 e5 db 6a 00       	call   0x14098402c
+>    1402d6447:	ff 15 bb 54 6d 00    	call   *0x6d54bb(%rip)        # 0x1409ab908
+     1402d644d:	e9 81 00 00 00       	jmp    0x1402d64d3
+     1402d6452:	48 8b 05 ff b5 8a 00 	mov    0x8ab5ff(%rip),%rax        # 0x140b81a58
+     1402d6459:	89 b0 d4 ce 34 03    	mov    %esi,0x334ced4(%rax)
+     1402d645f:	c6 05 42 16 8a 00 01 	movb   $0x1,0x8a1642(%rip)        # 0x140b77aa8
+     1402d6466:	44 89 6f 14          	mov    %r13d,0x14(%rdi)
+
+
