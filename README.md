@@ -4,6 +4,18 @@ SDK natif C++20 / Windows x64 pour observer NIMBY Rails depuis un autre programm
 API C versionnée, snapshots de trains, vitesses, voies, gares, signaux et Paths.
 MinHook est compilé dans la DLL ; aucun fichier MinHook.dll à installer.
 
+## Installer les DLL dans le jeu
+
+Pour le chargement automatique à chaque démarrage, télécharger
+**[NimbyRailsSDK-0.4.0-drop-in-windows-x64.zip](https://github.com/NimbyRails-France/sdk/releases/tag/v0.4.0)**.
+Il contient **SDL3.dll + NimbyRailsSDK.dll**, ainsi que **libwinpthread-1.dll** obligatoire.
+Jeu fermé, extraire le ZIP puis lancer son `install-proxy.ps1` : la SDL originale
+est conservée sous `NimbyRailsSDL3Original.dll`. Ne pas écraser directement la SDL du jeu.
+
+**[Installation, copie manuelle et désinstallation](docs/install-drop-in.md).**
+Le paquet `windows-x64-mingw.zip` décrit ci-dessous est le kit de développement ;
+le paquet `drop-in-windows-x64.zip` est celui à utiliser pour le dossier du jeu.
+
 ## Installer depuis une release
 
 1. Ouvrir les [releases du SDK](https://github.com/NimbyRails-France/sdk/releases).
