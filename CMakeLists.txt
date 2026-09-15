@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.24)
-project(NimbyRailsSDK VERSION 0.5.0 LANGUAGES C CXX)
+project(NimbyRailsSDK VERSION 0.6.0 LANGUAGES C CXX)
 if(NOT WIN32 OR NOT CMAKE_SIZEOF_VOID_P EQUAL 8)
     message(FATAL_ERROR "NimbyRailsSDK requires Windows x64")
 endif()
@@ -29,6 +29,7 @@ add_library(NimbyRailsSDK SHARED
     src/runtime/observation.cpp
     src/engine/live_state.cpp
     src/engine/network.cpp
+    src/engine/signal_textures.cpp
     src/engine/track_usage.cpp
     src/engine/binary_identity.cpp)
 target_compile_definitions(NimbyRailsSDK PRIVATE NIMBY_SDK_BUILD)
@@ -95,6 +96,16 @@ if(MINGW)
 endif()
 if(BUILD_TESTING)
     enable_testing()
+    add_executable(nimby_signal_texture_tests tests/signal_textures.cpp src/engine/signal_textures.cpp src/engine/live_state.cpp)
+    target_include_directories(nimby_signal_texture_tests PRIVATE include)
+    target_link_libraries(nimby_signal_texture_tests PRIVATE nimby_build)
+    add_test(NAME signal_texture_catalog COMMAND nimby_signal_texture_tests)
+    add_executable(nimby_signal_state_tests tests/signal_states.cpp
+        src/engine/binary_identity.cpp src/engine/live_state.cpp src/engine/network.cpp src/engine/track_usage.cpp src/engine/signal_textures.cpp)
+    target_include_directories(nimby_signal_state_tests PRIVATE include)
+    target_compile_definitions(nimby_signal_state_tests PRIVATE NIMBY_SDK_BUILD)
+    target_link_libraries(nimby_signal_state_tests PRIVATE nimby_build bcrypt)
+    add_test(NAME signal_state_contract COMMAND nimby_signal_state_tests)
     add_executable(nimby_track_usage_tests tests/track_usage.cpp src/engine/track_usage.cpp src/engine/live_state.cpp)
     target_include_directories(nimby_track_usage_tests PRIVATE include)
     target_link_libraries(nimby_track_usage_tests PRIVATE nimby_build)
@@ -174,5 +185,6 @@ install(FILES docs/developing.md DESTINATION share/doc/NimbyRailsSDK)
 install(DIRECTORY examples/observer DESTINATION share/NimbyRailsSDK/examples
     FILES_MATCHING PATTERN "*.cpp" PATTERN "CMakeLists.txt"
     PATTERN ".idea" EXCLUDE PATTERN "cmake-build-*" EXCLUDE)
-install(DIRECTORY docs/ DESTINATION share/doc/NimbyRailsSDK)
+install(DIRECTORY docs/ DESTINATION share/doc/NimbyRailsSDK
+    PATTERN "reports" EXCLUDE PATTERN "source-reports" EXCLUDE)
 install(FILES README.md DESTINATION .)

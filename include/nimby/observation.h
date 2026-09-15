@@ -22,6 +22,19 @@ extern "C" {
 #define NIMBY_SIGNAL_PATH 4
 #define NIMBY_SIGNAL_NO_WAY 5
 #define NIMBY_SIGNAL_MARKER 6
+// General display aspects, independent of the signal kind and national rules.
+#define NIMBY_SIGNAL_ASPECT_UNKNOWN 0u
+#define NIMBY_SIGNAL_ASPECT_STOP 1u
+#define NIMBY_SIGNAL_ASPECT_CAUTION 2u
+#define NIMBY_SIGNAL_ASPECT_PROCEED 3u
+#define NIMBY_SIGNAL_ASPECT_DARK 4u
+#define NIMBY_SIGNAL_ASPECT_VALID 1u
+#define NIMBY_SIGNAL_SPECIFIC_STATE_VALID 2u
+#define NIMBY_SIGNAL_TEXTURE_STATE_VALID 4u
+#define NIMBY_SIGNAL_TEXTURE_REFERENCE_VALID 1u
+#define NIMBY_SIGNAL_TEXTURE_FILE_VALID 2u
+#define NIMBY_SIGNAL_TEXTURE_DEFAULT_SET 4u
+#define NIMBY_SIGNAL_TEXTURE_CLAMPED 8u
 typedef uint64_t NimbySession;
 typedef uint64_t NimbySnapshot;
 
@@ -48,6 +61,36 @@ typedef struct NimbySignal {
     double track_fraction;
     int32_t direction, kind;
 } NimbySignal;
+
+// Separate record preserves the existing 32-byte NimbySignal ABI.
+// Missing validity bit means UNKNOWN, including a zero texture_state.
+// Specific IDs are namespaced, NUL-terminated UTF-8 (e.g. system="fr",
+// state="carre"); they are identifiers, not a translated display label.
+// No national aspect is inferred from a native kind or track usage.
+typedef struct NimbySignalState {
+    uint64_t signal_id;
+    uint32_t flags, aspect;
+    int32_t texture_state; // Native selector before renderer clamping/fallback.
+    uint32_t reserved;
+    char system_utf8[32];
+    char specific_state_utf8[64];
+} NimbySignalState;
+
+// Texture selected from the game's loaded catalog, separate from the raw state.
+// All strings are NUL-terminated UTF-8; unavailable fields are zero/empty.
+// source: 0 built-in, 1 local mod, 2 Steam Workshop. FILE_VALID means a local
+// file was resolved at capture time; consumers must still handle image errors.
+// Does not guarantee the game's GPU upload succeeded or expose a railway aspect.
+typedef struct NimbySignalTexture {
+    uint64_t signal_id, textures_hash, file_hash;
+    uint32_t flags;
+    int32_t selected_index;
+    uint32_t state_count, source;
+    char textures_id_utf8[128];
+    char mod_id_utf8[256];
+    char relative_path_utf8[512];
+    char file_path_utf8[1024];
+} NimbySignalTexture;
 
 // Experimental node graph. Existing primary-link targets are exposed, including
 // non-reciprocal branch references. Edges do not establish a switch state.
@@ -88,6 +131,15 @@ NIMBY_API uint32_t __cdecl NimbySdk_CopyTrains(NimbySnapshot snapshot, NimbyTrai
 NIMBY_API uint32_t __cdecl NimbySdk_CopyTracks(NimbySnapshot snapshot, NimbyTrack* records, uint32_t capacity, uint32_t* required) NIMBY_NOEXCEPT;
 NIMBY_API uint32_t __cdecl NimbySdk_CopyStations(NimbySnapshot snapshot, NimbyStation* records, uint32_t capacity, uint32_t* required) NIMBY_NOEXCEPT;
 NIMBY_API uint32_t __cdecl NimbySdk_CopySignals(NimbySnapshot snapshot, NimbySignal* records, uint32_t capacity, uint32_t* required) NIMBY_NOEXCEPT;
+// One state per CopySignals record, joined by full signal_id, same snapshot.
+// OK means the records were copied; inspect each record's validity flags.
+// Native selector and atlas-scoped specific ID are observed independently of
+// the general aspect, which remains unknown without a validated rule mapping.
+// Does not grant movement permission and does not change the game.
+NIMBY_API uint32_t __cdecl NimbySdk_CopySignalStates(NimbySnapshot snapshot, NimbySignalState* records, uint32_t capacity, uint32_t* required) NIMBY_NOEXCEPT;
+// One row per signal; uses the same buffer/count protocol. Missing catalog/state
+// leaves flags=0. Read-only lookup, native default atlas and index clamping.
+NIMBY_API uint32_t __cdecl NimbySdk_CopySignalTextures(NimbySnapshot snapshot, NimbySignalTexture* records, uint32_t capacity, uint32_t* required) NIMBY_NOEXCEPT;
 NIMBY_API uint32_t __cdecl NimbySdk_CopyTrackNodes(NimbySnapshot snapshot, NimbyTrackNode* records, uint32_t capacity, uint32_t* required) NIMBY_NOEXCEPT;
 // These components are captured independently. DATA_UNAVAILABLE means unknown,
 // not zero reservations/occupations. NIMBY_OK with count=0 means observed empty.

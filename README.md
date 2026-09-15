@@ -1,4 +1,4 @@
-# NimbyRailsSDK 0.5.0
+# NimbyRailsSDK 0.6.0
 
 SDK natif C++20 / Windows x64 pour observer NIMBY Rails depuis un autre programme.
 API C versionnée, snapshots de trains, vitesses, voies, gares, signaux, Paths,
@@ -15,7 +15,7 @@ virtuelles des scripts. [Preuves et limites](docs/research/reservations.md).
 ## Installer les DLL dans le jeu
 
 Pour le chargement automatique à chaque démarrage, télécharger
-**[NimbyRailsSDK-0.5.0-drop-in-windows-x64.zip](https://github.com/NimbyRails-France/sdk/releases/tag/v0.5.0)**.
+**[NimbyRailsSDK-0.6.0-drop-in-windows-x64.zip](https://github.com/NimbyRails-France/sdk/releases/tag/v0.6.0)**.
 Il contient **SDL3.dll + NimbyRailsSDK.dll**, ainsi que **libwinpthread-1.dll** obligatoire.
 Jeu fermé, extraire le ZIP puis lancer son `install-proxy.ps1` : la SDL originale
 est conservée sous `NimbyRailsSDL3Original.dll`. Ne pas écraser directement la SDL du jeu.
@@ -27,11 +27,11 @@ le paquet `drop-in-windows-x64.zip` est celui à utiliser pour le dossier du jeu
 ## Installer depuis une release
 
 1. Ouvrir les [releases du SDK](https://github.com/NimbyRails-France/sdk/releases).
-2. Télécharger **NimbyRailsSDK-0.5.0-windows-x64-mingw.zip** dans **Assets** (pas « Source code »).
+2. Télécharger **NimbyRailsSDK-0.6.0-windows-x64-mingw.zip** dans **Assets** (pas « Source code »).
 3. Extraire tout le ZIP, par exemple sous `C:/SDK/`. Le dossier obtenu est
-   `C:/SDK/NimbyRailsSDK-0.5.0/`, contenant `include`, `lib`, `bin` et `share`.
+   `C:/SDK/NimbyRailsSDK-0.6.0/`, contenant `include`, `lib`, `bin` et `share`.
 4. Dans CLion, sélectionner une toolchain **MinGW x64**, puis ajouter aux options CMake :
-   `-DCMAKE_PREFIX_PATH=C:/SDK/NimbyRailsSDK-0.5.0`.
+   `-DCMAKE_PREFIX_PATH=C:/SDK/NimbyRailsSDK-0.6.0`.
 5. Lier votre cible à `NimbyRailsSDK::SDK` et copier les DLL de `bin` près de votre `.exe`.
 
 Le paquet est compilé avec MinGW GCC 15.2. Pour MSVC, reconstruire depuis les sources
@@ -57,7 +57,7 @@ Un programme complet est fourni dans `share/NimbyRailsSDK/examples/observer` du 
 Copier ce dossier dans votre espace de travail, puis :
 
 ```powershell
-cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH=C:/SDK/NimbyRailsSDK-0.5.0
+cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH=C:/SDK/NimbyRailsSDK-0.6.0
 cmake --build build
 ./build/MyNimbyObserver.exe <PID-du-jeu>
 ```

@@ -36,6 +36,18 @@ int main(int argc,char** argv) {
             auto tracks=records<NimbyTrack>(snapshot.value,NimbySdk_CopyTracks);
             auto stations=records<NimbyStation>(snapshot.value,NimbySdk_CopyStations);
             auto signals=records<NimbySignal>(snapshot.value,NimbySdk_CopySignals);
+            auto signalStates=records<NimbySignalState>(snapshot.value,NimbySdk_CopySignalStates);
+            for(const auto& state:signalStates){
+                std::printf("signal=%llx ",static_cast<unsigned long long>(state.signal_id));
+                if(state.flags&NIMBY_SIGNAL_ASPECT_VALID)std::printf("aspect=%u ",state.aspect);
+                else std::printf("aspect=unknown ");
+                if(state.flags&NIMBY_SIGNAL_SPECIFIC_STATE_VALID)
+                    std::printf("specific=%s:%s ",state.system_utf8,state.specific_state_utf8);
+                else std::printf("specific=unknown ");
+                if(state.flags&NIMBY_SIGNAL_TEXTURE_STATE_VALID)std::printf("texture=%d",state.texture_state);
+                else std::printf("texture=unknown");
+                std::puts("");
+            }
             std::printf("snapshot %d: %zu trains, %zu tracks, %zu stations, %zu signals\n",tick,trains.size(),tracks.size(),stations.size(),signals.size());
             for(auto function:{NimbySdk_CopyTrackReservations,NimbySdk_CopyTrackOccupations}){
                 uint32_t count=0;const auto status=function(snapshot.value,nullptr,0,&count);

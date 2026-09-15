@@ -25,6 +25,12 @@ extern "C" {
 #define NIMBY_HOOKS_UNAVAILABLE 5u
 #define NIMBY_INTERNAL_ERROR 6u
 
+typedef struct NimbySdkVersion {
+    uint32_t struct_size, abi_version, major, minor, patch;
+} NimbySdkVersion;
+// Available before initialization; validates struct_size. No game process is touched.
+NIMBY_API uint32_t __cdecl NimbySdk_GetVersion(NimbySdkVersion* out) NIMBY_NOEXCEPT;
+
 typedef struct NimbyBinaryInfo {
     uint32_t struct_size;
     uint32_t recognized_research_build;

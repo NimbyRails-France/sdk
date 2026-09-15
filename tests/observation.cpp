@@ -14,6 +14,12 @@ int main(int argc,char** argv) {
     CHECK(NimbySdk_CaptureSnapshot(0,&snapshot)==NIMBY_INVALID_HANDLE&&snapshot==0);
     CHECK(NimbySdk_CopyTrains(0,nullptr,0,&count)==NIMBY_INVALID_HANDLE&&count==0);
     CHECK(NimbySdk_CopyTrains(0,nullptr,1,&count)==NIMBY_INVALID_ARGUMENT);
+    CHECK(NimbySdk_CopySignalStates(0,nullptr,0,&count)==NIMBY_INVALID_HANDLE&&count==0);
+    CHECK(NimbySdk_CopySignalStates(0,nullptr,1,&count)==NIMBY_INVALID_ARGUMENT&&count==0);
+    CHECK(NimbySdk_CopySignalStates(0,nullptr,0,nullptr)==NIMBY_INVALID_ARGUMENT);
+    CHECK(NimbySdk_CopySignalTextures(0,nullptr,0,&count)==NIMBY_INVALID_HANDLE&&count==0);
+    CHECK(NimbySdk_CopySignalTextures(0,nullptr,1,&count)==NIMBY_INVALID_ARGUMENT&&count==0);
+    CHECK(NimbySdk_CopySignalTextures(0,nullptr,0,nullptr)==NIMBY_INVALID_ARGUMENT);
     CHECK(NimbySdk_CopyTrackNodes(0,nullptr,0,&count)==NIMBY_INVALID_HANDLE&&count==0);
     CHECK(NimbySdk_CopyTrackReservations(0,nullptr,0,&count)==NIMBY_INVALID_HANDLE&&count==0);
     CHECK(NimbySdk_CopyTrackOccupations(0,nullptr,0,&count)==NIMBY_INVALID_HANDLE&&count==0);
@@ -70,9 +76,43 @@ int main(int argc,char** argv) {
         CHECK(NimbySdk_CopyTracks(snapshot,nullptr,0,&count)==NIMBY_OK&&count==info.track_count);
         CHECK(NimbySdk_CopyStations(snapshot,nullptr,0,&count)==NIMBY_OK&&count==info.station_count);
         CHECK(NimbySdk_CopySignals(snapshot,nullptr,0,&count)==NIMBY_OK&&count==info.signal_count);
+        std::vector<NimbySignal> signals(count);
+        CHECK(NimbySdk_CopySignals(snapshot,signals.data(),count,&count)==NIMBY_OK);
+        CHECK(NimbySdk_CopySignalStates(snapshot,nullptr,0,&count)==NIMBY_OK&&count==info.signal_count);
+        if(count){
+            NimbySignalState guard{};std::memset(&guard,0x5a,sizeof guard);auto old=guard;
+            CHECK(NimbySdk_CopySignalStates(snapshot,&guard,0,&count)==NIMBY_BUFFER_TOO_SMALL);
+            CHECK(std::memcmp(&guard,&old,sizeof guard)==0);
+        }
+        std::vector<NimbySignalState> states(count),statesAgain(count);
+        CHECK(NimbySdk_CopySignalStates(snapshot,states.data(),count,&count)==NIMBY_OK);
+        CHECK(NimbySdk_CopySignalStates(snapshot,statesAgain.data(),count,&count)==NIMBY_OK);
+        CHECK(!count||std::memcmp(states.data(),statesAgain.data(),count*sizeof(NimbySignalState))==0);
+        for(size_t i=0;i<states.size();++i){
+            CHECK(states[i].signal_id==signals[i].id);
+            CHECK(states[i].aspect==NIMBY_SIGNAL_ASPECT_UNKNOWN);
+            CHECK(states[i].flags==0||states[i].flags==(NIMBY_SIGNAL_TEXTURE_STATE_VALID|NIMBY_SIGNAL_SPECIFIC_STATE_VALID));
+            if(states[i].flags){CHECK(states[i].system_utf8[0]!=0&&states[i].specific_state_utf8[0]!=0);
+                std::printf("Signal %llx: %s:%s selector=%d\n",static_cast<unsigned long long>(states[i].signal_id),states[i].system_utf8,states[i].specific_state_utf8,states[i].texture_state);}
+        }
+        CHECK(NimbySdk_CopySignalTextures(snapshot,nullptr,0,&count)==NIMBY_OK&&count==info.signal_count);
+        std::vector<NimbySignalTexture> textures(count);
+        CHECK(NimbySdk_CopySignalTextures(snapshot,textures.data(),count,&count)==NIMBY_OK);
+        unsigned resolved=0;
+        for(size_t i=0;i<textures.size();++i){const auto& texture=textures[i];CHECK(texture.signal_id==signals[i].id);
+            if(texture.flags&NIMBY_SIGNAL_TEXTURE_REFERENCE_VALID){
+                CHECK(texture.selected_index>=0&&static_cast<uint32_t>(texture.selected_index)<texture.state_count);
+                std::printf("Texture %llx: %s [%d/%u] %s file=%s\n",static_cast<unsigned long long>(texture.signal_id),
+                    texture.textures_id_utf8,texture.selected_index,texture.state_count,texture.relative_path_utf8,texture.file_path_utf8);
+            }
+            if(texture.flags&NIMBY_SIGNAL_TEXTURE_FILE_VALID){CHECK(texture.file_path_utf8[0]!=0);++resolved;}
+        }
+        std::printf("Signal texture files resolved: %u/%u\n",resolved,count);
         CHECK(NimbySdk_ReleaseSnapshot(snapshot)==NIMBY_OK);
         CHECK(NimbySdk_ReleaseSnapshot(snapshot)==NIMBY_INVALID_HANDLE);
         CHECK(NimbySdk_CopyTrains(snapshot,nullptr,0,&count)==NIMBY_INVALID_HANDLE);
+        CHECK(NimbySdk_CopySignalStates(snapshot,nullptr,0,&count)==NIMBY_INVALID_HANDLE&&count==0);
+        CHECK(NimbySdk_CopySignalTextures(snapshot,nullptr,0,&count)==NIMBY_INVALID_HANDLE&&count==0);
         std::printf("Real SDK snapshot: %u trains, %u tracks, %u stations, %u signals; ownership and buffer guards passed.\n",info.train_count,info.track_count,info.station_count,info.signal_count);
     }
     std::puts("Public observation ABI guards passed.");

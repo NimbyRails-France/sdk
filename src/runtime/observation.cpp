@@ -2,12 +2,15 @@
 #include "engine/binary_identity.h"
 #include "engine/network.h"
 #include "engine/track_usage.h"
+#include "engine/signal_textures.h"
 #include <windows.h>
 #include <tlhelp32.h>
 #include <algorithm>
 #include <array>
 #include <chrono>
 #include <cstring>
+#include <cstdio>
+#include <filesystem>
 #include <map>
 #include <memory>
 #include <vector>
@@ -19,6 +22,7 @@ struct Session {
     uint32_t pid{};
     uint64_t base{};
     NimbyBinaryInfo binary{};
+    std::filesystem::path game_directory;
     ~Session() { if(process) CloseHandle(process); }
 };
 struct Snapshot {
@@ -27,6 +31,8 @@ struct Snapshot {
     std::vector<NimbyTrack> tracks;
     std::vector<NimbyStation> stations;
     std::vector<NimbySignal> signals;
+    std::vector<NimbySignalState> signal_states;
+    std::vector<NimbySignalTexture> signal_textures;
     std::vector<NimbyTrackNode> nodes;
     std::map<uint64_t,std::vector<uint64_t>> paths;
     std::vector<NimbyTrackUsage> reservations,occupations;
@@ -40,6 +46,40 @@ struct Registry {
 SRWLOCK registry_lock=SRWLOCK_INIT;
 struct Guard { Guard(){AcquireSRWLockExclusive(&registry_lock);} ~Guard(){ReleaseSRWLockExclusive(&registry_lock);} };
 Registry& registry() { static Registry value;return value; }
+std::wstring from_utf8(const std::string& text) {
+    const int n=MultiByteToWideChar(CP_UTF8,MB_ERR_INVALID_CHARS,text.data(),static_cast<int>(text.size()),nullptr,0);
+    if(!n)return {};
+    std::wstring result(n,L'\0');
+    MultiByteToWideChar(CP_UTF8,MB_ERR_INVALID_CHARS,text.data(),static_cast<int>(text.size()),result.data(),n);return result;
+}
+bool relative_asset(const std::filesystem::path& path) {
+    if(path.empty()||path.has_root_path())return false;
+    for(const auto& part:path)if(part==L".."||part==L"."||part.native().find(L':')!=std::wstring::npos)return false;
+    return true;
+}
+void texture_file_path(const Session& session,const nimby::engine::SignalTextureCatalog& catalog,
+                       const nimby::engine::SignalTextureFile& file,NimbySignalTexture& out) {
+    const std::filesystem::path mod=from_utf8(file.mod),relative=from_utf8(file.relative_path);
+    if(!relative_asset(mod)||!relative_asset(relative))return;
+    std::filesystem::path base;
+    if(file.source==0)base=session.game_directory/L"resources";
+    else if(file.source==1)base=catalog.local_mod_root;
+    else if(file.source==2){
+        if(file.mod.empty()||file.mod.find_first_not_of("0123456789")!=std::string::npos)return;
+        base=session.game_directory.parent_path().parent_path()/L"workshop"/L"content"/L"1134710";
+    }
+    if(!base.is_absolute()||!base.has_root_name()||base.native().starts_with(L"\\\\"))return;
+    std::error_code ec;const auto root=std::filesystem::weakly_canonical(base,ec);if(ec)return;
+    const auto path=std::filesystem::weakly_canonical(root/mod/relative,ec);if(ec)return;
+    // Reject traversal through symlinks/junctions as well as textual '..'.
+    const auto within=path.lexically_relative(root);
+    if(!relative_asset(within)||!std::filesystem::is_regular_file(path,ec)||ec)return;
+    const auto text=path.wstring();
+    const int n=WideCharToMultiByte(CP_UTF8,WC_ERR_INVALID_CHARS,text.data(),static_cast<int>(text.size()),nullptr,0,nullptr,nullptr);
+    if(n<=0||static_cast<size_t>(n)>=sizeof out.file_path_utf8)return;
+    WideCharToMultiByte(CP_UTF8,WC_ERR_INVALID_CHARS,text.data(),static_cast<int>(text.size()),out.file_path_utf8,n,nullptr,nullptr);
+    out.flags|=NIMBY_SIGNAL_TEXTURE_FILE_VALID;
+}
 bool read(void* context,uint64_t address,void* out,size_t size) {
     const auto& s=*static_cast<Session*>(context);
     SIZE_T got{};
@@ -73,6 +113,7 @@ uint32_t __cdecl NimbySdk_OpenProcess(uint32_t abi,uint32_t pid,NimbySession* ou
         if(!s->process)return NIMBY_IO_ERROR;
         std::array<wchar_t,32768> path{};DWORD length=static_cast<DWORD>(path.size());
         if(!QueryFullProcessImageNameW(s->process,0,path.data(),&length))return NIMBY_IO_ERROR;
+        s->game_directory=std::filesystem::path(path.data()).parent_path();
         auto result=nimby::engine::identify(path.data(),s->binary);
         if(result!=NIMBY_OK)return result;
         if(!s->binary.recognized_research_build)return NIMBY_UNSUPPORTED_GAME;
@@ -138,7 +179,42 @@ uint32_t __cdecl NimbySdk_CaptureSnapshot(NimbySession handle,NimbySnapshot* out
         }
         for(const auto& t:network.tracks)snapshot.tracks.push_back({t.id,t.station_id,t.limit_mps});
         for(const auto& s:network.stations){NimbyStation value{};value.id=s.id;std::memcpy(value.name_utf8,s.name.data(),s.name.size());snapshot.stations.push_back(value);}
-        for(const auto& s:network.signals)snapshot.signals.push_back({s.id,s.track_id,s.fraction,s.direction,s.kind});
+        std::vector<nimby::engine::SignalTextureState> native_signal_states;
+        std::map<uint64_t,int32_t> texture_states;
+        nimby::engine::SignalTextureCatalog texture_catalog;
+        const bool catalog_available=nimby::engine::read_signal_texture_catalog(read,&session,state,true,texture_catalog);
+        if(nimby::engine::read_signal_texture_states(read,&session,state,true,native_signal_states))
+            for(const auto& value:native_signal_states)texture_states.emplace(value.id,value.state);
+        for(const auto& s:network.signals){
+            snapshot.signals.push_back({s.id,s.track_id,s.fraction,s.direction,s.kind});
+            NimbySignalState signal_state{};signal_state.signal_id=s.id;
+            if(const auto it=texture_states.find(s.id);it!=texture_states.end()){
+                signal_state.texture_state=it->second;
+                signal_state.flags=NIMBY_SIGNAL_TEXTURE_STATE_VALID|NIMBY_SIGNAL_SPECIFIC_STATE_VALID;
+                // An atlas-scoped native selector, not a guessed railway aspect.
+                std::snprintf(signal_state.system_utf8,sizeof signal_state.system_utf8,"nimby:%016llx",static_cast<unsigned long long>(s.textures_hash));
+                std::snprintf(signal_state.specific_state_utf8,sizeof signal_state.specific_state_utf8,"kind.%d.state.%d",s.kind,it->second);
+            }
+            snapshot.signal_states.push_back(signal_state);
+            NimbySignalTexture texture{};texture.signal_id=s.id;
+            if(catalog_available&&(signal_state.flags&NIMBY_SIGNAL_TEXTURE_STATE_VALID)){
+                const auto* set=nimby::engine::select_signal_textures(texture_catalog,s.kind,s.textures_hash);
+                if(set&&!set->files.empty()){
+                    texture.selected_index=std::clamp(signal_state.texture_state,0,static_cast<int>(set->files.size())-1);
+                    const auto& file=set->files[texture.selected_index];
+                    texture.textures_hash=set->hash;texture.file_hash=file.hash;texture.source=file.source;
+                    texture.state_count=static_cast<uint32_t>(set->files.size());texture.flags=NIMBY_SIGNAL_TEXTURE_REFERENCE_VALID;
+                    if(set->hash!=s.textures_hash)texture.flags|=NIMBY_SIGNAL_TEXTURE_DEFAULT_SET;
+                    if(texture.selected_index!=signal_state.texture_state)texture.flags|=NIMBY_SIGNAL_TEXTURE_CLAMPED;
+                    std::memcpy(texture.textures_id_utf8,set->name.c_str(),set->name.size()+1);
+                    std::memcpy(texture.mod_id_utf8,file.mod.c_str(),file.mod.size()+1);
+                    std::memcpy(texture.relative_path_utf8,file.relative_path.c_str(),file.relative_path.size()+1);
+                    texture_file_path(session,texture_catalog,file,texture);
+                }
+            }
+            snapshot.signal_textures.push_back(texture);
+        }
+        if(!nimby::engine::resolve_live_state(read,&session,session.base,true,after)||state!=after)return NIMBY_DATA_UNAVAILABLE;
         std::map<uint64_t,const nimby::engine::Track*> geometry;
         for(const auto& t:network.tracks)if(t.geometry)geometry.emplace(t.id,&t);
         for(const auto& [id,t]:geometry){
@@ -170,6 +246,8 @@ uint32_t __cdecl NimbySdk_CopyTrackOccupations(NimbySnapshot s,NimbyTrackUsage* 
 uint32_t __cdecl NimbySdk_CopyTracks(NimbySnapshot s,NimbyTrack* out,uint32_t cap,uint32_t* count) noexcept {return copy(s,out,cap,count,&Snapshot::tracks);}
 uint32_t __cdecl NimbySdk_CopyStations(NimbySnapshot s,NimbyStation* out,uint32_t cap,uint32_t* count) noexcept {return copy(s,out,cap,count,&Snapshot::stations);}
 uint32_t __cdecl NimbySdk_CopySignals(NimbySnapshot s,NimbySignal* out,uint32_t cap,uint32_t* count) noexcept {return copy(s,out,cap,count,&Snapshot::signals);}
+uint32_t __cdecl NimbySdk_CopySignalStates(NimbySnapshot s,NimbySignalState* out,uint32_t cap,uint32_t* count) noexcept {return copy(s,out,cap,count,&Snapshot::signal_states);}
+uint32_t __cdecl NimbySdk_CopySignalTextures(NimbySnapshot s,NimbySignalTexture* out,uint32_t cap,uint32_t* count) noexcept {return copy(s,out,cap,count,&Snapshot::signal_textures);}
 uint32_t __cdecl NimbySdk_CopyTrackNodes(NimbySnapshot s,NimbyTrackNode* out,uint32_t cap,uint32_t* count) noexcept {return copy(s,out,cap,count,&Snapshot::nodes);}
 uint32_t __cdecl NimbySdk_CopyTrainPathTracks(NimbySnapshot handle,uint64_t train,uint64_t* out,uint32_t cap,uint32_t* count) noexcept {
     if(!count)return NIMBY_INVALID_ARGUMENT;

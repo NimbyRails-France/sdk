@@ -8,7 +8,7 @@
 using namespace nimby::engine;
 struct Memory {
     std::map<uint64_t,std::vector<unsigned char>> regions;
-    uint64_t fail{},replace_header{};unsigned header_reads{},reads{};
+    uint64_t fail{},replace_header{},changing_slots{};unsigned header_reads{},reads{},slot_reads{};
     template<class T> void put(uint64_t base,size_t off,T value) {
         auto& b=regions[base];if(b.size()<off+sizeof value)b.resize(off+sizeof value);
         std::memcpy(b.data()+off,&value,sizeof value);
@@ -21,6 +21,7 @@ bool read(void* ctx,uint64_t address,void* out,size_t size) {
     if(address-i->first>i->second.size()||size>i->second.size()-(address-i->first))return false;
     std::memcpy(out,i->second.data()+address-i->first,size);
     if(address==m.replace_header && ++m.header_reads==2)static_cast<unsigned char*>(out)[0]^=1;
+    if(address==m.changing_slots && (++m.slot_reads%2)==0 && size>8)static_cast<unsigned char*>(out)[8]^=1;
     return true;
 }
 int main() {
@@ -41,6 +42,27 @@ int main() {
     m.put(gb,0x30,int32_t(3));m.put(gb,0x40,track);m.put(gb,0x48,0.5);m.put(gb,0x50,int8_t(-1));
     Network out;
     if(!read_network(read,&m,state,true,out)||out.tracks.size()!=1||out.tracks[0].limit_mps!=30||out.signals[0].kind!=3)return 1;
+    const uint64_t query=0x500000000,ctrl=0x500010000,slots=0x500020000;
+    m.put(state.simulation,0x2200,query);m.put(query,0x378,ctrl);m.put(query,0x380,slots);
+    m.put(query,0x388,uint64_t(1));m.put(query,0x390,uint64_t(3));
+    m.regions[ctrl]={0,0x80,0xfe};m.regions[slots].resize(48);
+    m.put(slots,0,signal);m.put(slots,8,int32_t(10));
+    std::vector<SignalTextureState> states;
+    if(!read_signal_texture_states(read,&m,state,true,states)||states.size()!=1||states[0].id!=signal||states[0].state!=10)return 30;
+    m.put(slots,8,int32_t(0));
+    if(!read_signal_texture_states(read,&m,state,true,states)||states[0].state!=0)return 31;
+    m.put(query,0x390,uint64_t(2));if(read_signal_texture_states(read,&m,state,true,states)||!states.empty())return 32;
+    m.put(query,0x390,uint64_t(3));m.put(slots,0,track);if(read_signal_texture_states(read,&m,state,true,states))return 33;
+    m.put(slots,0,signal);m.fail=slots;if(read_signal_texture_states(read,&m,state,true,states))return 34;m.fail=0;
+    m.changing_slots=slots;
+    if(read_signal_texture_states(read,&m,state,true,states)||!states.empty())return 37;
+    m.changing_slots=0;
+    m.put(query,0x388,uint64_t(2));m.regions[ctrl][1]=0;m.put(slots,16,signal);
+    if(read_signal_texture_states(read,&m,state,true,states))return 38;
+    m.put(query,0x388,uint64_t(1));m.regions[ctrl][1]=0x80;
+    m.reads=0;if(read_signal_texture_states(read,&m,state,false,states)||m.reads)return 35;
+    m.put(query,0x388,uint64_t(0));m.regions[ctrl][0]=0x80;
+    if(!read_signal_texture_states(read,&m,state,true,states)||!states.empty())return 36;
     m.put(tb,0x84,0.f);
     if(!read_network(read,&m,state,true,out)||out.tracks[0].limit_mps!=50)return 2;
     m.reads=0;if(read_network(read,&m,state,false,out)||m.reads||!out.tracks.empty())return 3;

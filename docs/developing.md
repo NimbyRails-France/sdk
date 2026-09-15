@@ -2,6 +2,11 @@
 
 ## Réservations et occupation (nouveau en 0.5)
 
+Les [états des signaux](signal-states.md) disposent également d'une API dédiée,
+`NimbySdk_CopySignalStates` : aspect général, identifiant spécifique et index
+de texture avec validité indépendante. Les sélecteurs natifs sont lus ; leur
+correspondance avec un aspect ferroviaire général reste inconnue.
+
 `NimbySdk_CopyTrackReservations` et `NimbySdk_CopyTrackOccupations` utilisent le
 même protocole buffer/count que `CopyTrains`, avec des éléments `NimbyTrackUsage` :
 `train_id`, `track_id`, `fraction_begin`, `fraction_end`. Filtrer par `train_id`

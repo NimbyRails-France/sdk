@@ -1,5 +1,14 @@
 # Textures des signaux — 2026-09-14
 
+Mise à jour : la [table native des textures](signal-texture-catalog.md) est
+maintenant lue par le SDK et ses fichiers sélectionnés sont affichés dans le
+TCO. Les paragraphes ci-dessous décrivent la recherche initiale ; les limites
+sur la sélection des ressources sont levées par cette nouvelle validation.
+
+Mise à jour du 2026-09-15 : la [lecture du sélecteur natif](signal-states.md)
+est désormais implémentée et validée sur les 27 signaux de la partie observée.
+Les limites ci-dessous sur les noms d'aspects et commandes restent applicables.
+
 ## Faits vérifiés
 
 Exécutable NIMBY Rails 1.19.10.5bfaea3, AMD64, 12 583 424 octets.
@@ -46,7 +55,7 @@ effectif et commander son comportement sont trois capacités encore non validée
 L'API publique reste en lecture seule ; aucun setter de texture n'est ajouté.
 
 Le TCO Qt dessine ses propres symboles et peut changer leur style indépendamment
-du jeu. Il affiche toujours l'aspect comme inconnu. Tous ses objets viennent de
+du jeu. Il affiche le sélecteur natif, avec un aspect ferroviaire général encore inconnu. Tous ses objets viennent de
 l'API publique, sans nouvelles adresses internes.
 
 ## Prochaines validations
