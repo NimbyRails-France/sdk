@@ -1,4 +1,9 @@
-# Utilisation du SDK
+# Diagnostics, proxy et ancien chargeur
+
+Pour développer un outil externe avec le SDK 0.6.x, commencer par le
+[tutoriel](tutorial-first-tool.md), le [guide développeur](developing.md) et la
+[référence API](api-reference.md). Cette page conserve les procédures des
+diagnostics et du chargement dans le jeu ; elles ne sont pas nécessaires au tutoriel.
 
 SDK natif C++20, DLL Windows AMD64. MinHook 1.3.4 est compilé et lié statiquement
 (sources x64 et licence dans `third_party/minhook/`). Le socle de diagnostic fonctionne dans un
@@ -174,8 +179,8 @@ cmake --install build/Release --prefix build/package
 Puis relancer le superviseur et le jeu. Ne pas déplacer le dossier `bin/` pendant
 la surveillance. Le fichier du SDK est verrouillé en lecture pendant celle-ci.
 
-Lire [le premier rapport](research/first-milestone.md) pour les découvertes,
-limites et prochaines validations. Ne jamais déposer ces artefacts dans le jeu
-à ce stade. Le binaire original et le projet Ghidra ne sont pas modifiés ; le
+Lire [le premier rapport historique](research/first-milestone.md) pour les
+découvertes et limites de ce jalon. Pour l'installation actuelle dans le jeu,
+suivre [la procédure du proxy](install-drop-in.md). Le binaire original et le projet Ghidra ne sont pas modifiés ; le
 chargeur n'accède pas aux sauvegardes. Les validations du chargeur sont décrites
 dans [le rapport](research/loader-validation.md).

@@ -49,9 +49,18 @@ int main(int argc,char** argv) {
                 std::puts("");
             }
             std::printf("snapshot %d: %zu trains, %zu tracks, %zu stations, %zu signals\n",tick,trains.size(),tracks.size(),stations.size(),signals.size());
-            for(auto function:{NimbySdk_CopyTrackReservations,NimbySdk_CopyTrackOccupations}){
+            struct UsageCollection {
+                decltype(&NimbySdk_CopyTrackReservations) copy;
+                const char* label;
+            };
+            const UsageCollection collections[]{
+                {NimbySdk_CopyTrackReservations,"Reserved portions"},
+                {NimbySdk_CopyTrackOccupations,"Occupation portions"}
+            };
+            for(const auto& collection:collections){
+                const auto function=collection.copy;
                 uint32_t count=0;const auto status=function(snapshot.value,nullptr,0,&count);
-                const char* label=function==NimbySdk_CopyTrackReservations?"Reserved portions":"Occupation portions";
+                const char* label=collection.label;
                 if(status==NIMBY_DATA_UNAVAILABLE){std::printf("%s: unavailable\n",label);continue;}
                 check(status);auto usage=records<NimbyTrackUsage>(snapshot.value,function);
                 std::printf("%s: %zu (unordered native intervals)\n",label,usage.size());

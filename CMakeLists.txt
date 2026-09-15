@@ -182,7 +182,7 @@ install(FILES "${CMAKE_CURRENT_BINARY_DIR}/NimbyRailsSDKConfig.cmake"
 install(DIRECTORY include/nimby DESTINATION include)
 install(FILES third_party/minhook/LICENSE.txt DESTINATION share/licenses/MinHook)
 install(FILES docs/developing.md DESTINATION share/doc/NimbyRailsSDK)
-install(DIRECTORY examples/observer DESTINATION share/NimbyRailsSDK/examples
+install(DIRECTORY examples/observer examples/first-observer DESTINATION share/NimbyRailsSDK/examples
     FILES_MATCHING PATTERN "*.cpp" PATTERN "CMakeLists.txt"
     PATTERN ".idea" EXCLUDE PATTERN "cmake-build-*" EXCLUDE)
 install(DIRECTORY docs/ DESTINATION share/doc/NimbyRailsSDK

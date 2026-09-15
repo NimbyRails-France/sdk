@@ -1,225 +1,209 @@
-# Développer avec NimbyRailsSDK 0.5
+# Guide développeur — SDK 0.6.x
 
-## Réservations et occupation (nouveau en 0.5)
+[Documentation](README.md) · [Premier tutoriel](tutorial-first-tool.md) · [Référence API](api-reference.md)
 
-Les [états des signaux](signal-states.md) disposent également d'une API dédiée,
-`NimbySdk_CopySignalStates` : aspect général, identifiant spécifique et index
-de texture avec validité indépendante. Les sélecteurs natifs sont lus ; leur
-correspondance avec un aspect ferroviaire général reste inconnue.
+Ce guide explique comment intégrer le SDK dans une application après le premier
+exemple. L'API publique observe la simulation en lecture seule, sur Windows x64.
+Son contrat est défini dans `include/nimby/` ; les adaptateurs mémoire internes
+restent dans le SDK.
 
-`NimbySdk_CopyTrackReservations` et `NimbySdk_CopyTrackOccupations` utilisent le
-même protocole buffer/count que `CopyTrains`, avec des éléments `NimbyTrackUsage` :
-`train_id`, `track_id`, `fraction_begin`, `fraction_end`. Filtrer par `train_id`
-pour montrer les portions réservées d'un train sélectionné ; relier `track_id`
-aux voies du même snapshot. Les bornes sont normalisées, finies, dans `[0,1]`.
-Les listes ne sont pas ordonnées et peuvent contenir des intervalles qui se recouvrent.
+## Les trois éléments à distinguer
 
-Chaque composant est disponible indépendamment : `NIMBY_DATA_UNAVAILABLE` met
-`required` à zéro et signifie **inconnu**, même si le snapshot contient des trains.
-`NIMBY_OK` avec zéro entrée signifie **collection observée vide**. Remplacer toute
-la liste à chaque nouveau snapshot, la vider sur indisponibilité/changement de
-sélection, et expirer l'affichage si les captures cessent. Ne jamais conserver une
-ancienne réservation comme état courant. Un snapshot existant reste immuable.
+| Élément | Où il tourne | Rôle |
+|---|---|---|
+| Votre outil, par exemple le TCO | Processus externe | Demande des captures et affiche les résultats |
+| La DLL SDK de votre outil | À côté de votre exécutable | Implémente les fonctions `NimbySdk_*` utilisées par votre programme |
+| Le proxy SDL et sa DLL SDK | Dossier du jeu, si installés | Chargent les diagnostics au démarrage du jeu ; inutiles pour ouvrir une session externe |
 
-L'ajout conserve les structures et fonctions ABI v1 existantes. Un client lié aux
-nouveaux exports nécessite la DLL 0.5 ou ultérieure : ne pas associer les nouveaux
-headers à la DLL 0.4. Les réservations virtuelles de scripts et l'ordre d'itinéraire
-ne sont pas exposés. [Recherche, preuves, limites](research/reservations.md).
+Le SDK n'est pas un chargeur universel de mods DLL. L'exemple crée un exécutable
+consommateur. Le déposer dans le dossier des mods du jeu ne le fera pas exécuter.
 
-Ajouts expérimentaux 0.3 (ABI v1 existante conservée) :
-`NimbySdk_CopyTrackNodes` copie un graphe principal partiel avec coordonnées natives ;
-`NimbySdk_CopyTrainPathTracks` copie les IDs de voies du Path d'un train dans un
-snapshot. Même protocole buffer/count que les autres fonctions Copy ; Path absent
-ou instable : `NIMBY_DATA_UNAVAILABLE`. Aucun pointeur interne exposé. Le Path ne
-prouve ni réservation ni occupation ; les connexions spéciales restent incomplètes.
-Voir [preuves et contrat détaillé](research/train-paths.md).
+## Intégration CMake
 
-NimbyRailsSDK est une DLL Windows x64 avec une API C versionnée, utilisable depuis
-un programme C ou C++. C++20 est utilisé pour construire le SDK et l'exemple.
-La version 0.2 expose une **API d'observation en lecture seule** : trains, vitesses,
-voies, gares et signaux. Les adaptateurs de mémoire restent expérimentaux et
-acceptent uniquement les empreintes de jeu documentées dans la recherche.
+Le [tutoriel](tutorial-first-tool.md) fournit le projet complet. Pour une cible
+existante, les éléments essentiels sont :
 
-## Créer le paquet
+```cmake
+find_package(NimbyRailsSDK 0.6 CONFIG REQUIRED)
+target_compile_features(MyTool PRIVATE cxx_std_20)
+target_link_libraries(MyTool PRIVATE NimbyRailsSDK::SDK)
+add_custom_command(TARGET MyTool POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        ${NimbyRailsSDK_RUNTIME_FILES} "$<TARGET_FILE_DIR:MyTool>"
+    COMMAND_EXPAND_LISTS)
+```
 
-Depuis le dépôt, fermer le moniteur s'il utilise le build Release puis exécuter :
+Passer la racine du kit à `CMAKE_PREFIX_PATH`. La variable
+`NimbyRailsSDK_RUNTIME_FILES` contient les DLL de son dossier `bin/`.
+Le consommateur peut aussi avoir ses propres dépendances de compilateur ou d'interface.
+
+Utiliser une chaîne compatible avec le kit : le paquet MinGW ne fournit pas
+de bibliothèque d'import MSVC. Les deux exemples C++ lient les runtimes GCC/C++
+statiquement et copient les DLL du kit ; `libwinpthread-1.dll` reste nécessaire.
+
+## Cycle de vie
+
+```mermaid
+flowchart TD
+    A["Vérifier GetVersion"] --> B["OpenProcess : une session"]
+    B --> C["CaptureSnapshot"]
+    C --> D["GetSnapshotInfo et Copy*"]
+    D --> E["ReleaseSnapshot"]
+    E --> F{"Continuer ?"}
+    F -->|Oui| C
+    F -->|Non| G["CloseSession"]
+```
+
+Le diagramme décrit le parcours réussi ; traiter les statuts d'échec à chaque
+étape. `DATA_UNAVAILABLE` conduit généralement à attendre puis réessayer.
+`PROCESS_EXITED` impose de fermer la session et d'en ouvrir une sur la nouvelle
+instance. Le SDK ne redémarre pas le jeu.
+
+Un snapshot appartient au SDK jusqu'à `ReleaseSnapshot`. Les tableaux remplis
+par `Copy*` appartiennent ensuite à votre programme. Ils restent utilisables
+après libération du snapshot, mais décrivent toujours l'ancienne capture.
+
+Utiliser un propriétaire unique par handle. Les gardes RAII non copiables de
+`first-observer/main.cpp` évitent les oublis de fermeture en cas d'exception.
+Le SDK limite les ressources à 8 sessions et 16 snapshots simultanés.
+
+## Construire une interface réactive
+
+Une capture peut être coûteuse. Dans une application graphique :
+
+1. Garder la session dans un thread de travail.
+2. Capturer et copier les collections nécessaires dans ce thread.
+3. Libérer le snapshot dès les copies terminées.
+4. Transmettre à l'interface un ensemble cohérent de données et son horodatage.
+5. Attendre avant la prochaine capture ; une pause de 250 ms est un point de départ,
+   pas une garantie de quatre captures par seconde.
+
+Les appels d'observation sont sérialisés dans la DLL. Ajouter plusieurs threads
+de capture ne garantit pas d'accélération. Éviter de bloquer le thread d'interface.
+
+À l'arrêt, demander au worker de terminer et le joindre avant de fermer les
+ressources ou de décharger la DLL. Ne pas appeler l'API depuis `DllMain` ou
+un callback TLS.
+
+## Afficher une donnée fiable
+
+Distinguer trois situations dans votre modèle d'affichage :
+
+| Situation | Exemple | Affichage |
+|---|---|---|
+| Connue et présente | Vitesse valide à 12 m/s | 43,2 km/h |
+| Connue et vide | Réservations : `OK`, zéro intervalle | Aucune réservation observée |
+| Inconnue | Réservations : `DATA_UNAVAILABLE` | Réservations indisponibles |
+
+Contrôler les flags de chaque champ, même si la copie a réussi. Remplacer les
+collections à chaque capture ; une ancienne réservation ou texture ne doit pas
+rester affichée comme actuelle si la nouvelle lecture échoue.
+
+Définir aussi un délai d'expiration dans l'application si les captures cessent.
+Par exemple, le TCO utilise 1,5 seconde pour ses états/textures. Ce délai est un
+choix d'affichage du client, pas une garantie du SDK.
+
+Relier les objets par leur ID complet et dans le même snapshot. Pour de grandes
+cartes, construire des index par ID après copie afin d'éviter les recherches
+linéaires de l'exemple pédagogique.
+
+## Exploiter le réseau
+
+- **Voies et gares :** `train.track_id → track.id → track.station_id → station.id`.
+  La gare de la voie ne donne pas le prochain arrêt.
+- **Signaux :** `state.signal_id` et `texture.signal_id` rejoignent `signal.id`.
+  Un type de signal ou un index de texture ne suffit pas à nommer son aspect.
+- **Réservations et occupation :** lire les deux composants indépendamment,
+  filtrer par `train_id`, puis dessiner leurs intervalles sur `track_id`.
+- **Paths :** la liste de voies d'un Path n'est pas la liste des voies réservées.
+- **Graphe :** les liaisons principales sont partielles ; ne pas en déduire une
+  position d'aiguille ou un itinéraire ferroviaire complet.
+
+La [référence](api-reference.md) donne le contrat de chaque collection.
+L'exemple `observer` montre les états des signaux et les compteurs de portions
+natives. Les [notes sur les signaux](signal-states.md) expliquent les sélecteurs
+et fichiers de textures disponibles.
+
+## Versions et compatibilité
+
+Trois contrôles répondent à trois questions différentes :
+
+| Contrôle | Question |
+|---|---|
+| Version du paquet, par exemple 0.6.0 | Quelles fonctions sont disponibles dans cette DLL ? |
+| ABI 1 | La disposition des structures et les signatures sont-elles compatibles ? |
+| SHA-256 du jeu | L'adaptateur sait-il lire cet exécutable précis ? |
+
+CMake limite la compatibilité du paquet à la même version mineure pendant la
+phase 0.x. Le premier exemple accepte SDK 0.6.x / ABI 1. Un nouvel export peut
+manquer dans une ancienne DLL même si son ABI vaut aussi 1.
+
+Avec une liaison normale, Windows résout les imports avant `main` : une DLL
+sans `GetVersion` peut empêcher le programme de démarrer. Une application qui
+doit diagnostiquer elle-même ces anciennes DLL peut choisir un chargement
+explicite avec résolution des exports ; le TCO utilise cette approche.
+
+## Distribuer votre programme
+
+Distribuer ensemble l'exécutable, les DLL du kit nécessaires et les dépendances
+propres à votre application. Tester depuis un dossier séparé qui ne dépend pas
+du `PATH` de développement pour trouver les DLL du SDK.
+
+Conserver les notices des composants distribués, notamment celles fournies
+dans `share/licenses/`. MinHook est intégré à la DLL ; il n'y a pas de
+`MinHook.dll` séparée. Le dépôt ne fournit pas de licence générale accordant
+automatiquement tous les droits de redistribution ; les licences tierces
+restent applicables.
+
+Ne pas distribuer l'exécutable original du jeu ou sa SDL sauvegardée dans le
+paquet de votre outil. Pour observer la partie depuis un autre processus,
+les DLL de votre outil n'ont pas à être copiées dans le dossier du jeu.
+
+## Compiler le SDK
+
+Depuis la racine du dépôt SDK :
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File tools/build.ps1 -Configuration Release
+```
+
+Le script utilise les outils CLion, compile et exécute CTest. Si nécessaire,
+ajouter `-ClionHome 'C:/chemin/CLion'`. Les presets et l'installation de
+développement dans `install/Release` sont décrits dans [CLion](clion.md).
+
+Pour construire le kit et contrôler les consommateurs :
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File tools/package.ps1
 ```
 
-Le script compile Release, exécute les tests, installe dans
-`dist/NimbyRailsSDK-0.5.0/`, puis copie et compile l'exemple **depuis le paquet
-installé** dans `build/sdk-consumer/`. Aucune injection ni installation dans le jeu.
-`-SkipBuild` permet de réinstaller un build Release déjà vérifié.
+Le script construit Release, installe le kit sous `dist/NimbyRailsSDK-0.6.0/`,
+copie les **deux exemples installés** dans des projets séparés sous `build/`,
+les compile puis vérifie leur chargement sans jeu. Il crée aussi le ZIP et son
+empreinte. Il ne publie rien et ne modifie pas le dossier du jeu.
+`-SkipBuild` réutilise un build Release déjà configuré et validé.
 
-Le paquet contient :
+Les docs sont installées sous `share/doc/NimbyRailsSDK/`. Le premier exemple
+documenté est nouveau dans cette révision : les assets 0.6.0 déjà publiés ne sont
+pas modifiés rétroactivement.
 
-| Dossier | Rôle |
-|---|---|
-| `include/nimby/` | Headers publics uniquement : `sdk.h`, `observation.h` |
-| `lib/` | Bibliothèque d'import correspondant au compilateur choisi |
-| `lib/cmake/NimbyRailsSDK/` | Configuration pour `find_package` |
-| `bin/` | DLL du SDK, dépendances du runtime et ancien chargeur de diagnostic |
-| `share/NimbyRailsSDK/examples/observer/` | Projet CMake autonome |
-| `share/doc/NimbyRailsSDK/` | Ce guide |
-| `share/licenses/MinHook/` | Licence de MinHook |
-| `share/licenses/MinGW/` | Notices du compilateur et des runtimes fournis sur ce poste |
+## Validation et limites
 
-Le paquet peut être déplacé : les cibles CMake utilisent son emplacement courant.
-Construire un paquet avec le même type de chaîne que le consommateur : MinGW x64
-sur ce poste ; pour MSVC, reconstruire le SDK avec MSVC x64 pour obtenir sa `.lib`.
-La compatibilité binaire entre ces chaînes n'a pas été testée.
+Les tests couvrent notamment les headers C, l'ABI, les buffers, les handles,
+la lecture de mémoire simulée, les états/textures et le cycle de vie de la DLL.
+Le test du proxy est activé quand `NIMBY_SDL_ORIGINAL` désigne une SDL originale.
+Un succès synthétique ne prouve pas une synchronisation atomique avec le jeu.
 
-## Dans un autre projet CMake / CLion
-
-```cmake
-cmake_minimum_required(VERSION 3.24)
-project(MyNimbyTool LANGUAGES CXX)
-find_package(NimbyRailsSDK 0.5 CONFIG REQUIRED)
-add_executable(MyNimbyTool main.cpp)
-target_compile_features(MyNimbyTool PRIVATE cxx_std_20)
-target_link_libraries(MyNimbyTool PRIVATE NimbyRailsSDK::SDK)
-add_custom_command(TARGET MyNimbyTool POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-    ${NimbyRailsSDK_RUNTIME_FILES} "$<TARGET_FILE_DIR:MyNimbyTool>"
-    COMMAND_EXPAND_LISTS)
-```
-
-Dans les options CMake de CLion, ajouter :
-
-```text
--DCMAKE_PREFIX_PATH=C:/chemin/vers/NimbyRailsSDK-0.5.0
-```
-
-Ou en terminal avec le compilateur configuré dans PATH :
+Pour vérifier une capture réelle, avec une partie chargée et son PID actuel :
 
 ```powershell
-cmake -S . -B build -DCMAKE_PREFIX_PATH=C:/chemin/vers/NimbyRailsSDK-0.5.0
-cmake --build build
+./build/Release/nimby_observation_tests.exe 12345
 ```
 
-Inclure `<nimby/observation.h>` et utiliser les fonctions `NimbySdk_*`.
-Ne pas copier `src/`, `include/engine/` ou MinHook dans le projet consommateur.
-Le DLL du SDK construit ici intègre GCC/libstdc++ statiquement, mais dépend encore
-de `libwinpthread-1.dll`. Celle-ci est fournie dans `bin/` ; la variable CMake
-`NimbyRailsSDK_RUNTIME_FILES` permet de copier les DLL du paquet près du programme.
-Le consommateur peut également nécessiter les runtimes de son propre compilateur.
+Ce test optionnel attend notamment des trains dans la partie. Il vérifie aussi
+la durée de vie des snapshots après fermeture de session. Le tutoriel peut,
+lui, fonctionner sur une partie vide.
 
-## Exemple minimal
-
-```cpp
-#include <nimby/observation.h>
-#include <cstdio>
-#include <vector>
-
-int observe(uint32_t gamePid) {
-    NimbySession session = 0;
-    auto status = NimbySdk_OpenProcess(NIMBY_OBSERVATION_ABI_VERSION,
-                                      gamePid, &session);
-    if (status != NIMBY_OK) return static_cast<int>(status);
-
-    NimbySnapshot snapshot = 0;
-    status = NimbySdk_CaptureSnapshot(session, &snapshot);
-    NimbySdk_CloseSession(session);
-    if (status != NIMBY_OK) return static_cast<int>(status);
-
-    uint32_t count = 0;
-    status = NimbySdk_CopyTrains(snapshot, nullptr, 0, &count);
-    if (status == NIMBY_OK) {
-        std::vector<NimbyTrain> trains(count);
-        status = NimbySdk_CopyTrains(snapshot, trains.data(), count, &count);
-        if (status == NIMBY_OK) for (const auto& train : trains) {
-            if (train.flags & NIMBY_TRAIN_PRESENT)
-                std::printf("%s : %.1f km/h\n", train.name_utf8,
-                            train.speed_mps * 3.6);
-        }
-    }
-    NimbySdk_ReleaseSnapshot(snapshot);
-    return static_cast<int>(status);
-}
-```
-
-Pour un projet réel, utiliser des gardes RAII pour garantir la fermeture même
-si une allocation du consommateur échoue : voir l'exemple `observer/main.cpp`.
-Lancer cet exemple avec le PID du jeu et une partie chargée. Il observe cinq fois
-à 250 ms d'intervalle puis termine, sans modifier le jeu.
-
-## Contrat de l'API
-
-- `OpenProcess` vérifie le SHA-256 de l'exécutable et ouvre seulement un accès de
-  lecture. PID 0 désigne le processus appelant, pour un futur module chargé dans
-  le jeu. Le programme externe n'a besoin d'aucun proxy ni injecteur.
-- `CaptureSnapshot` retrouve les racines et les IDs complets à chaque appel.
-  Un snapshot est une copie immuable détenue par le SDK. Il reste consultable
-  après fermeture de sa session ou arrêt du jeu jusqu'à `ReleaseSnapshot`.
-- Les handles sont des entiers opaques, jamais des adresses. Ne pas les sérialiser,
-  les deviner ou les réutiliser après libération/rechargement de la DLL.
-- `Copy*` avec buffer nul et capacité 0 donne le nombre d'éléments. Un buffer trop
-  petit reçoit `NIMBY_BUFFER_TOO_SMALL`, la taille requise et **aucune copie partielle**.
-  Les buffers fournis doivent être valides et assez grands. Les champs réservés
-  sont à ignorer. Les tableaux et chaînes copiés appartiennent ensuite au client.
-- Chaînes UTF-8 terminées par zéro ; ID zéro signifie absence de référence.
-  Une chaîne de gare vide indique un nom automatique encore non résolu.
-- Vitesses en m/s, conversion km/h par multiplication par 3,6. Lire les flags du
-  train avant sa vitesse ou sa position : une valeur indisponible n'est pas un arrêt.
-  Position expérimentale dans [0,1], sens +1/-1 selon l'orientation du segment,
-  pas une direction géographique. La limite de voie n'est pas la consigne du train.
-- Relier `train.track_id` à `track.id`, `track.station_id` à `station.id` et
-  `signal.track_id` à `track.id`. Une balise est un signal de type
-  `NIMBY_SIGNAL_BALISE`. Les quais, couleurs des signaux et prochain signal sur
-  l'itinéraire ne sont pas encore exposés.
-- `GetSnapshotInfo` exige `struct_size = sizeof(NimbySnapshotInfo)` ; il fournit
-  empreinte, PID, heure UTC de fin de capture et compteurs. Les flags
-  `EXPERIMENTAL | NON_ATOMIC` sont toujours présents dans cette version.
-- Les appels sont sérialisés et peuvent provenir de plusieurs threads. Les buffers
-  du consommateur doivent être protégés par lui. Une capture peut être coûteuse :
-  utiliser un thread de travail, typiquement 4 Hz, jamais DllMain ni un callback TLS.
-- Limites actuelles : 8 sessions, 16 snapshots simultanés ; libérer régulièrement.
-  `CloseSession` n'annule pas les snapshots déjà produits. Les fonctions de
-  diagnostic `Initialize/Shutdown` sont indépendantes et ne gèrent pas ces handles.
-- Avant `FreeLibrary`, arrêter et joindre les appelants, libérer tous les snapshots
-  et fermer toutes les sessions ; appeler aussi `Shutdown` si les diagnostics ont
-  été initialisés. Aucun pointeur C++ ni exception ne traverse l'ABI.
-
-### Erreurs et redémarrage
-
-| Statut | Réaction attendue |
-|---|---|
-| `NIMBY_UNSUPPORTED_GAME` | Binaire inconnu : refuser l'observation, attendre un profil validé |
-| `NIMBY_DATA_UNAVAILABLE` | Menu, chargement ou données modifiées : réessayer plus tard |
-| `NIMBY_PROCESS_EXITED` | Fermer la session et en ouvrir une avec le nouveau PID |
-| `NIMBY_INVALID_HANDLE` | Handle nul, fermé ou du mauvais type : corriger le cycle de vie |
-| `NIMBY_RESOURCE_LIMIT` | Fermer/libérer les ressources conservées |
-| `NIMBY_IO_ERROR` | Processus/fichier inaccessible : vérifier PID et droits |
-| `NIMBY_INVALID_ARGUMENT` | Mauvaise version ABI, taille de structure ou argument |
-| `NIMBY_INTERNAL_ERROR` | Échec interne/allocation ; aucun résultat n'est publié |
-
-`NimbySdk_StatusString` renvoie un texte statique valable jusqu'au déchargement
-de la DLL, à ne pas libérer. Le SDK ne relance ni ne reconnecte automatiquement
-le jeu. Les IDs d'objets sont à interpréter dans leur session/partie, jamais comme
-une identité globale entre sauvegardes.
-
-## Évolution et limites
-
-API publique v1 et version du paquet 0.5.0 sont deux notions distinctes. Les
-structures de cette ABI sont figées ; une modification incompatible nécessitera
-une nouvelle version d'API. La compatibilité CMake est limitée à la même version
-mineure pendant la phase 0.x. Les offsets du moteur restent dans `engine/` et
-peuvent évoluer par profil sans imposer leur connaissance aux clients.
-
-Le SDK vérifie l'empreinte sur disque à l'ouverture ; il ne vérifie pas chaque
-page de l'image déjà chargée contre ce fichier. Les instantanés externes sont
-optimistes : la simulation peut évoluer entre deux lectures malgré les gardes.
-Ils conviennent à l'observation expérimentale, pas à des décisions exigeant un
-tick atomique. Les tests synthétiques ne constituent pas une validation de thread
-ou de cible de hook. Aucun setter de vitesse ni d'élément réseau n'est publié.
-
-Le moniteur historique garde son bouton expérimental séparé. La DLL installée
-dans le jeu n'est pas remplacée par la création du paquet ; pour utiliser le
-nouveau SDK dans un programme externe, les fichiers du paquet suffisent.
-
-Tests : API C, rejets ABI/handles, buffers, résolution de mémoire simulée,
-cycle de vie DLL, MinHook autonome et proxy. Le test optionnel
-`nimby_observation_tests.exe <PID>` valide également un snapshot réel en lecture
-seule et sa durée de vie après fermeture de session.
+Les [rapports de recherche](README.md#recherche-et-validations) détaillent les
+preuves par fonctionnalité. Les fonctions de diagnostic et les anciens
+chargeurs sont documentés séparément dans [usage.md](usage.md).
