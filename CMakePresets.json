@@ -1,0 +1,71 @@
+{
+  "version": 6,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 24,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "windows-base",
+      "hidden": true,
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/clion-${presetName}",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "${presetName}",
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+        "BUILD_TESTING": "ON",
+        "CMAKE_CXX_COMPILER": "$penv{LOCALAPPDATA}/Programs/CLion/bin/mingw/bin/g++.exe",
+        "CMAKE_MAKE_PROGRAM": "C:/Qt/Tools/Ninja/ninja.exe",
+        "CMAKE_C_COMPILER": "$penv{LOCALAPPDATA}/Programs/CLion/bin/mingw/bin/gcc.exe",
+        "CMAKE_INSTALL_PREFIX": "${sourceDir}/install/${presetName}"
+      },
+      "environment": {
+        "PATH": "$penv{LOCALAPPDATA}/Programs/CLion/bin/mingw/bin;$penv{PATH}"
+      }
+    },
+    {
+      "name": "Debug",
+      "inherits": "windows-base",
+      "displayName": "Debug"
+    },
+    {
+      "name": "Release",
+      "inherits": "windows-base",
+      "displayName": "Release"
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "Debug",
+      "configurePreset": "Debug"
+    },
+    {
+      "name": "Release",
+      "configurePreset": "Release"
+    },
+    {
+      "name": "install-sdk",
+      "configurePreset": "Release",
+      "targets": [
+        "sdk-dev-install"
+      ]
+    }
+  ],
+  "testPresets": [
+    {
+      "name": "Debug",
+      "configurePreset": "Debug",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "Release",
+      "configurePreset": "Release",
+      "output": {
+        "outputOnFailure": true
+      }
+    }
+  ]
+}

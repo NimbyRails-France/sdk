@@ -43,7 +43,7 @@ Pour utiliser simplement le TCO, télécharger sa [release prête à lancer](htt
 ```cmake
 cmake_minimum_required(VERSION 3.24)
 project(MyNimbyTool LANGUAGES CXX)
-find_package(NimbyRailsSDK 0.5 CONFIG REQUIRED)
+find_package(NimbyRailsSDK 0.6 CONFIG REQUIRED)
 add_executable(MyNimbyTool main.cpp)
 target_compile_features(MyNimbyTool PRIVATE cxx_std_20)
 target_link_libraries(MyNimbyTool PRIVATE NimbyRailsSDK::SDK)
@@ -181,3 +181,7 @@ caches CMake contiennent les anciens chemins et ne doivent pas être réutilisé
 Le [guide d'utilisation](docs/usage.md) détaille l'API et le cycle de vie.
 Les preuves d'analyse sont dans [docs/research/](docs/research/first-milestone.md),
 et la validation de MinHook dans [ce rapport](docs/research/minhook-integration.md).
+
+## Projet CLion indépendant
+
+Profils Debug/Release et configurations Run/Debug : [guide CLion](docs/clion.md).

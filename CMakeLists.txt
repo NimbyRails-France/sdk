@@ -188,3 +188,8 @@ install(DIRECTORY examples/observer DESTINATION share/NimbyRailsSDK/examples
 install(DIRECTORY docs/ DESTINATION share/doc/NimbyRailsSDK
     PATTERN "reports" EXCLUDE PATTERN "source-reports" EXCLUDE)
 install(FILES README.md DESTINATION .)
+add_custom_target(sdk-dev-install
+    COMMAND ${CMAKE_COMMAND} --install "${CMAKE_BINARY_DIR}" --prefix "${CMAKE_INSTALL_PREFIX}"
+    DEPENDS NimbyRailsSDK NimbyRailsLoader
+    COMMENT "Install the SDK package for independent consumers (TCO)"
+    VERBATIM)
