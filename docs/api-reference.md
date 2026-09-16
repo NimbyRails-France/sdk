@@ -1,5 +1,8 @@
 # Référence de l'API — SDK 0.6.x / ABI 1
 
+Cette page décrit l'API C bas niveau. Pour les objets, getters et captures
+automatiques C++ : [référence C++ et types de retour](cpp-api-reference.md).
+
 [Documentation](README.md) · [Tutoriel](tutorial-first-tool.md) · [Dépannage](troubleshooting.md)
 
 Les déclarations de référence sont `include/nimby/sdk.h` et

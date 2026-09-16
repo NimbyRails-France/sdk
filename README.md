@@ -6,12 +6,34 @@ Il fournit une DLL, une API C versionnée et des exemples C++20.
 
 ## Documentation
 
-**[Commencer par le tutoriel : afficher les trains](docs/tutorial-first-tool.md)**
+**[Commencer par le tutoriel C++ : captures automatiques et getters](docs/tutorial-cpp-client.md)**
+
+La couche C++20 `<nimby/client.hpp>` fournit `Client::connect()`, un rafraîchissement
+automatique à **4 Hz**, `getAllTrains()`, `getTrainById()` et les relations du réseau.
+Les valeurs inconnues utilisent `std::optional` ; les captures restent immuables.
+Voir [tous les types de retour](docs/cpp-api-reference.md). L'API C reste accessible.
+
+```cpp
+auto client = nimby::Client::connect();
+client.startAutoRefresh(); // 250 ms par défaut
+if (client.waitForSnapshot(std::chrono::seconds{2})) {
+    auto snapshot = client.latest();
+    for (const auto& train : snapshot->getAllTrains()) {
+        if (auto speed = train.getSpeedKmh()) {
+            std::cout << train.getName() << " : " << *speed << " km/h\n";
+        }
+    }
+}
+```
+
+Extrait à placer dans un programme qui inclut `<nimby/client.hpp>` et `<iostream>`
+et traite les exceptions. Le [tutoriel](docs/tutorial-cpp-client.md) fournit le programme complet.
 
 | Besoin | Guide |
 |---|---|
 | Découvrir les parcours et exemples | [Sommaire de la documentation](docs/README.md) |
-| Compiler son premier programme avec CLion ou PowerShell | [Tutoriel pas à pas](docs/tutorial-first-tool.md) |
+| Compiler son premier programme avec CLion ou PowerShell | [Tutoriel C++](docs/tutorial-cpp-client.md) |
+| Chercher un getter et son type de retour | [Référence des helpers C++](docs/cpp-api-reference.md) |
 | Intégrer le SDK dans une application | [Guide développeur](docs/developing.md) |
 | Chercher une fonction, une structure ou un code d'erreur | [Référence de l'API](docs/api-reference.md) |
 | Résoudre un problème | [Dépannage](docs/troubleshooting.md) |
@@ -37,7 +59,7 @@ dans le jeu, suivre [l'installation du proxy](docs/install-drop-in.md) : sa SDL
 originale doit être conservée, pas écrasée directement. Les installations gérées
 par le Hub se mettent à jour et se désinstallent depuis le Hub.
 
-## Un premier exemple
+## Exemple bas niveau
 
 Le projet autonome [examples/first-observer](examples/first-observer) vérifie la
 version du SDK puis affiche les trains, les vitesses et les voies de cinq captures.
@@ -90,7 +112,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tools/build.ps1 -Configurati
 
 Ajouter `-ClionHome 'chemin/CLion'` si nécessaire. Le script compile et exécute
 les tests. `tools/package.ps1` construit le kit, installe la documentation et
-vérifie les deux exemples comme consommateurs autonomes.
+vérifie les trois exemples comme consommateurs autonomes.
 
 L'API publique est dans `include/nimby/`, l'implémentation dans `src/`, les
 tests dans `tests/` et les preuves dans `docs/research/`. MinHook est compilé

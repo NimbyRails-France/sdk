@@ -1,5 +1,8 @@
 # Tutoriel : afficher les trains avec le SDK
 
+Ce parcours enseigne l'API C et sa gestion manuelle. Pour démarrer avec les
+helpers et les captures automatiques à 4 Hz, suivre le [tutoriel C++](tutorial-cpp-client.md).
+
 [Documentation](README.md) · [Dépannage](troubleshooting.md)
 
 **Objectif :** obtenir un programme console qui affiche les noms des trains,

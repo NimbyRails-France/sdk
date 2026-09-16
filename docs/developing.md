@@ -7,6 +7,19 @@ exemple. L'API publique observe la simulation en lecture seule, sur Windows x64.
 Son contrat est défini dans `include/nimby/` ; les adaptateurs mémoire internes
 restent dans le SDK.
 
+## Choisir le niveau d'API
+
+Pour un outil C++20, commencer par `<nimby/client.hpp>` : connexion, ressources,
+captures automatiques à 250 ms, collections et recherches sont gérées par les helpers.
+Le [tutoriel C++](tutorial-cpp-client.md) montre leur utilisation et la
+[référence C++](cpp-api-reference.md) donne chaque type de retour et sa durée de vie.
+Les opérations synchrones lèvent des exceptions ; les erreurs du worker sont
+consultables via `getLastError()`.
+
+Les sections suivantes expliquent aussi la gestion directe de l'API C.
+Avec `Client`, son worker remplit déjà le rôle du thread de capture décrit ici ;
+ne pas ajouter une deuxième boucle de capture sans besoin particulier.
+
 ## Les trois éléments à distinguer
 
 | Élément | Où il tourne | Rôle |
@@ -38,7 +51,7 @@ Passer la racine du kit à `CMAKE_PREFIX_PATH`. La variable
 Le consommateur peut aussi avoir ses propres dépendances de compilateur ou d'interface.
 
 Utiliser une chaîne compatible avec le kit : le paquet MinGW ne fournit pas
-de bibliothèque d'import MSVC. Les deux exemples C++ lient les runtimes GCC/C++
+de bibliothèque d'import MSVC. Les trois exemples C++ lient les runtimes GCC/C++
 statiquement et copient les DLL du kit ; `libwinpthread-1.dll` reste nécessaire.
 
 ## Cycle de vie
@@ -178,7 +191,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tools/package.ps1
 ```
 
 Le script construit Release, installe le kit sous `dist/NimbyRailsSDK-0.6.0/`,
-copie les **deux exemples installés** dans des projets séparés sous `build/`,
+copie les **trois exemples installés** dans des projets séparés sous `build/`,
 les compile puis vérifie leur chargement sans jeu. Il crée aussi le ZIP et son
 empreinte. Il ne publie rien et ne modifie pas le dossier du jeu.
 `-SkipBuild` réutilise un build Release déjà configuré et validé.

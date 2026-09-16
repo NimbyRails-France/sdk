@@ -96,6 +96,12 @@ if(MINGW)
 endif()
 if(BUILD_TESTING)
     enable_testing()
+    add_executable(nimby_client_tests tests/client.cpp)
+    target_include_directories(nimby_client_tests PRIVATE include)
+    target_compile_definitions(nimby_client_tests PRIVATE NIMBY_SDK_BUILD)
+    target_link_libraries(nimby_client_tests PRIVATE nimby_build)
+    add_test(NAME cpp_client_helpers COMMAND nimby_client_tests)
+    set_tests_properties(cpp_client_helpers PROPERTIES TIMEOUT 20)
     add_executable(nimby_signal_texture_tests tests/signal_textures.cpp src/engine/signal_textures.cpp src/engine/live_state.cpp)
     target_include_directories(nimby_signal_texture_tests PRIVATE include)
     target_link_libraries(nimby_signal_texture_tests PRIVATE nimby_build)
@@ -182,7 +188,7 @@ install(FILES "${CMAKE_CURRENT_BINARY_DIR}/NimbyRailsSDKConfig.cmake"
 install(DIRECTORY include/nimby DESTINATION include)
 install(FILES third_party/minhook/LICENSE.txt DESTINATION share/licenses/MinHook)
 install(FILES docs/developing.md DESTINATION share/doc/NimbyRailsSDK)
-install(DIRECTORY examples/observer examples/first-observer DESTINATION share/NimbyRailsSDK/examples
+install(DIRECTORY examples/observer examples/first-observer examples/auto-observer DESTINATION share/NimbyRailsSDK/examples
     FILES_MATCHING PATTERN "*.cpp" PATTERN "CMakeLists.txt"
     PATTERN ".idea" EXCLUDE PATTERN "cmake-build-*" EXCLUDE)
 install(DIRECTORY docs/ DESTINATION share/doc/NimbyRailsSDK

@@ -1,5 +1,22 @@
 # Dépannage
 
+## Helpers C++
+
+- `nimby/client.hpp` introuvable : utiliser le header de cette révision ou un
+  kit reconstruit depuis les sources ; les anciens ZIP 0.6.0 ne l'incluent pas.
+- `latest()` renvoie un pointeur nul : aucune capture n'a encore réussi.
+  Démarrer `startAutoRefresh()`, attendre `waitForSnapshot(timeout)` et lire
+  `getLastError()` en cas de timeout.
+- Plusieurs processus détectés : appeler `Client::connect(pid)` avec le PID choisi.
+- Données anciennes malgré `waitForSnapshot()` : cette méthode attend une
+  première disponibilité, pas forcément une nouvelle capture ; vérifier `getAge()`.
+- Vue `span` invalide après rafraîchissement : garder le `Snapshot::Ptr` qui la
+  possède, ou copier les objets nécessaires avant de le relâcher.
+- Fermeture du jeu : créer un nouveau client pour le nouveau processus ; il n'y
+  a pas de reconnexion automatique.
+
+Voir [le tutoriel C++](tutorial-cpp-client.md) et [les contrats complets](cpp-api-reference.md).
+
 [Documentation](README.md) · [Tutoriel](tutorial-first-tool.md) · [Référence](api-reference.md)
 
 Commencer par `MyFirstNimbyTool.exe --check-sdk`. Si ce contrôle fonctionne,
