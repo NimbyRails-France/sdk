@@ -4,17 +4,17 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-// Read-only observation ABI v1. All IDs are opaque, never memory addresses.
-#define NIMBY_OBSERVATION_ABI_VERSION 1u
+// Private read-only observation bridge, internal ABI v2. All IDs are opaque, never memory addresses.
+#define NIMBY_OBSERVATION_ABI_VERSION 2u
 #define NIMBY_UNSUPPORTED_GAME 7u
 #define NIMBY_DATA_UNAVAILABLE 8u
 #define NIMBY_INVALID_HANDLE 9u
 #define NIMBY_BUFFER_TOO_SMALL 10u
 #define NIMBY_PROCESS_EXITED 11u
 #define NIMBY_RESOURCE_LIMIT 12u
-#define NIMBY_TRAIN_PRESENT 1u
+#define NIMBY_TRAIN_ACTIVE_DRIVE 1u
 #define NIMBY_TRAIN_POSITION_VALID 2u
-// Since 0.6.1: independent of PRESENT (the legacy active-Drive indicator).
+// Independent speed validity; active Drive alone does not validate speed.
 #define NIMBY_TRAIN_SPEED_VALID 4u
 // Native UI convention: matching Motion without Drive displays zero, not a measurement.
 #define NIMBY_TRAIN_SPEED_DEFAULTED 8u
@@ -196,46 +196,46 @@ typedef struct NimbySnapshotInfo {
 
 // Independent of diagnostics Initialize/Shutdown. pid=0 means the calling process.
 // Outside DllMain only. Requires a recognized executable; never injects or writes.
-NIMBY_API uint32_t __cdecl NimbySdk_OpenProcess(uint32_t abi_version, uint32_t pid, NimbySession* out) NIMBY_NOEXCEPT;
-NIMBY_API uint32_t __cdecl NimbySdk_CloseSession(NimbySession session) NIMBY_NOEXCEPT;
+NIMBY_API uint32_t __cdecl NimbyInternal_OpenProcess(uint32_t abi_version, uint32_t pid, NimbySession* out) NIMBY_NOEXCEPT;
+NIMBY_API uint32_t __cdecl NimbyInternal_CloseSession(NimbySession session) NIMBY_NOEXCEPT;
 // Immutable owned copy; not an atomic simulation tick. Zeroes out on failure.
-NIMBY_API uint32_t __cdecl NimbySdk_CaptureSnapshot(NimbySession session, NimbySnapshot* out) NIMBY_NOEXCEPT;
-NIMBY_API uint32_t __cdecl NimbySdk_ReleaseSnapshot(NimbySnapshot snapshot) NIMBY_NOEXCEPT;
-NIMBY_API uint32_t __cdecl NimbySdk_GetSnapshotInfo(NimbySnapshot snapshot, NimbySnapshotInfo* out) NIMBY_NOEXCEPT;
+NIMBY_API uint32_t __cdecl NimbyInternal_CaptureSnapshot(NimbySession session, NimbySnapshot* out) NIMBY_NOEXCEPT;
+NIMBY_API uint32_t __cdecl NimbyInternal_ReleaseSnapshot(NimbySnapshot snapshot) NIMBY_NOEXCEPT;
+NIMBY_API uint32_t __cdecl NimbyInternal_GetSnapshotInfo(NimbySnapshot snapshot, NimbySnapshotInfo* out) NIMBY_NOEXCEPT;
 // Query count with records=NULL, capacity=0. No partial copy when too small.
 // required is mandatory; capacity and required are record counts, not byte sizes.
-NIMBY_API uint32_t __cdecl NimbySdk_CopyTrains(NimbySnapshot snapshot, NimbyTrain* records, uint32_t capacity, uint32_t* required) NIMBY_NOEXCEPT;
+NIMBY_API uint32_t __cdecl NimbyInternal_CopyTrains(NimbySnapshot snapshot, NimbyTrain* records, uint32_t capacity, uint32_t* required) NIMBY_NOEXCEPT;
 // One record per train; STATE_VALID unset means unobserved/unstable, not at depot.
 // Stop is current during a run stop, otherwise the active run's target stop.
-NIMBY_API uint32_t __cdecl NimbySdk_CopyTrainServices(NimbySnapshot snapshot, NimbyTrainService* records, uint32_t capacity, uint32_t* required) NIMBY_NOEXCEPT;
-NIMBY_API uint32_t __cdecl NimbySdk_CopyTrainDetails(NimbySnapshot snapshot, NimbyTrainDetails* records, uint32_t capacity, uint32_t* required) NIMBY_NOEXCEPT;
+NIMBY_API uint32_t __cdecl NimbyInternal_CopyTrainServices(NimbySnapshot snapshot, NimbyTrainService* records, uint32_t capacity, uint32_t* required) NIMBY_NOEXCEPT;
+NIMBY_API uint32_t __cdecl NimbyInternal_CopyTrainDetails(NimbySnapshot snapshot, NimbyTrainDetails* records, uint32_t capacity, uint32_t* required) NIMBY_NOEXCEPT;
 // Complete line plan associated with the active run, including already passed stops.
 // Partial runs/loops may serve a subset; this is not a promised future itinerary.
-NIMBY_API uint32_t __cdecl NimbySdk_CopyTrainLineStops(NimbySnapshot snapshot, uint64_t train_id, NimbyLineStop* records, uint32_t capacity, uint32_t* required) NIMBY_NOEXCEPT;
-NIMBY_API uint32_t __cdecl NimbySdk_CopyTracks(NimbySnapshot snapshot, NimbyTrack* records, uint32_t capacity, uint32_t* required) NIMBY_NOEXCEPT;
-NIMBY_API uint32_t __cdecl NimbySdk_CopyPlatforms(NimbySnapshot snapshot, NimbyPlatform* records, uint32_t capacity, uint32_t* required) NIMBY_NOEXCEPT;
-NIMBY_API uint32_t __cdecl NimbySdk_CopyStations(NimbySnapshot snapshot, NimbyStation* records, uint32_t capacity, uint32_t* required) NIMBY_NOEXCEPT;
-NIMBY_API uint32_t __cdecl NimbySdk_CopySignals(NimbySnapshot snapshot, NimbySignal* records, uint32_t capacity, uint32_t* required) NIMBY_NOEXCEPT;
+NIMBY_API uint32_t __cdecl NimbyInternal_CopyTrainLineStops(NimbySnapshot snapshot, uint64_t train_id, NimbyLineStop* records, uint32_t capacity, uint32_t* required) NIMBY_NOEXCEPT;
+NIMBY_API uint32_t __cdecl NimbyInternal_CopyTracks(NimbySnapshot snapshot, NimbyTrack* records, uint32_t capacity, uint32_t* required) NIMBY_NOEXCEPT;
+NIMBY_API uint32_t __cdecl NimbyInternal_CopyPlatforms(NimbySnapshot snapshot, NimbyPlatform* records, uint32_t capacity, uint32_t* required) NIMBY_NOEXCEPT;
+NIMBY_API uint32_t __cdecl NimbyInternal_CopyStations(NimbySnapshot snapshot, NimbyStation* records, uint32_t capacity, uint32_t* required) NIMBY_NOEXCEPT;
+NIMBY_API uint32_t __cdecl NimbyInternal_CopySignals(NimbySnapshot snapshot, NimbySignal* records, uint32_t capacity, uint32_t* required) NIMBY_NOEXCEPT;
 // One state per CopySignals record, joined by full signal_id, same snapshot.
 // OK means the records were copied; inspect each record's validity flags.
 // Native selector and atlas-scoped specific ID are observed independently of
 // the general aspect, which remains unknown without a validated rule mapping.
 // Does not grant movement permission and does not change the game.
-NIMBY_API uint32_t __cdecl NimbySdk_CopySignalStates(NimbySnapshot snapshot, NimbySignalState* records, uint32_t capacity, uint32_t* required) NIMBY_NOEXCEPT;
+NIMBY_API uint32_t __cdecl NimbyInternal_CopySignalStates(NimbySnapshot snapshot, NimbySignalState* records, uint32_t capacity, uint32_t* required) NIMBY_NOEXCEPT;
 // One row per signal; uses the same buffer/count protocol. Missing catalog/state
 // leaves flags=0. Read-only lookup, native default atlas and index clamping.
-NIMBY_API uint32_t __cdecl NimbySdk_CopySignalTextures(NimbySnapshot snapshot, NimbySignalTexture* records, uint32_t capacity, uint32_t* required) NIMBY_NOEXCEPT;
-NIMBY_API uint32_t __cdecl NimbySdk_CopyTrackNodes(NimbySnapshot snapshot, NimbyTrackNode* records, uint32_t capacity, uint32_t* required) NIMBY_NOEXCEPT;
+NIMBY_API uint32_t __cdecl NimbyInternal_CopySignalTextures(NimbySnapshot snapshot, NimbySignalTexture* records, uint32_t capacity, uint32_t* required) NIMBY_NOEXCEPT;
+NIMBY_API uint32_t __cdecl NimbyInternal_CopyTrackNodes(NimbySnapshot snapshot, NimbyTrackNode* records, uint32_t capacity, uint32_t* required) NIMBY_NOEXCEPT;
 // These components are captured independently. DATA_UNAVAILABLE means unknown,
 // not zero reservations/occupations. NIMBY_OK with count=0 means observed empty.
 // Read-only native reservations; does not invoke script-defined virtual reservations.
-NIMBY_API uint32_t __cdecl NimbySdk_CopyTrackReservations(NimbySnapshot snapshot, NimbyTrackUsage* records, uint32_t capacity, uint32_t* required) NIMBY_NOEXCEPT;
-NIMBY_API uint32_t __cdecl NimbySdk_CopyTrackOccupations(NimbySnapshot snapshot, NimbyTrackUsage* records, uint32_t capacity, uint32_t* required) NIMBY_NOEXCEPT;
+NIMBY_API uint32_t __cdecl NimbyInternal_CopyTrackReservations(NimbySnapshot snapshot, NimbyTrackUsage* records, uint32_t capacity, uint32_t* required) NIMBY_NOEXCEPT;
+NIMBY_API uint32_t __cdecl NimbyInternal_CopyTrackOccupations(NimbySnapshot snapshot, NimbyTrackUsage* records, uint32_t capacity, uint32_t* required) NIMBY_NOEXCEPT;
 // Stored Path membership in native vector order. NOT reserved/occupied tracks.
 // Direction, branching semantics and remaining-vs-complete route are not established.
 // DATA_UNAVAILABLE if train/path is absent or unstable; count is zero on failure.
-NIMBY_API uint32_t __cdecl NimbySdk_CopyTrainPathTracks(NimbySnapshot snapshot, uint64_t train_id, uint64_t* records, uint32_t capacity, uint32_t* required) NIMBY_NOEXCEPT;
-NIMBY_API const char* __cdecl NimbySdk_StatusString(uint32_t status) NIMBY_NOEXCEPT;
+NIMBY_API uint32_t __cdecl NimbyInternal_CopyTrainPathTracks(NimbySnapshot snapshot, uint64_t train_id, uint64_t* records, uint32_t capacity, uint32_t* required) NIMBY_NOEXCEPT;
+NIMBY_API const char* __cdecl NimbyInternal_StatusString(uint32_t status) NIMBY_NOEXCEPT;
 #ifdef __cplusplus
 }
 #endif

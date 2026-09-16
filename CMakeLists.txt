@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.24)
-project(NimbyRailsSDK VERSION 0.6.6 LANGUAGES C CXX)
+project(NimbyRailsFranceSDK VERSION 0.7.0 LANGUAGES C CXX)
 if(NOT WIN32 OR NOT CMAKE_SIZEOF_VOID_P EQUAL 8)
-    message(FATAL_ERROR "NimbyRailsSDK requires Windows x64")
+    message(FATAL_ERROR "NimbyRailsFranceSDK requires Windows x64")
 endif()
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -22,7 +22,7 @@ target_include_directories(nimby_minhook SYSTEM PUBLIC third_party/minhook)
 add_library(nimby_hook_backend STATIC src/hooks/backend.cpp)
 target_include_directories(nimby_hook_backend PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
 target_link_libraries(nimby_hook_backend PUBLIC nimby_minhook PRIVATE nimby_build)
-add_library(NimbyRailsSDK SHARED
+add_library(NimbyRailsFranceSDK SHARED
     src/main.cpp
     src/runtime/bootstrap.cpp
     src/runtime/runtime.cpp
@@ -32,16 +32,16 @@ add_library(NimbyRailsSDK SHARED
     src/engine/signal_textures.cpp
     src/engine/track_usage.cpp
     src/engine/binary_identity.cpp)
-target_compile_definitions(NimbyRailsSDK PRIVATE NIMBY_SDK_BUILD)
-target_include_directories(NimbyRailsSDK
+target_compile_definitions(NimbyRailsFranceSDK PRIVATE NIMBY_SDK_BUILD)
+target_include_directories(NimbyRailsFranceSDK
     PUBLIC "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>" "$<INSTALL_INTERFACE:include>")
-target_link_libraries(NimbyRailsSDK PRIVATE nimby_build bcrypt nimby_hook_backend)
-set_target_properties(NimbyRailsSDK PROPERTIES PREFIX "" EXPORT_NAME SDK)
-# NimbyRailsSDK::SDK is reserved for the installed package consumed by examples.
+target_link_libraries(NimbyRailsFranceSDK PRIVATE nimby_build bcrypt nimby_hook_backend)
+set_target_properties(NimbyRailsFranceSDK PROPERTIES PREFIX "" EXPORT_NAME SDK)
+# NimbyRailsFranceSDK::SDK is reserved for the installed package consumed by examples.
 if(MINGW)
     # Exceptions stay inside the C ABI. GCC/C++ runtimes are embedded;
     # this MinGW toolchain still requires the shipped libwinpthread-1.dll.
-    target_link_options(NimbyRailsSDK PRIVATE -static-libgcc -static-libstdc++)
+    target_link_options(NimbyRailsFranceSDK PRIVATE -static-libgcc -static-libstdc++)
     target_compile_options(nimby_hook_backend PRIVATE -fno-exceptions -fno-rtti)
     # Keep the runtime matching the selected compiler next to the SDK.
     get_filename_component(NIMBY_COMPILER_BIN "${CMAKE_CXX_COMPILER}" DIRECTORY)
@@ -50,8 +50,8 @@ if(MINGW)
     endif()
     foreach(runtime libgcc_s_seh-1.dll libstdc++-6.dll libwinpthread-1.dll)
         if(EXISTS "${NIMBY_COMPILER_BIN}/${runtime}")
-            add_custom_command(TARGET NimbyRailsSDK POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy_if_different
-                "${NIMBY_COMPILER_BIN}/${runtime}" "$<TARGET_FILE_DIR:NimbyRailsSDK>")
+            add_custom_command(TARGET NimbyRailsFranceSDK POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                "${NIMBY_COMPILER_BIN}/${runtime}" "$<TARGET_FILE_DIR:NimbyRailsFranceSDK>")
             install(FILES "${NIMBY_COMPILER_BIN}/${runtime}" DESTINATION bin)
         endif()
     endforeach()
@@ -60,12 +60,12 @@ add_library(nimby_loader_core STATIC src/loader/loader.cpp src/engine/binary_ide
 target_include_directories(nimby_loader_core PUBLIC include)
 target_compile_definitions(nimby_loader_core PUBLIC _WIN32_WINNT=0x0A00)
 target_link_libraries(nimby_loader_core PUBLIC nimby_build bcrypt)
-add_executable(NimbyRailsLoader src/loader/main.cpp)
-target_link_libraries(NimbyRailsLoader PRIVATE nimby_loader_core)
+add_executable(NimbyRailsFranceLoader src/loader/main.cpp)
+target_link_libraries(NimbyRailsFranceLoader PRIVATE nimby_loader_core)
 if(MINGW)
-    target_link_options(NimbyRailsLoader PRIVATE -municode)
+    target_link_options(NimbyRailsFranceLoader PRIVATE -municode)
 endif()
-add_dependencies(NimbyRailsLoader NimbyRailsSDK)
+add_dependencies(NimbyRailsFranceLoader NimbyRailsFranceSDK)
 add_library(NimbyRailsProxy SHARED src/proxy/main.cpp src/proxy/SDL3.def src/engine/binary_identity.cpp)
 target_include_directories(NimbyRailsProxy PRIVATE include)
 target_link_libraries(NimbyRailsProxy PRIVATE nimby_build bcrypt)
@@ -74,9 +74,9 @@ set_target_properties(NimbyRailsProxy PROPERTIES PREFIX "" OUTPUT_NAME "SDL3"
 if(MINGW)
     target_compile_options(NimbyRailsProxy PRIVATE -fno-exceptions -fno-rtti)
 endif()
-add_dependencies(NimbyRailsProxy NimbyRailsSDK)
+add_dependencies(NimbyRailsProxy NimbyRailsFranceSDK)
 add_custom_command(TARGET NimbyRailsProxy POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy_if_different
-    "$<TARGET_FILE:NimbyRailsSDK>" "$<TARGET_FILE_DIR:NimbyRailsProxy>")
+    "$<TARGET_FILE:NimbyRailsFranceSDK>" "$<TARGET_FILE_DIR:NimbyRailsProxy>")
 if(MINGW)
     add_custom_command(TARGET NimbyRailsProxy POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy_if_different
         "${NIMBY_COMPILER_BIN}/libwinpthread-1.dll" "$<TARGET_FILE_DIR:NimbyRailsProxy>")
@@ -117,12 +117,12 @@ if(BUILD_TESTING)
     target_link_libraries(nimby_track_usage_tests PRIVATE nimby_build)
     add_test(NAME track_usage_guards COMMAND nimby_track_usage_tests)
     add_executable(nimby_observation_tests tests/observation.cpp)
-    target_link_libraries(nimby_observation_tests PRIVATE NimbyRailsSDK nimby_build)
-    add_test(NAME public_observation_abi COMMAND nimby_observation_tests)
-    add_executable(nimby_public_c_test tests/public_c.c)
-    target_compile_features(nimby_public_c_test PRIVATE c_std_11)
-    target_link_libraries(nimby_public_c_test PRIVATE NimbyRailsSDK)
-    add_test(NAME public_c_header COMMAND nimby_public_c_test)
+    target_link_libraries(nimby_observation_tests PRIVATE NimbyRailsFranceSDK nimby_build)
+    add_test(NAME internal_observation_abi COMMAND nimby_observation_tests)
+    add_executable(nimby_internal_c_test tests/internal_bridge.c)
+    target_compile_features(nimby_internal_c_test PRIVATE c_std_11)
+    target_link_libraries(nimby_internal_c_test PRIVATE NimbyRailsFranceSDK)
+    add_test(NAME internal_c_bridge COMMAND nimby_internal_c_test)
     add_executable(nimby_network_tests tests/network.cpp src/engine/network.cpp src/engine/live_state.cpp)
     target_include_directories(nimby_network_tests PRIVATE include)
     target_link_libraries(nimby_network_tests PRIVATE nimby_build)
@@ -135,15 +135,15 @@ if(BUILD_TESTING)
     add_executable(nimby_sdk_host tests/host.cpp)
     target_include_directories(nimby_sdk_host PRIVATE include)
     target_link_libraries(nimby_sdk_host PRIVATE nimby_build)
-    add_dependencies(nimby_sdk_host NimbyRailsSDK)
-    add_test(NAME dll_lifecycle COMMAND nimby_sdk_host "$<TARGET_FILE:NimbyRailsSDK>")
+    add_dependencies(nimby_sdk_host NimbyRailsFranceSDK)
+    add_test(NAME dll_lifecycle COMMAND nimby_sdk_host "$<TARGET_FILE:NimbyRailsFranceSDK>")
     add_executable(nimby_component_tests tests/components.cpp src/engine/binary_identity.cpp)
     target_include_directories(nimby_component_tests PRIVATE include)
     target_link_libraries(nimby_component_tests PRIVATE nimby_build bcrypt)
     add_test(NAME identity_and_policy COMMAND nimby_component_tests)
     add_executable(nimby_minhook_tests tests/minhook.cpp tests/hook_target.cpp)
     target_link_libraries(nimby_minhook_tests PRIVATE nimby_hook_backend nimby_build)
-    add_dependencies(nimby_minhook_tests NimbyRailsSDK)
+    add_dependencies(nimby_minhook_tests NimbyRailsFranceSDK)
     add_test(NAME minhook_observation COMMAND nimby_minhook_tests)
     add_executable(nimby_loader_target tests/loader_target.cpp)
     target_include_directories(nimby_loader_target PRIVATE include)
@@ -154,8 +154,8 @@ if(BUILD_TESTING)
         target_link_options(nimby_loader_target PRIVATE -municode)
         target_link_options(nimby_loader_tests PRIVATE -municode)
     endif()
-    add_dependencies(nimby_loader_tests NimbyRailsSDK nimby_loader_target)
-    add_test(NAME loader_restart COMMAND nimby_loader_tests "$<TARGET_FILE:nimby_loader_target>" "$<TARGET_FILE:NimbyRailsSDK>")
+    add_dependencies(nimby_loader_tests NimbyRailsFranceSDK nimby_loader_target)
+    add_test(NAME loader_restart COMMAND nimby_loader_tests "$<TARGET_FILE:nimby_loader_target>" "$<TARGET_FILE:NimbyRailsFranceSDK>")
     set_tests_properties(loader_restart PROPERTIES TIMEOUT 60)
     add_executable(nimby_proxy_tests tests/proxy.cpp)
     target_link_libraries(nimby_proxy_tests PRIVATE nimby_build)
@@ -170,7 +170,7 @@ if(BUILD_TESTING)
             COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_BINARY_DIR}/proxy-test"
             COMMAND ${CMAKE_COMMAND} -E copy_if_different "${NIMBY_SDL_ORIGINAL}" "${CMAKE_BINARY_DIR}/proxy-test/NimbyRailsSDL3Original.dll"
             COMMAND ${CMAKE_COMMAND} -E copy_if_different "$<TARGET_FILE:NimbyRailsProxy>" "${CMAKE_BINARY_DIR}/proxy-test/SDL3.dll"
-            COMMAND ${CMAKE_COMMAND} -E copy_if_different "$<TARGET_FILE:NimbyRailsSDK>" "${CMAKE_BINARY_DIR}/proxy-test/NimbyRailsSDK.dll")
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different "$<TARGET_FILE:NimbyRailsFranceSDK>" "${CMAKE_BINARY_DIR}/proxy-test/NimbyRailsFranceSDK.dll")
         add_test(NAME proxy_forwarding COMMAND nimby_proxy_tests "${CMAKE_BINARY_DIR}/proxy-test/SDL3.dll")
     endif()
 endif()
@@ -182,27 +182,27 @@ if(NIMBY_BUILD_EXAMPLES)
 endif()
 
 include(CMakePackageConfigHelpers)
-configure_package_config_file(cmake/NimbyRailsSDKConfig.cmake.in
-    "${CMAKE_CURRENT_BINARY_DIR}/NimbyRailsSDKConfig.cmake"
-    INSTALL_DESTINATION lib/cmake/NimbyRailsSDK)
-write_basic_package_version_file("${CMAKE_CURRENT_BINARY_DIR}/NimbyRailsSDKConfigVersion.cmake"
+configure_package_config_file(cmake/NimbyRailsFranceSDKConfig.cmake.in
+    "${CMAKE_CURRENT_BINARY_DIR}/NimbyRailsFranceSDKConfig.cmake"
+    INSTALL_DESTINATION lib/cmake/NimbyRailsFranceSDK)
+write_basic_package_version_file("${CMAKE_CURRENT_BINARY_DIR}/NimbyRailsFranceSDKConfigVersion.cmake"
     VERSION ${PROJECT_VERSION} COMPATIBILITY SameMinorVersion)
-install(TARGETS NimbyRailsSDK EXPORT NimbyRailsSDKTargets RUNTIME DESTINATION bin ARCHIVE DESTINATION lib)
-install(TARGETS NimbyRailsLoader RUNTIME DESTINATION bin)
-install(EXPORT NimbyRailsSDKTargets NAMESPACE NimbyRailsSDK:: DESTINATION lib/cmake/NimbyRailsSDK)
-install(FILES "${CMAKE_CURRENT_BINARY_DIR}/NimbyRailsSDKConfig.cmake"
-    "${CMAKE_CURRENT_BINARY_DIR}/NimbyRailsSDKConfigVersion.cmake" DESTINATION lib/cmake/NimbyRailsSDK)
+install(TARGETS NimbyRailsFranceSDK EXPORT NimbyRailsFranceSDKTargets RUNTIME DESTINATION bin ARCHIVE DESTINATION lib)
+install(TARGETS NimbyRailsFranceLoader RUNTIME DESTINATION bin)
+install(EXPORT NimbyRailsFranceSDKTargets NAMESPACE NimbyRailsFranceSDK:: DESTINATION lib/cmake/NimbyRailsFranceSDK)
+install(FILES "${CMAKE_CURRENT_BINARY_DIR}/NimbyRailsFranceSDKConfig.cmake"
+    "${CMAKE_CURRENT_BINARY_DIR}/NimbyRailsFranceSDKConfigVersion.cmake" DESTINATION lib/cmake/NimbyRailsFranceSDK)
 install(DIRECTORY include/nimby DESTINATION include)
 install(FILES third_party/minhook/LICENSE.txt DESTINATION share/licenses/MinHook)
-install(FILES docs/developing.md DESTINATION share/doc/NimbyRailsSDK)
-install(DIRECTORY examples/observer examples/first-observer examples/auto-observer DESTINATION share/NimbyRailsSDK/examples
+install(FILES docs/developing.md DESTINATION share/doc/NimbyRailsFranceSDK)
+install(DIRECTORY examples/observer examples/first-observer examples/auto-observer DESTINATION share/NimbyRailsFranceSDK/examples
     FILES_MATCHING PATTERN "*.cpp" PATTERN "CMakeLists.txt"
     PATTERN ".idea" EXCLUDE PATTERN "cmake-build-*" EXCLUDE)
-install(DIRECTORY docs/ DESTINATION share/doc/NimbyRailsSDK
+install(DIRECTORY docs/ DESTINATION share/doc/NimbyRailsFranceSDK
     PATTERN "reports" EXCLUDE PATTERN "source-reports" EXCLUDE)
 install(FILES README.md DESTINATION .)
 add_custom_target(sdk-dev-install
     COMMAND ${CMAKE_COMMAND} --install "${CMAKE_BINARY_DIR}" --prefix "${CMAKE_INSTALL_PREFIX}"
-    DEPENDS NimbyRailsSDK NimbyRailsLoader
+    DEPENDS NimbyRailsFranceSDK NimbyRailsFranceLoader
     COMMENT "Install the SDK package for independent consumers (TCO)"
     VERBATIM)

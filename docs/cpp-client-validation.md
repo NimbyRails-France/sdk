@@ -1,3 +1,6 @@
+> Archive technique antérieure à la 0.7 : noms et API C historiques.
+> Pour la version actuelle, utiliser la [référence C++](cpp-api-reference.md) et la [migration](migration-0.7.md).
+
 # Validation des helpers C++ — 16 septembre 2026
 
 [Documentation](README.md) · [Tutoriel](tutorial-cpp-client.md) · [Référence](cpp-api-reference.md)

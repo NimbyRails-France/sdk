@@ -11,7 +11,6 @@ void printLocation(const nimby::Snapshot& snapshot, const nimby::Train& train,
                    const std::optional<nimby::TrainService>& service) {
     auto trackId=service?service->getLocationTrackId():std::nullopt;
     if(!trackId)if(auto position=train.getPosition())trackId=position->getTrackId();
-    const auto flags=service?service->getMotionFlags():std::nullopt;
     if(trackId){
         std::cout << " | lieu=";
         if(auto station=snapshot.getStationForTrack(*trackId)){
@@ -25,8 +24,8 @@ void printLocation(const nimby::Snapshot& snapshot, const nimby::Train& train,
             }
         }else std::cout << "hors gare";
         std::cout << " / voie=" << *trackId;
-        if(flags&&(*flags&NIMBY_MOTION_HIDDEN))std::cout << " (position masquee dans le jeu)";
-    }else if(flags&&!(*flags&(NIMBY_MOTION_PRESENCE|NIMBY_MOTION_DRIVE|NIMBY_MOTION_HIDDEN))){
+        if(service&&service->isHidden().value_or(false))std::cout << " (position masquee dans le jeu)";
+    }else if(service&&service->isOnNetwork()==false){
         std::cout << " | lieu=hors reseau (non place dans la simulation)";
     }else std::cout << " | lieu=inconnu (position indisponible)";
 }
@@ -116,13 +115,9 @@ int observe(nimby::Client& client) {
 int main(int argc, char** argv) {
     try {
         if (argc == 2 && std::strcmp(argv[1], "--check-sdk") == 0) {
-            NimbySdkVersion version{};
-            version.struct_size = sizeof version;
-            const auto status = NimbySdk_GetVersion(&version);
-            if (status != NIMBY_OK || version.major != 0 || version.minor != 6 || version.abi_version != 1)
-                throw std::runtime_error("SDK 0.6.x / ABI 1 required");
+            const auto version = nimby::getVersion();
             std::cout << "C++ helpers ready | SDK " << version.major << '.' << version.minor
-                      << '.' << version.patch << " | ABI " << version.abi_version << '\n';
+                      << '.' << version.patch << " | internal ABI " << version.abi << '\n';
             return 0; // This check does not need a running game.
         }
         if (argc == 1) {

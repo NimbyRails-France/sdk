@@ -14,8 +14,9 @@ extern "C" {
 #define NIMBY_NOEXCEPT
 #endif
 
-// Experimental ABI v1: fixed-width values, caller-owned buffers, no C++ objects.
-#define NIMBY_ABI_VERSION 1u
+// Private implementation bridge. Not a supported consumer API.
+// Internal ABI v2: fixed-width values, caller-owned buffers, no C++ objects.
+#define NIMBY_ABI_VERSION 2u
 #define NIMBY_REQUEST_HOOKS 1u
 #define NIMBY_OK 0u
 #define NIMBY_INVALID_ARGUMENT 1u
@@ -29,7 +30,7 @@ typedef struct NimbySdkVersion {
     uint32_t struct_size, abi_version, major, minor, patch;
 } NimbySdkVersion;
 // Available before initialization; validates struct_size. No game process is touched.
-NIMBY_API uint32_t __cdecl NimbySdk_GetVersion(NimbySdkVersion* out) NIMBY_NOEXCEPT;
+NIMBY_API uint32_t __cdecl NimbyInternal_GetVersion(NimbySdkVersion* out) NIMBY_NOEXCEPT;
 
 typedef struct NimbyBinaryInfo {
     uint32_t struct_size;
@@ -40,15 +41,15 @@ typedef struct NimbyBinaryInfo {
 } NimbyBinaryInfo;
 
 // Read-only file inspection; recognition does NOT authorize any hook.
-NIMBY_API uint32_t __cdecl NimbySdk_InspectBinary(const wchar_t* path, NimbyBinaryInfo* out) NIMBY_NOEXCEPT;
+NIMBY_API uint32_t __cdecl NimbyInternal_InspectBinary(const wchar_t* path, NimbyBinaryInfo* out) NIMBY_NOEXCEPT;
 // Call explicitly after LoadLibrary returns, outside every DllMain/TLS callback.
 // flags=0 starts diagnostics and identifies the actual host executable.
 // NIMBY_REQUEST_HOOKS always fails in this milestone, leaving state unchanged.
-NIMBY_API uint32_t __cdecl NimbySdk_Initialize(uint32_t abi_version, uint32_t flags) NIMBY_NOEXCEPT;
+NIMBY_API uint32_t __cdecl NimbyInternal_Initialize(uint32_t abi_version, uint32_t flags) NIMBY_NOEXCEPT;
 // Idempotent. Caller must join all SDK callers before Shutdown + FreeLibrary.
-NIMBY_API uint32_t __cdecl NimbySdk_Shutdown(void) NIMBY_NOEXCEPT;
+NIMBY_API uint32_t __cdecl NimbyInternal_Shutdown(void) NIMBY_NOEXCEPT;
 // Copies an immutable snapshot. Fails when stopped. No borrowed game objects.
-NIMBY_API uint32_t __cdecl NimbySdk_GetHostInfo(NimbyBinaryInfo* out) NIMBY_NOEXCEPT;
+NIMBY_API uint32_t __cdecl NimbyInternal_GetHostInfo(NimbyBinaryInfo* out) NIMBY_NOEXCEPT;
 
 #ifdef __cplusplus
 }

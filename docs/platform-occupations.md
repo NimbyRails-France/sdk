@@ -1,4 +1,4 @@
-# Quais et occupation par gare (SDK 0.6.5)
+# Quais et occupation par gare (SDK 0.7)
 
 ```cpp
 const auto snapshot = client.capture();
@@ -35,16 +35,6 @@ pas que le quai est physiquement occupe. Les trains masques au depot ne sont pas
 ajoutes artificiellement aux occupations physiques. Libre ne signifie pas
 qu'une nouvelle circulation est autorisee. Le snapshot est une observation
 non atomique, pas une commande de signalisation.
-
-## API C
-
-`NimbySdk_CopyPlatforms(snapshot, records, capacity, required)` retourne un
-`NimbyPlatform` de 288 octets par voie de gare. `NIMBY_PLATFORM_NAME_VALID`
-valide `name_utf8` (un nom manuel vide est possible). Les noms ne sont pas uniques.
-Joindre `track_id` avec `NimbySdk_CopyTrackOccupations` pour les trains presents,
-ou avec `NimbySdk_CopyTrackReservations` pour les reservations, puis `train_id`
-avec `NimbySdk_CopyTrains`. Conserver l'indisponibilite des tables d'usage.
-Les structures existantes restent inchangees (ABI 1).
 
 ## Evidence native et validation
 

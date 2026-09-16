@@ -157,7 +157,7 @@ Monitor::Monitor(std::wstring executable,std::string expected_sha256,std::wstrin
         if (engine::identify(sdk_.c_str(),info)!=NIMBY_OK) throw std::runtime_error("SDK is not a readable AMD64 PE");
         local_sdk_=LoadLibraryExW(sdk_.c_str(),nullptr,LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR|LOAD_LIBRARY_SEARCH_SYSTEM32);
         if (!local_sdk_) fail("Load SDK locally");
-        const auto bootstrap=GetProcAddress(local_sdk_,"NimbySdk_Bootstrap");
+        const auto bootstrap=GetProcAddress(local_sdk_,"NimbyInternal_Bootstrap");
         if (!bootstrap) throw std::runtime_error("SDK bootstrap export is missing");
         HMODULE owner{};
         if (!GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS|GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,

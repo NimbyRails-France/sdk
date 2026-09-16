@@ -205,7 +205,7 @@ void apply_speed(Monitor& monitor) {
     std::array<wchar_t, 32768> local{};
     const DWORD localSize = GetEnvironmentVariableW(L"LOCALAPPDATA", local.data(), static_cast<DWORD>(local.size()));
     if (localSize && localSize < local.size()) {
-        std::wstring dir = std::wstring(local.data()) + L"\\NimbyRailsSDK"; CreateDirectoryW(dir.c_str(), nullptr);
+        std::wstring dir = std::wstring(local.data()) + L"\\NimbyRailsFranceSDK"; CreateDirectoryW(dir.c_str(), nullptr);
         HANDLE file = CreateFileW((dir + L"\\speed-tests.log").c_str(), FILE_APPEND_DATA, FILE_SHARE_READ, nullptr, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
         if (file != INVALID_HANDLE_VALUE) { DWORD bytes{}; WriteFile(file, log, static_cast<DWORD>(std::clamp(length, 0, static_cast<int>(sizeof log - 1))), &bytes, nullptr); CloseHandle(file); }
     }
@@ -341,7 +341,7 @@ HWND create_monitor(Monitor& monitor) {
     cls.lpszClassName = L"NimbyTrainResearchMonitor"; cls.hCursor = LoadCursorW(nullptr, IDC_ARROW);
     cls.hbrBackground = reinterpret_cast<HBRUSH>(COLOR_WINDOW + 1);
     if (!RegisterClassW(&cls)) return nullptr;
-    return CreateWindowW(cls.lpszClassName, L"NimbyRailsSDK - Observation des trains (experimental)", WS_OVERLAPPEDWINDOW,
+    return CreateWindowW(cls.lpszClassName, L"NimbyRailsFranceSDK - Observation des trains (experimental)", WS_OVERLAPPEDWINDOW,
         CW_USEDEFAULT, CW_USEDEFAULT, 1500, 460, nullptr, nullptr, cls.hInstance, &monitor);
 }
 int show_monitor(const Reader& reader, const Pool& trainPool, const std::vector<Pool>& motionPools) {
@@ -541,12 +541,12 @@ int run(int argc, char** argv) {
             } while (Process32NextW(snapshot, &entry));
             CloseHandle(snapshot);
         }
-        if (count != 1) { MessageBoxW(nullptr, L"Ouvrir une seule instance de NIMBY Rails avec une partie chargee, puis relancer le moniteur.", L"NimbyRailsSDK", MB_OK); return 2; }
+        if (count != 1) { MessageBoxW(nullptr, L"Ouvrir une seule instance de NIMBY Rails avec une partie chargee, puis relancer le moniteur.", L"NimbyRailsFranceSDK", MB_OK); return 2; }
         char pidText[20]{}; std::snprintf(pidText, sizeof pidText, "%lu", gamePid);
         char windowFlag[] = "--window";
         char* arguments[]{argv[0], pidText, windowFlag};
         const auto result = run(3, arguments);
-        if (result) MessageBoxW(nullptr, L"Observation indisponible : version inconnue, lecture impossible ou collections ambigues. Consulter le rapport de recherche.", L"NimbyRailsSDK", MB_OK | MB_ICONWARNING);
+        if (result) MessageBoxW(nullptr, L"Observation indisponible : version inconnue, lecture impossible ou collections ambigues. Consulter le rapport de recherche.", L"NimbyRailsFranceSDK", MB_OK | MB_ICONWARNING);
         return result;
     }
     if (argc == 2 && std::strcmp(argv[1], "--self-test") == 0) return self_test();

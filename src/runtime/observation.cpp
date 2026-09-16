@@ -1,4 +1,4 @@
-#include <nimby/observation.h>
+#include <nimby/detail/observation.h>
 #include "engine/binary_identity.h"
 #include "engine/network.h"
 #include "engine/track_usage.h"
@@ -106,7 +106,7 @@ template<class T> uint32_t copy(NimbySnapshot handle,T* records,uint32_t capacit
     return NIMBY_OK;
 }
 }
-uint32_t __cdecl NimbySdk_OpenProcess(uint32_t abi,uint32_t pid,NimbySession* out) noexcept {
+uint32_t __cdecl NimbyInternal_OpenProcess(uint32_t abi,uint32_t pid,NimbySession* out) noexcept {
     if(!out)return NIMBY_INVALID_ARGUMENT;
     *out=0;if(abi!=NIMBY_OBSERVATION_ABI_VERSION)return NIMBY_INVALID_ARGUMENT;
     try {
@@ -133,13 +133,13 @@ uint32_t __cdecl NimbySdk_OpenProcess(uint32_t abi,uint32_t pid,NimbySession* ou
         r.sessions.emplace(id,std::move(s));*out=id;return NIMBY_OK;
     }catch(...){return NIMBY_INTERNAL_ERROR;}
 }
-uint32_t __cdecl NimbySdk_CloseSession(NimbySession handle) noexcept {
+uint32_t __cdecl NimbyInternal_CloseSession(NimbySession handle) noexcept {
     Guard guard;return registry().sessions.erase(handle)?NIMBY_OK:NIMBY_INVALID_HANDLE;
 }
-uint32_t __cdecl NimbySdk_ReleaseSnapshot(NimbySnapshot handle) noexcept {
+uint32_t __cdecl NimbyInternal_ReleaseSnapshot(NimbySnapshot handle) noexcept {
     Guard guard;return registry().snapshots.erase(handle)?NIMBY_OK:NIMBY_INVALID_HANDLE;
 }
-uint32_t __cdecl NimbySdk_CaptureSnapshot(NimbySession handle,NimbySnapshot* out) noexcept {
+uint32_t __cdecl NimbyInternal_CaptureSnapshot(NimbySession handle,NimbySnapshot* out) noexcept {
     if(!out)return NIMBY_INVALID_ARGUMENT;
     *out=0;
     try {
@@ -176,7 +176,7 @@ uint32_t __cdecl NimbySdk_CaptureSnapshot(NimbySession handle,NimbySnapshot* out
         for(const auto& t:trains) {
             NimbyTrain value{};value.id=t.id;
             std::memcpy(value.name_utf8,t.name.data(),t.name.size());
-            if(t.present)value.flags|=NIMBY_TRAIN_PRESENT;
+            if(t.present)value.flags|=NIMBY_TRAIN_ACTIVE_DRIVE;
             if(t.speed_available){
                 value.flags|=NIMBY_TRAIN_SPEED_VALID;value.speed_mps=t.speed_mps;
                 if(!t.present)value.flags|=NIMBY_TRAIN_SPEED_DEFAULTED;
@@ -267,26 +267,26 @@ uint32_t __cdecl NimbySdk_CaptureSnapshot(NimbySession handle,NimbySnapshot* out
         auto id=r.next++;r.snapshots.emplace(id,std::move(snapshot));*out=id;return NIMBY_OK;
     }catch(...){return NIMBY_INTERNAL_ERROR;}
 }
-uint32_t __cdecl NimbySdk_GetSnapshotInfo(NimbySnapshot handle,NimbySnapshotInfo* out) noexcept {
+uint32_t __cdecl NimbyInternal_GetSnapshotInfo(NimbySnapshot handle,NimbySnapshotInfo* out) noexcept {
     if(!out||out->struct_size!=sizeof *out)return NIMBY_INVALID_ARGUMENT;
     *out={};out->struct_size=sizeof *out;
     Guard guard;auto& r=registry();auto found=r.snapshots.find(handle);
     if(found==r.snapshots.end())return NIMBY_INVALID_HANDLE;
     *out=found->second.info;return NIMBY_OK;
 }
-uint32_t __cdecl NimbySdk_CopyTrains(NimbySnapshot s,NimbyTrain* out,uint32_t cap,uint32_t* count) noexcept {return copy(s,out,cap,count,&Snapshot::trains);}
-uint32_t __cdecl NimbySdk_CopyTrainServices(NimbySnapshot s,NimbyTrainService* out,uint32_t cap,uint32_t* count) noexcept {return copy(s,out,cap,count,&Snapshot::train_services);}
-uint32_t __cdecl NimbySdk_CopyTrackReservations(NimbySnapshot s,NimbyTrackUsage* out,uint32_t cap,uint32_t* count) noexcept {return copy(s,out,cap,count,&Snapshot::reservations,&Snapshot::reservations_available);}
-uint32_t __cdecl NimbySdk_CopyTrackOccupations(NimbySnapshot s,NimbyTrackUsage* out,uint32_t cap,uint32_t* count) noexcept {return copy(s,out,cap,count,&Snapshot::occupations,&Snapshot::occupations_available);}
-uint32_t __cdecl NimbySdk_CopyTracks(NimbySnapshot s,NimbyTrack* out,uint32_t cap,uint32_t* count) noexcept {return copy(s,out,cap,count,&Snapshot::tracks);}
-uint32_t __cdecl NimbySdk_CopyPlatforms(NimbySnapshot s,NimbyPlatform* out,uint32_t cap,uint32_t* count) noexcept {return copy(s,out,cap,count,&Snapshot::platforms);}
-uint32_t __cdecl NimbySdk_CopyStations(NimbySnapshot s,NimbyStation* out,uint32_t cap,uint32_t* count) noexcept {return copy(s,out,cap,count,&Snapshot::stations);}
-uint32_t __cdecl NimbySdk_CopySignals(NimbySnapshot s,NimbySignal* out,uint32_t cap,uint32_t* count) noexcept {return copy(s,out,cap,count,&Snapshot::signals);}
-uint32_t __cdecl NimbySdk_CopySignalStates(NimbySnapshot s,NimbySignalState* out,uint32_t cap,uint32_t* count) noexcept {return copy(s,out,cap,count,&Snapshot::signal_states);}
-uint32_t __cdecl NimbySdk_CopySignalTextures(NimbySnapshot s,NimbySignalTexture* out,uint32_t cap,uint32_t* count) noexcept {return copy(s,out,cap,count,&Snapshot::signal_textures);}
-uint32_t __cdecl NimbySdk_CopyTrackNodes(NimbySnapshot s,NimbyTrackNode* out,uint32_t cap,uint32_t* count) noexcept {return copy(s,out,cap,count,&Snapshot::nodes);}
-uint32_t __cdecl NimbySdk_CopyTrainDetails(NimbySnapshot s,NimbyTrainDetails* out,uint32_t cap,uint32_t* count) noexcept {return copy(s,out,cap,count,&Snapshot::train_details);}
-uint32_t __cdecl NimbySdk_CopyTrainLineStops(NimbySnapshot handle,uint64_t train,NimbyLineStop* out,uint32_t cap,uint32_t* count) noexcept {
+uint32_t __cdecl NimbyInternal_CopyTrains(NimbySnapshot s,NimbyTrain* out,uint32_t cap,uint32_t* count) noexcept {return copy(s,out,cap,count,&Snapshot::trains);}
+uint32_t __cdecl NimbyInternal_CopyTrainServices(NimbySnapshot s,NimbyTrainService* out,uint32_t cap,uint32_t* count) noexcept {return copy(s,out,cap,count,&Snapshot::train_services);}
+uint32_t __cdecl NimbyInternal_CopyTrackReservations(NimbySnapshot s,NimbyTrackUsage* out,uint32_t cap,uint32_t* count) noexcept {return copy(s,out,cap,count,&Snapshot::reservations,&Snapshot::reservations_available);}
+uint32_t __cdecl NimbyInternal_CopyTrackOccupations(NimbySnapshot s,NimbyTrackUsage* out,uint32_t cap,uint32_t* count) noexcept {return copy(s,out,cap,count,&Snapshot::occupations,&Snapshot::occupations_available);}
+uint32_t __cdecl NimbyInternal_CopyTracks(NimbySnapshot s,NimbyTrack* out,uint32_t cap,uint32_t* count) noexcept {return copy(s,out,cap,count,&Snapshot::tracks);}
+uint32_t __cdecl NimbyInternal_CopyPlatforms(NimbySnapshot s,NimbyPlatform* out,uint32_t cap,uint32_t* count) noexcept {return copy(s,out,cap,count,&Snapshot::platforms);}
+uint32_t __cdecl NimbyInternal_CopyStations(NimbySnapshot s,NimbyStation* out,uint32_t cap,uint32_t* count) noexcept {return copy(s,out,cap,count,&Snapshot::stations);}
+uint32_t __cdecl NimbyInternal_CopySignals(NimbySnapshot s,NimbySignal* out,uint32_t cap,uint32_t* count) noexcept {return copy(s,out,cap,count,&Snapshot::signals);}
+uint32_t __cdecl NimbyInternal_CopySignalStates(NimbySnapshot s,NimbySignalState* out,uint32_t cap,uint32_t* count) noexcept {return copy(s,out,cap,count,&Snapshot::signal_states);}
+uint32_t __cdecl NimbyInternal_CopySignalTextures(NimbySnapshot s,NimbySignalTexture* out,uint32_t cap,uint32_t* count) noexcept {return copy(s,out,cap,count,&Snapshot::signal_textures);}
+uint32_t __cdecl NimbyInternal_CopyTrackNodes(NimbySnapshot s,NimbyTrackNode* out,uint32_t cap,uint32_t* count) noexcept {return copy(s,out,cap,count,&Snapshot::nodes);}
+uint32_t __cdecl NimbyInternal_CopyTrainDetails(NimbySnapshot s,NimbyTrainDetails* out,uint32_t cap,uint32_t* count) noexcept {return copy(s,out,cap,count,&Snapshot::train_details);}
+uint32_t __cdecl NimbyInternal_CopyTrainLineStops(NimbySnapshot handle,uint64_t train,NimbyLineStop* out,uint32_t cap,uint32_t* count) noexcept {
     if(!count)return NIMBY_INVALID_ARGUMENT;
     *count=0;
     if(!out&&cap)return NIMBY_INVALID_ARGUMENT;
@@ -297,7 +297,7 @@ uint32_t __cdecl NimbySdk_CopyTrainLineStops(NimbySnapshot handle,uint64_t train
     if(!p->second.empty())std::memcpy(out,p->second.data(),p->second.size()*sizeof(NimbyLineStop));
     return NIMBY_OK;
 }
-uint32_t __cdecl NimbySdk_CopyTrainPathTracks(NimbySnapshot handle,uint64_t train,uint64_t* out,uint32_t cap,uint32_t* count) noexcept {
+uint32_t __cdecl NimbyInternal_CopyTrainPathTracks(NimbySnapshot handle,uint64_t train,uint64_t* out,uint32_t cap,uint32_t* count) noexcept {
     if(!count)return NIMBY_INVALID_ARGUMENT;
     *count=0;
     if(!out&&cap)return NIMBY_INVALID_ARGUMENT;
@@ -308,7 +308,7 @@ uint32_t __cdecl NimbySdk_CopyTrainPathTracks(NimbySnapshot handle,uint64_t trai
     if(!p->second.empty())std::memcpy(out,p->second.data(),p->second.size()*8);
     return NIMBY_OK;
 }
-const char* __cdecl NimbySdk_StatusString(uint32_t status) noexcept {
+const char* __cdecl NimbyInternal_StatusString(uint32_t status) noexcept {
     switch(status){
     case NIMBY_OK:return "OK";case NIMBY_INVALID_ARGUMENT:return "Invalid argument or ABI version";
     case NIMBY_IO_ERROR:return "Process or file access failed";case NIMBY_INVALID_BINARY:return "Invalid binary";

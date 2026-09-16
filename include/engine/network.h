@@ -1,7 +1,7 @@
 #pragma once
 #include "engine/live_state.h"
 #include <string>
-#include <nimby/observation.h>
+#include <nimby/detail/observation.h>
 #include <vector>
 namespace nimby::engine {
 // Experimental, read-only layout profile. Evidence: docs/research/network.md.

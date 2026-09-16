@@ -5,37 +5,25 @@
 Ce parcours est l'entrée recommandée pour créer un outil C++.
 Il utilise `nimby::Client`, la détection du jeu et un rafraîchissement automatique
 à **4 Hz**, soit une échéance toutes les **250 ms**.
-Pour gérer vous-même les buffers et handles C, voir le
-[tutoriel bas niveau](tutorial-first-tool.md).
+Pour effectuer des captures manuelles, voir le
+[premier outil C++](tutorial-first-tool.md).
 
 ## 1. Préparer le kit
 
 Prévoir Windows x64, CMake 3.24+, Ninja et MinGW x64 avec C++20.
 La chaîne testée est MinGW GCC 15.2 fournie avec CLion.
 
-Les helpers nécessitent :
-
-- `include/nimby/client.hpp` de cette révision du SDK ;
-- les headers C et les DLL du kit SDK **0.6.x / ABI 1** ;
-- l'exemple complet `examples/auto-observer`.
-
-Le ZIP 0.6.0 publié avant ces helpers ne contient pas encore `client.hpp`.
-Pour préparer un kit complet depuis les sources, exécuter à la racine du SDK :
+Préparer un kit 0.7 complet depuis les sources :
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File tools/package.ps1
 ```
 
-Le résultat est dans `dist/NimbyRailsSDK-0.6.0/`, avec la documentation sous
-`share/doc/NimbyRailsSDK/` et les exemples sous
-`share/NimbyRailsSDK/examples/`. Ajouter `-ClionHome 'C:/chemin/CLion'` si nécessaire.
-Cette opération construit un paquet local ; elle ne met pas à jour les anciennes
-releases et ne modifie pas le jeu.
-
-Vous pouvez aussi ajouter le nouveau `client.hpp` dans `include/nimby/` d'une
-**copie de travail** du kit 0.6.0 et utiliser le nouvel exemple : les helpers
-n'exigent pas de nouvel export dans sa DLL. Conserver les fichiers gérés par
-le Hub dans leur installation d'origine.
+Le résultat est dans `dist/NimbyRailsFranceSDK-0.7.0/`, avec la documentation sous
+`share/doc/NimbyRailsFranceSDK/` et les exemples sous
+`share/NimbyRailsFranceSDK/examples/`. Le header public est `<nimby/client.hpp>`.
+Les fichiers `detail/` sont nécessaires à sa compilation mais sont privés.
+Ne pas mélanger les headers et DLL 0.6 et 0.7.
 
 ## 2. Compiler l'exemple complet
 
@@ -54,16 +42,16 @@ lorsque cette révision est publiée.
 Depuis ce nouveau dossier, avec le compilateur, CMake et Ninja dans `PATH` :
 
 ```powershell
-cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH=C:/SDK/NimbyRailsSDK-0.6.0
+cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH=C:/SDK/NimbyRailsFranceSDK-0.7.0
 cmake --build build
 ./build/MyNimbyClient.exe --check-sdk
 ```
 
-Remplacer `C:/SDK/NimbyRailsSDK-0.6.0` par la racine de votre kit préparé à
+Remplacer `C:/SDK/NimbyRailsFranceSDK-0.7.0` par la racine de votre kit préparé à
 l'étape 1. Le résultat attendu du contrôle est :
 
 ```text
-C++ helpers ready | SDK 0.6.0 | ABI 1
+C++ helpers ready | SDK 0.7.0 | internal ABI 2
 ```
 
 Dans **CLion**, ouvrir le dossier comme projet, sélectionner MinGW x64,

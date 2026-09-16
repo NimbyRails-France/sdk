@@ -1,12 +1,12 @@
 #include <windows.h>
-#include <nimby/sdk.h>
-uint32_t __cdecl NimbySdk_GetVersion(NimbySdkVersion* out) noexcept {
+#include <nimby/detail/sdk.h>
+uint32_t __cdecl NimbyInternal_GetVersion(NimbySdkVersion* out) noexcept {
     if(!out || out->struct_size != sizeof(NimbySdkVersion)) return NIMBY_INVALID_ARGUMENT;
-    *out={sizeof(NimbySdkVersion),NIMBY_ABI_VERSION,0,6,6};
+    *out={sizeof(NimbySdkVersion),NIMBY_ABI_VERSION,0,7,0};
     return NIMBY_OK;
 }
 #if !defined(_M_X64) && !defined(__x86_64__)
-#error NimbyRailsSDK requires the AMD64 architecture
+#error NimbyRailsFranceSDK requires the AMD64 architecture
 #endif
 
 // No I/O, threads, locks, hooks or lifecycle work under the loader lock.

@@ -1,6 +1,6 @@
-# Documentation de NimbyRailsSDK
+# Documentation de NimbyRailsFranceSDK
 
-Cette documentation décrit le **SDK 0.6.x, ABI 1**, pour Windows x64.
+Cette documentation décrit **NimbyRailsFranceSDK 0.7, API C++20**, pour Windows x64.
 Le SDK permet à votre programme de lire les trains et le réseau d'une partie de
 NIMBY Rails. L'API publique ne propose pas de commandes pour modifier la simulation.
 
@@ -18,8 +18,8 @@ NIMBY Rails. L'API publique ne propose pas de commandes pour modifier la simulat
 Le tutoriel suppose que vous savez ouvrir un terminal et compiler un petit
 programme C++. Il explique les notions propres au SDK au fur et à mesure.
 
-Pour utiliser directement le bas niveau : [tutoriel API C](tutorial-first-tool.md)
-et [référence de l'API C](api-reference.md). Les deux couches restent disponibles.
+Pour les captures manuelles : [premier outil C++](tutorial-first-tool.md).
+L'ancienne API C est retirée ; voir la [migration 0.7](migration-0.7.md).
 
 ## Choisir le bon parcours
 
@@ -42,12 +42,11 @@ et [référence de l'API C](api-reference.md). Les deux couches restent disponib
 | `examples/observer` | Lecture des collections, états des signaux, disponibilité des réservations et occupations |
 
 Dans un paquet installé, ils se trouvent dans
-`share/NimbyRailsSDK/examples/`. La documentation est dans
-`share/doc/NimbyRailsSDK/`. Les trois exemples sont des projets CMake autonomes.
+`share/NimbyRailsFranceSDK/examples/`. La documentation est dans
+`share/doc/NimbyRailsFranceSDK/`. Les trois exemples sont des projets CMake autonomes.
 
-Le header `client.hpp` et les nouveaux exemples sont présents dans les sources et les paquets
-construits à partir de cette révision. Le ZIP 0.6.0 déjà publié peut ne contenir
-que `observer` : le tutoriel explique comment récupérer les deux fichiers manquants.
+Le kit 0.7 fournit les trois exemples C++ et tous les headers nécessaires.
+Voir la [migration](migration-0.7.md) pour les anciens consommateurs.
 
 ## Ce qui est expérimental
 

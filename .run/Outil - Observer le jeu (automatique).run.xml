@@ -1,5 +1,5 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="Outil - Observer le jeu (automatique)" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="NimbyRailsSDK" TARGET_NAME="MyNimbyClient" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="NimbyRailsSDK" RUN_TARGET_NAME="MyNimbyClient" PROGRAM_PARAMS="">
+  <configuration default="false" name="Outil - Observer le jeu (automatique)" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="NimbyRailsFranceSDK" TARGET_NAME="MyNimbyClient" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="NimbyRailsFranceSDK" RUN_TARGET_NAME="MyNimbyClient">
     <method v="2">
       <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
     </method>

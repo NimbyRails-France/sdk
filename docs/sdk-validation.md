@@ -1,3 +1,6 @@
+> Archive technique antérieure à la 0.7 : noms et API C historiques.
+> Pour la version actuelle, utiliser la [référence C++](cpp-api-reference.md) et la [migration](migration-0.7.md).
+
 # Validation du paquet 0.2.0 — 14 septembre 2026
 
 Windows x64, MinGW GCC 15.2.0 fourni par CLion. **10/10 tests réussis en Debug et

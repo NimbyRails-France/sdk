@@ -1,5 +1,5 @@
 #include <windows.h>
-#include <nimby/sdk.h>
+#include <nimby/detail/sdk.h>
 #include <bit>
 #include <MinHook.h>
 
@@ -30,9 +30,9 @@ int wmain(int argc,wchar_t** argv) {
     HMODULE sdk{};
     for (int iteration=0;iteration<3000;++iteration) {
         if (WaitForSingleObject(stop,10)==WAIT_OBJECT_0) break;
-        sdk=GetModuleHandleW(L"NimbyRailsSDK.dll");
+        sdk=GetModuleHandleW(L"NimbyRailsFranceSDK.dll");
         if (!sdk) continue;
-        auto info=std::bit_cast<decltype(&NimbySdk_GetHostInfo)>(GetProcAddress(sdk,"NimbySdk_GetHostInfo"));
+        auto info=std::bit_cast<decltype(&NimbyInternal_GetHostInfo)>(GetProcAddress(sdk,"NimbyInternal_GetHostInfo"));
         if (!info) return 3;
         NimbyBinaryInfo host{}; host.struct_size=sizeof host;
         if (info(&host)==NIMBY_OK && host.file_size && !host.recognized_research_build && InterlockedCompareExchange(&load_calls,0,0)>0) {
@@ -41,7 +41,7 @@ int wmain(int argc,wchar_t** argv) {
     }
     if(MH_DisableHook(std::bit_cast<void*>(load))!=MH_OK || MH_RemoveHook(std::bit_cast<void*>(load))!=MH_OK || MH_Uninitialize()!=MH_OK) return 7;
     if (initialized) {
-        auto stop_sdk=std::bit_cast<decltype(&NimbySdk_Shutdown)>(GetProcAddress(sdk,"NimbySdk_Shutdown"));
+        auto stop_sdk=std::bit_cast<decltype(&NimbyInternal_Shutdown)>(GetProcAddress(sdk,"NimbyInternal_Shutdown"));
         if (!stop_sdk || stop_sdk()!=NIMBY_OK) return 4;
         FreeLibrary(sdk); // Release the load reference after all fixture callers stop.
     }

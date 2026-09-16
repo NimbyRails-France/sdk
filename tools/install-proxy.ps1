@@ -8,13 +8,13 @@ $gameRoot = (Resolve-Path -LiteralPath $GameDirectory).Path
 $exe = Join-Path $gameRoot 'NimbyRails.exe'
 $sdl = Join-Path $gameRoot 'SDL3.dll'
 $backup = Join-Path $gameRoot 'NimbyRailsSDL3Original.dll'
-$sdk = Join-Path $gameRoot 'NimbyRailsSDK.dll'
-$manifestPath = Join-Path $gameRoot 'NimbyRailsSDK-install.json'
+$sdk = Join-Path $gameRoot 'NimbyRailsFranceSDK.dll'
+$manifestPath = Join-Path $gameRoot 'NimbyRailsFranceSDK-install.json'
 $proxyStage = Join-Path $gameRoot 'SDL3.NimbySDK.tmp'
-$sdkStage = Join-Path $gameRoot 'NimbyRailsSDK.tmp'
+$sdkStage = Join-Path $gameRoot 'NimbyRailsFranceSDK.tmp'
 $pthread = Join-Path $gameRoot 'libwinpthread-1.dll'
 $pthreadStage = Join-Path $gameRoot 'libwinpthread-1.NimbySDK.tmp'
-$manifestStage = Join-Path $gameRoot 'NimbyRailsSDK-install.tmp'
+$manifestStage = Join-Path $gameRoot 'NimbyRailsFranceSDK-install.tmp'
 $originalExeHash = 'FFF49AC21720ABFC824C2B4F68B862727630EB0DB71CFE1F9EA8F685D0DB10AE'
 $originalSdlHash = '2A2704678BF6C9C6A944270AB35079DF76F5AFE92B780394ED72D9C8218B98D8'
 function Hash([string]$path) { (Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash }
@@ -26,7 +26,7 @@ foreach($target in @($exe,$sdl,$backup,$sdk,$manifestPath,$proxyStage,$sdkStage,
 }
 $running = Get-Process -Name NimbyRails -ErrorAction SilentlyContinue | Where-Object { !$_.Path -or $_.Path -ieq $exe }
 if($running) { throw 'Close NIMBY Rails before installing or removing the proxy. The installer will not close the game.' }
-if(Get-Process -Name NimbyRailsLoader -ErrorAction SilentlyContinue) { throw 'Stop NimbyRailsLoader first with --stop.' }
+if(Get-Process -Name NimbyRailsFranceLoader -ErrorAction SilentlyContinue) { throw 'Stop NimbyRailsFranceLoader first with --stop.' }
 
 if($Action -eq 'Remove') {
     if(!(Test-Path -LiteralPath $manifestPath)) { throw 'No proxy installation manifest found.' }
@@ -53,7 +53,7 @@ foreach($target in @($backup,$sdk,$manifestPath,$proxyStage,$sdkStage,$manifestS
 }
 $sourceRoot = (Resolve-Path -LiteralPath $SourceDirectory).Path
 $proxySource = Join-Path $sourceRoot 'SDL3.dll'
-$sdkSource = Join-Path $sourceRoot 'NimbyRailsSDK.dll'
+$sdkSource = Join-Path $sourceRoot 'NimbyRailsFranceSDK.dll'
 $proxyHash = Hash $proxySource
 $sdkHash = Hash $sdkSource
 $pthreadSource = Join-Path $sourceRoot 'libwinpthread-1.dll'

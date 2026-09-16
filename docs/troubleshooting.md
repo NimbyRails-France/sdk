@@ -27,13 +27,13 @@ la DLL et ses dépendances se chargent ; passer ensuite à l'ouverture du jeu.
 | Symptôme | Vérification et correction |
 |---|---|
 | `cmake` ou `ninja` introuvable | Ajouter les outils à `PATH` pour ce terminal, ou compiler depuis CLion ; voir le tutoriel |
-| `NimbyRailsSDKConfig.cmake` introuvable | `CMAKE_PREFIX_PATH` doit viser la racine du kit, contenant `lib/cmake/NimbyRailsSDK` ; extraire tout le ZIP |
-| CMake refuse la version | Utiliser headers, bibliothèque d'import et DLL du même kit 0.6.x ; la compatibilité CMake 0.x est limitée à la même version mineure |
+| `NimbyRailsFranceSDKConfig.cmake` introuvable | `CMAKE_PREFIX_PATH` doit viser la racine du kit, contenant `lib/cmake/NimbyRailsFranceSDK` ; extraire tout le ZIP |
+| CMake refuse la version | Utiliser headers, bibliothèque d'import et DLL du même kit 0.7.x ; la compatibilité CMake 0.x est limitée à la même version mineure |
 | Erreur de générateur ou de compilateur dans le cache | Reconfigurer dans un nouveau dossier de build après un changement de toolchain |
-| Références non résolues à `NimbySdk_*` | Lier la cible à `NimbyRailsSDK::SDK` ; vérifier que la chaîne est MinGW x64 pour le kit MinGW |
+| Références à `NimbySdk_*` | Ancienne API retirée : migrer vers `<nimby/client.hpp>` ; voir la migration 0.7 |
 | Bibliothèque `.lib` absente sous MSVC | Reconstruire le SDK avec MSVC x64 ; renommer une bibliothèque MinGW ne la convertit pas |
-| `NimbyRailsSDK.dll` ou `libwinpthread-1.dll` absente | Garder toutes les DLL de `bin/` près de l'exécutable ; conserver la commande CMake de copie des runtimes |
-| Point d'entrée `NimbySdk_GetVersion` introuvable | DLL antérieure à 0.6 ou DLL différente du kit lié ; remplacer l'ensemble cohérent des DLL de l'application |
+| `NimbyRailsFranceSDK.dll` ou `libwinpthread-1.dll` absente | Garder toutes les DLL de `bin/` près de l'exécutable ; conserver la commande CMake de copie des runtimes |
+| Point d'entrée manquant | Recompiler contre le même kit 0.7 que les DLL distribuées ; les anciens exports sont retirés |
 | Windows refuse l'image / erreur `0xc000007b` | Vérifier l'architecture x64 et les runtimes correspondants ; éviter les mélanges 32/64 bits |
 
 Avec la liaison normale de l'exemple, Windows résout les imports **avant** `main`.
@@ -82,15 +82,15 @@ indisponibles, conserver le statut, le SHA-256 et la version du SDK pour le diag
 
 ### Vitesse, position ou signal « inconnu »
 
-Les champs ne sont pas tous disponibles ensemble. Tester les bits `flags` du
-champ concerné. Une vitesse inconnue n'est pas un train arrêté. L'aspect général
+Les champs ne sont pas tous disponibles ensemble. Tester les valeurs `optional` du
+getter concerné. Une vitesse inconnue n'est pas un train arrêté. L'aspect général
 d'un signal reste inconnu dans l'adaptateur actuel même si son sélecteur de texture
 est lisible. Voir [les états des signaux](signal-states.md).
 
 ### Aucune réservation ou occupation
 
-Examiner le statut de chaque fonction : `OK` avec zéro entrée signifie observé
-vide ; `DATA_UNAVAILABLE` signifie inconnu. Les deux collections sont capturées
+Examiner chaque collection optionnelle : présente et vide signifie observé
+vide ; `nullopt` signifie inconnu. Les deux collections sont capturées
 indépendamment. Retirer les anciennes portions affichées lorsque la nouvelle
 capture ne les rend plus disponibles.
 

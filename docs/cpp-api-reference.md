@@ -1,9 +1,9 @@
 # Référence C++ : objets et types de retour
 
-[Documentation](README.md) · [Tutoriel C++](tutorial-cpp-client.md) · [API C](api-reference.md)
+[Documentation](README.md) · [Tutoriel C++](tutorial-cpp-client.md) · [Migration 0.7](migration-0.7.md)
 
 Inclure `<nimby/client.hpp>` et compiler en **C++20 / Windows x64**.
-Les helpers sont définis dans ce header et utilisent la DLL **0.6.5+ / ABI 1**.
+Les helpers sont définis dans ce header et utilisent la DLL **NimbyRailsFranceSDK 0.7.x / pont interne 2**.
 Ils sont compilés dans votre application ; aucun objet C++ ne traverse l'ABI de la DLL.
 
 ## Service et horaires d'un train
@@ -43,8 +43,11 @@ réelle quand le jeu est en pause ou accéléré. Recapturer un snapshot.
 Le départ est disponible pendant un arrêt temporisé ; les départs futurs
 de toute la grille horaire ne sont pas exposés. Voir les
 [limites de lecture](research/train-service.md).
-Le header est fourni avec cette révision des sources et les paquets construits depuis
-celle-ci. Il n'est pas présent dans les anciens ZIP 0.6.0.
+`nimby::getVersion()` vérifie la DLL sans ouvrir le jeu et renvoie `Version`.
+`TrainService::isOnNetwork()` et `isHidden()` renvoient `optional<bool>` :
+inconnu reste distinct de faux. La compatibilité avec les headers et DLL 0.6 est retirée.
+Les constructeurs utilisant des structures natives et les fichiers `detail/`
+sont des détails d'implémentation, pas des points d'entrée consommateurs.
 
 ## Conventions de types
 
@@ -82,7 +85,7 @@ le rafraîchissement pourrait remplacer le dernier propriétaire de cette captur
 La syntaxe directe `auto client = Client::connect()` utilise des **exceptions
 pour les opérations synchrones**, plutôt qu'un objet `Result<Client>`.
 
-- Erreur de l'API C, argument incorrect ou détection impossible : `nimby::Exception`.
+- Erreur du SDK, argument incorrect ou détection impossible : `nimby::Exception`.
 - Erreurs C++ usuelles (allocation, création de thread) : exceptions standard.
 - Pendant le rafraîchissement, aucune exception ne sort du worker ; consulter
   `getLastError()`. Une capture réussie efface cette erreur.
@@ -94,7 +97,7 @@ pour les opérations synchrones**, plutôt qu'un objet `Result<Client>`.
 
 | Champ de `Error` | Type | Contenu |
 |---|---|---|
-| `code` | `std::uint32_t` | Code `NIMBY_*` de l'API C |
+| `code` | `std::uint32_t` | Valeur de `nimby::ErrorCode` ; `Exception::code()` fournit cet enum |
 | `operation` | `std::string` | Opération concernée |
 | `message` | `std::string` | Diagnostic anglais |
 
@@ -109,7 +112,7 @@ Sa destruction arrête et joint le worker puis ferme la session.
 
 | Signature | Retour | Comportement |
 |---|---|---|
-| `static connect()` | `Client` | Recherche par nom de processus NIMBYRails.exe ; erreur si zéro ou plusieurs candidats ; l'API C valide ensuite le binaire |
+| `static connect()` | `Client` | Recherche par nom de processus NIMBYRails.exe ; erreur si zéro ou plusieurs candidats ; le runtime valide ensuite le binaire |
 | `static connect(std::uint32_t pid)` | `Client` | Ouvre le PID choisi ; zéro est refusé par les helpers |
 | `getSdkVersion()` | `Version` | Copie de la version vérifiée à la connexion |
 | `getProcessId()` | `std::uint32_t` | PID associé à la session |
@@ -148,7 +151,7 @@ Une modification d'intervalle pendant l'attente recalcule la prochaine échéanc
 Les captures manuelles et automatiques du même client sont sérialisées.
 Les getters du client et les contrôles du worker sont synchronisés. Une capture
 manuelle peut retarder le worker ; éviter de la lancer périodiquement en plus
-du mode automatique. Les appels de l'API C sont aussi sérialisés dans la DLL.
+du mode automatique. Les appels du pont interne sont aussi sérialisés dans la DLL.
 
 Avant de détruire le client, arrêter vos propres threads qui l'utilisent.
 Les snapshots déjà conservés restent consultables après sa destruction.
@@ -288,7 +291,7 @@ est vide ou si le cache automatique n'a pas pu être lu de manière cohérente.
 | `getDirection()` | `std::int32_t` |
 | `getKind()` | `std::int32_t` |
 
-Le type est une valeur native `NIMBY_SIGNAL_*` ; il ne représente pas la couleur ou la permission de passage.
+Le type est une valeur native (0 : sens unique, 1 : arrêt quai, 3 : balise, 4 : path, 5 : interdit, 6 : marqueur) ; il ne représente pas la couleur ou la permission de passage.
 
 ### SignalState
 
@@ -299,7 +302,7 @@ Le type est une valeur native `NIMBY_SIGNAL_*` ; il ne représente pas la couleu
 | `getSpecificState()` | `std::optional<SpecificState>` |
 | `getTextureSelector()` | `std::optional<std::int32_t>` |
 
-Chaque optional est commandé par son propre bit de validité. Un sélecteur de texture égal à zéro peut être valide. `SpecificState` possède deux champs `std::string` : `system` et `state`. L'aspect général reste inconnu dans l'adaptateur actuel ; voir les constantes de l'API C.
+Chaque optional est commandé par son propre bit de validité. Un sélecteur de texture égal à zéro peut être valide. `SpecificState` possède deux champs `std::string` : `system` et `state`. L'aspect général reste inconnu dans l'adaptateur actuel ; les valeurs générales sont 0 inconnu, 1 arrêt, 2 prudence, 3 passage, 4 éteint.
 
 ### TextureReference
 
@@ -356,14 +359,14 @@ Les réglages du client sont disponibles via `setRefreshInterval()`, le démarra
 et l'arrêt du rafraîchissement. Les snapshots et leurs objets n'ont pas de setters.
 
 **Cette couche n'ajoute aucune écriture dans le jeu.** Les commandes envisagées
-de renommage, pause ou simulation ne sont pas implémentées. L'API C bas niveau
-reste accessible dans `observation.h`, avec ses contrats et limites existants.
+de renommage, pause ou simulation ne sont pas implémentées. Le pont sous
+`detail/` est privé ; utiliser uniquement l'API C++ publique.
 
 ## Coût des helpers
 
 Une capture C++ copie les collections du snapshot natif, construit les index,
 copie les Paths disponibles puis libère le handle C. Elle relit actuellement
-tout le réseau à chaque capture, comme l'API C. Il n'y a pas de cache indépendant
+tout le réseau à chaque capture, comme le lecteur natif. Il n'y a pas de cache indépendant
 du réseau fixe. Les vues `getAll*` ne copient pas à chaque appel ; les recherches
 individuelles et filtres renvoient des copies possédées.
 
@@ -371,18 +374,18 @@ individuelles et filtres renvoient des copies possédées.
 de partie. Mesurer sur les cartes visées ; la fluidité du rendu du TCO peut être
 traitée séparément par interpolation.
 
-## Donn?es d?taill?es et plan de ligne (0.6.4)
+## Données détaillées et plan de ligne (0.6.4)
 
 `Snapshot::getTrainDetailsById(id)` fournit `getPassengerCount()`, `getScheduleId()`,
-`getShiftId()` et `getOrderIndex()` sous forme d'optionnels. Le mode brut du mod?le
+`getShiftId()` et `getOrderIndex()` sous forme d'optionnels. Le mode brut du modèle
 est accessible via `getOrderMode()`.
 
 `getLineStopsForTrain(id)` renvoie une vue optionnelle sur le plan complet de la
-ligne associ?e ? la course active. Conserver le snapshot propri?taire de la vue.
-Chaque `LineStop` expose les IDs de ligne, voie et gare, l'index ? partir de z?ro,
-les offsets relatifs d'arriv?e/d?part et `getPlannedDwellSeconds()`.
-Ce plan inclut les arr?ts d?j? pass?s ; une course partielle peut en desservir un
-sous-ensemble. Il ne constitue pas une pr?diction d'horaires absolus.
+ligne associée à la course active. Conserver le snapshot propriétaire de la vue.
+Chaque `LineStop` expose les IDs de ligne, voie et gare, l'index à partir de zéro,
+les offsets relatifs d'arrivée/départ et `getPlannedDwellSeconds()`.
+Ce plan inclut les arrêts déjà passés ; une course partielle peut en desservir un
+sous-ensemble. Il ne constitue pas une prédiction d'horaires absolus.
 
 ## Quais par gare (0.6.5)
 

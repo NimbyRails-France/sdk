@@ -1,6 +1,6 @@
 #pragma once
 #include <windows.h>
-#include <nimby/sdk.h>
+#include <nimby/detail/sdk.h>
 #include <cstdint>
 #include <set>
 #include <string>

@@ -6,7 +6,7 @@
 
 namespace {
 HANDLE stop_event{};
-constexpr auto stop_event_name=L"Local\\NimbyRailsSDK.Loader.Stop.v1";
+constexpr auto stop_event_name=L"Local\\NimbyRailsFranceSDK.Loader.Stop.v1";
 BOOL WINAPI stop_handler(DWORD event) {
     if (event==CTRL_C_EVENT || event==CTRL_BREAK_EVENT || event==CTRL_CLOSE_EVENT) {
         SetEvent(stop_event); return TRUE;
@@ -32,7 +32,7 @@ int wmain(int argc,wchar_t** argv) {
             if (arg==L"--game" && i+1<argc) game=argv[++i];
             else if(arg==L"--once") once=true;
             else if(arg==L"--help") {
-                std::cout << "NimbyRailsLoader [--game <full exe path>] [--once] | --stop\n"
+                std::cout << "NimbyRailsFranceLoader [--game <full exe path>] [--once] | --stop\n"
                     "Keep this console open. Start/restart the game normally through Steam.\n"
                     "Ctrl+C stops monitoring. The SDK stays loaded until the game exits.\n";
                 return 0;
@@ -41,9 +41,9 @@ int wmain(int argc,wchar_t** argv) {
         NimbyBinaryInfo identity{};
         if (nimby::engine::identify(game.c_str(),identity)!=NIMBY_OK || !identity.recognized_research_build)
             throw std::runtime_error("Game path missing or game build unrecognized; loader refuses activation");
-        const auto sdk=std::filesystem::path(nimby::loader::executable_path()).parent_path()/L"NimbyRailsSDK.dll";
+        const auto sdk=std::filesystem::path(nimby::loader::executable_path()).parent_path()/L"NimbyRailsFranceSDK.dll";
         // Avoid two supervisors injecting concurrently. No startup/service registration.
-        HANDLE singleton=CreateMutexW(nullptr,FALSE,L"Local\\NimbyRailsSDK.Loader.v1");
+        HANDLE singleton=CreateMutexW(nullptr,FALSE,L"Local\\NimbyRailsFranceSDK.Loader.v1");
         if (!singleton) throw std::runtime_error("Cannot create loader instance guard");
         if (GetLastError()==ERROR_ALREADY_EXISTS) { CloseHandle(singleton); throw std::runtime_error("Loader already running"); }
         struct Close { HANDLE h; ~Close(){CloseHandle(h);} } singleton_owner{singleton};

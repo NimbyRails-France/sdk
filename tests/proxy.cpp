@@ -26,7 +26,7 @@ int wmain(int argc,wchar_t** argv) {
     for(int cycle=0;cycle<3;++cycle) {
         CHECK(init(0)); // No video/audio/game/saves. SDL flags zero is supported.
         CHECK(was_init(0)==0);
-        CHECK(GetModuleHandleW(L"NimbyRailsSDK.dll")==nullptr); // Unknown host: activation refused.
+        CHECK(GetModuleHandleW(L"NimbyRailsFranceSDK.dll")==nullptr); // Unknown host: activation refused.
         quit();
     }
     std::printf("PASS SDL proxy forwarding, version=%d, unknown host refused, 3 init/quit cycles\n",version());

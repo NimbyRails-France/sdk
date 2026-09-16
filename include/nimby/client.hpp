@@ -1,6 +1,6 @@
 #pragma once
-// C++20 convenience layer over the public C ABI. No game-memory internals.
-#include "observation.h"
+// Public C++20 API for NimbyRailsFranceSDK. detail/ is implementation-only.
+#include "detail/observation.h"
 #ifndef NOMINMAX
 #define NOMINMAX
 #endif
@@ -27,6 +27,13 @@ namespace nimby {
 using Id = std::uint64_t;
 using Milliseconds = std::chrono::milliseconds;
 
+enum class ErrorCode : std::uint32_t {
+    Ok = 0, InvalidArgument = 1, IoError = 2, InvalidBinary = 3,
+    AlreadyInitialized = 4, HooksUnavailable = 5, InternalError = 6,
+    UnsupportedGame = 7, DataUnavailable = 8, InvalidHandle = 9,
+    BufferTooSmall = 10, ProcessExited = 11, ResourceLimit = 12
+};
+
 struct Error {
     std::uint32_t code;
     std::string operation;
@@ -37,12 +44,13 @@ public:
     explicit Exception(Error error)
         : std::runtime_error(error.operation + ": " + error.message), error_(std::move(error)) {}
     const Error& error() const noexcept { return error_; }
+    ErrorCode code() const noexcept { return static_cast<ErrorCode>(error_.code); }
 private:
     Error error_;
 };
 namespace detail {
 inline void check(std::uint32_t code, const char* operation) {
-    if (code != NIMBY_OK) throw Exception({code, operation, NimbySdk_StatusString(code)});
+    if (code != NIMBY_OK) throw Exception({code, operation, NimbyInternal_StatusString(code)});
 }
 inline std::optional<Id> reference(Id id) {
     return id ? std::optional<Id>{id} : std::nullopt;
@@ -51,6 +59,16 @@ inline std::optional<Id> reference(Id id) {
 struct Version {
     std::uint32_t major, minor, patch, abi;
 };
+// Checks the installed runtime without opening a game process.
+inline Version getVersion() {
+    NimbySdkVersion version{};
+    version.struct_size = sizeof version;
+    detail::check(NimbyInternal_GetVersion(&version), "GetVersion");
+    if (version.abi_version != NIMBY_OBSERVATION_ABI_VERSION ||
+        version.major != 0 || version.minor != 7)
+        detail::check(NIMBY_INVALID_ARGUMENT, "NimbyRailsFranceSDK 0.7.x required");
+    return {version.major, version.minor, version.patch, version.abi_version};
+}
 struct Coordinates { double x, y; };
 struct SpecificState { std::string system, state; };
 
@@ -72,8 +90,8 @@ public:
     explicit Train(const NimbyTrain& data) : data_(data) {}
     Id getId() const { return data_.id; }
     std::string getName() const { return data_.name_utf8; }
-    // PRESENT keeps compatibility with installed SDK 0.6.0.
-    std::optional<double> getSpeedMps() const { return (data_.flags & (NIMBY_TRAIN_SPEED_VALID | NIMBY_TRAIN_PRESENT)) ? std::optional<double>{data_.speed_mps} : std::nullopt; }
+    // Speed is available only when explicitly validated.
+    std::optional<double> getSpeedMps() const { return (data_.flags & NIMBY_TRAIN_SPEED_VALID) ? std::optional<double>{data_.speed_mps} : std::nullopt; }
     std::optional<double> getSpeedKmh() const { auto speed = getSpeedMps(); return speed ? std::optional<double>{*speed * 3.6} : std::nullopt; }
     bool isSpeedDefaulted() const { return (data_.flags & (NIMBY_TRAIN_SPEED_VALID | NIMBY_TRAIN_SPEED_DEFAULTED)) == (NIMBY_TRAIN_SPEED_VALID | NIMBY_TRAIN_SPEED_DEFAULTED); }
     std::optional<Position> getPosition() const { return (data_.flags & NIMBY_TRAIN_POSITION_VALID) ? std::optional<Position>{Position{data_.track_id, data_.track_fraction, data_.direction}} : std::nullopt; }
@@ -127,6 +145,12 @@ public:
         }
     }
     std::optional<uint32_t> getMotionFlags() const { return valid(NIMBY_SERVICE_STATE_VALID)?std::optional<uint32_t>{data_.motion_flags}:std::nullopt; }
+    std::optional<bool> isHidden() const {
+        return valid(NIMBY_SERVICE_STATE_VALID) ? std::optional<bool>{(data_.motion_flags & NIMBY_MOTION_HIDDEN) != 0} : std::nullopt;
+    }
+    std::optional<bool> isOnNetwork() const {
+        return valid(NIMBY_SERVICE_STATE_VALID) ? std::optional<bool>{(data_.motion_flags & (NIMBY_MOTION_PRESENCE | NIMBY_MOTION_DRIVE | NIMBY_MOTION_HIDDEN)) != 0} : std::nullopt;
+    }
     std::optional<uint32_t> getAlert() const { return valid(NIMBY_SERVICE_STATE_VALID)?std::optional<uint32_t>{data_.alert}:std::nullopt; }
     std::optional<Id> getLocationTrackId() const { return valid(NIMBY_SERVICE_LOCATION_VALID)?detail::reference(data_.location_track_id):std::nullopt; }
     std::optional<Id> getLocationStationId() const { return valid(NIMBY_SERVICE_LOCATION_VALID)?detail::reference(data_.location_station_id):std::nullopt; }
@@ -294,7 +318,7 @@ struct NativeSnapshot {
     NimbySnapshot value{};
     NativeSnapshot() = default;
     NativeSnapshot(const NativeSnapshot&) = delete;
-    ~NativeSnapshot() { if (value) NimbySdk_ReleaseSnapshot(value); }
+    ~NativeSnapshot() { if (value) NimbyInternal_ReleaseSnapshot(value); }
 };
 }
 
@@ -432,58 +456,58 @@ private:
     }
     static Ptr capture(NimbySession session) {
         detail::NativeSnapshot native;
-        detail::check(NimbySdk_CaptureSnapshot(session, &native.value), "CaptureSnapshot");
+        detail::check(NimbyInternal_CaptureSnapshot(session, &native.value), "CaptureSnapshot");
         auto result = std::shared_ptr<Snapshot>(new Snapshot);
         result->captured_ = std::chrono::steady_clock::now();
         result->info_.struct_size = sizeof result->info_;
-        detail::check(NimbySdk_GetSnapshotInfo(native.value, &result->info_), "GetSnapshotInfo");
+        detail::check(NimbyInternal_GetSnapshotInfo(native.value, &result->info_), "GetSnapshotInfo");
         result->trains_ = detail::table<Train, NimbyTrain>(
-            [&](auto* out, auto capacity, auto* count) { return NimbySdk_CopyTrains(native.value, out, capacity, count); },
+            [&](auto* out, auto capacity, auto* count) { return NimbyInternal_CopyTrains(native.value, out, capacity, count); },
             [](const NimbyTrain& row) { return row.id; }, "CopyTrains");
         result->services_ = detail::table<TrainService, NimbyTrainService>(
-            [&](auto* out, auto capacity, auto* count) { return NimbySdk_CopyTrainServices(native.value, out, capacity, count); },
+            [&](auto* out, auto capacity, auto* count) { return NimbyInternal_CopyTrainServices(native.value, out, capacity, count); },
             [](const NimbyTrainService& row) { return row.train_id; }, "CopyTrainServices");
         result->details_ = detail::table<TrainDetails, NimbyTrainDetails>(
-            [&](auto* out, auto capacity, auto* count) { return NimbySdk_CopyTrainDetails(native.value, out, capacity, count); },
+            [&](auto* out, auto capacity, auto* count) { return NimbyInternal_CopyTrainDetails(native.value, out, capacity, count); },
             [](const NimbyTrainDetails& row) { return row.train_id; }, "CopyTrainDetails");
         result->tracks_ = detail::table<Track, NimbyTrack>(
-            [&](auto* out, auto capacity, auto* count) { return NimbySdk_CopyTracks(native.value, out, capacity, count); },
+            [&](auto* out, auto capacity, auto* count) { return NimbyInternal_CopyTracks(native.value, out, capacity, count); },
             [](const NimbyTrack& row) { return row.id; }, "CopyTracks");
         result->stations_ = detail::table<Station, NimbyStation>(
-            [&](auto* out, auto capacity, auto* count) { return NimbySdk_CopyStations(native.value, out, capacity, count); },
+            [&](auto* out, auto capacity, auto* count) { return NimbyInternal_CopyStations(native.value, out, capacity, count); },
             [](const NimbyStation& row) { return row.id; }, "CopyStations");
         auto platforms=detail::copyRecords<NimbyPlatform>([&](auto* out,auto capacity,auto* count){
-            return NimbySdk_CopyPlatforms(native.value,out,capacity,count);
+            return NimbyInternal_CopyPlatforms(native.value,out,capacity,count);
         },"CopyPlatforms");
         if(!platforms)throw Exception({NIMBY_DATA_UNAVAILABLE,"CopyPlatforms","Platform catalog unavailable"});
         for(const auto& row:*platforms)result->station_platforms_[row.station_id].emplace_back(row);
         result->signals_ = detail::table<Signal, NimbySignal>(
-            [&](auto* out, auto capacity, auto* count) { return NimbySdk_CopySignals(native.value, out, capacity, count); },
+            [&](auto* out, auto capacity, auto* count) { return NimbyInternal_CopySignals(native.value, out, capacity, count); },
             [](const NimbySignal& row) { return row.id; }, "CopySignals");
         result->nodes_ = detail::table<TrackNode, NimbyTrackNode>(
-            [&](auto* out, auto capacity, auto* count) { return NimbySdk_CopyTrackNodes(native.value, out, capacity, count); },
+            [&](auto* out, auto capacity, auto* count) { return NimbyInternal_CopyTrackNodes(native.value, out, capacity, count); },
             [](const NimbyTrackNode& row) { return row.id; }, "CopyTrackNodes");
         result->states_ = detail::table<SignalState, NimbySignalState>(
-            [&](auto* out, auto capacity, auto* count) { return NimbySdk_CopySignalStates(native.value, out, capacity, count); },
+            [&](auto* out, auto capacity, auto* count) { return NimbyInternal_CopySignalStates(native.value, out, capacity, count); },
             [](const NimbySignalState& row) { return row.signal_id; }, "CopySignalStates");
         result->textures_ = detail::table<SignalTexture, NimbySignalTexture>(
-            [&](auto* out, auto capacity, auto* count) { return NimbySdk_CopySignalTextures(native.value, out, capacity, count); },
+            [&](auto* out, auto capacity, auto* count) { return NimbyInternal_CopySignalTextures(native.value, out, capacity, count); },
             [](const NimbySignalTexture& row) { return row.signal_id; }, "CopySignalTextures");
 
         for (const auto& train : result->trains_.rows) {
             auto stops=detail::copyRecords<NimbyLineStop>([&](auto* out,auto capacity,auto* count){
-                return NimbySdk_CopyTrainLineStops(native.value,train.getId(),out,capacity,count);
+                return NimbyInternal_CopyTrainLineStops(native.value,train.getId(),out,capacity,count);
             },"CopyTrainLineStops");
             if(stops){auto& rows=result->line_stops_[train.getId()];for(const auto& row:*stops)rows.emplace_back(row);}
             auto path = detail::copyRecords<Id>(
                 [&](auto* out, auto capacity, auto* count) {
-                    return NimbySdk_CopyTrainPathTracks(native.value, train.getId(), out, capacity, count);
+                    return NimbyInternal_CopyTrainPathTracks(native.value, train.getId(), out, capacity, count);
                 }, "CopyTrainPathTracks");
             if (path) result->paths_.emplace(train.getId(), std::move(*path));
         }
         {
             auto rows = detail::copyRecords<NimbyTrackUsage>(
-                [&](auto* out, auto capacity, auto* count) { return NimbySdk_CopyTrackReservations(native.value, out, capacity, count); }, "CopyTrackReservations");
+                [&](auto* out, auto capacity, auto* count) { return NimbyInternal_CopyTrackReservations(native.value, out, capacity, count); }, "CopyTrackReservations");
             if (rows) {
                 result->reservations_.emplace();
                 for (const auto& row : *rows) result->reservations_->emplace_back(row);
@@ -492,7 +516,7 @@ private:
         }
         {
             auto rows = detail::copyRecords<NimbyTrackUsage>(
-                [&](auto* out, auto capacity, auto* count) { return NimbySdk_CopyTrackOccupations(native.value, out, capacity, count); }, "CopyTrackOccupations");
+                [&](auto* out, auto capacity, auto* count) { return NimbyInternal_CopyTrackOccupations(native.value, out, capacity, count); }, "CopyTrackOccupations");
             if (rows) {
                 result->occupations_.emplace();
                 for (const auto& row : *rows) result->occupations_->emplace_back(row);
@@ -542,7 +566,7 @@ public:
     Client& operator=(Client&&) = delete;
     ~Client() {
         stopAutoRefresh();
-        if (session_) NimbySdk_CloseSession(session_);
+        if (session_) NimbyInternal_CloseSession(session_);
     }
     Version getSdkVersion() const noexcept { return version_; }
     std::uint32_t getProcessId() const noexcept { return pid_; }
@@ -625,14 +649,8 @@ public:
     }
 private:
     explicit Client(std::uint32_t pid) : pid_(pid) {
-        NimbySdkVersion version{};
-        version.struct_size = sizeof version;
-        detail::check(NimbySdk_GetVersion(&version), "GetVersion");
-        if (version.abi_version != NIMBY_OBSERVATION_ABI_VERSION ||
-            version.major != 0 || version.minor != 6)
-            detail::check(NIMBY_INVALID_ARGUMENT, "SDK 0.6.x / ABI 1 required");
-        version_ = {version.major, version.minor, version.patch, version.abi_version};
-        detail::check(NimbySdk_OpenProcess(NIMBY_OBSERVATION_ABI_VERSION, pid, &session_), "OpenProcess");
+        version_ = nimby::getVersion();
+        detail::check(NimbyInternal_OpenProcess(NIMBY_OBSERVATION_ABI_VERSION, pid, &session_), "OpenProcess");
     }
     void recordError(Error error) {
         {

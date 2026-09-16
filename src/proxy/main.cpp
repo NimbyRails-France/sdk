@@ -19,11 +19,11 @@ bool attempted=false;
 bool initialized=false;
 
 void log(const char* text) noexcept {
-    OutputDebugStringA("[NimbyRailsSDK proxy] "); OutputDebugStringA(text); OutputDebugStringA("\n");
+    OutputDebugStringA("[NimbyRailsFranceSDK proxy] "); OutputDebugStringA(text); OutputDebugStringA("\n");
     wchar_t path[32768]{};
     const DWORD length=GetEnvironmentVariableW(L"LOCALAPPDATA",path,32768);
     if (!length || length+64>=32768) return;
-    lstrcatW(path,L"\\NimbyRailsSDK");
+    lstrcatW(path,L"\\NimbyRailsFranceSDK");
     CreateDirectoryW(path,nullptr);
     lstrcatW(path,L"\\proxy.log");
     HANDLE file=CreateFileW(path,FILE_APPEND_DATA,FILE_SHARE_READ|FILE_SHARE_WRITE,nullptr,OPEN_ALWAYS,FILE_ATTRIBUTE_NORMAL,nullptr);
@@ -66,11 +66,11 @@ void initialize_sdk() noexcept {
     if(nimby::engine::identify(path,sdl)!=NIMBY_OK || lstrcmpA(sdl.sha256,expected)!=0) {
         log("REFUSED: unknown SDL binary; SDL continues normally"); return;
     }
-    if(!sibling_path(L"NimbyRailsSDK.dll",path)) return;
+    if(!sibling_path(L"NimbyRailsFranceSDK.dll",path)) return;
     if(!sdk) sdk=LoadLibraryExW(path,nullptr,LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR|LOAD_LIBRARY_SEARCH_SYSTEM32);
     if(!sdk) { log("ERROR: SDK not loaded; SDL continues normally"); return; }
-    auto bootstrap=std::bit_cast<Bootstrap>(GetProcAddress(sdk,"NimbySdk_Bootstrap"));
-    shutdown_sdk=std::bit_cast<Shutdown>(GetProcAddress(sdk,"NimbySdk_Shutdown"));
+    auto bootstrap=std::bit_cast<Bootstrap>(GetProcAddress(sdk,"NimbyInternal_Bootstrap"));
+    shutdown_sdk=std::bit_cast<Shutdown>(GetProcAddress(sdk,"NimbyInternal_Shutdown"));
     if(!bootstrap || !shutdown_sdk) { log("ERROR: SDK protocol exports missing"); return; }
     const DWORD status=bootstrap(nullptr);
     // Another loader owning this lifecycle is not ours to stop.

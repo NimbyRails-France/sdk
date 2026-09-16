@@ -1,3 +1,6 @@
+> Archive technique antérieure à la 0.7 : noms et API C historiques.
+> Pour la version actuelle, utiliser la [référence C++](cpp-api-reference.md) et la [migration](migration-0.7.md).
+
 # Diagnostics, proxy et ancien chargeur
 
 Pour développer un outil externe avec le SDK 0.6.x, commencer par le

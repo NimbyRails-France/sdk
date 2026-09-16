@@ -1,3 +1,6 @@
+> Archive technique antérieure à la 0.7 : noms et API C historiques.
+> Pour la version actuelle, utiliser la [référence C++](cpp-api-reference.md) et la [migration](migration-0.7.md).
+
 # Installation et mises à jour du TCO
 
 `dist/NimbyTco-0.3.0-Setup.exe` installe par utilisateur le TCO et le SDK 0.5.0.

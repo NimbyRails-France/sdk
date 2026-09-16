@@ -26,17 +26,18 @@ uint32_t copy(NimbySnapshot snapshot, T* out, uint32_t capacity, uint32_t* count
     return NIMBY_OK;
 }
 }
-uint32_t __cdecl NimbySdk_GetVersion(NimbySdkVersion* out) noexcept {
-    *out = {sizeof *out, 1, 0, 6, 0}; return NIMBY_OK;
+static uint32_t runtimeMinor = 7, runtimeAbi = 2;
+uint32_t __cdecl NimbyInternal_GetVersion(NimbySdkVersion* out) noexcept {
+    *out = {sizeof *out, runtimeAbi, 0, runtimeMinor, 0}; return NIMBY_OK;
 }
-const char* __cdecl NimbySdk_StatusString(uint32_t code) noexcept {
+const char* __cdecl NimbyInternal_StatusString(uint32_t code) noexcept {
     return code == NIMBY_PROCESS_EXITED ? "Process exited" : "Test status";
 }
-uint32_t __cdecl NimbySdk_OpenProcess(uint32_t, uint32_t pid, NimbySession* out) noexcept {
+uint32_t __cdecl NimbyInternal_OpenProcess(uint32_t, uint32_t pid, NimbySession* out) noexcept {
     *out = pid; return NIMBY_OK;
 }
-uint32_t __cdecl NimbySdk_CloseSession(NimbySession) noexcept { ++closes; return NIMBY_OK; }
-uint32_t __cdecl NimbySdk_CaptureSnapshot(NimbySession, NimbySnapshot* out) noexcept {
+uint32_t __cdecl NimbyInternal_CloseSession(NimbySession) noexcept { ++closes; return NIMBY_OK; }
+uint32_t __cdecl NimbyInternal_CaptureSnapshot(NimbySession, NimbySnapshot* out) noexcept {
     const int simultaneous = ++active;
     if (simultaneous > peak) peak = simultaneous;
     std::this_thread::sleep_for(std::chrono::milliseconds{delayMs.load()});
@@ -47,20 +48,20 @@ uint32_t __cdecl NimbySdk_CaptureSnapshot(NimbySession, NimbySnapshot* out) noex
     handles.insert(*out);
     return NIMBY_OK;
 }
-uint32_t __cdecl NimbySdk_ReleaseSnapshot(NimbySnapshot s) noexcept {
+uint32_t __cdecl NimbyInternal_ReleaseSnapshot(NimbySnapshot s) noexcept {
     std::lock_guard lock(handlesMutex);
     if (handles.erase(s) != 1) return NIMBY_INVALID_HANDLE;
     ++releases; return NIMBY_OK;
 }
-uint32_t __cdecl NimbySdk_GetSnapshotInfo(NimbySnapshot, NimbySnapshotInfo* out) noexcept {
+uint32_t __cdecl NimbyInternal_GetSnapshotInfo(NimbySnapshot, NimbySnapshotInfo* out) noexcept {
     *out = {}; out->struct_size = sizeof *out; out->process_id = 42;
     out->captured_unix_ms = 1000;
     std::strcpy(out->game_sha256, "fixture");
     return NIMBY_OK;
 }
-uint32_t __cdecl NimbySdk_CopyTrains(NimbySnapshot s, NimbyTrain* out, uint32_t cap, uint32_t* n) noexcept {
+uint32_t __cdecl NimbyInternal_CopyTrains(NimbySnapshot s, NimbyTrain* out, uint32_t cap, uint32_t* n) noexcept {
     NimbyTrain train{}; train.id = 0x10000000001ULL; train.track_id = 20;
-    train.flags = NIMBY_TRAIN_PRESENT | NIMBY_TRAIN_POSITION_VALID;
+    train.flags = NIMBY_TRAIN_ACTIVE_DRIVE | NIMBY_TRAIN_SPEED_VALID | NIMBY_TRAIN_POSITION_VALID;
     train.speed_mps = double(s); train.track_fraction = .25; train.direction = -1;
     std::strcpy(train.name_utf8, "Test train");
     NimbyTrain unknown{}; unknown.id = 2;
@@ -68,61 +69,61 @@ uint32_t __cdecl NimbySdk_CopyTrains(NimbySnapshot s, NimbyTrain* out, uint32_t 
     unknown.speed_mps = 99; unknown.track_id = 20;
     return copy(s, out, cap, n, std::vector{train, unknown});
 }
-uint32_t __cdecl NimbySdk_CopyTrainServices(NimbySnapshot s,NimbyTrainService* out,uint32_t cap,uint32_t* n) noexcept {
+uint32_t __cdecl NimbyInternal_CopyTrainServices(NimbySnapshot s,NimbyTrainService* out,uint32_t cap,uint32_t* n) noexcept {
     NimbyTrainService service{};service.train_id=0x5000000000001;
     service.flags=NIMBY_SERVICE_STATE_VALID|NIMBY_SERVICE_CLOCK_VALID|NIMBY_SERVICE_DEPARTURE_VALID;
     service.status=NIMBY_SERVICE_STATION_STOP;service.departure_remaining_seconds=42;
     NimbyTrainService unknown{};unknown.train_id=2;
     return copy(s,out,cap,n,std::vector{service,unknown});
 }
-uint32_t __cdecl NimbySdk_CopyTrainDetails(NimbySnapshot s,NimbyTrainDetails* out,uint32_t cap,uint32_t* n) noexcept {
+uint32_t __cdecl NimbyInternal_CopyTrainDetails(NimbySnapshot s,NimbyTrainDetails* out,uint32_t cap,uint32_t* n) noexcept {
     NimbyTrainDetails row{};row.train_id=0x10000000001ULL;row.flags=NIMBY_TRAIN_PASSENGERS_VALID;row.passenger_count=123;
     return copy(s,out,cap,n,std::vector{row});
 }
-uint32_t __cdecl NimbySdk_CopyTrainLineStops(NimbySnapshot s,uint64_t id,NimbyLineStop* out,uint32_t cap,uint32_t* n) noexcept {
+uint32_t __cdecl NimbyInternal_CopyTrainLineStops(NimbySnapshot s,uint64_t id,NimbyLineStop* out,uint32_t cap,uint32_t* n) noexcept {
     if(id==2){*n=0;return NIMBY_DATA_UNAVAILABLE;}
     NimbyLineStop row{};row.line_id=4;row.track_id=20;row.station_id=30;row.flags=NIMBY_LINE_STOP_TIMES_VALID;
     row.arrival_offset_seconds=120;row.departure_offset_seconds=150;
     return copy(s,out,cap,n,std::vector{row});
 }
-uint32_t __cdecl NimbySdk_CopyTracks(NimbySnapshot s, NimbyTrack* out, uint32_t cap, uint32_t* n) noexcept {
+uint32_t __cdecl NimbyInternal_CopyTracks(NimbySnapshot s, NimbyTrack* out, uint32_t cap, uint32_t* n) noexcept {
     if (trackStatus != NIMBY_OK) return trackStatus;
     return copy(s, out, cap, n, std::vector<NimbyTrack>{{20, 30, 40}, {21, 0, 20}});
 }
-uint32_t __cdecl NimbySdk_CopyPlatforms(NimbySnapshot s,NimbyPlatform* out,uint32_t cap,uint32_t* n) noexcept {
+uint32_t __cdecl NimbyInternal_CopyPlatforms(NimbySnapshot s,NimbyPlatform* out,uint32_t cap,uint32_t* n) noexcept {
     NimbyPlatform row{};row.track_id=20;row.station_id=30;row.flags=NIMBY_PLATFORM_NAME_VALID;std::strcpy(row.name_utf8,"A");
     return copy(s,out,cap,n,std::vector{row});
 }
-uint32_t __cdecl NimbySdk_CopyStations(NimbySnapshot s, NimbyStation* out, uint32_t cap, uint32_t* n) noexcept {
+uint32_t __cdecl NimbyInternal_CopyStations(NimbySnapshot s, NimbyStation* out, uint32_t cap, uint32_t* n) noexcept {
     NimbyStation station{}; station.id = 30; // Unresolved automatic name.
     return copy(s, out, cap, n, std::vector{station});
 }
-uint32_t __cdecl NimbySdk_CopySignals(NimbySnapshot s, NimbySignal* out, uint32_t cap, uint32_t* n) noexcept {
+uint32_t __cdecl NimbyInternal_CopySignals(NimbySnapshot s, NimbySignal* out, uint32_t cap, uint32_t* n) noexcept {
     return copy(s, out, cap, n, std::vector<NimbySignal>{{40, 20, .5, 1, NIMBY_SIGNAL_PATH}});
 }
-uint32_t __cdecl NimbySdk_CopySignalStates(NimbySnapshot s, NimbySignalState* out, uint32_t cap, uint32_t* n) noexcept {
+uint32_t __cdecl NimbyInternal_CopySignalStates(NimbySnapshot s, NimbySignalState* out, uint32_t cap, uint32_t* n) noexcept {
     NimbySignalState state{}; state.signal_id = 40; state.flags = NIMBY_SIGNAL_TEXTURE_STATE_VALID;
     return copy(s, out, cap, n, std::vector{state});
 }
-uint32_t __cdecl NimbySdk_CopySignalTextures(NimbySnapshot s, NimbySignalTexture* out, uint32_t cap, uint32_t* n) noexcept {
+uint32_t __cdecl NimbyInternal_CopySignalTextures(NimbySnapshot s, NimbySignalTexture* out, uint32_t cap, uint32_t* n) noexcept {
     NimbySignalTexture texture{}; texture.signal_id = 40;
     return copy(s, out, cap, n, std::vector{texture});
 }
-uint32_t __cdecl NimbySdk_CopyTrackNodes(NimbySnapshot s, NimbyTrackNode* out, uint32_t cap, uint32_t* n) noexcept {
+uint32_t __cdecl NimbyInternal_CopyTrackNodes(NimbySnapshot s, NimbyTrackNode* out, uint32_t cap, uint32_t* n) noexcept {
     return copy(s, out, cap, n, std::vector<NimbyTrackNode>{{20, 0, 21, 10, 15}});
 }
-uint32_t __cdecl NimbySdk_CopyTrackReservations(NimbySnapshot s, NimbyTrackUsage* out, uint32_t cap, uint32_t* n) noexcept {
+uint32_t __cdecl NimbyInternal_CopyTrackReservations(NimbySnapshot s, NimbyTrackUsage* out, uint32_t cap, uint32_t* n) noexcept {
     if (!reservationsAvailable) { *n = 0; return NIMBY_DATA_UNAVAILABLE; }
     const auto rows = emptyReservations ? std::vector<NimbyTrackUsage>{}
         : std::vector<NimbyTrackUsage>{{0x10000000001ULL, 20, .1, .6}};
     return copy(s, out, cap, n, rows);
 }
-uint32_t __cdecl NimbySdk_CopyTrackOccupations(NimbySnapshot s, NimbyTrackUsage* out, uint32_t cap, uint32_t* n) noexcept {
+uint32_t __cdecl NimbyInternal_CopyTrackOccupations(NimbySnapshot s, NimbyTrackUsage* out, uint32_t cap, uint32_t* n) noexcept {
     if(!occupationsAvailable){*n=0;return NIMBY_DATA_UNAVAILABLE;}
     const auto rows=occupiedPlatform?std::vector<NimbyTrackUsage>{{0x10000000001ULL,20,0,.5},{0x10000000001ULL,20,.5,1},{2,20,.1,.2}}:std::vector<NimbyTrackUsage>{};
     return copy(s, out, cap, n, rows);
 }
-uint32_t __cdecl NimbySdk_CopyTrainPathTracks(NimbySnapshot s, uint64_t id, uint64_t* out, uint32_t cap, uint32_t* n) noexcept {
+uint32_t __cdecl NimbyInternal_CopyTrainPathTracks(NimbySnapshot s, uint64_t id, uint64_t* out, uint32_t cap, uint32_t* n) noexcept {
     if (id == 2) { *n = 0; return NIMBY_DATA_UNAVAILABLE; }
     return copy(s, out, cap, n, std::vector<uint64_t>{20, 21});
 }
@@ -130,14 +131,32 @@ int main() {
     using namespace std::chrono_literals;
     constexpr nimby::Id trainId = 0x10000000001ULL;
     try {
-        // Both legacy 0.6.0 Drive values and 0.6.1 explicit validity are supported.
+        REQUIRE(nimby::getVersion().minor == 7 && nimby::getVersion().abi == 2);
+        for (int mismatch = 0; mismatch < 2; ++mismatch) {
+            runtimeMinor = mismatch == 0 ? 6 : 7;
+            runtimeAbi = mismatch == 1 ? 1 : 2;
+            bool rejected = false;
+            try { (void)nimby::getVersion(); }
+            catch (const nimby::Exception& e) { rejected = e.code() == nimby::ErrorCode::InvalidArgument; }
+            REQUIRE(rejected);
+        }
+        runtimeMinor = 7; runtimeAbi = 2;
+        // Active Drive no longer substitutes for explicit speed validity.
         NimbyTrain speedRecord{};
         speedRecord.speed_mps=12.5;
-        speedRecord.flags=NIMBY_TRAIN_PRESENT;
-        REQUIRE(nimby::Train{speedRecord}.getSpeedKmh()==45.0);
+        speedRecord.flags=NIMBY_TRAIN_ACTIVE_DRIVE;
+        REQUIRE(!nimby::Train{speedRecord}.getSpeedKmh());
         REQUIRE(!nimby::Train{speedRecord}.isSpeedDefaulted());
         NimbyTrainService unknownService{};unknownService.departure_remaining_seconds=99;
         REQUIRE(!nimby::TrainService{unknownService}.getStatus());
+        REQUIRE(!nimby::TrainService{unknownService}.isHidden());
+        REQUIRE(!nimby::TrainService{unknownService}.isOnNetwork());
+        NimbyTrainService locatedService{};
+        locatedService.flags = NIMBY_SERVICE_STATE_VALID;
+        REQUIRE(nimby::TrainService{locatedService}.isOnNetwork() == false);
+        locatedService.motion_flags = NIMBY_MOTION_HIDDEN;
+        REQUIRE(nimby::TrainService{locatedService}.isOnNetwork() == true);
+        REQUIRE(nimby::TrainService{locatedService}.isHidden() == true);
         REQUIRE(!nimby::TrainService{unknownService}.getDepartureRemainingSeconds());
         unknownService.flags=NIMBY_SERVICE_DEPARTURE_VALID;
         REQUIRE(!nimby::TrainService{unknownService}.getDepartureRemainingSeconds()); // Needs game clock too.
