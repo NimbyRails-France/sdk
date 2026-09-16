@@ -1,4 +1,8 @@
-# NimbyRailsFranceSDK 0.7.0
+# NimbyRailsFranceSDK 0.7.1
+
+La 0.7.1 ajoute la [date de simulation et sa modification expérimentale](docs/simulation-clock.md),
+une interface graphique pour auto-observer, les quais regroupés par gare et
+la texture native par défaut des signaux sans état explicite.
 
 SDK C++20 pour observer NIMBY Rails sous Windows x64 : trains, gares, quais,
 horaires, voyageurs, voies, signaux, réservations et occupations.
@@ -8,7 +12,10 @@ La 0.7.0 est une rupture avec NimbyRailsSDK 0.6.x. L'API publique est
 `nimby/sdk.h` et `nimby/observation.h` sont retirés. Le TCO existant doit être
 migré séparément ; remplacer sa DLL ne suffit pas.
 
-Télécharger les paquets : [release 0.7.0](https://github.com/NimbyRails-France/sdk/releases/tag/v0.7.0).
+Télécharger les paquets : [release 0.7.1](https://github.com/NimbyRails-France/sdk/releases/tag/v0.7.1).
+
+Voir les [essais de la 0.7.1](docs/release-0.7.1-validation.md), dont le changement
+de sauvegarde et les textures qui suivent les états des signaux.
 
 ## Utiliser le SDK
 
@@ -55,7 +62,7 @@ montrent aussi leur copie automatique par CMake.
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File tools/package.ps1
 powershell -NoProfile -ExecutionPolicy Bypass -File tools/package-drop-in.ps1 -SkipBuild
-powershell -NoProfile -ExecutionPolicy Bypass -File tools/package-hub-sdk.ps1 -SdkRoot ./dist/NimbyRailsFranceSDK-0.7.0
+powershell -NoProfile -ExecutionPolicy Bypass -File tools/package-hub-sdk.ps1 -SdkRoot ./dist/NimbyRailsFranceSDK-0.7.1
 ```
 
 Le premier script construit Release, lance les tests et compile les trois
@@ -82,7 +89,13 @@ zéro d'affichage par défaut (`isSpeedDefaulted()`). La position utilise les
 Profil du jeu reconnu :
 `fff49ac21720abfc824c2b4f68b862727630eb0db71cfe1f9ea8f685d0db10ae`.
 
-L'API publique est en lecture seule. Les fichiers `nimby/detail/` et les exports
+L'observation est en lecture seule. L'appel explicite `setSimulationDateTime`
+modifie l'origine calendaire du jeu. Les fichiers `nimby/detail/` et les exports
 `NimbyInternal_*` forment un pont privé de version 2, nécessaire aux helpers
 compilés dans l'application. Ils ne constituent pas une API consommateur.
 Les anciennes notes dans `docs/research/` restent des preuves historiques.
+
+L'IHM d'auto-observer utilise `setSimulationDateTimeAndRecalculateTrains` pour
+changer l'heure et déclencher une intervention native globale : services et
+attentes recalculés, trains replacés à leur prochaine destination. Le pont
+versionné est chargé à cet appel uniquement. Voir [les essais et limites](docs/simulation-clock.md).

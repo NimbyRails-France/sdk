@@ -31,7 +31,8 @@ général ; les consommateurs doivent accepter les identifiants inconnus.
 L'adaptateur lit la table de sélecteurs consultée par le rendu natif :
 `Sim + 0x2200 -> Query + 0x378`. Chaque entrée associe un ID complet à un
 entier signé. Il expose `TEXTURE_STATE_VALID | SPECIFIC_STATE_VALID` lorsque
-la table est stable et contient cet ID. L'identifiant spécifique a la forme
+la table est stable ; un ID absent utilise le zero par defaut du rendu.
+L'identifiant specifique a la forme
 `nimby:<hash textures sur 16 chiffres hexadécimaux>:kind.<type>.state.<valeur>`.
 Un hash nul désigne les textures par défaut du type ; ce n'est pas un pointeur.
 
@@ -40,7 +41,10 @@ et des scripts. **L'aspect général reste UNKNOWN**. Le rendu peut limiter le
 sélecteur au nombre de textures ou utiliser des textures de repli ; le SDK
 ne prétend pas exposer l'image finale affichée.
 
-Une entrée absente, une table illisible ou instable laisse `flags=0` et les
+Depuis 0.7.1, une entree absente d'une table lue et valide utilise le selecteur
+zero, comme le rendu natif, avec `NIMBY_SIGNAL_TEXTURE_STATE_DEFAULT`.
+En C++, `usesDefaultTextureSelector()` distingue ce cas d'un zero explicite.
+Une table illisible ou instable laisse `flags=0` et les
 chaînes vides. `NIMBY_OK` signifie que les lignes ont été copiées, pas que tous
 les états sont connus. Aucun état n'est déduit des réservations/occupations.
 Voir les [preuves de lecture native](research/signal-states.md).
@@ -83,7 +87,8 @@ La table chargée par le jeu fournit `textures_hash`, `textures_id_utf8`,
 `source` vaut 0 pour les ressources intégrées, 1 pour un mod local, 2 pour
 Steam Workshop. Les chemins sont UTF-8, terminés par zéro ; un fichier absent
 laisse la référence disponible, sans `FILE_VALID`. Une table illisible ou un
-sélecteur absent donne `flags=0`. Le SDK ne reproduit pas un éventuel repli
+selecteur indisponible donne `flags=0`. L'absence d'ID dans une table valide
+utilise la texture zero du jeu de textures selectionne. Le SDK ne reproduit pas un eventuel repli
 du moteur après une erreur de chargement GPU et n'infère aucun nom d'aspect
 ferroviaire depuis la couleur du fichier.
 

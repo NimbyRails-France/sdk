@@ -6,6 +6,19 @@ Inclure `<nimby/client.hpp>` et compiler en **C++20 / Windows x64**.
 Les helpers sont définis dans ce header et utilisent la DLL **NimbyRailsFranceSDK 0.7.x / pont interne 2**.
 Ils sont compilés dans votre application ; aucun objet C++ ne traverse l'ABI de la DLL.
 
+## Horloge globale
+
+Depuis 0.7.1, `snapshot->getSimulationClock()` renvoie une
+`std::optional<SimulationClock>` avec date UTC et durée écoulée.
+`client.setSimulationDateTime(std::chrono::sys_seconds)` modifie la date
+de façon expérimentale et renvoie l'horloge écrite.
+`client.setSimulationDateTimeAndRecalculateTrains(std::chrono::sys_seconds)`
+applique ensuite une intervention native à tous les trains éligibles. Il renvoie
+`SimulationTimeChange`, avec `clock` et `interventions`. Les services et attentes
+sont recalculés ; les voyageurs et positions suivent le comportement natif du
+bouton « All trains intervention », avec son coût en jeu.
+Voir les [exemples, limites et tests réels](simulation-clock.md).
+
 ## Service et horaires d'un train
 
 `snapshot->getAllTrainServices()` renvoie `std::span<const TrainService>`.
@@ -301,6 +314,7 @@ Le type est une valeur native (0 : sens unique, 1 : arrêt quai, 3 : balise, 4 :
 | `getAspect()` | `std::optional<std::uint32_t>` |
 | `getSpecificState()` | `std::optional<SpecificState>` |
 | `getTextureSelector()` | `std::optional<std::int32_t>` |
+| `usesDefaultTextureSelector()` | `bool` : zero choisi par le rendu pour un ID absent d'une table valide |
 
 Chaque optional est commandé par son propre bit de validité. Un sélecteur de texture égal à zéro peut être valide. `SpecificState` possède deux champs `std::string` : `system` et `state`. L'aspect général reste inconnu dans l'adaptateur actuel ; les valeurs générales sont 0 inconnu, 1 arrêt, 2 prudence, 3 passage, 4 éteint.
 
@@ -389,4 +403,4 @@ sous-ensemble. Il ne constitue pas une prédiction d'horaires absolus.
 
 ## Quais par gare (0.6.5)
 
-`getPlatformOccupationsForStation(stationId)` retourne les sections de quai, leurs noms, les trains occupants et les trains reservant la voie. Voir [contrat, exemple et etats inconnus](platform-occupations.md).
+`getPlatformOccupationsForStation(stationId)` regroupe les troncons de meme nom de quai dans cette gare et dedoublonne les trains occupants et reservant. `platform.getTrackIds()` et `containsTrack(id)` couvrent tout le quai ; `getTrackId()` en represente seulement le premier troncon. `getPlatformSectionOccupationsForStation(stationId)` retourne le detail par troncon. Voir [contrat, exemple et etats inconnus](platform-occupations.md).

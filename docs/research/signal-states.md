@@ -36,6 +36,25 @@ La preuve des sélecteurs vivants vient du probe, pas d'un arrêt du jeu au rend
 
 ## Garde-fous et limites
 
+### Correction du selecteur par defaut (2026-09-16)
+
+Sur la grande partie (PID 32448), 16 312 signaux et 38 jeux de textures :
+la table Query+0x378 est lisible, stable et vide (taille=0, masque=0,
+slots=0). Ce n'est pas un echec de lecture. Le rendu RVA 0x620140 initialise
+`local_3b0[0]` et `iVar31` a zero, puis ne les remplace que si l'ID est trouve
+(export `reports/signal-state/draw/140620140.c`, bloc LAB_1406205bb).
+Le SDK reproduit maintenant ce selecteur zero pour les IDs absents d'une
+table valide. `NIMBY_SIGNAL_TEXTURE_STATE_DEFAULT` / C++
+`usesDefaultTextureSelector()` indique cette provenance. Une table illisible
+ou instable reste indisponible ; aucun aspect ferroviaire n'est infere.
+
+Apres correction : 16 312 selecteurs et chemins disponibles sur 16 312 signaux.
+Les six fichiers distincts (cinq SVG integres et un PNG Workshop) sont decodes
+avec QImageReader et les plugins du TCO installe. Verification visuelle du TCO
+0.5.1 relance avec la DLL corrigee : les symboles apparaissent sur la carte.
+Les chemins sont mis en cache uniquement pendant une capture, puis reverifies
+a la suivante ; cela evite des milliers d'acces disque au meme fichier.
+
 Lecture bornée à 1 048 575 slots, contrôle des pointeurs, IDs, doublons,
 nombre d'entrées, en-tête, contrôles et données relus, puis vérification de
 Query et des racines du jeu. Trois essais au plus. Une lecture instable laisse

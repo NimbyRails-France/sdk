@@ -1,5 +1,7 @@
 #include "engine/network.h"
+#include "engine/simulation_clock.h"
 #include <array>
+#include <algorithm>
 #include <cmath>
 #include <cstdio>
 #include <cstring>
@@ -222,6 +224,17 @@ int main() {
     m.put(motionBlock,0x4b0,uint8_t(0));m.put(motionBlock,0x4d0,uint8_t(1));m.put(motionBlock,0x4c0,int64_t(125000000));
     if(!read_trains(read,&m,state,true,trains)||trains[0].service.departure_remaining_seconds!=25||
        trains[0].service.game_time_us!=100000000||!(trains[0].service.flags&NIMBY_SERVICE_CALENDAR_VALID))return 78;
+    m.put(state.simulation,0x20,int64_t(-946771300));
+    if(!read_trains(read,&m,state,true,trains)||trains[0].service.departure_remaining_seconds!=25||
+       !(trains[0].service.flags&NIMBY_SERVICE_CALENDAR_VALID))return 178;
+    m.put(motionBlock,0x4b8,int64_t(1786572360));
+    std::vector<CalendarWrite> calendarEdits;
+    if(!plan_simulation_calendar(read,&m,state.simulation,-2713737487LL,calendarEdits))return 179;
+    const auto planned=std::find_if(calendarEdits.begin(),calendarEdits.end(),[&](const auto& e){return e.address==motionBlock+0x4b8;});
+    if(planned==calendarEdits.end()||planned->after!=1786572360LL-2713737487LL)return 180;
+    m.fail=state.simulation+0xa0;
+    if(plan_simulation_calendar(read,&m,state.simulation,1,calendarEdits))return 181;
+    m.fail=0;
     m.put(state.simulation,0x28,int64_t(20000));
     if(!read_trains(read,&m,state,true,trains)||trains[0].service.departure_remaining_seconds!=0)return 79;
     m.fail=state.simulation+0x28;

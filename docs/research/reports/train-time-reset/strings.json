@@ -1,0 +1,4612 @@
+{
+  "sha256": "fff49ac21720abfc824c2b4f68b862727630eb0db71cfe1f9ea8f685d0db10ae",
+  "image_base": "140000000",
+  "status": "Static evidence only; no validated hooks or object layouts",
+  "strings": [
+    {
+      "text": "pollset[], timeouts\u003d%zu, paused %d/%d (r/w)",
+      "rva": "0x9b0c80",
+      "references": [
+        {
+          "from_rva": "0x8cdcfd",
+          "type": "DATA",
+          "function_va": "1408cd890",
+          "function_rva": "0x8cd890"
+        }
+      ]
+    },
+    {
+      "text": "pollset[fd\u003d%zu %s%s], timeouts\u003d%zu",
+      "rva": "0x9b0cb8",
+      "references": [
+        {
+          "from_rva": "0x8cdc97",
+          "type": "DATA",
+          "function_va": "1408cd890",
+          "function_rva": "0x8cd890"
+        }
+      ]
+    },
+    {
+      "text": "pollset[fd\u003d%zu %s%s, fd\u003d%zu %s%s], timeouts\u003d%zu",
+      "rva": "0x9b0ce0",
+      "references": [
+        {
+          "from_rva": "0x8cdc0e",
+          "type": "DATA",
+          "function_va": "1408cd890",
+          "function_rva": "0x8cd890"
+        }
+      ]
+    },
+    {
+      "text": "pollset[fds\u003d%u], timeouts\u003d%zu",
+      "rva": "0x9b0d10",
+      "references": [
+        {
+          "from_rva": "0x8cdb8c",
+          "type": "DATA",
+          "function_va": "1408cd890",
+          "function_rva": "0x8cd890"
+        }
+      ]
+    },
+    {
+      "text": "multi_wait(fds\u003d%u, timeout\u003d%d) tinternal\u003d%ld",
+      "rva": "0x9b0d30",
+      "references": [
+        {
+          "from_rva": "0x8d0954",
+          "type": "DATA",
+          "function_va": "1408d0730",
+          "function_rva": "0x8d0730"
+        }
+      ]
+    },
+    {
+      "text": "%s timed out after %lld milliseconds",
+      "rva": "0x9b0d80",
+      "references": [
+        {
+          "from_rva": "0x8cf891",
+          "type": "DATA",
+          "function_va": "1408cf810",
+          "function_rva": "0x8cf810"
+        }
+      ]
+    },
+    {
+      "text": "Operation timed out after %lld milliseconds with %lld out of %lld bytes received",
+      "rva": "0x9b0db0",
+      "references": [
+        {
+          "from_rva": "0x8cf8e9",
+          "type": "DATA",
+          "function_va": "1408cf810",
+          "function_rva": "0x8cf810"
+        },
+        {
+          "from_rva": "0x8e82b9",
+          "type": "DATA",
+          "function_va": "1408e8180",
+          "function_rva": "0x8e8180"
+        }
+      ]
+    },
+    {
+      "text": "Operation timed out after %lld milliseconds with %lld bytes received",
+      "rva": "0x9b0e10",
+      "references": [
+        {
+          "from_rva": "0x8cf8fc",
+          "type": "DATA",
+          "function_va": "1408cf810",
+          "function_rva": "0x8cf810"
+        },
+        {
+          "from_rva": "0x8e82e4",
+          "type": "DATA",
+          "function_va": "1408e8180",
+          "function_rva": "0x8e8180"
+        }
+      ]
+    },
+    {
+      "text": "[RLIMIT] next token update in %lldms",
+      "rva": "0x9b0e70",
+      "references": [
+        {
+          "from_rva": "0x8cf004",
+          "type": "DATA",
+          "function_va": "1408cef00",
+          "function_rva": "0x8cef00"
+        }
+      ]
+    },
+    {
+      "text": "PENDING handle timeout",
+      "rva": "0x9b0fd0",
+      "references": [
+        {
+          "from_rva": "0x8cfb41",
+          "type": "DATA",
+          "function_va": "1408cf960",
+          "function_rva": "0x8cf960"
+        }
+      ]
+    },
+    {
+      "text": "gives multi timeout in %ldms",
+      "rva": "0x9b1060",
+      "references": [
+        {
+          "from_rva": "0x8d06df",
+          "type": "DATA",
+          "function_va": "1408d0400",
+          "function_rva": "0x8d0400"
+        }
+      ]
+    },
+    {
+      "text": "[TIMER] clear",
+      "rva": "0x9b1080",
+      "references": [
+        {
+          "from_rva": "0x8ce07f",
+          "type": "DATA",
+          "function_va": "1408cdff0",
+          "function_rva": "0x8cdff0"
+        }
+      ]
+    },
+    {
+      "text": "[TIMER] set %ldms, none before",
+      "rva": "0x9b1090",
+      "references": [
+        {
+          "from_rva": "0x8ce0d4",
+          "type": "DATA",
+          "function_va": "1408cdff0",
+          "function_rva": "0x8cdff0"
+        }
+      ]
+    },
+    {
+      "text": "[TIMER] set %ldms, replace previous",
+      "rva": "0x9b10b0",
+      "references": [
+        {
+          "from_rva": "0x8ce12a",
+          "type": "DATA",
+          "function_va": "1408cdff0",
+          "function_rva": "0x8cdff0"
+        }
+      ]
+    },
+    {
+      "text": "[TIMEOUT] all cleared",
+      "rva": "0x9b1140",
+      "references": [
+        {
+          "from_rva": "0x8ccfd7",
+          "type": "DATA",
+          "function_va": "1408ccf20",
+          "function_rva": "0x8ccf20"
+        }
+      ]
+    },
+    {
+      "text": "Too old connection (created %lld ms ago, max lifetime is %lld ms), disconnect it",
+      "rva": "0x9b22e0",
+      "references": [
+        {
+          "from_rva": "0x8d9a51",
+          "type": "DATA",
+          "function_va": "1408d9970",
+          "function_rva": "0x8d9970"
+        }
+      ]
+    },
+    {
+      "text": "Found pending candidate for reuse and CURLOPT_PIPEWAIT is set",
+      "rva": "0x9b2478",
+      "references": [
+        {
+          "from_rva": "0x8db91c",
+          "type": "DATA",
+          "function_va": "1408db8a0",
+          "function_rva": "0x8db8a0"
+        }
+      ]
+    },
+    {
+      "text": "[SHUTDOWN] destroy, %zu connections, timeout\u003d%dms",
+      "rva": "0x9b3108",
+      "references": [
+        {
+          "from_rva": "0x8e440a",
+          "type": "DATA",
+          "function_va": "1408e43c0",
+          "function_rva": "0x8e43c0"
+        }
+      ]
+    },
+    {
+      "text": "[SHUTDOWN] update events failed, discarding #%lld",
+      "rva": "0x9b3190",
+      "references": [
+        {
+          "from_rva": "0x8e40b8",
+          "type": "DATA",
+          "function_va": "1408e3f90",
+          "function_rva": "0x8e3f90"
+        }
+      ]
+    },
+    {
+      "text": "ev update fd\u003d%zu, action \u0027%s%s\u0027 -\u003e \u0027%s%s\u0027 (%u/%u r/w)",
+      "rva": "0x9b33b8",
+      "references": [
+        {
+          "from_rva": "0x8e6e25",
+          "type": "DATA",
+          "function_va": "1408e6d20",
+          "function_rva": "0x8e6d20"
+        }
+      ]
+    },
+    {
+      "text": "ev update call(fd\u003d%zu, ev\u003d%s%s)",
+      "rva": "0x9b33f0",
+      "references": [
+        {
+          "from_rva": "0x8e6e95",
+          "type": "DATA",
+          "function_va": "1408e6d20",
+          "function_rva": "0x8e6d20"
+        }
+      ]
+    },
+    {
+      "text": "Connection died, tried %d times before giving up",
+      "rva": "0x9b3740",
+      "references": [
+        {
+          "from_rva": "0x8e80b9",
+          "type": "DATA",
+          "function_va": "1408e7fd0",
+          "function_rva": "0x8e7fd0"
+        }
+      ]
+    },
+    {
+      "text": "shutdown timeout",
+      "rva": "0x9b3830",
+      "references": [
+        {
+          "from_rva": "0x8ea087",
+          "type": "DATA",
+          "function_va": "1408e9f40",
+          "function_rva": "0x8e9f40"
+        }
+      ]
+    },
+    {
+      "text": "connect timeout",
+      "rva": "0x9b3a50",
+      "references": [
+        {
+          "from_rva": "0x8ea62a",
+          "type": "DATA",
+          "function_va": "1408ea3c0",
+          "function_rva": "0x8ea3c0"
+        }
+      ]
+    },
+    {
+      "text": "  %% Total    %% Received %% Xferd  Average Speed  Time    Time    Time   Current\n                                 Dload  Upload  Total   Spent   Left   Speed\n",
+      "rva": "0x9b3d80",
+      "references": [
+        {
+          "from_rva": "0x8ebf39",
+          "type": "DATA",
+          "function_va": "1408ebeb0",
+          "function_rva": "0x8ebeb0"
+        }
+      ]
+    },
+    {
+      "text": "TIMER",
+      "rva": "0x9b47c0",
+      "references": [
+        {
+          "from_rva": "0xb5a200",
+          "type": "DATA"
+        }
+      ]
+    },
+    {
+      "text": "100_TIMEOUT",
+      "rva": "0x9b47d0",
+      "references": [
+        {
+          "from_rva": "0x9b46a0",
+          "type": "DATA"
+        }
+      ]
+    },
+    {
+      "text": "CONNECTTIMEOUT",
+      "rva": "0x9b47f0",
+      "references": [
+        {
+          "from_rva": "0x9b46b0",
+          "type": "DATA"
+        }
+      ]
+    },
+    {
+      "text": "TIMEOUT",
+      "rva": "0x9b4868",
+      "references": [
+        {
+          "from_rva": "0x9b46e8",
+          "type": "DATA"
+        }
+      ]
+    },
+    {
+      "text": "[%d] nghttp2_submit_window_update() failed: %s(%d)",
+      "rva": "0x9b4cb0",
+      "references": [
+        {
+          "from_rva": "0x8f3aca",
+          "type": "DATA",
+          "function_va": "1408f39a0",
+          "function_rva": "0x8f39a0"
+        }
+      ]
+    },
+    {
+      "text": "[%d] local window update by %d",
+      "rva": "0x9b4ce8",
+      "references": [
+        {
+          "from_rva": "0x8f3b2a",
+          "type": "DATA",
+          "function_va": "1408f39a0",
+          "function_rva": "0x8f39a0"
+        }
+      ]
+    },
+    {
+      "text": "FRAME[WINDOW_UPDATE, incr\u003d%d]",
+      "rva": "0x9b5308",
+      "references": [
+        {
+          "from_rva": "0x8f2e5e",
+          "type": "DATA",
+          "function_va": "1408f2ca0",
+          "function_rva": "0x8f2ca0"
+        }
+      ]
+    },
+    {
+      "text": "is_alive: poll timeout, assume alive",
+      "rva": "0x9b7ba8",
+      "references": [
+        {
+          "from_rva": "0x9041e0",
+          "type": "DATA",
+          "function_va": "140904100",
+          "function_rva": "0x904100"
+        }
+      ]
+    },
+    {
+      "text": "Accept timeout occurred while waiting server connect",
+      "rva": "0x9b7d08",
+      "references": [
+        {
+          "from_rva": "0x904c22",
+          "type": "DATA",
+          "function_va": "140904690",
+          "function_rva": "0x904690"
+        }
+      ]
+    },
+    {
+      "text": "Invalid TIMEVALUE",
+      "rva": "0x9b86f8",
+      "references": [
+        {
+          "from_rva": "0x90a906",
+          "type": "DATA",
+          "function_va": "14090a450",
+          "function_rva": "0x90a450"
+        }
+      ]
+    },
+    {
+      "text": "A requested feature, protocol or option was not found built-in in this libcurl due to a build-time decision.",
+      "rva": "0x9b9320",
+      "references": [
+        {
+          "from_rva": "0x90e89f",
+          "type": "DATA",
+          "function_va": "14090e860",
+          "function_rva": "0x90e860"
+        }
+      ]
+    },
+    {
+      "text": "FTP: Accepting server connect has timed out",
+      "rva": "0x9b9460",
+      "references": [
+        {
+          "from_rva": "0x90e8d7",
+          "type": "DATA",
+          "function_va": "14090e860",
+          "function_rva": "0x90e860"
+        }
+      ]
+    },
+    {
+      "text": "Timeout was reached",
+      "rva": "0x9b96f0",
+      "references": [
+        {
+          "from_rva": "0x90e957",
+          "type": "DATA",
+          "function_va": "14090e860",
+          "function_rva": "0x90e860"
+        }
+      ]
+    },
+    {
+      "text": "SEC_E_TIME_SKEW",
+      "rva": "0x9baa98",
+      "references": [
+        {
+          "from_rva": "0x90e464",
+          "type": "DATA",
+          "function_va": "14090e0e0",
+          "function_rva": "0x90e0e0"
+        }
+      ]
+    },
+    {
+      "text": "[%u] ignoring outdated DoH response",
+      "rva": "0x9bb3c0",
+      "references": [
+        {
+          "from_rva": "0x913257",
+          "type": "DATA",
+          "function_va": "1409131d0",
+          "function_rva": "0x9131d0"
+        }
+      ]
+    },
+    {
+      "text": "Failed to resolve \u0027%s\u0027 with timeout after %lld ms",
+      "rva": "0x9bb828",
+      "references": [
+        {
+          "from_rva": "0x916a06",
+          "type": "DATA",
+          "function_va": "140916890",
+          "function_rva": "0x916890"
+        }
+      ]
+    },
+    {
+      "text": "retrying connect, %d. time",
+      "rva": "0x9bbcf8",
+      "references": [
+        {
+          "from_rva": "0x918bb9",
+          "type": "DATA",
+          "function_va": "140918830",
+          "function_rva": "0x918830"
+        }
+      ]
+    },
+    {
+      "text": "Proxy CONNECT aborted due to timeout",
+      "rva": "0x9bc6d0",
+      "references": [
+        {
+          "from_rva": "0x91cba7",
+          "type": "DATA",
+          "function_va": "14091cb10",
+          "function_rva": "0x91cb10"
+        },
+        {
+          "from_rva": "0x91ba80",
+          "type": "DATA",
+          "function_va": "14091b1e0",
+          "function_rva": "0x91b1e0"
+        }
+      ]
+    },
+    {
+      "text": "happy eyeballs timeout expired, start next attempt",
+      "rva": "0x9bcf30",
+      "references": [
+        {
+          "from_rva": "0x920774",
+          "type": "DATA",
+          "function_va": "140920560",
+          "function_rva": "0x920560"
+        }
+      ]
+    },
+    {
+      "text": "Connection timeout after %lld ms",
+      "rva": "0x9bd0b0",
+      "references": [
+        {
+          "from_rva": "0x92130d",
+          "type": "DATA",
+          "function_va": "140920560",
+          "function_rva": "0x920560"
+        }
+      ]
+    },
+    {
+      "text": "HAPPY_EYEBALLS timeout due, re-evaluate",
+      "rva": "0x9bd0d8",
+      "references": [
+        {
+          "from_rva": "0x9211a7",
+          "type": "DATA",
+          "function_va": "140920560",
+          "function_rva": "0x920560"
+        }
+      ]
+    },
+    {
+      "text": "next HAPPY_EYEBALLS timeout in %lldms",
+      "rva": "0x9bd100",
+      "references": [
+        {
+          "from_rva": "0x9212c8",
+          "type": "DATA",
+          "function_va": "140920560",
+          "function_rva": "0x920560"
+        }
+      ]
+    },
+    {
+      "text": "Connection time-out",
+      "rva": "0x9bd190",
+      "references": [
+        {
+          "from_rva": "0x91ff47",
+          "type": "DATA",
+          "function_va": "14091fe90",
+          "function_rva": "0x91fe90"
+        }
+      ]
+    },
+    {
+      "text": "schannel: renegotiation timeout",
+      "rva": "0x9bf008",
+      "references": [
+        {
+          "from_rva": "0x928a5d",
+          "type": "DATA",
+          "function_va": "1409286d0",
+          "function_rva": "0x9286d0"
+        }
+      ]
+    },
+    {
+      "text": "schannel: timed out sending data (bytes sent: %zu)",
+      "rva": "0x9bf0a8",
+      "references": [
+        {
+          "from_rva": "0x925ad4",
+          "type": "DATA",
+          "function_va": "1409258a0",
+          "function_rva": "0x9258a0"
+        }
+      ]
+    },
+    {
+      "text": "Timed out",
+      "rva": "0x9bf6c0",
+      "references": [
+        {
+          "from_rva": "0x929448",
+          "type": "DATA",
+          "function_va": "140929280",
+          "function_rva": "0x929280"
+        },
+        {
+          "from_rva": "0x929521",
+          "type": "PARAM",
+          "function_va": "140929280",
+          "function_rva": "0x929280"
+        }
+      ]
+    },
+    {
+      "text": "X-%.*s-Date",
+      "rva": "0x9bfe00",
+      "references": [
+        {
+          "from_rva": "0x92c444",
+          "type": "DATA",
+          "function_va": "14092c3d0",
+          "function_rva": "0x92c3d0"
+        }
+      ]
+    },
+    {
+      "text": "x-%.*s-date:%s",
+      "rva": "0x9bfe10",
+      "references": [
+        {
+          "from_rva": "0x92c47c",
+          "type": "DATA",
+          "function_va": "14092c3d0",
+          "function_rva": "0x92c3d0"
+        }
+      ]
+    },
+    {
+      "text": "[TPOOL-%s] [%u]: busy %lldms, timeout in %lldms: %s",
+      "rva": "0x9c01c8",
+      "references": [
+        {
+          "from_rva": "0x92d7cc",
+          "type": "DATA",
+          "function_va": "14092d650",
+          "function_rva": "0x92d650"
+        }
+      ]
+    },
+    {
+      "text": "schannel: connection hostname (%s) validated against certificate name (%s)",
+      "rva": "0x9c0be0",
+      "references": [
+        {
+          "from_rva": "0x92f552",
+          "type": "DATA",
+          "function_va": "14092ef70",
+          "function_rva": "0x92ef70"
+        }
+      ]
+    },
+    {
+      "text": "schannel: this certificate or one of the certificates in the certificate chain is not time valid",
+      "rva": "0x9c0f00",
+      "references": [
+        {
+          "from_rva": "0x92ee91",
+          "type": "DATA",
+          "function_va": "14092ead0",
+          "function_rva": "0x92ead0"
+        }
+      ]
+    },
+    {
+      "text": "Start Date",
+      "rva": "0x9c1af8",
+      "references": [
+        {
+          "from_rva": "0x93049d",
+          "type": "DATA",
+          "function_va": "14092ffd0",
+          "function_rva": "0x92ffd0"
+        },
+        {
+          "from_rva": "0x9304e2",
+          "type": "DATA",
+          "function_va": "14092ffd0",
+          "function_rva": "0x92ffd0"
+        }
+      ]
+    },
+    {
+      "text": "Expire Date",
+      "rva": "0x9c1b08",
+      "references": [
+        {
+          "from_rva": "0x930553",
+          "type": "DATA",
+          "function_va": "14092ffd0",
+          "function_rva": "0x92ffd0"
+        },
+        {
+          "from_rva": "0x930598",
+          "type": "DATA",
+          "function_va": "14092ffd0",
+          "function_rva": "0x92ffd0"
+        }
+      ]
+    },
+    {
+      "text": "WINDOW_UPDATE: window_size_increment \u003d\u003d 0",
+      "rva": "0x9c6aa0",
+      "references": [
+        {
+          "from_rva": "0x976ea3",
+          "type": "DATA",
+          "function_va": "140976ca0",
+          "function_rva": "0x976ca0"
+        },
+        {
+          "from_rva": "0x970c45",
+          "type": "DATA",
+          "function_va": "140970010",
+          "function_rva": "0x970010"
+        }
+      ]
+    },
+    {
+      "text": "WINDOW_UPDATE to idle stream",
+      "rva": "0x9c6ad0",
+      "references": [
+        {
+          "from_rva": "0x976d42",
+          "type": "DATA",
+          "function_va": "140976ca0",
+          "function_rva": "0x976ca0"
+        }
+      ]
+    },
+    {
+      "text": "WINDOW_UPADATE to reserved stream",
+      "rva": "0x9c6af0",
+      "references": [
+        {
+          "from_rva": "0x976e1a",
+          "type": "DATA",
+          "function_va": "140976ca0",
+          "function_rva": "0x976ca0"
+        }
+      ]
+    },
+    {
+      "text": "WINDOW_UPDATE: window size overflow",
+      "rva": "0x9c6b18",
+      "references": [
+        {
+          "from_rva": "0x976f0b",
+          "type": "DATA",
+          "function_va": "140976ca0",
+          "function_rva": "0x976ca0"
+        }
+      ]
+    },
+    {
+      "text": "PRIORITY_UPDATE: stream_id \u003d\u003d 0",
+      "rva": "0x9c6b40",
+      "references": [
+        {
+          "from_rva": "0x972a7d",
+          "type": "DATA",
+          "function_va": "140972a00",
+          "function_rva": "0x972a00"
+        }
+      ]
+    },
+    {
+      "text": "PRIORITY_UPDATE: prioritizing idle push is not allowed",
+      "rva": "0x9c6b60",
+      "references": [
+        {
+          "from_rva": "0x972b71",
+          "type": "DATA",
+          "function_va": "140972a00",
+          "function_rva": "0x972a00"
+        }
+      ]
+    },
+    {
+      "text": "PRIORITY_UPDATE: max concurrent streams exceeded",
+      "rva": "0x9c6b98",
+      "references": [
+        {
+          "from_rva": "0x972d0c",
+          "type": "DATA",
+          "function_va": "140972a00",
+          "function_rva": "0x972a00"
+        }
+      ]
+    },
+    {
+      "text": "PRIORITY_UPDATE is received from server",
+      "rva": "0x9c6e00",
+      "references": [
+        {
+          "from_rva": "0x971d33",
+          "type": "DATA",
+          "function_va": "140970010",
+          "function_rva": "0x970010"
+        }
+      ]
+    },
+    {
+      "text": "SETTINGS_TIMEOUT",
+      "rva": "0x9c7cb0",
+      "references": [
+        {
+          "from_rva": "0x9788de",
+          "type": "DATA",
+          "function_va": "1409788a0",
+          "function_rva": "0x9788a0"
+        }
+      ]
+    },
+    {
+      "text": "nghttp2_buf_avail(buf) \u003e\u003d 4 + priority_update-\u003efield_value_len",
+      "rva": "0x9ca3a0",
+      "references": [
+        {
+          "from_rva": "0x97d3b9",
+          "type": "DATA",
+          "function_va": "14097d370",
+          "function_rva": "0x97d370"
+        }
+      ]
+    },
+    {
+      "text": "REINDEXEDESCAPEACHECKEYBEFOREIGNOREGEXPLAINSTEADDATABASELECTABLEFTHENDEFERRABLELSEXCEPTRANSACTIONATURALTERAISEXCLUSIVEXISTSAVEPOINTERSECTRIGGEREFERENCESCONSTRAINTOFFSETEMPORARYUNIQUERYWITHOUTERELEASEATTACHAVINGROUPDATEBEGINNERANGEBETWEENOTHINGLOBYCASCADELETECASECOLLATECREATECURRENT_DATEDETACHIMMEDIATEJOINSERTLIKEMATCHPLANALYZEPRAGMABORTVALUESVIRTUALIMITWHENOTNULLWHERECURSIVEAFTERENAMEANDEFAULTAUTOINCREMENTCASTCOLUMNCOMMITCONFLICTCROSSCURRENT_TIMESTAMPARTITIONDEFERREDISTINCTDROPRECEDINGFAILFILTEREPLACEFOLLOWINGFROMFULLIFISNULLORDERESTRICTOVERIGHTROLLBACKROWSUNBOUNDEDUNIONUSINGVACUUMVIEWINDOWINITIALLYPRIMARY",
+      "rva": "0x9f24a0",
+      "references": [
+        {
+          "from_rva": "0xcf7c9",
+          "type": "DATA",
+          "function_va": "1400cf710",
+          "function_rva": "0xcf710"
+        },
+        {
+          "from_rva": "0xcf852",
+          "type": "DATA"
+        }
+      ]
+    },
+    {
+      "text": "local time unavailable",
+      "rva": "0xa49b68",
+      "references": [
+        {
+          "from_rva": "0x32306",
+          "type": "DATA",
+          "function_va": "140032090",
+          "function_rva": "0x32090"
+        }
+      ]
+    },
+    {
+      "text": "localtime",
+      "rva": "0xa49bb0",
+      "references": [
+        {
+          "from_rva": "0x323ac",
+          "type": "DATA",
+          "function_va": "140032350",
+          "function_rva": "0x32350"
+        }
+      ]
+    },
+    {
+      "text": "unixepoch",
+      "rva": "0xa49bc0",
+      "references": [
+        {
+          "from_rva": "0x32578",
+          "type": "DATA",
+          "function_va": "140032350",
+          "function_rva": "0x32350"
+        }
+      ]
+    },
+    {
+      "text": "datetime",
+      "rva": "0xa49c80",
+      "references": []
+    },
+    {
+      "text": "strftime",
+      "rva": "0xa49c90",
+      "references": []
+    },
+    {
+      "text": "current_time",
+      "rva": "0xa49ca0",
+      "references": []
+    },
+    {
+      "text": "current_timestamp",
+      "rva": "0xa49cb0",
+      "references": []
+    },
+    {
+      "text": "current_date",
+      "rva": "0xa49cc8",
+      "references": []
+    },
+    {
+      "text": "VUpdate",
+      "rva": "0xa49e20",
+      "references": [
+        {
+          "from_rva": "0x9f8ea0",
+          "type": "DATA"
+        }
+      ]
+    },
+    {
+      "text": "FileTimeToLocalFileTime",
+      "rva": "0xa4a640",
+      "references": []
+    },
+    {
+      "text": "FileTimeToSystemTime",
+      "rva": "0xa4a658",
+      "references": []
+    },
+    {
+      "text": "GetSystemTime",
+      "rva": "0xa4a7b8",
+      "references": []
+    },
+    {
+      "text": "GetSystemTimeAsFileTime",
+      "rva": "0xa4a7c8",
+      "references": []
+    },
+    {
+      "text": "HeapValidate",
+      "rva": "0xa4a890",
+      "references": [
+        {
+          "from_rva": "0xb5d0e0",
+          "type": "DATA"
+        }
+      ]
+    },
+    {
+      "text": "SystemTimeToFileTime",
+      "rva": "0xa4a978",
+      "references": [
+        {
+          "from_rva": "0xb5d230",
+          "type": "DATA"
+        }
+      ]
+    },
+    {
+      "text": "UPDATE \"%w\".%s SET sql \u003d sqlite_rename_table(%Q, type, name, sql, %Q, %Q, %d) WHERE (type!\u003d\u0027index\u0027 OR tbl_name\u003d%Q COLLATE nocase)AND   name NOT LIKE \u0027sqlite_%%\u0027",
+      "rva": "0xa4c020",
+      "references": [
+        {
+          "from_rva": "0x79bdc",
+          "type": "DATA",
+          "function_va": "140079960",
+          "function_rva": "0x79960"
+        }
+      ]
+    },
+    {
+      "text": "UPDATE %Q.%s SET tbl_name \u003d %Q, name \u003d CASE WHEN type\u003d\u0027table\u0027 THEN %Q WHEN name LIKE \u0027sqlite_autoindex%%\u0027 AND type\u003d\u0027index\u0027 THEN \u0027sqlite_autoindex_\u0027 || %Q || substr(name,%d+18) ELSE name END WHERE tbl_name\u003d%Q COLLATE nocase AND (type\u003d\u0027table\u0027 OR type\u003d\u0027index\u0027 OR type\u003d\u0027trigger\u0027);",
+      "rva": "0xa4c0d0",
+      "references": [
+        {
+          "from_rva": "0x79c1f",
+          "type": "DATA",
+          "function_va": "140079960",
+          "function_rva": "0x79960"
+        }
+      ]
+    },
+    {
+      "text": "UPDATE \"%w\".sqlite_sequence set name \u003d %Q WHERE name \u003d %Q",
+      "rva": "0xa4c1f8",
+      "references": [
+        {
+          "from_rva": "0x79c64",
+          "type": "DATA",
+          "function_va": "140079960",
+          "function_rva": "0x79960"
+        }
+      ]
+    },
+    {
+      "text": "UPDATE sqlite_temp_master SET sql \u003d sqlite_rename_table(%Q, type, name, sql, %Q, %Q, 1), tbl_name \u003d CASE WHEN tbl_name\u003d%Q COLLATE nocase AND           sqlite_rename_test(%Q, sql, type, name, 1) THEN %Q ELSE tbl_name END WHERE type IN (\u0027view\u0027, \u0027trigger\u0027)",
+      "rva": "0xa4c240",
+      "references": [
+        {
+          "from_rva": "0x79c89",
+          "type": "DATA",
+          "function_va": "140079960",
+          "function_rva": "0x79960"
+        }
+      ]
+    },
+    {
+      "text": "UPDATE \"%w\".%s SET sql \u003d substr(sql,1,%d) || \u0027, \u0027 || %Q || substr(sql,%d) WHERE type \u003d \u0027table\u0027 AND name \u003d %Q",
+      "rva": "0xa4c430",
+      "references": [
+        {
+          "from_rva": "0x7a14d",
+          "type": "DATA",
+          "function_va": "140079e30",
+          "function_rva": "0x79e30"
+        }
+      ]
+    },
+    {
+      "text": "UPDATE \"%w\".%s SET sql \u003d sqlite_rename_column(sql, type, name, %Q, %Q, %d, %Q, %d, %d) WHERE name NOT LIKE \u0027sqlite_%%\u0027 AND (type !\u003d \u0027index\u0027 OR tbl_name \u003d %Q) AND sql NOT LIKE \u0027create virtual%%\u0027",
+      "rva": "0xa4c540",
+      "references": [
+        {
+          "from_rva": "0x7a7fa",
+          "type": "DATA",
+          "function_va": "14007a570",
+          "function_rva": "0x7a570"
+        }
+      ]
+    },
+    {
+      "text": "UPDATE temp.%s SET sql \u003d sqlite_rename_column(sql, type, name, %Q, %Q, %d, %Q, %d, 1) WHERE type IN (\u0027trigger\u0027, \u0027view\u0027)",
+      "rva": "0xa4c610",
+      "references": [
+        {
+          "from_rva": "0x7a858",
+          "type": "DATA",
+          "function_va": "14007a570",
+          "function_rva": "0x7a570"
+        }
+      ]
+    },
+    {
+      "text": "UPDATE %Q.%s SET type\u003d\u0027%s\u0027, name\u003d%Q, tbl_name\u003d%Q, rootpage\u003d#%d, sql\u003d%Q WHERE rowid\u003d#%d",
+      "rva": "0xa4ccd0",
+      "references": [
+        {
+          "from_rva": "0x840a3",
+          "type": "DATA",
+          "function_va": "140083c30",
+          "function_rva": "0x83c30"
+        }
+      ]
+    },
+    {
+      "text": "UPDATE %Q.%s SET rootpage\u003d%d WHERE #%d AND rootpage\u003d#%d",
+      "rva": "0xa4cdc8",
+      "references": [
+        {
+          "from_rva": "0x849cb",
+          "type": "DATA",
+          "function_va": "1400848f0",
+          "function_rva": "0x848f0"
+        }
+      ]
+    },
+    {
+      "text": "on_update",
+      "rva": "0xa4d890",
+      "references": [
+        {
+          "from_rva": "0x9f3cb8",
+          "type": "DATA"
+        }
+      ]
+    },
+    {
+      "text": "timeout",
+      "rva": "0xa4d8e8",
+      "references": [
+        {
+          "from_rva": "0x8e4cff",
+          "type": "DATA",
+          "function_va": "1408e4960",
+          "function_rva": "0x8e4960"
+        },
+        {
+          "from_rva": "0x8e4d10",
+          "type": "PARAM",
+          "function_va": "1408e4960",
+          "function_rva": "0x8e4960"
+        },
+        {
+          "from_rva": "0x9f3d08",
+          "type": "DATA"
+        }
+      ]
+    },
+    {
+      "text": "busy_timeout",
+      "rva": "0xa4d938",
+      "references": []
+    },
+    {
+      "text": "rows updated",
+      "rva": "0xa4e9f8",
+      "references": [
+        {
+          "from_rva": "0xb3e24",
+          "type": "DATA",
+          "function_va": "1400b1e10",
+          "function_rva": "0xb1e10"
+        },
+        {
+          "from_rva": "0xb3e2f",
+          "type": "DATA",
+          "function_va": "1400b1e10",
+          "function_rva": "0xb1e10"
+        }
+      ]
+    },
+    {
+      "text": "UPDATE %Q.%s SET type\u003d\u0027table\u0027, name\u003d%Q, tbl_name\u003d%Q, rootpage\u003d0, sql\u003d%Q WHERE rowid\u003d#%d",
+      "rva": "0xa4ecc0",
+      "references": [
+        {
+          "from_rva": "0xb5d7f",
+          "type": "DATA",
+          "function_va": "1400b5ca0",
+          "function_rva": "0xb5ca0"
+        }
+      ]
+    },
+    {
+      "text": "qualified table names are not allowed on INSERT, UPDATE, and DELETE statements within triggers",
+      "rva": "0xa4f2b0",
+      "references": [
+        {
+          "from_rva": "0xce83f",
+          "type": "DATA",
+          "function_va": "1400cc400",
+          "function_rva": "0xcc400"
+        }
+      ]
+    },
+    {
+      "text": "the INDEXED BY clause is not allowed on UPDATE or DELETE statements within triggers",
+      "rva": "0xa4f310",
+      "references": [
+        {
+          "from_rva": "0xce858",
+          "type": "DATA",
+          "function_va": "1400cc400",
+          "function_rva": "0xcc400"
+        }
+      ]
+    },
+    {
+      "text": "the NOT INDEXED clause is not allowed on UPDATE or DELETE statements within triggers",
+      "rva": "0xa4f370",
+      "references": [
+        {
+          "from_rva": "0xce86d",
+          "type": "DATA",
+          "function_va": "1400cc400",
+          "function_rva": "0xcc400"
+        }
+      ]
+    },
+    {
+      "text": "INSERT INTO\"%w\".\"%w_rowid\"(rowid,nodeno)VALUES(?1,?2)ON CONFLICT(rowid)DO UPDATE SET nodeno\u003dexcluded.nodeno",
+      "rva": "0xa4fd90",
+      "references": [
+        {
+          "from_rva": "0xdd224",
+          "type": "DATA",
+          "function_va": "1400dcd80",
+          "function_rva": "0xdcd80"
+        }
+      ]
+    },
+    {
+      "text": "UPDATE \"%w\".\"%w_rowid\"SET ",
+      "rva": "0xa4fe30",
+      "references": [
+        {
+          "from_rva": "0xdd37d",
+          "type": "DATA",
+          "function_va": "1400dcd80",
+          "function_rva": "0xdcd80"
+        }
+      ]
+    },
+    {
+      "text": "UPDATE",
+      "rva": "0xa50f78",
+      "references": [
+        {
+          "from_rva": "0xfddfc",
+          "type": "DATA",
+          "function_va": "1400fdc10",
+          "function_rva": "0xfdc10"
+        },
+        {
+          "from_rva": "0xfde14",
+          "type": "PARAM",
+          "function_va": "1400fdc10",
+          "function_rva": "0xfdc10"
+        }
+      ]
+    },
+    {
+      "text": "call to update() on a tlsh that is already valid\n",
+      "rva": "0xa517a0",
+      "references": [
+        {
+          "from_rva": "0x18eefc",
+          "type": "DATA",
+          "function_va": "14018eed0",
+          "function_rva": "0x18eed0"
+        }
+      ]
+    },
+    {
+      "text": "\n\n            TopLevel    \u003c- (TopMeta / ConstDecl / FnDecl / StructDef / EnumDef)*\n\n            ConstDecl   \u003c- \u0027const\u0027 NAME \u0027:\u0027 Type \u0027\u003d\u0027 Constant \u0027;\u0027\n            FnDecl      \u003c- VisMod? \u0027fn\u0027 ColonNAME \u0027(\u0027 FnArgs? \u0027)\u0027 (\u0027:\u0027 Type)? BlockStmt\n            FnArgs      \u003c- FnArg (\u0027,\u0027 FnArg)*\n            FnArg       \u003c- NAME \u0027:\u0027 Type\n            VisMod      \u003c- \u0027pub\u0027\n\n            TopMeta     \u003c- \u0027script\u0027 Meta\n            Meta        \u003c- \u0027meta\u0027 MetaMap\n            MetaVal     \u003c- MetaMap / MetaVec / MetaStr / MetaName / MetaHash / NumberText\n            MetaMap     \u003c- \u0027{\u0027 MetaKV? ( \u0027,\u0027 MetaKV )* \u0027,\u0027 \u0027}\u0027\n            MetaVec     \u003c- \u0027[\u0027 MetaVal? ( \u0027,\u0027 MetaVal )* \u0027,\u0027 \u0027]\u0027\n            MetaKV      \u003c- MetaName \u0027:\u0027 MetaVal\n            MetaStr     \u003c- \u0027\"\u0027 [^\"]* \u0027\"\u0027\n            MetaHash    \u003c- \u0027#\u0027 MetaName\n            MetaName    \u003c- \u003c [a-zA-Z_][a-zA-Z_0-9.]* \u003e\n\n            StructDef   \u003c- VisMod? \u0027struct\u0027 NAME StructExtend? \u0027{\u0027 (!\u0027}\u0027 (StructField / (Meta \u0027,\u0027)) )* \u0027}\u0027\n            StructExtend \u003c- \u0027extend\u0027 ColonNAME\n            StructField \u003c- NAME \u0027:\u0027 Type Meta? \u0027,\u0027\n\n            EnumDef     \u003c- \u0027enum\u0027 NAME \u0027{\u0027 (!\u0027}\u0027 EnumOption)* \u0027}\u0027\n            EnumOption  \u003c- NAME Meta? \u0027,\u0027\n\n            BlockStmt   \u003c- \u0027{\u0027 (!\u0027}\u0027 Stmt)* \u0027}\u0027\n            Stmt        \u003c- IfBindStmt / IfStmt / ForStmt / BindElseStmt / BorrowStmt / BindStmt / AssignStmt / BlockStmt / RetStmt / BreakStmt / ContinueStmt/ LogStmt / ExpStmt\n            BorrowStmt  \u003c- \u0027borrow\u0027 BindBody (\u0027,\u0027 BindBody)* BlockStmt\n            IfBindStmt  \u003c- \u0027if\u0027 \u0027let\u0027 BindBody BlockStmt (\u0027else\u0027 (IfStmt / IfBindStmt / BlockStmt))?\n            IfStmt      \u003c- \u0027if\u0027 Exp BlockStmt (\u0027else\u0027 (IfStmt / IfBindStmt / BlockStmt))?\n            ForStmt     \u003c- \u0027for\u0027 NAME \u0027in\u0027 Exp BlockStmt\n\n            BindElseStmt \u003c- \u0027let\u0027 BindBody \u0027else\u0027 BlockStmt\n            BindStmt    \u003c- \u0027let\u0027 BindBody \u0027;\u0027\n            BindBody    \u003c- NAME BindTypeSep? TypePattern? \u0027\u003d\u0027 Exp\n            BindTypeSep \u003c- \u0027:\u0027\n            AssignStmt  \u003c- DotExp \u0027\u003d\u0027 Exp \u0027;\u0027\n\n            BreakStmt   \u003c- \u0027break\u0027 \u0027;\u0027\n            ContinueStmt \u003c- \u0027continue\u0027 \u0027;\u0027\n\n            RetStmt     \u003c- \u0027return\u0027 Exp? \u0027;\u0027\n\n            LogStmt     \u003c- \u0027log\u0027 \u0027(\u0027 \u0027\"\u0027 LogStr \u0027\"\u0027 (\u0027,\u0027 CallArgs+)? \u0027)\u0027 \u0027;\u0027\n            LogStr      \u003c- [^\"]*\n\n            ExpStmt     \u003c- Exp \u0027;\u0027\n            Exp         \u003c- EqExp (BoolOp EqExp)?\n            BoolOp      \u003c- \u0027\u0026\u0026\u0027 / \u0027||\u0027\n            EqExp       \u003c- RelExp (EqOp RelExp)?\n            EqOp        \u003c- \u0027\u003d\u003d\u0027 / \u0027!\u003d\u0027\n            RelExp      \u003c- AddExp (CmpOp AddExp)?\n            CmpOp       \u003c- \u0027\u003c\u003d\u0027 / \u0027\u003e\u003d\u0027 / \u0027\u003c\u0027 / \u0027\u003e\u0027\n            AddExp      \u003c- MulExp (AddOp MulExp)*\n            AddOp       \u003c- \u0027+\u0027 / \u0027-\u0027\n            MulExp      \u003c- UnaryExp (MulOp UnaryExp)*\n            MulOp       \u003c- \u0027*\u0027 / \u0027/\u0027 / \u0027%\u0027\n            UnaryExp    \u003c- UnaryOp? DotExp\n            UnaryOp     \u003c- \u0027!\u0027 / \u0027-\u0027\n            DotExp      \u003c- AtomExp (\u0027.\u0027 ColonFishNAME)* MethodArgsExp?\n            MethodArgsExp \u003c- \u0027(\u0027 CallArgs? \u0027)\u0027 \n            CallExp     \u003c- ColonFishNAME \u0027(\u0027 CallArgs? \u0027)\u0027\n            CallArgs    \u003c- Exp (\u0027,\u0027 Exp)*\n            AtomExp     \u003c- AtomPar / CallExp / Constant / ColonNAME\n            AtomPar     \u003c- \u0027(\u0027 Exp \u0027)\u0027\n\n            Type        \u003c- TypeStore? TypeMut? TypeName\n            TypeName    \u003c- NAME (\u0027\u003c\u0027 TypeTplArgs \u0027\u003e\u0027)? (\u0027::\u0027 TypeName)*\n            TypeTplArgs \u003c- TypeName (\u0027,\u0027 TypeName)*\n            TypePattern \u003c- TypeStore? TypeMut? TypeName?\n            TypeMut     \u003c- \u0027mut\u0027\n            TypeStore   \u003c- \u0027\u0026\u0027 / \u0027*\u0027\n\n            Constant    \u003c- Number / Time / BoolConst\n\n            Number      \u003c- NumberText NumberType?\n            NumberText  \u003c- \u003c \u0027-\u0027? [0-9.]+ \u003e\n            NumberType  \u003c- \u0027i64\u0027 / \u0027u64\u0027 / \u0027i32\u0027 / \u0027u32\u0027 / \u0027i16\u0027 / \u0027u16\u0027 / \u0027i8\u0027 / \u0027u8\u0027 / \u0027f64\u0027 / \u0027f32\u0027\n\n            Time        \u003c- TimeNumber TimeOp (TimeNumber? TimeOp)? (TimeNumber? TimeOp)? TimeNumber?\n            TimeNumber  \u003c- \u003c [0-9]+ \u003e\n            TimeOp      \u003c- \u0027:\u0027\n\n            BoolConst   \u003c- \u0027true\u0027 / \u0027false\u0027\n\n            NAME        \u003c- \u003c [a-zA-Z_][a-zA-Z_0-9]* \u003e\n            ColonNAME   \u003c- \u003c [a-zA-Z_][a-zA-Z_0-9:]* \u003e\n            #ColonFishNAME \u003c- \u003c [a-zA-Z_][a-zA-Z_0-9:]* (\u0027\u003c\u0027 [a-zA-Z_][a-zA-Z_0-9:]* \u0027\u003e\u0027)? \u003e\n            ColonFishNAME \u003c- \u003c TypeName \u003e\n            %word       \u003c- NAME\n\n            %whitespace \u003c- (Space / Comment)*\n            Comment     \u003c- \u0027//\u0027 (!Eol .)* Eol\n            Eol         \u003c- \u0027\\r\\n\u0027 /  \u0027\\n\u0027 / \u0027\\r\u0027\n            Space       \u003c- \u0027 \u0027 / \u0027\\t\u0027 / Eol\n        ",
+      "rva": "0xa5b5f0",
+      "references": [
+        {
+          "from_rva": "0x2abe3c",
+          "type": "DATA",
+          "function_va": "1402abd40",
+          "function_rva": "0x2abd40"
+        }
+      ]
+    },
+    {
+      "text": "Lifetimes of \u0027{}\u0027 are trying to share a mutable value",
+      "rva": "0xa5ce98",
+      "references": [
+        {
+          "from_rva": "0x2b5553",
+          "type": "DATA",
+          "function_va": "1402b5000",
+          "function_rva": "0x2b5000"
+        }
+      ]
+    },
+    {
+      "text": "LFB/Invalid lifetime for \u0027{}\u0027",
+      "rva": "0xa5d180",
+      "references": [
+        {
+          "from_rva": "0x2b7710",
+          "type": "DATA",
+          "function_va": "1402b74e0",
+          "function_rva": "0x2b74e0"
+        }
+      ]
+    },
+    {
+      "text": "LFA/Invalid lifetime for \u0027{}\u0027",
+      "rva": "0xa5d1d8",
+      "references": [
+        {
+          "from_rva": "0x2b6ef0",
+          "type": "DATA",
+          "function_va": "1402b6bf0",
+          "function_rva": "0x2b6bf0"
+        }
+      ]
+    },
+    {
+      "text": "LFC/Invalid lifetime for \u0027{}\u0027",
+      "rva": "0xa5d408",
+      "references": [
+        {
+          "from_rva": "0x2b85df",
+          "type": "DATA",
+          "function_va": "1402b8220",
+          "function_rva": "0x2b8220"
+        }
+      ]
+    },
+    {
+      "text": "LFR/Invalid lifetime for \u0027{}\u0027",
+      "rva": "0xa5d680",
+      "references": [
+        {
+          "from_rva": "0x2b8d0f",
+          "type": "DATA",
+          "function_va": "1402b8ab0",
+          "function_rva": "0x2b8ab0"
+        }
+      ]
+    },
+    {
+      "text": "ugc_error_timeout",
+      "rva": "0xa5eff0",
+      "references": [
+        {
+          "from_rva": "0x2e13af",
+          "type": "DATA",
+          "function_va": "1402e1300",
+          "function_rva": "0x2e1300"
+        }
+      ]
+    },
+    {
+      "text": "Timeout while connecting with Steam",
+      "rva": "0xa5f0f0",
+      "references": [
+        {
+          "from_rva": "0x2e13a8",
+          "type": "DATA",
+          "function_va": "1402e1300",
+          "function_rva": "0x2e1300"
+        }
+      ]
+    },
+    {
+      "text": "ERROR: cannot update UGCMod with PublishedFileId_t \u003d 0",
+      "rva": "0xa5f118",
+      "references": [
+        {
+          "from_rva": "0x2e2624",
+          "type": "READ",
+          "function_va": "1402e2530",
+          "function_rva": "0x2e2530"
+        }
+      ]
+    },
+    {
+      "text": "ERROR SteamUGC()-\u003eStartItemUpdate returned k_UGCUpdateHandleInvalid",
+      "rva": "0xa5f150",
+      "references": [
+        {
+          "from_rva": "0x2e26e2",
+          "type": "READ",
+          "function_va": "1402e2530",
+          "function_rva": "0x2e2530"
+        }
+      ]
+    },
+    {
+      "text": "A Mod is still being created and/or updated, please wait",
+      "rva": "0xa5f1e8",
+      "references": [
+        {
+          "from_rva": "0x2e23a2",
+          "type": "DATA",
+          "function_va": "1402e2370",
+          "function_rva": "0x2e2370"
+        },
+        {
+          "from_rva": "0x2e2584",
+          "type": "DATA",
+          "function_va": "1402e2530",
+          "function_rva": "0x2e2530"
+        }
+      ]
+    },
+    {
+      "text": "ERROR SteamUGC()-\u003eSubmitItemUpdate returned k_uAPICallInvalid",
+      "rva": "0xa5f448",
+      "references": [
+        {
+          "from_rva": "0x2e2c22",
+          "type": "READ",
+          "function_va": "1402e2530",
+          "function_rva": "0x2e2530"
+        }
+      ]
+    },
+    {
+      "text": "nimby::model::Demand::Time",
+      "rva": "0xa60330",
+      "references": [
+        {
+          "from_rva": "0x32361f",
+          "type": "DATA",
+          "function_va": "140323600",
+          "function_rva": "0x323600"
+        },
+        {
+          "from_rva": "0x3236af",
+          "type": "DATA",
+          "function_va": "140323690",
+          "function_rva": "0x323690"
+        }
+      ]
+    },
+    {
+      "text": "nimby::model::Schedule::Shift::OrderEdit::StartTime",
+      "rva": "0xa60500",
+      "references": [
+        {
+          "from_rva": "0x314133",
+          "type": "DATA",
+          "function_va": "1403140b0",
+          "function_rva": "0x3140b0"
+        },
+        {
+          "from_rva": "0x314326",
+          "type": "DATA",
+          "function_va": "1403142b0",
+          "function_rva": "0x3142b0"
+        }
+      ]
+    },
+    {
+      "text": "train::Warp",
+      "rva": "0xa60df8",
+      "references": [
+        {
+          "from_rva": "0x30ea77",
+          "type": "DATA",
+          "function_va": "14030e2d0",
+          "function_rva": "0x30e2d0"
+        }
+      ]
+    },
+    {
+      "text": "misc::CompanyCheats",
+      "rva": "0xa61298",
+      "references": [
+        {
+          "from_rva": "0x30f409",
+          "type": "DATA",
+          "function_va": "14030e2d0",
+          "function_rva": "0x30e2d0"
+        }
+      ]
+    },
+    {
+      "text": "??$visit@UStartTime@OrderEdit@Shift@Schedule@model@nimby@@@serde@@YAXPEBV?$optional@UStartTime@OrderEdit@Shift@Schedule@model@nimby@@@std@@PEAUSerializer@0@@Z",
+      "rva": "0xa69630",
+      "references": [
+        {
+          "from_rva": "0x3140f3",
+          "type": "DATA",
+          "function_va": "1403140b0",
+          "function_rva": "0x3140b0"
+        }
+      ]
+    },
+    {
+      "text": "??$visit@UStartTime@OrderEdit@Shift@Schedule@model@nimby@@@serde@@YAXPEAV?$optional@UStartTime@OrderEdit@Shift@Schedule@model@nimby@@@std@@PEAUDeserializer@0@@Z",
+      "rva": "0xa69780",
+      "references": [
+        {
+          "from_rva": "0x3142f6",
+          "type": "DATA",
+          "function_va": "1403142b0",
+          "function_rva": "0x3142b0"
+        }
+      ]
+    },
+    {
+      "text": "trains_running_time",
+      "rva": "0xa70c90",
+      "references": [
+        {
+          "from_rva": "0x4085f7",
+          "type": "READ",
+          "function_va": "140407310",
+          "function_rva": "0x407310"
+        }
+      ]
+    },
+    {
+      "text": "accounting_trains_running_time",
+      "rva": "0xa70ca8",
+      "references": [
+        {
+          "from_rva": "0x40858d",
+          "type": "DATA",
+          "function_va": "140407310",
+          "function_rva": "0x407310"
+        }
+      ]
+    },
+    {
+      "text": "Running time",
+      "rva": "0xa70cc8",
+      "references": [
+        {
+          "from_rva": "0x408586",
+          "type": "DATA",
+          "function_va": "140407310",
+          "function_rva": "0x407310"
+        }
+      ]
+    },
+    {
+      "text": "accounting_trains_late_arrival_time",
+      "rva": "0xa70d68",
+      "references": [
+        {
+          "from_rva": "0x4088d2",
+          "type": "DATA",
+          "function_va": "140407310",
+          "function_rva": "0x407310"
+        }
+      ]
+    },
+    {
+      "text": "trains_extra_stop_time",
+      "rva": "0xa70da8",
+      "references": [
+        {
+          "from_rva": "0x408827",
+          "type": "READ",
+          "function_va": "140407310",
+          "function_rva": "0x407310"
+        }
+      ]
+    },
+    {
+      "text": "accounting_trains_extra_stop_time",
+      "rva": "0xa70dc0",
+      "references": [
+        {
+          "from_rva": "0x4087b8",
+          "type": "DATA",
+          "function_va": "140407310",
+          "function_rva": "0x407310"
+        }
+      ]
+    },
+    {
+      "text": "trains_stop_time",
+      "rva": "0xa70df8",
+      "references": [
+        {
+          "from_rva": "0x408719",
+          "type": "READ",
+          "function_va": "140407310",
+          "function_rva": "0x407310"
+        }
+      ]
+    },
+    {
+      "text": "accounting_trains_stop_time",
+      "rva": "0xa70e10",
+      "references": [
+        {
+          "from_rva": "0x4086b1",
+          "type": "DATA",
+          "function_va": "140407310",
+          "function_rva": "0x407310"
+        }
+      ]
+    },
+    {
+      "text": "trains_signal_stop_time",
+      "rva": "0xa70e98",
+      "references": [
+        {
+          "from_rva": "0x4089bb",
+          "type": "DATA",
+          "function_va": "140407310",
+          "function_rva": "0x407310"
+        }
+      ]
+    },
+    {
+      "text": "accounting_trains_signal_stop_time",
+      "rva": "0xa70eb0",
+      "references": [
+        {
+          "from_rva": "0x4089a1",
+          "type": "DATA",
+          "function_va": "140407310",
+          "function_rva": "0x407310"
+        }
+      ]
+    },
+    {
+      "text": "trains_late_arrival_time",
+      "rva": "0xa70ee8",
+      "references": [
+        {
+          "from_rva": "0x408922",
+          "type": "DATA",
+          "function_va": "140407310",
+          "function_rva": "0x407310"
+        }
+      ]
+    },
+    {
+      "text": "rtstat_pax_avg_leg_time",
+      "rva": "0xa71638",
+      "references": [
+        {
+          "from_rva": "0x40a67f",
+          "type": "DATA",
+          "function_va": "140409b80",
+          "function_rva": "0x409b80"
+        }
+      ]
+    },
+    {
+      "text": "Avg. leg time of contained pax",
+      "rva": "0xa71650",
+      "references": [
+        {
+          "from_rva": "0x40a678",
+          "type": "DATA",
+          "function_va": "140409b80",
+          "function_rva": "0x409b80"
+        }
+      ]
+    },
+    {
+      "text": "rtstat_pax_avg_time",
+      "rva": "0xa71670",
+      "references": [
+        {
+          "from_rva": "0x40a5a2",
+          "type": "DATA",
+          "function_va": "140409b80",
+          "function_rva": "0x409b80"
+        }
+      ]
+    },
+    {
+      "text": "Avg. total time of contained pax",
+      "rva": "0xa71688",
+      "references": [
+        {
+          "from_rva": "0x40a59b",
+          "type": "DATA",
+          "function_va": "140409b80",
+          "function_rva": "0x409b80"
+        }
+      ]
+    },
+    {
+      "text": "Time to scheduled arrival",
+      "rva": "0xa71728",
+      "references": [
+        {
+          "from_rva": "0x40a97c",
+          "type": "DATA",
+          "function_va": "140409b80",
+          "function_rva": "0x409b80"
+        }
+      ]
+    },
+    {
+      "text": "Creation date",
+      "rva": "0xa717e0",
+      "references": [
+        {
+          "from_rva": "0x40ac1c",
+          "type": "DATA",
+          "function_va": "140409b80",
+          "function_rva": "0x409b80"
+        }
+      ]
+    },
+    {
+      "text": "Motion::TimedStop",
+      "rva": "0xa720f8",
+      "references": [
+        {
+          "from_rva": "0x4290db",
+          "type": "DATA",
+          "function_va": "140428790",
+          "function_rva": "0x428790"
+        }
+      ]
+    },
+    {
+      "text": "std::optional\u003cMotion::TimedStop\u003e",
+      "rva": "0xa72308",
+      "references": [
+        {
+          "from_rva": "0x429476",
+          "type": "DATA",
+          "function_va": "140428790",
+          "function_rva": "0x428790"
+        }
+      ]
+    },
+    {
+      "text": "timed_stop",
+      "rva": "0xa728d8",
+      "references": [
+        {
+          "from_rva": "0x805287",
+          "type": "DATA",
+          "function_va": "140804000",
+          "function_rva": "0x804000"
+        },
+        {
+          "from_rva": "0x42cdd6",
+          "type": "DATA",
+          "function_va": "140428790",
+          "function_rva": "0x428790"
+        }
+      ]
+    },
+    {
+      "text": "departure_epoch_s",
+      "rva": "0xa729f0",
+      "references": [
+        {
+          "from_rva": "0x42e100",
+          "type": "DATA",
+          "function_va": "140428790",
+          "function_rva": "0x428790"
+        }
+      ]
+    },
+    {
+      "text": "Simulation state of a train performing a timed stop, with a departure time.",
+      "rva": "0xa72a10",
+      "references": [
+        {
+          "from_rva": "0x42e09f",
+          "type": "DATA",
+          "function_va": "140428790",
+          "function_rva": "0x428790"
+        }
+      ]
+    },
+    {
+      "text": "std::optional\u003cMotion::TimedStop\u003e_M_get",
+      "rva": "0xa72d28",
+      "references": [
+        {
+          "from_rva": "0x42ed97",
+          "type": "DATA",
+          "function_va": "140428790",
+          "function_rva": "0x428790"
+        }
+      ]
+    },
+    {
+      "text": "run_epoch_start",
+      "rva": "0xa72dd0",
+      "references": [
+        {
+          "from_rva": "0x4a2898",
+          "type": "READ",
+          "function_va": "1404a1710",
+          "function_rva": "0x4a1710"
+        },
+        {
+          "from_rva": "0x42e71d",
+          "type": "DATA",
+          "function_va": "140428790",
+          "function_rva": "0x428790"
+        }
+      ]
+    },
+    {
+      "text": "goal_has_stop_time",
+      "rva": "0xa73128",
+      "references": [
+        {
+          "from_rva": "0x43024e",
+          "type": "DATA",
+          "function_va": "140428790",
+          "function_rva": "0x428790"
+        },
+        {
+          "from_rva": "0x432018",
+          "type": "DATA",
+          "function_va": "140428790",
+          "function_rva": "0x428790"
+        }
+      ]
+    },
+    {
+      "text": "A projection into real time of a sequence of stops belonging to a line, with possible modified timing.",
+      "rva": "0xa73390",
+      "references": [
+        {
+          "from_rva": "0x430585",
+          "type": "DATA",
+          "function_va": "140428790",
+          "function_rva": "0x428790"
+        }
+      ]
+    },
+    {
+      "text": "epoch_s",
+      "rva": "0xa73840",
+      "references": [
+        {
+          "from_rva": "0x432439",
+          "type": "DATA",
+          "function_va": "140428790",
+          "function_rva": "0x428790"
+        }
+      ]
+    },
+    {
+      "text": "clock_us",
+      "rva": "0xa738c8",
+      "references": [
+        {
+          "from_rva": "0x433f96",
+          "type": "DATA",
+          "function_va": "140428790",
+          "function_rva": "0x428790"
+        }
+      ]
+    },
+    {
+      "text": "SimController_M_queue_train_warp",
+      "rva": "0xa73cc0",
+      "references": [
+        {
+          "from_rva": "0x4535ed",
+          "type": "DATA",
+          "function_va": "140452f40",
+          "function_rva": "0x452f40"
+        },
+        {
+          "from_rva": "0x4535f4",
+          "type": "DATA",
+          "function_va": "140452f40",
+          "function_rva": "0x452f40"
+        }
+      ]
+    },
+    {
+      "text": "Add extra delay time to a stopped train that has a timed_stop component.",
+      "rva": "0xa73d40",
+      "references": [
+        {
+          "from_rva": "0x45393e",
+          "type": "DATA",
+          "function_va": "140452f40",
+          "function_rva": "0x452f40"
+        }
+      ]
+    },
+    {
+      "text": "Extrapolator_M_epoch_s",
+      "rva": "0xa74058",
+      "references": [
+        {
+          "from_rva": "0x455606",
+          "type": "DATA",
+          "function_va": "140452f40",
+          "function_rva": "0x452f40"
+        },
+        {
+          "from_rva": "0x45560d",
+          "type": "DATA",
+          "function_va": "140452f40",
+          "function_rva": "0x452f40"
+        }
+      ]
+    },
+    {
+      "text": "Extrapolator_M_week_monday0000_epoch_s",
+      "rva": "0xa740a0",
+      "references": [
+        {
+          "from_rva": "0x4556f0",
+          "type": "DATA",
+          "function_va": "140452f40",
+          "function_rva": "0x452f40"
+        },
+        {
+          "from_rva": "0x4556f7",
+          "type": "DATA",
+          "function_va": "140452f40",
+          "function_rva": "0x452f40"
+        }
+      ]
+    },
+    {
+      "text": "Extrapolator_M_clock_us",
+      "rva": "0xa74120",
+      "references": [
+        {
+          "from_rva": "0x4557da",
+          "type": "DATA",
+          "function_va": "140452f40",
+          "function_rva": "0x452f40"
+        },
+        {
+          "from_rva": "0x4557e1",
+          "type": "DATA",
+          "function_va": "140452f40",
+          "function_rva": "0x452f40"
+        }
+      ]
+    },
+    {
+      "text": "directory_entry::last_write_time",
+      "rva": "0xa74a48",
+      "references": [
+        {
+          "from_rva": "0x49d756",
+          "type": "DATA",
+          "function_va": "14049cb20",
+          "function_rva": "0x49cb20"
+        },
+        {
+          "from_rva": "0x498a5c",
+          "type": "DATA",
+          "function_va": "1404989d0",
+          "function_rva": "0x4989d0"
+        }
+      ]
+    },
+    {
+      "text": "accounting_period_lifetime",
+      "rva": "0xa74cc8",
+      "references": [
+        {
+          "from_rva": "0x594537",
+          "type": "DATA",
+          "function_va": "1405941c0",
+          "function_rva": "0x5941c0"
+        },
+        {
+          "from_rva": "0x6546e3",
+          "type": "DATA",
+          "function_va": "140653e30",
+          "function_rva": "0x653e30"
+        },
+        {
+          "from_rva": "0x654a13",
+          "type": "DATA",
+          "function_va": "140653e30",
+          "function_rva": "0x653e30"
+        },
+        {
+          "from_rva": "0x654cd3",
+          "type": "DATA",
+          "function_va": "140653e30",
+          "function_rva": "0x653e30"
+        },
+        {
+          "from_rva": "0x49a3ec",
+          "type": "DATA",
+          "function_va": "140499b00",
+          "function_rva": "0x499b00"
+        }
+      ]
+    },
+    {
+      "text": "accounting_period_lifetime_unknown",
+      "rva": "0xa74db8",
+      "references": [
+        {
+          "from_rva": "0x49a395",
+          "type": "DATA",
+          "function_va": "140499b00",
+          "function_rva": "0x499b00"
+        }
+      ]
+    },
+    {
+      "text": "nimby::model::Clock",
+      "rva": "0xa75058",
+      "references": [
+        {
+          "from_rva": "0x4b6d2a",
+          "type": "DATA",
+          "function_va": "1404b6700",
+          "function_rva": "0x4b6700"
+        },
+        {
+          "from_rva": "0x4b64b8",
+          "type": "DATA",
+          "function_va": "1404b5ea0",
+          "function_rva": "0x4b5ea0"
+        }
+      ]
+    },
+    {
+      "text": "LegacyMotion115::Warp",
+      "rva": "0xa753b8",
+      "references": [
+        {
+          "from_rva": "0x4bda64",
+          "type": "DATA",
+          "function_va": "1404bda00",
+          "function_rva": "0x4bda00"
+        }
+      ]
+    },
+    {
+      "text": "nimby::model::Motion::EndedTimedStop",
+      "rva": "0xa75448",
+      "references": [
+        {
+          "from_rva": "0x4b36e7",
+          "type": "DATA",
+          "function_va": "1404b2990",
+          "function_rva": "0x4b2990"
+        },
+        {
+          "from_rva": "0x4b2812",
+          "type": "DATA",
+          "function_va": "1404b1e10",
+          "function_rva": "0x4b1e10"
+        }
+      ]
+    },
+    {
+      "text": "nimby::model::Motion::TimedStop",
+      "rva": "0xa75558",
+      "references": [
+        {
+          "from_rva": "0x4b3086",
+          "type": "DATA",
+          "function_va": "1404b2990",
+          "function_rva": "0x4b2990"
+        },
+        {
+          "from_rva": "0x4b235e",
+          "type": "DATA",
+          "function_va": "1404b1e10",
+          "function_rva": "0x4b1e10"
+        }
+      ]
+    },
+    {
+      "text": "The game version ({}.{}.{}.{:x}) that created this save file is newer than your game version ({}.{}.{}.{:x}). Update the game to load this file.",
+      "rva": "0xa75930",
+      "references": [
+        {
+          "from_rva": "0x49dba7",
+          "type": "DATA",
+          "function_va": "14049d9a0",
+          "function_rva": "0x49d9a0"
+        }
+      ]
+    },
+    {
+      "text": " Timetable Export",
+      "rva": "0xa75d60",
+      "references": [
+        {
+          "from_rva": "0x4a17af",
+          "type": "DATA",
+          "function_va": "1404a1710",
+          "function_rva": "0x4a1710"
+        },
+        {
+          "from_rva": "0x4a17b6",
+          "type": "DATA",
+          "function_va": "1404a1710",
+          "function_rva": "0x4a1710"
+        }
+      ]
+    },
+    {
+      "text": "clock_epoch_s",
+      "rva": "0xa75da8",
+      "references": [
+        {
+          "from_rva": "0x4a1b52",
+          "type": "DATA",
+          "function_va": "1404a1710",
+          "function_rva": "0x4a1710"
+        }
+      ]
+    },
+    {
+      "text": "id\tkind\tname\tcode\tperiod\ttimestamp\tline_id\tlongitude\tlatitude",
+      "rva": "0xa75ec8",
+      "references": [
+        {
+          "from_rva": "0x4a7432",
+          "type": "DATA",
+          "function_va": "1404a6240",
+          "function_rva": "0x4a6240"
+        }
+      ]
+    },
+    {
+      "text": "Initializing timetables",
+      "rva": "0xa75f08",
+      "references": [
+        {
+          "from_rva": "0x4a9ab0",
+          "type": "DATA",
+          "function_va": "1404a8980",
+          "function_rva": "0x4a8980"
+        }
+      ]
+    },
+    {
+      "text": "loader_timetables_init",
+      "rva": "0xa75f40",
+      "references": [
+        {
+          "from_rva": "0x4a9ab7",
+          "type": "DATA",
+          "function_va": "1404a8980",
+          "function_rva": "0x4a8980"
+        }
+      ]
+    },
+    {
+      "text": "??$visit@UWarp@LegacyMotion115@serde@@@serde@@YAXPEAV?$optional@UWarp@LegacyMotion115@serde@@@std@@PEAUDeserializer@0@@Z",
+      "rva": "0xa77ec0",
+      "references": [
+        {
+          "from_rva": "0x4bda20",
+          "type": "DATA",
+          "function_va": "1404bda00",
+          "function_rva": "0x4bda00"
+        }
+      ]
+    },
+    {
+      "text": "??$visit@UTimedStop@Motion@model@nimby@@@serde@@YAXPEBV?$optional@UTimedStop@Motion@model@nimby@@@std@@PEAUSerializer@0@@Z",
+      "rva": "0xa78470",
+      "references": [
+        {
+          "from_rva": "0x4b2317",
+          "type": "DATA",
+          "function_va": "1404b1e10",
+          "function_rva": "0x4b1e10"
+        }
+      ]
+    },
+    {
+      "text": "??$visit@UTimedStop@Motion@model@nimby@@@serde@@YAXPEAV?$optional@UTimedStop@Motion@model@nimby@@@std@@PEAUDeserializer@0@@Z",
+      "rva": "0xa78c50",
+      "references": [
+        {
+          "from_rva": "0x4b303b",
+          "type": "DATA",
+          "function_va": "1404b2990",
+          "function_rva": "0x4b2990"
+        }
+      ]
+    },
+    {
+      "text": "??$visit@UEndedTimedStop@Motion@model@nimby@@@serde@@YAXPEBV?$optional@UEndedTimedStop@Motion@model@nimby@@@std@@PEAUSerializer@0@@Z",
+      "rva": "0xa79130",
+      "references": [
+        {
+          "from_rva": "0x4b27cf",
+          "type": "DATA",
+          "function_va": "1404b1e10",
+          "function_rva": "0x4b1e10"
+        }
+      ]
+    },
+    {
+      "text": "??$visit@UEndedTimedStop@Motion@model@nimby@@@serde@@YAXPEAV?$optional@UEndedTimedStop@Motion@model@nimby@@@std@@PEAUDeserializer@0@@Z",
+      "rva": "0xa79ac0",
+      "references": [
+        {
+          "from_rva": "0x4b36ae",
+          "type": "DATA",
+          "function_va": "1404b2990",
+          "function_rva": "0x4b2990"
+        }
+      ]
+    },
+    {
+      "text": "timestamp",
+      "rva": "0xa7c8a8",
+      "references": [
+        {
+          "from_rva": "0x4e90eb",
+          "type": "DATA",
+          "function_va": "1404e9050",
+          "function_rva": "0x4e9050"
+        }
+      ]
+    },
+    {
+      "text": "time_epoch_s",
+      "rva": "0xa7c960",
+      "references": [
+        {
+          "from_rva": "0x4e97d4",
+          "type": "DATA",
+          "function_va": "1404e9720",
+          "function_rva": "0x4e9720"
+        },
+        {
+          "from_rva": "0x4e9808",
+          "type": "DATA",
+          "function_va": "1404e9720",
+          "function_rva": "0x4e9720"
+        }
+      ]
+    },
+    {
+      "text": "full_date_time",
+      "rva": "0xa83bb8",
+      "references": [
+        {
+          "from_rva": "0x5728e7",
+          "type": "DATA",
+          "function_va": "140572850",
+          "function_rva": "0x572850"
+        }
+      ]
+    },
+    {
+      "text": "Lifetime",
+      "rva": "0xa84ae8",
+      "references": [
+        {
+          "from_rva": "0x594530",
+          "type": "DATA",
+          "function_va": "1405941c0",
+          "function_rva": "0x5941c0"
+        },
+        {
+          "from_rva": "0x6546dc",
+          "type": "DATA",
+          "function_va": "140653e30",
+          "function_rva": "0x653e30"
+        },
+        {
+          "from_rva": "0x654a0c",
+          "type": "DATA",
+          "function_va": "140653e30",
+          "function_rva": "0x653e30"
+        },
+        {
+          "from_rva": "0x654ccc",
+          "type": "DATA",
+          "function_va": "140653e30",
+          "function_rva": "0x653e30"
+        }
+      ]
+    },
+    {
+      "text": "Stop {} wait time",
+      "rva": "0xa84e28",
+      "references": [
+        {
+          "from_rva": "0x592040",
+          "type": "DATA",
+          "function_va": "1405915c0",
+          "function_rva": "0x5915c0"
+        }
+      ]
+    },
+    {
+      "text": "stop_times_tp_arrival",
+      "rva": "0xa84e40",
+      "references": [
+        {
+          "from_rva": "0x591cd1",
+          "type": "DATA",
+          "function_va": "1405915c0",
+          "function_rva": "0x5915c0"
+        }
+      ]
+    },
+    {
+      "text": "stop_times_tp_leg",
+      "rva": "0xa84e68",
+      "references": [
+        {
+          "from_rva": "0x591a53",
+          "type": "DATA",
+          "function_va": "1405915c0",
+          "function_rva": "0x5915c0"
+        }
+      ]
+    },
+    {
+      "text": "stop_times_tp_wait",
+      "rva": "0xa84ec0",
+      "references": [
+        {
+          "from_rva": "0x592047",
+          "type": "DATA",
+          "function_va": "1405915c0",
+          "function_rva": "0x5915c0"
+        }
+      ]
+    },
+    {
+      "text": " {1} leg time",
+      "rva": "0xa84f44",
+      "references": []
+    },
+    {
+      "text": "stop_times_tp_departure",
+      "rva": "0xa84f58",
+      "references": [
+        {
+          "from_rva": "0x5918b3",
+          "type": "DATA",
+          "function_va": "1405915c0",
+          "function_rva": "0x5915c0"
+        },
+        {
+          "from_rva": "0x592302",
+          "type": "DATA",
+          "function_va": "1405915c0",
+          "function_rva": "0x5915c0"
+        }
+      ]
+    },
+    {
+      "text": "icon_clock.svg",
+      "rva": "0xa84fa0",
+      "references": [
+        {
+          "from_rva": "0x598e10",
+          "type": "READ",
+          "function_va": "140598a30",
+          "function_rva": "0x598a30"
+        },
+        {
+          "from_rva": "0x59958d",
+          "type": "READ",
+          "function_va": "140599130",
+          "function_rva": "0x599130"
+        },
+        {
+          "from_rva": "0x5a1044",
+          "type": "READ",
+          "function_va": "1405a0070",
+          "function_rva": "0x5a0070"
+        },
+        {
+          "from_rva": "0x5abecc",
+          "type": "READ",
+          "function_va": "1405aaba0",
+          "function_rva": "0x5aaba0"
+        },
+        {
+          "from_rva": "0x5b9a62",
+          "type": "READ",
+          "function_va": "1405b8d80",
+          "function_rva": "0x5b8d80"
+        },
+        {
+          "from_rva": "0x652135",
+          "type": "READ",
+          "function_va": "140651360",
+          "function_rva": "0x651360"
+        },
+        {
+          "from_rva": "0x65573f",
+          "type": "READ",
+          "function_va": "140655030",
+          "function_rva": "0x655030"
+        },
+        {
+          "from_rva": "0x655c37",
+          "type": "READ",
+          "function_va": "140655030",
+          "function_rva": "0x655030"
+        },
+        {
+          "from_rva": "0x6fac2b",
+          "type": "READ",
+          "function_va": "1406f9600",
+          "function_rva": "0x6f9600"
+        },
+        {
+          "from_rva": "0x70ad6f",
+          "type": "READ",
+          "function_va": "14070a160",
+          "function_rva": "0x70a160"
+        },
+        {
+          "from_rva": "0x6b8e60",
+          "type": "READ",
+          "function_va": "1406b8ca0",
+          "function_rva": "0x6b8ca0"
+        },
+        {
+          "from_rva": "0x6c2497",
+          "type": "READ",
+          "function_va": "1406c2040",
+          "function_rva": "0x6c2040"
+        },
+        {
+          "from_rva": "0x6c4dcc",
+          "type": "READ",
+          "function_va": "1406c4d30",
+          "function_rva": "0x6c4d30"
+        },
+        {
+          "from_rva": "0x69570a",
+          "type": "READ",
+          "function_va": "1406950a0",
+          "function_rva": "0x6950a0"
+        },
+        {
+          "from_rva": "0x6acb4e",
+          "type": "DATA",
+          "function_va": "1406ab6a0",
+          "function_rva": "0x6ab6a0"
+        },
+        {
+          "from_rva": "0x649b69",
+          "type": "DATA",
+          "function_va": "140649500",
+          "function_rva": "0x649500"
+        }
+      ]
+    },
+    {
+      "text": "Accounting time: {}",
+      "rva": "0xa85078",
+      "references": [
+        {
+          "from_rva": "0x65647f",
+          "type": "DATA",
+          "function_va": "140655030",
+          "function_rva": "0x655030"
+        },
+        {
+          "from_rva": "0x594d14",
+          "type": "DATA",
+          "function_va": "1405941c0",
+          "function_rva": "0x5941c0"
+        }
+      ]
+    },
+    {
+      "text": "Custom or fit duration mode needs at least one stop with some wait time after the last fixed departure stop",
+      "rva": "0xa851d0",
+      "references": [
+        {
+          "from_rva": "0x5968b8",
+          "type": "DATA",
+          "function_va": "1405961b0",
+          "function_rva": "0x5961b0"
+        },
+        {
+          "from_rva": "0x595e99",
+          "type": "DATA",
+          "function_va": "140595740",
+          "function_rva": "0x595740"
+        },
+        {
+          "from_rva": "0x5b773e",
+          "type": "DATA",
+          "function_va": "1405b34b0",
+          "function_rva": "0x5b34b0"
+        }
+      ]
+    },
+    {
+      "text": "lineeditor_leg_eta_custom_time_desc",
+      "rva": "0xa86588",
+      "references": [
+        {
+          "from_rva": "0x5ae61f",
+          "type": "DATA",
+          "function_va": "1405ada90",
+          "function_rva": "0x5ada90"
+        }
+      ]
+    },
+    {
+      "text": "Format: (hh:)mm:ss\nThis custom time will be approximated by finding a cruise speed.\nIt will be ignored if the resulting speed is too slow or too fast.\nTrains might speed up if they are late.",
+      "rva": "0xa865b0",
+      "references": [
+        {
+          "from_rva": "0x5ae618",
+          "type": "DATA",
+          "function_va": "1405ada90",
+          "function_rva": "0x5ada90"
+        }
+      ]
+    },
+    {
+      "text": "lineeditor_leg_eta_custom_time",
+      "rva": "0xa86670",
+      "references": [
+        {
+          "from_rva": "0x5ae5f4",
+          "type": "DATA",
+          "function_va": "1405ada90",
+          "function_rva": "0x5ada90"
+        }
+      ]
+    },
+    {
+      "text": "Custom time:",
+      "rva": "0xa86690",
+      "references": [
+        {
+          "from_rva": "0x5ae5ed",
+          "type": "DATA",
+          "function_va": "1405ada90",
+          "function_rva": "0x5ada90"
+        }
+      ]
+    },
+    {
+      "text": "lineeditor_leg_eta_mode_time",
+      "rva": "0xa866f8",
+      "references": [
+        {
+          "from_rva": "0x5ae13c",
+          "type": "DATA",
+          "function_va": "1405ada90",
+          "function_rva": "0x5ada90"
+        }
+      ]
+    },
+    {
+      "text": "Custom time",
+      "rva": "0xa86718",
+      "references": [
+        {
+          "from_rva": "0x5ae135",
+          "type": "DATA",
+          "function_va": "1405ada90",
+          "function_rva": "0x5ada90"
+        },
+        {
+          "from_rva": "0x5af515",
+          "type": "DATA",
+          "function_va": "1405ada90",
+          "function_rva": "0x5ada90"
+        }
+      ]
+    },
+    {
+      "text": "Effective time:",
+      "rva": "0xa86818",
+      "references": [
+        {
+          "from_rva": "0x5ae8c0",
+          "type": "DATA",
+          "function_va": "1405ada90",
+          "function_rva": "0x5ada90"
+        }
+      ]
+    },
+    {
+      "text": "effective_leg_time_desc",
+      "rva": "0xa86888",
+      "references": [
+        {
+          "from_rva": "0x5ae8f2",
+          "type": "DATA",
+          "function_va": "1405ada90",
+          "function_rva": "0x5ada90"
+        },
+        {
+          "from_rva": "0x5ae964",
+          "type": "DATA",
+          "function_va": "1405ada90",
+          "function_rva": "0x5ada90"
+        }
+      ]
+    },
+    {
+      "text": "Time from crossing the middle of one platform to the middle of the next one, not counting stop time",
+      "rva": "0xa868a0",
+      "references": [
+        {
+          "from_rva": "0x5ae8eb",
+          "type": "DATA",
+          "function_va": "1405ada90",
+          "function_rva": "0x5ada90"
+        },
+        {
+          "from_rva": "0x5ae95d",
+          "type": "DATA",
+          "function_va": "1405ada90",
+          "function_rva": "0x5ada90"
+        }
+      ]
+    },
+    {
+      "text": "lineeditor_implied_stop_time",
+      "rva": "0xa869b0",
+      "references": [
+        {
+          "from_rva": "0x5af7f8",
+          "type": "DATA",
+          "function_va": "1405ada90",
+          "function_rva": "0x5ada90"
+        }
+      ]
+    },
+    {
+      "text": "Implied stop time:",
+      "rva": "0xa869d0",
+      "references": [
+        {
+          "from_rva": "0x5af7f1",
+          "type": "DATA",
+          "function_va": "1405ada90",
+          "function_rva": "0x5ada90"
+        }
+      ]
+    },
+    {
+      "text": "lineeditor_min_pax_departure_leg_time_desc",
+      "rva": "0xa869e8",
+      "references": [
+        {
+          "from_rva": "0x5af27e",
+          "type": "DATA",
+          "function_va": "1405ada90",
+          "function_rva": "0x5ada90"
+        }
+      ]
+    },
+    {
+      "text": "Format: (hh:)mm:ss\nPax will only board the train if they plan to ride it for at least this amount of time,\nnot including the initial wait time.",
+      "rva": "0xa86a20",
+      "references": [
+        {
+          "from_rva": "0x5af277",
+          "type": "DATA",
+          "function_va": "1405ada90",
+          "function_rva": "0x5ada90"
+        }
+      ]
+    },
+    {
+      "text": "lineeditor_min_pax_departure_leg_time",
+      "rva": "0xa86ab0",
+      "references": [
+        {
+          "from_rva": "0x5af253",
+          "type": "DATA",
+          "function_va": "1405ada90",
+          "function_rva": "0x5ada90"
+        }
+      ]
+    },
+    {
+      "text": "Pax min. ride time:",
+      "rva": "0xa86ad8",
+      "references": [
+        {
+          "from_rva": "0x5af24c",
+          "type": "DATA",
+          "function_va": "1405ada90",
+          "function_rva": "0x5ada90"
+        }
+      ]
+    },
+    {
+      "text": "Stop time mode:",
+      "rva": "0xa86b48",
+      "references": [
+        {
+          "from_rva": "0x5af44b",
+          "type": "DATA",
+          "function_va": "1405ada90",
+          "function_rva": "0x5ada90"
+        }
+      ]
+    },
+    {
+      "text": "Shift click to also apply the time delta to all following fixed departures",
+      "rva": "0xa86bc0",
+      "references": [
+        {
+          "from_rva": "0x5afb0b",
+          "type": "DATA",
+          "function_va": "1405ada90",
+          "function_rva": "0x5ada90"
+        }
+      ]
+    },
+    {
+      "text": "Timetable pad wait in this stop",
+      "rva": "0xa86c78",
+      "references": [
+        {
+          "from_rva": "0x5afe63",
+          "type": "DATA",
+          "function_va": "1405ada90",
+          "function_rva": "0x5ada90"
+        }
+      ]
+    },
+    {
+      "text": "lineeditor_min_stop_time",
+      "rva": "0xa86c98",
+      "references": [
+        {
+          "from_rva": "0x5af98d",
+          "type": "DATA",
+          "function_va": "1405ada90",
+          "function_rva": "0x5ada90"
+        },
+        {
+          "from_rva": "0x5b600d",
+          "type": "DATA",
+          "function_va": "1405b34b0",
+          "function_rva": "0x5b34b0"
+        }
+      ]
+    },
+    {
+      "text": "Stop time:",
+      "rva": "0xa86cb8",
+      "references": [
+        {
+          "from_rva": "0x5af986",
+          "type": "DATA",
+          "function_va": "1405ada90",
+          "function_rva": "0x5ada90"
+        }
+      ]
+    },
+    {
+      "text": "Format: (hh:)mm:ss\nThe train will depart at this exact time, counting from the start of the line.\nTrains might wait longer if pax are still leaving or boarding.",
+      "rva": "0xa86cf0",
+      "references": [
+        {
+          "from_rva": "0x5af967",
+          "type": "DATA",
+          "function_va": "1405ada90",
+          "function_rva": "0x5ada90"
+        }
+      ]
+    },
+    {
+      "text": "lineeditor_min_stop_time_desc",
+      "rva": "0xa86db0",
+      "references": [
+        {
+          "from_rva": "0x5af9ae",
+          "type": "DATA",
+          "function_va": "1405ada90",
+          "function_rva": "0x5ada90"
+        },
+        {
+          "from_rva": "0x5b6038",
+          "type": "DATA",
+          "function_va": "1405b34b0",
+          "function_rva": "0x5b34b0"
+        }
+      ]
+    },
+    {
+      "text": "Format: (hh:)mm:ss\nStops will be scheduled with this wait time.\nTrains might wait longer if pax are still leaving or boarding.",
+      "rva": "0xa86dd0",
+      "references": [
+        {
+          "from_rva": "0x5af9a7",
+          "type": "DATA",
+          "function_va": "1405ada90",
+          "function_rva": "0x5ada90"
+        }
+      ]
+    },
+    {
+      "text": "An internal simulation of this train running on the tracks will be used for calculating the leg times.\nLeg time calculation always uses the purchased configuration of the train.",
+      "rva": "0xa87330",
+      "references": [
+        {
+          "from_rva": "0x5b48a8",
+          "type": "DATA",
+          "function_va": "1405b34b0",
+          "function_rva": "0x5b34b0"
+        }
+      ]
+    },
+    {
+      "text": "Format: (hh:)mm:ss\nTrains will be scheduled to depart after with this wait time.\nTrains might wait longer if pax are still leaving or boarding.",
+      "rva": "0xa87970",
+      "references": [
+        {
+          "from_rva": "0x5b6031",
+          "type": "DATA",
+          "function_va": "1405b34b0",
+          "function_rva": "0x5b34b0"
+        }
+      ]
+    },
+    {
+      "text": "Default stop time:",
+      "rva": "0xa87a00",
+      "references": [
+        {
+          "from_rva": "0x5b6006",
+          "type": "DATA",
+          "function_va": "1405b34b0",
+          "function_rva": "0x5b34b0"
+        }
+      ]
+    },
+    {
+      "text": "Format: hh:mm:ss\n.Line duration will be choosen to perfectly fit this length of time. This custom setting does not guarantee fitting days or weeks.",
+      "rva": "0xa87c40",
+      "references": [
+        {
+          "from_rva": "0x5b6528",
+          "type": "DATA",
+          "function_va": "1405b34b0",
+          "function_rva": "0x5b34b0"
+        }
+      ]
+    },
+    {
+      "text": "Format: hh:mm:ss\nIf the line duration is shorter than this amount, stops flagged as custom duration wait stops will have extra stop time, until the line duration matches the custom duration.\nThe extra time is distributed evenly between the stops. If no stops are selected as custom wait, the last line stop is used.",
+      "rva": "0xa87d30",
+      "references": [
+        {
+          "from_rva": "0x5b6750",
+          "type": "DATA",
+          "function_va": "1405b34b0",
+          "function_rva": "0x5b34b0"
+        }
+      ]
+    },
+    {
+      "text": "lineeditor_launch_time_desc",
+      "rva": "0xa87f80",
+      "references": [
+        {
+          "from_rva": "0x5b6b3f",
+          "type": "DATA",
+          "function_va": "1405b34b0",
+          "function_rva": "0x5b34b0"
+        }
+      ]
+    },
+    {
+      "text": "Format: hh:mm:ss\nTime of day for the first departure on the first stop for the first automatic train.\nThis setting only applies for trains in automatic orders mode.\nManual order trains using this line ignore this setting and are not counted towards interval calculation.",
+      "rva": "0xa87fa0",
+      "references": [
+        {
+          "from_rva": "0x5b6b38",
+          "type": "DATA",
+          "function_va": "1405b34b0",
+          "function_rva": "0x5b34b0"
+        }
+      ]
+    },
+    {
+      "text": "lineeditor_launch_time",
+      "rva": "0xa880b0",
+      "references": [
+        {
+          "from_rva": "0x5b6b14",
+          "type": "DATA",
+          "function_va": "1405b34b0",
+          "function_rva": "0x5b34b0"
+        }
+      ]
+    },
+    {
+      "text": "First stop station time zone",
+      "rva": "0xa88100",
+      "references": [
+        {
+          "from_rva": "0x5b6ce1",
+          "type": "DATA",
+          "function_va": "1405b34b0",
+          "function_rva": "0x5b34b0"
+        }
+      ]
+    },
+    {
+      "text": "Time zone:",
+      "rva": "0xa88130",
+      "references": [
+        {
+          "from_rva": "0x6f600a",
+          "type": "DATA",
+          "function_va": "1406f5a70",
+          "function_rva": "0x6f5a70"
+        },
+        {
+          "from_rva": "0x5b6cb5",
+          "type": "DATA",
+          "function_va": "1405b34b0",
+          "function_rva": "0x5b34b0"
+        }
+      ]
+    },
+    {
+      "text": "Extra stop time on:",
+      "rva": "0xa88198",
+      "references": [
+        {
+          "from_rva": "0x5b68f8",
+          "type": "DATA",
+          "function_va": "1405b34b0",
+          "function_rva": "0x5b34b0"
+        }
+      ]
+    },
+    {
+      "text": "Custom time zone:",
+      "rva": "0xa883e8",
+      "references": [
+        {
+          "from_rva": "0x6f6414",
+          "type": "DATA",
+          "function_va": "1406f5a70",
+          "function_rva": "0x6f5a70"
+        },
+        {
+          "from_rva": "0x5b6e59",
+          "type": "DATA",
+          "function_va": "1405b34b0",
+          "function_rva": "0x5b34b0"
+        }
+      ]
+    },
+    {
+      "text": "Custom loop: {0}\nCustom non-loop: {1}\nMinimal loop: {2}\nMinimal non-loop: {3}\nLoop time is the sum of all leg times and all stop times, including the last to first leg.\nNon-loop time is the same as loop time, minus the last to first leg.",
+      "rva": "0xa88530",
+      "references": [
+        {
+          "from_rva": "0x5b7c6e",
+          "type": "DATA",
+          "function_va": "1405b34b0",
+          "function_rva": "0x5b34b0"
+        }
+      ]
+    },
+    {
+      "text": "Automatically track and scroll the list based on the time of day",
+      "rva": "0xa88900",
+      "references": [
+        {
+          "from_rva": "0x6c2556",
+          "type": "DATA",
+          "function_va": "1406c2040",
+          "function_rva": "0x6c2040"
+        },
+        {
+          "from_rva": "0x70ae66",
+          "type": "DATA",
+          "function_va": "14070a160",
+          "function_rva": "0x70a160"
+        },
+        {
+          "from_rva": "0x5b9b1b",
+          "type": "DATA",
+          "function_va": "1405b8d80",
+          "function_rva": "0x5b8d80"
+        }
+      ]
+    },
+    {
+      "text": "line_timetable",
+      "rva": "0xa88aa0",
+      "references": [
+        {
+          "from_rva": "0x5b9c41",
+          "type": "DATA",
+          "function_va": "1405b9bd0",
+          "function_rva": "0x5b9bd0"
+        }
+      ]
+    },
+    {
+      "text": "Timetable",
+      "rva": "0xa88ab0",
+      "references": [
+        {
+          "from_rva": "0x6c6b37",
+          "type": "DATA",
+          "function_va": "1406c69d0",
+          "function_rva": "0x6c69d0"
+        },
+        {
+          "from_rva": "0x70dc87",
+          "type": "DATA",
+          "function_va": "14070db60",
+          "function_rva": "0x70db60"
+        },
+        {
+          "from_rva": "0x5b9c3a",
+          "type": "DATA",
+          "function_va": "1405b9bd0",
+          "function_rva": "0x5b9bd0"
+        }
+      ]
+    },
+    {
+      "text": "Update note:",
+      "rva": "0xa88f68",
+      "references": [
+        {
+          "from_rva": "0x5cdc92",
+          "type": "DATA",
+          "function_va": "1405cc620",
+          "function_rva": "0x5cc620"
+        }
+      ]
+    },
+    {
+      "text": "mod_uploader_update_mod",
+      "rva": "0xa89100",
+      "references": [
+        {
+          "from_rva": "0x5ceea1",
+          "type": "DATA",
+          "function_va": "1405ce310",
+          "function_rva": "0x5ce310"
+        }
+      ]
+    },
+    {
+      "text": "Update mod",
+      "rva": "0xa89118",
+      "references": [
+        {
+          "from_rva": "0x5cee9a",
+          "type": "DATA",
+          "function_va": "1405ce310",
+          "function_rva": "0x5ce310"
+        }
+      ]
+    },
+    {
+      "text": "update_note",
+      "rva": "0xa891d0",
+      "references": [
+        {
+          "from_rva": "0x5cdc99",
+          "type": "DATA",
+          "function_va": "1405cc620",
+          "function_rva": "0x5cc620"
+        }
+      ]
+    },
+    {
+      "text": "Hold updates when paused in editors",
+      "rva": "0xa89878",
+      "references": [
+        {
+          "from_rva": "0x5d39cc",
+          "type": "DATA",
+          "function_va": "1405d35b0",
+          "function_rva": "0x5d35b0"
+        }
+      ]
+    },
+    {
+      "text": "Timetable CPU threads:",
+      "rva": "0xa898b8",
+      "references": [
+        {
+          "from_rva": "0x5d380b",
+          "type": "DATA",
+          "function_va": "1405d35b0",
+          "function_rva": "0x5d35b0"
+        }
+      ]
+    },
+    {
+      "text": "Realtime track-map collision (slow)",
+      "rva": "0xa89920",
+      "references": [
+        {
+          "from_rva": "0x5d3a63",
+          "type": "DATA",
+          "function_va": "1405d35b0",
+          "function_rva": "0x5d35b0"
+        }
+      ]
+    },
+    {
+      "text": "Clock and bank:",
+      "rva": "0xa8b080",
+      "references": [
+        {
+          "from_rva": "0x5e20e4",
+          "type": "DATA",
+          "function_va": "1405e1a00",
+          "function_rva": "0x5e1a00"
+        }
+      ]
+    },
+    {
+      "text": "Time, train motion and pax simulation is shared and synchronized between all clients.\nTracks, lines and trains are edited cooperatively.",
+      "rva": "0xa8b480",
+      "references": [
+        {
+          "from_rva": "0x5e2288",
+          "type": "DATA",
+          "function_va": "1405e1a00",
+          "function_rva": "0x5e1a00"
+        }
+      ]
+    },
+    {
+      "text": "Time, train motion and pax simulation is independent for each client.\nTracks, lines and trains are edited cooperatively.\nScales to larger build sizes than shared simulation.\nGames are always set to unlimited money.",
+      "rva": "0xa8b530",
+      "references": [
+        {
+          "from_rva": "0x5e2278",
+          "type": "DATA",
+          "function_va": "1405e1a00",
+          "function_rva": "0x5e1a00"
+        }
+      ]
+    },
+    {
+      "text": "file_picker_sort_date",
+      "rva": "0xa8d130",
+      "references": [
+        {
+          "from_rva": "0x5ff065",
+          "type": "DATA",
+          "function_va": "1405fecd0",
+          "function_rva": "0x5fecd0"
+        },
+        {
+          "from_rva": "0x5ed96f",
+          "type": "DATA",
+          "function_va": "1405ed690",
+          "function_rva": "0x5ed690"
+        },
+        {
+          "from_rva": "0x5fc8b5",
+          "type": "DATA",
+          "function_va": "1405fc520",
+          "function_rva": "0x5fc520"
+        }
+      ]
+    },
+    {
+      "text": "file_picker_date",
+      "rva": "0xa8d320",
+      "references": [
+        {
+          "from_rva": "0x5ffc14",
+          "type": "DATA",
+          "function_va": "1405ff1e0",
+          "function_rva": "0x5ff1e0"
+        },
+        {
+          "from_rva": "0x5fd450",
+          "type": "DATA",
+          "function_va": "1405fca20",
+          "function_rva": "0x5fca20"
+        }
+      ]
+    },
+    {
+      "text": "In-game date:",
+      "rva": "0xa8d338",
+      "references": [
+        {
+          "from_rva": "0x5ffc0d",
+          "type": "DATA",
+          "function_va": "1405ff1e0",
+          "function_rva": "0x5ff1e0"
+        },
+        {
+          "from_rva": "0x5fd449",
+          "type": "DATA",
+          "function_va": "1405fca20",
+          "function_rva": "0x5fca20"
+        }
+      ]
+    },
+    {
+      "text": "icon_clock_w.svg",
+      "rva": "0xa8db10",
+      "references": [
+        {
+          "from_rva": "0x61b1b5",
+          "type": "DATA",
+          "function_va": "14061acc0",
+          "function_rva": "0x61acc0"
+        }
+      ]
+    },
+    {
+      "text": "Too short stop time and/or train full",
+      "rva": "0xa8def0",
+      "references": [
+        {
+          "from_rva": "0x6353db",
+          "type": "DATA",
+          "function_va": "140633f80",
+          "function_rva": "0x633f80"
+        }
+      ]
+    },
+    {
+      "text": "Live updates",
+      "rva": "0xa8e840",
+      "references": [
+        {
+          "from_rva": "0x655802",
+          "type": "DATA",
+          "function_va": "140655030",
+          "function_rva": "0x655030"
+        },
+        {
+          "from_rva": "0x655cb9",
+          "type": "DATA",
+          "function_va": "140655030",
+          "function_rva": "0x655030"
+        }
+      ]
+    },
+    {
+      "text": "assets_live_update",
+      "rva": "0xa8e850",
+      "references": [
+        {
+          "from_rva": "0x655809",
+          "type": "DATA",
+          "function_va": "140655030",
+          "function_rva": "0x655030"
+        },
+        {
+          "from_rva": "0x655cc0",
+          "type": "DATA",
+          "function_va": "140655030",
+          "function_rva": "0x655030"
+        }
+      ]
+    },
+    {
+      "text": "--- Realtime ---",
+      "rva": "0xa8e880",
+      "references": [
+        {
+          "from_rva": "0x6542d6",
+          "type": "DATA",
+          "function_va": "140653e30",
+          "function_rva": "0x653e30"
+        }
+      ]
+    },
+    {
+      "text": "sort_sep_real_time",
+      "rva": "0xa8e898",
+      "references": [
+        {
+          "from_rva": "0x6542dd",
+          "type": "DATA",
+          "function_va": "140653e30",
+          "function_rva": "0x653e30"
+        }
+      ]
+    },
+    {
+      "text": "demand_time_copy_day",
+      "rva": "0xa8ea48",
+      "references": [
+        {
+          "from_rva": "0x65a055",
+          "type": "DATA",
+          "function_va": "1406599e0",
+          "function_rva": "0x6599e0"
+        }
+      ]
+    },
+    {
+      "text": "demand_time_paste_day",
+      "rva": "0xa8ea70",
+      "references": [
+        {
+          "from_rva": "0x65a22c",
+          "type": "DATA",
+          "function_va": "1406599e0",
+          "function_rva": "0x6599e0"
+        }
+      ]
+    },
+    {
+      "text": "demand_time_set_0",
+      "rva": "0xa8ea90",
+      "references": [
+        {
+          "from_rva": "0x65a868",
+          "type": "DATA",
+          "function_va": "14065a2b0",
+          "function_rva": "0x65a2b0"
+        },
+        {
+          "from_rva": "0x659f54",
+          "type": "DATA",
+          "function_va": "1406599e0",
+          "function_rva": "0x6599e0"
+        }
+      ]
+    },
+    {
+      "text": "demand_time_set_100",
+      "rva": "0xa8eab8",
+      "references": [
+        {
+          "from_rva": "0x65a8ef",
+          "type": "DATA",
+          "function_va": "14065a2b0",
+          "function_rva": "0x65a2b0"
+        },
+        {
+          "from_rva": "0x659fda",
+          "type": "DATA",
+          "function_va": "1406599e0",
+          "function_rva": "0x6599e0"
+        }
+      ]
+    },
+    {
+      "text": "Export timetable data",
+      "rva": "0xa8f550",
+      "references": [
+        {
+          "from_rva": "0x6624ff",
+          "type": "DATA",
+          "function_va": "140661740",
+          "function_rva": "0x661740"
+        }
+      ]
+    },
+    {
+      "text": "option_company_time_zones_approximate",
+      "rva": "0xa8fa38",
+      "references": [
+        {
+          "from_rva": "0x6649d1",
+          "type": "DATA",
+          "function_va": "1406647b0",
+          "function_rva": "0x6647b0"
+        }
+      ]
+    },
+    {
+      "text": "Accounting time shift:",
+      "rva": "0xa8fa60",
+      "references": [
+        {
+          "from_rva": "0x664b3d",
+          "type": "DATA",
+          "function_va": "1406647b0",
+          "function_rva": "0x6647b0"
+        }
+      ]
+    },
+    {
+      "text": "option_company_time_zones_zero",
+      "rva": "0xa8fab0",
+      "references": [
+        {
+          "from_rva": "0x6648a9",
+          "type": "DATA",
+          "function_va": "1406647b0",
+          "function_rva": "0x6647b0"
+        }
+      ]
+    },
+    {
+      "text": "option_company_time_zones_simplified",
+      "rva": "0xa8fae0",
+      "references": [
+        {
+          "from_rva": "0x664944",
+          "type": "DATA",
+          "function_va": "1406647b0",
+          "function_rva": "0x6647b0"
+        }
+      ]
+    },
+    {
+      "text": "Map time zones:",
+      "rva": "0xa8fb38",
+      "references": [
+        {
+          "from_rva": "0x664874",
+          "type": "DATA",
+          "function_va": "1406647b0",
+          "function_rva": "0x6647b0"
+        }
+      ]
+    },
+    {
+      "text": "option_company_time_zones",
+      "rva": "0xa8fb48",
+      "references": [
+        {
+          "from_rva": "0x66487b",
+          "type": "DATA",
+          "function_va": "1406647b0",
+          "function_rva": "0x6647b0"
+        }
+      ]
+    },
+    {
+      "text": "Format: (-)hh:mm:ss\nAccounting new day will be considered to start at this shifted time relative to UTC0",
+      "rva": "0xa8fd30",
+      "references": [
+        {
+          "from_rva": "0x664bca",
+          "type": "DATA",
+          "function_va": "1406647b0",
+          "function_rva": "0x6647b0"
+        }
+      ]
+    },
+    {
+      "text": "Change map time zones mode",
+      "rva": "0xa902c0",
+      "references": [
+        {
+          "from_rva": "0x667a5c",
+          "type": "DATA",
+          "function_va": "1406678f0",
+          "function_rva": "0x6678f0"
+        },
+        {
+          "from_rva": "0x667f18",
+          "type": "DATA",
+          "function_va": "1406678f0",
+          "function_rva": "0x6678f0"
+        }
+      ]
+    },
+    {
+      "text": "option_company_time_zones_change",
+      "rva": "0xa902e0",
+      "references": [
+        {
+          "from_rva": "0x667a63",
+          "type": "DATA",
+          "function_va": "1406678f0",
+          "function_rva": "0x6678f0"
+        },
+        {
+          "from_rva": "0x667f1f",
+          "type": "DATA",
+          "function_va": "1406678f0",
+          "function_rva": "0x6678f0"
+        }
+      ]
+    },
+    {
+      "text": "Change accounting day shift time",
+      "rva": "0xa90308",
+      "references": [
+        {
+          "from_rva": "0x667a8d",
+          "type": "DATA",
+          "function_va": "1406678f0",
+          "function_rva": "0x6678f0"
+        },
+        {
+          "from_rva": "0x66808f",
+          "type": "DATA",
+          "function_va": "1406678f0",
+          "function_rva": "0x6678f0"
+        }
+      ]
+    },
+    {
+      "text": "Current day accounting will be lost and/or incorrect. Proper accounting won\u0027t be restablished until 24 hours of in-game time passes. Some historical accounting might be lost. No historical accounting will be time shifted. This setting only applies starting at the moment it is changed. Are you sure?",
+      "rva": "0xa90440",
+      "references": [
+        {
+          "from_rva": "0x668079",
+          "type": "DATA",
+          "function_va": "1406678f0",
+          "function_rva": "0x6678f0"
+        }
+      ]
+    },
+    {
+      "text": "Change time",
+      "rva": "0xa90680",
+      "references": [
+        {
+          "from_rva": "0x668039",
+          "type": "DATA",
+          "function_va": "1406678f0",
+          "function_rva": "0x6678f0"
+        }
+      ]
+    },
+    {
+      "text": "This mod data is enabled in the current game, but its installed files require a newer game version. Update the game.",
+      "rva": "0xa909d0",
+      "references": [
+        {
+          "from_rva": "0x66a6d2",
+          "type": "DATA",
+          "function_va": "140669130",
+          "function_rva": "0x669130"
+        }
+      ]
+    },
+    {
+      "text": "Frame time: {:g}ms",
+      "rva": "0xa91240",
+      "references": [
+        {
+          "from_rva": "0x67220c",
+          "type": "DATA",
+          "function_va": "140672160",
+          "function_rva": "0x672160"
+        },
+        {
+          "from_rva": "0x672213",
+          "type": "DATA",
+          "function_va": "140672160",
+          "function_rva": "0x672160"
+        }
+      ]
+    },
+    {
+      "text": "Pax timetable rebuild is pending due to an editing action\nClick icon, press F1 or unpause the simulation to start the rebuild",
+      "rva": "0xa91460",
+      "references": [
+        {
+          "from_rva": "0x675c7c",
+          "type": "DATA",
+          "function_va": "140675af0",
+          "function_rva": "0x675af0"
+        },
+        {
+          "from_rva": "0x675d30",
+          "type": "DATA",
+          "function_va": "140675af0",
+          "function_rva": "0x675af0"
+        }
+      ]
+    },
+    {
+      "text": "rebuild_timetable_stalled_tp",
+      "rva": "0xa914e0",
+      "references": [
+        {
+          "from_rva": "0x675c83",
+          "type": "DATA",
+          "function_va": "140675af0",
+          "function_rva": "0x675af0"
+        },
+        {
+          "from_rva": "0x675d37",
+          "type": "DATA",
+          "function_va": "140675af0",
+          "function_rva": "0x675af0"
+        }
+      ]
+    },
+    {
+      "text": "Rebuilding timetables...",
+      "rva": "0xa91500",
+      "references": [
+        {
+          "from_rva": "0x675d6d",
+          "type": "DATA",
+          "function_va": "140675af0",
+          "function_rva": "0x675af0"
+        }
+      ]
+    },
+    {
+      "text": "timetable_rebuild_tp",
+      "rva": "0xa91728",
+      "references": [
+        {
+          "from_rva": "0x675d74",
+          "type": "DATA",
+          "function_va": "140675af0",
+          "function_rva": "0x675af0"
+        }
+      ]
+    },
+    {
+      "text": "timetable_heuristic_building_tp",
+      "rva": "0xa91768",
+      "references": [
+        {
+          "from_rva": "0x675db0",
+          "type": "DATA",
+          "function_va": "140675af0",
+          "function_rva": "0x675af0"
+        }
+      ]
+    },
+    {
+      "text": "time_h_m",
+      "rva": "0xa92d00",
+      "references": [
+        {
+          "from_rva": "0x6a9992",
+          "type": "DATA",
+          "function_va": "1406a9870",
+          "function_rva": "0x6a9870"
+        }
+      ]
+    },
+    {
+      "text": "time_s",
+      "rva": "0xa92d0c",
+      "references": [
+        {
+          "from_rva": "0x6a98a2",
+          "type": "DATA",
+          "function_va": "1406a9870",
+          "function_rva": "0x6a9870"
+        }
+      ]
+    },
+    {
+      "text": "time_m",
+      "rva": "0xa92d14",
+      "references": [
+        {
+          "from_rva": "0x6a994a",
+          "type": "DATA",
+          "function_va": "1406a9870",
+          "function_rva": "0x6a9870"
+        }
+      ]
+    },
+    {
+      "text": "timetable_week",
+      "rva": "0xa92da8",
+      "references": [
+        {
+          "from_rva": "0x6aa0ea",
+          "type": "DATA",
+          "function_va": "1406aa060",
+          "function_rva": "0x6aa060"
+        }
+      ]
+    },
+    {
+      "text": "timetable_3days",
+      "rva": "0xa92dc8",
+      "references": [
+        {
+          "from_rva": "0x6aa232",
+          "type": "DATA",
+          "function_va": "1406aa060",
+          "function_rva": "0x6aa060"
+        }
+      ]
+    },
+    {
+      "text": "Reason to be in the hall, platform due time",
+      "rva": "0xa92f30",
+      "references": [
+        {
+          "from_rva": "0x6aba80",
+          "type": "DATA",
+          "function_va": "1406ab6a0",
+          "function_rva": "0x6ab6a0"
+        }
+      ]
+    },
+    {
+      "text": "timetable_1day",
+      "rva": "0xa92fd0",
+      "references": [
+        {
+          "from_rva": "0x6aa372",
+          "type": "DATA",
+          "function_va": "1406aa060",
+          "function_rva": "0x6aa060"
+        }
+      ]
+    },
+    {
+      "text": "Expected to depart with this line and stop number, based on timetables",
+      "rva": "0xa930e0",
+      "references": [
+        {
+          "from_rva": "0x6abdcb",
+          "type": "DATA",
+          "function_va": "1406ab6a0",
+          "function_rva": "0x6ab6a0"
+        }
+      ]
+    },
+    {
+      "text": "Trip total elapsed time",
+      "rva": "0xa93268",
+      "references": [
+        {
+          "from_rva": "0x6ac218",
+          "type": "DATA",
+          "function_va": "1406ab6a0",
+          "function_rva": "0x6ab6a0"
+        }
+      ]
+    },
+    {
+      "text": "Elapsed time of the current trip leg, including station waits",
+      "rva": "0xa932c0",
+      "references": [
+        {
+          "from_rva": "0x6ac118",
+          "type": "DATA",
+          "function_va": "1406ab6a0",
+          "function_rva": "0x6ab6a0"
+        }
+      ]
+    },
+    {
+      "text": "pax_new_time",
+      "rva": "0xa93390",
+      "references": [
+        {
+          "from_rva": "0x6ad725",
+          "type": "DATA",
+          "function_va": "1406ab6a0",
+          "function_rva": "0x6ab6a0"
+        }
+      ]
+    },
+    {
+      "text": "Show trip legs as rhombus to better reflect the initial wait time",
+      "rva": "0xa939f0",
+      "references": [
+        {
+          "from_rva": "0x6b4618",
+          "type": "DATA",
+          "function_va": "1406b30e0",
+          "function_rva": "0x6b30e0"
+        }
+      ]
+    },
+    {
+      "text": "icon_warp.svg",
+      "rva": "0xa93a38",
+      "references": [
+        {
+          "from_rva": "0x6b9726",
+          "type": "DATA",
+          "function_va": "1406b8ca0",
+          "function_rva": "0x6b8ca0"
+        },
+        {
+          "from_rva": "0x6b972d",
+          "type": "DATA",
+          "function_va": "1406b8ca0",
+          "function_rva": "0x6b8ca0"
+        }
+      ]
+    },
+    {
+      "text": "Warp train",
+      "rva": "0xa93a48",
+      "references": [
+        {
+          "from_rva": "0x6b97c1",
+          "type": "DATA",
+          "function_va": "1406b8ca0",
+          "function_rva": "0x6b8ca0"
+        }
+      ]
+    },
+    {
+      "text": "train_info_warp",
+      "rva": "0xa93a58",
+      "references": [
+        {
+          "from_rva": "0x6b97c8",
+          "type": "DATA",
+          "function_va": "1406b8ca0",
+          "function_rva": "0x6b8ca0"
+        }
+      ]
+    },
+    {
+      "text": "train infowin warp picker",
+      "rva": "0xa93ad8",
+      "references": [
+        {
+          "from_rva": "0x6b9705",
+          "type": "DATA",
+          "function_va": "1406b8ca0",
+          "function_rva": "0x6b8ca0"
+        }
+      ]
+    },
+    {
+      "text": "dispatch_cooldown_reason_CurrentTimeBeforeArrival",
+      "rva": "0xa94028",
+      "references": [
+        {
+          "from_rva": "0x6bb976",
+          "type": "DATA",
+          "function_va": "1406badf0",
+          "function_rva": "0x6badf0"
+        }
+      ]
+    },
+    {
+      "text": "Realtime",
+      "rva": "0xa941a8",
+      "references": [
+        {
+          "from_rva": "0x6bcd27",
+          "type": "DATA",
+          "function_va": "1406bcbc0",
+          "function_rva": "0x6bcbc0"
+        },
+        {
+          "from_rva": "0x6c213d",
+          "type": "DATA",
+          "function_va": "1406c2040",
+          "function_rva": "0x6c2040"
+        }
+      ]
+    },
+    {
+      "text": "realtime",
+      "rva": "0xa941b8",
+      "references": [
+        {
+          "from_rva": "0x6bcd2e",
+          "type": "DATA",
+          "function_va": "1406bcbc0",
+          "function_rva": "0x6bcbc0"
+        }
+      ]
+    },
+    {
+      "text": "station_demand_realtime",
+      "rva": "0xa94378",
+      "references": [
+        {
+          "from_rva": "0x6c2144",
+          "type": "DATA",
+          "function_va": "1406c2040",
+          "function_rva": "0x6c2040"
+        }
+      ]
+    },
+    {
+      "text": "station_timetable_open_in_sched",
+      "rva": "0xa946a8",
+      "references": [
+        {
+          "from_rva": "0x6c46b0",
+          "type": "DATA",
+          "function_va": "1406c2ea0",
+          "function_rva": "0x6c2ea0"
+        },
+        {
+          "from_rva": "0x6c4945",
+          "type": "DATA",
+          "function_va": "1406c2ea0",
+          "function_rva": "0x6c2ea0"
+        }
+      ]
+    },
+    {
+      "text": "timetable",
+      "rva": "0xa94868",
+      "references": [
+        {
+          "from_rva": "0x6c6b3e",
+          "type": "DATA",
+          "function_va": "1406c69d0",
+          "function_rva": "0x6c69d0"
+        }
+      ]
+    },
+    {
+      "text": "Timeout",
+      "rva": "0xa94ba0",
+      "references": [
+        {
+          "from_rva": "0x6e630e",
+          "type": "DATA",
+          "function_va": "1406e6040",
+          "function_rva": "0x6e6040"
+        }
+      ]
+    },
+    {
+      "text": "map_op_result_timeout",
+      "rva": "0xa94ba8",
+      "references": [
+        {
+          "from_rva": "0x6e6315",
+          "type": "DATA",
+          "function_va": "1406e6040",
+          "function_rva": "0x6e6040"
+        }
+      ]
+    },
+    {
+      "text": "Timed as if the timing stop is reached in the next loop",
+      "rva": "0xa98760",
+      "references": [
+        {
+          "from_rva": "0x6f2cee",
+          "type": "DATA",
+          "function_va": "1406f2cd0",
+          "function_rva": "0x6f2cd0"
+        }
+      ]
+    },
+    {
+      "text": "Timed as if the timing stop and enter stop are in the same loop",
+      "rva": "0xa988a0",
+      "references": [
+        {
+          "from_rva": "0x6f2d08",
+          "type": "DATA",
+          "function_va": "1406f2cd0",
+          "function_rva": "0x6f2cd0"
+        }
+      ]
+    },
+    {
+      "text": "Timed as if the timing stop is reached first in the previous loop",
+      "rva": "0xa98900",
+      "references": [
+        {
+          "from_rva": "0x6f2d1d",
+          "type": "DATA",
+          "function_va": "1406f2cd0",
+          "function_rva": "0x6f2cd0"
+        }
+      ]
+    },
+    {
+      "text": "First line time zone",
+      "rva": "0xa98e38",
+      "references": [
+        {
+          "from_rva": "0x6f6039",
+          "type": "DATA",
+          "function_va": "1406f5a70",
+          "function_rva": "0x6f5a70"
+        }
+      ]
+    },
+    {
+      "text": "Format: (-)hh:mm:ss\nShift the start time of the selected orders by this amount.",
+      "rva": "0xa993e0",
+      "references": [
+        {
+          "from_rva": "0x6fe285",
+          "type": "DATA",
+          "function_va": "1406fd000",
+          "function_rva": "0x6fd000"
+        }
+      ]
+    },
+    {
+      "text": "traineditor_order_shift_time_desc",
+      "rva": "0xa99430",
+      "references": [
+        {
+          "from_rva": "0x6fe28c",
+          "type": "DATA",
+          "function_va": "1406fd000",
+          "function_rva": "0x6fd000"
+        }
+      ]
+    },
+    {
+      "text": "traineditor_order_shift_time",
+      "rva": "0xa994b0",
+      "references": [
+        {
+          "from_rva": "0x6fe1f2",
+          "type": "DATA",
+          "function_va": "1406fd000",
+          "function_rva": "0x6fd000"
+        }
+      ]
+    },
+    {
+      "text": "traineditor_order_start_time_by",
+      "rva": "0xa994d8",
+      "references": [
+        {
+          "from_rva": "0x70319d",
+          "type": "DATA",
+          "function_va": "140702780",
+          "function_rva": "0x702780"
+        }
+      ]
+    },
+    {
+      "text": "traineditor_order_start_time_at",
+      "rva": "0xa99500",
+      "references": [
+        {
+          "from_rva": "0x7031c1",
+          "type": "DATA",
+          "function_va": "140702780",
+          "function_rva": "0x702780"
+        }
+      ]
+    },
+    {
+      "text": "traineditor_order_start_time_day_on",
+      "rva": "0xa99568",
+      "references": [
+        {
+          "from_rva": "0x700ae7",
+          "type": "DATA",
+          "function_va": "1406fd000",
+          "function_rva": "0x6fd000"
+        },
+        {
+          "from_rva": "0x6fe679",
+          "type": "DATA",
+          "function_va": "1406fd000",
+          "function_rva": "0x6fd000"
+        },
+        {
+          "from_rva": "0x703035",
+          "type": "DATA",
+          "function_va": "140702780",
+          "function_rva": "0x702780"
+        }
+      ]
+    },
+    {
+      "text": "Set time to the latest possible time which makes this order not have a padding wait on its last run\nIgnores pending day of week and start time edits\nMulti day orders will only consider the first day",
+      "rva": "0xa99760",
+      "references": []
+    },
+    {
+      "text": "traineditor_order_start_time_arrange_bop_desc",
+      "rva": "0xa99828",
+      "references": []
+    },
+    {
+      "text": "Format: hh:mm:ss\nTime of day to for the selected timing stop and event to happen.",
+      "rva": "0xa99860",
+      "references": [
+        {
+          "from_rva": "0x70327c",
+          "type": "DATA",
+          "function_va": "140702780",
+          "function_rva": "0x702780"
+        }
+      ]
+    },
+    {
+      "text": "traineditor_order_start_time_desc",
+      "rva": "0xa998b8",
+      "references": [
+        {
+          "from_rva": "0x703283",
+          "type": "DATA",
+          "function_va": "140702780",
+          "function_rva": "0x702780"
+        }
+      ]
+    },
+    {
+      "text": "Set time to the earliest possible time which allows the previous order to not have a padding wait on its last run\nIgnores pending day of week and start time edits\nMulti day orders will only consider the first day",
+      "rva": "0xa998e0",
+      "references": []
+    },
+    {
+      "text": "traineditor_order_start_time_arrange_top_desc2",
+      "rva": "0xa999b8",
+      "references": []
+    },
+    {
+      "text": "Format: hh:mm:ss\nTime to add to the start the selected order list.",
+      "rva": "0xa99ab0",
+      "references": [
+        {
+          "from_rva": "0x7052c6",
+          "type": "DATA",
+          "function_va": "140704ac0",
+          "function_rva": "0x704ac0"
+        }
+      ]
+    },
+    {
+      "text": "schededitor_shift_list_insert_time",
+      "rva": "0xa99af8",
+      "references": [
+        {
+          "from_rva": "0x7052cd",
+          "type": "DATA",
+          "function_va": "140704ac0",
+          "function_rva": "0x704ac0"
+        }
+      ]
+    },
+    {
+      "text": "Override start time",
+      "rva": "0xa99d48",
+      "references": [
+        {
+          "from_rva": "0x702ebd",
+          "type": "DATA",
+          "function_va": "140702780",
+          "function_rva": "0x702780"
+        }
+      ]
+    },
+    {
+      "text": "Format: hh:mm:ss\nEvenly distribute the start time of the orders over this duration.",
+      "rva": "0xa99e50",
+      "references": [
+        {
+          "from_rva": "0x7068a4",
+          "type": "DATA",
+          "function_va": "140705dd0",
+          "function_rva": "0x705dd0"
+        }
+      ]
+    },
+    {
+      "text": "Format: (-)hh:mm:ss\nIncrementally shift the start time of the orders by this amount.",
+      "rva": "0xa99ef0",
+      "references": [
+        {
+          "from_rva": "0x707cf0",
+          "type": "DATA",
+          "function_va": "1407079b0",
+          "function_rva": "0x7079b0"
+        },
+        {
+          "from_rva": "0x70667d",
+          "type": "DATA",
+          "function_va": "140705dd0",
+          "function_rva": "0x705dd0"
+        }
+      ]
+    },
+    {
+      "text": "sched_editor_tab_timetable",
+      "rva": "0xa9a310",
+      "references": [
+        {
+          "from_rva": "0x70dc8e",
+          "type": "DATA",
+          "function_va": "14070db60",
+          "function_rva": "0x70db60"
+        }
+      ]
+    },
+    {
+      "text": "Same wait time as global option",
+      "rva": "0xa9fb98",
+      "references": [
+        {
+          "from_rva": "0x79fa69",
+          "type": "DATA",
+          "function_va": "14079f4d0",
+          "function_rva": "0x79f4d0"
+        }
+      ]
+    },
+    {
+      "text": "Custom wait time",
+      "rva": "0xa9fbd0",
+      "references": [
+        {
+          "from_rva": "0x79faba",
+          "type": "DATA",
+          "function_va": "14079f4d0",
+          "function_rva": "0x79f4d0"
+        }
+      ]
+    },
+    {
+      "text": "ended_timed_stop",
+      "rva": "0xaa4dc8",
+      "references": [
+        {
+          "from_rva": "0x8054d7",
+          "type": "DATA",
+          "function_va": "140804000",
+          "function_rva": "0x804000"
+        }
+      ]
+    },
+    {
+      "text": "Texture can\u0027t be 3D and cube map at the same time.",
+      "rva": "0xaa5a28",
+      "references": [
+        {
+          "from_rva": "0x8330a6",
+          "type": "DATA",
+          "function_va": "140833030",
+          "function_rva": "0x833030"
+        },
+        {
+          "from_rva": "0x8330ad",
+          "type": "DATA",
+          "function_va": "140833030",
+          "function_rva": "0x833030"
+        }
+      ]
+    },
+    {
+      "text": "vkUpdateDescriptorSets",
+      "rva": "0xaa7388",
+      "references": [
+        {
+          "from_rva": "0x84c9e1",
+          "type": "DATA",
+          "function_va": "14084aa70",
+          "function_rva": "0x84aa70"
+        }
+      ]
+    },
+    {
+      "text": "vkInvalidateMappedMemoryRanges",
+      "rva": "0xaa7838",
+      "references": [
+        {
+          "from_rva": "0x84cedd",
+          "type": "DATA",
+          "function_va": "14084aa70",
+          "function_rva": "0x84aa70"
+        }
+      ]
+    },
+    {
+      "text": "vkCmdWriteTimestamp",
+      "rva": "0xaa7908",
+      "references": [
+        {
+          "from_rva": "0x84ce19",
+          "type": "DATA",
+          "function_va": "14084aa70",
+          "function_rva": "0x84aa70"
+        }
+      ]
+    },
+    {
+      "text": "TypeRuntimeArray",
+      "rva": "0xaa97b0",
+      "references": [
+        {
+          "from_rva": "0xa39378",
+          "type": "DATA"
+        }
+      ]
+    },
+    {
+      "text": "VectorTimesScalar",
+      "rva": "0xaa9dc8",
+      "references": [
+        {
+          "from_rva": "0xa39700",
+          "type": "DATA"
+        }
+      ]
+    },
+    {
+      "text": "MatrixTimesScalar",
+      "rva": "0xaa9de0",
+      "references": [
+        {
+          "from_rva": "0xa39708",
+          "type": "DATA"
+        }
+      ]
+    },
+    {
+      "text": "MatrixTimesMatrix",
+      "rva": "0xaa9f10",
+      "references": [
+        {
+          "from_rva": "0xa39720",
+          "type": "DATA"
+        }
+      ]
+    },
+    {
+      "text": "VectorTimesMatrix",
+      "rva": "0xaa9f38",
+      "references": [
+        {
+          "from_rva": "0xa39710",
+          "type": "DATA"
+        }
+      ]
+    },
+    {
+      "text": "MatrixTimesVector",
+      "rva": "0xaa9f50",
+      "references": [
+        {
+          "from_rva": "0xa39718",
+          "type": "DATA"
+        }
+      ]
+    },
+    {
+      "text": "LifetimeStop",
+      "rva": "0xaaa4f0",
+      "references": [
+        {
+          "from_rva": "0xa39a98",
+          "type": "DATA"
+        }
+      ]
+    },
+    {
+      "text": "LifetimeStart",
+      "rva": "0xaaa520",
+      "references": [
+        {
+          "from_rva": "0xa39a90",
+          "type": "DATA"
+        }
+      ]
+    },
+    {
+      "text": "HeapValidate",
+      "rva": "0xb56b60",
+      "references": []
+    },
+    {
+      "text": "SystemTimeToFileTime",
+      "rva": "0xb56d00",
+      "references": []
+    },
+    {
+      "text": "GetSystemTimeAsFileTime",
+      "rva": "0xb56d26",
+      "references": []
+    },
+    {
+      "text": "GetSystemTime",
+      "rva": "0xb56d40",
+      "references": []
+    },
+    {
+      "text": "_Xtime_get_ticks",
+      "rva": "0xb58532",
+      "references": []
+    },
+    {
+      "text": "VCRUNTIME140_1.dll",
+      "rva": "0xb58ace",
+      "references": []
+    },
+    {
+      "text": "VCRUNTIME140.dll",
+      "rva": "0xb58ae2",
+      "references": []
+    },
+    {
+      "text": "_localtime64_s",
+      "rva": "0xb58c3e",
+      "references": []
+    },
+    {
+      "text": "asctime",
+      "rva": "0xb58e82",
+      "references": []
+    },
+    {
+      "text": "_localtime64",
+      "rva": "0xb58e8c",
+      "references": []
+    },
+    {
+      "text": "_gmtime64_s",
+      "rva": "0xb58f78",
+      "references": []
+    },
+    {
+      "text": "_time64",
+      "rva": "0xb58f9e",
+      "references": []
+    },
+    {
+      "text": "strftime",
+      "rva": "0xb5900a",
+      "references": []
+    },
+    {
+      "text": "api-ms-win-crt-runtime-l1-1-0.dll",
+      "rva": "0xb591d0",
+      "references": []
+    },
+    {
+      "text": "api-ms-win-crt-time-l1-1-0.dll",
+      "rva": "0xb5927a",
+      "references": []
+    },
+    {
+      "text": ".?AVruntime_error@std@@",
+      "rva": "0xb5eee0",
+      "references": []
+    },
+    {
+      "text": ".?AV\u003clambda_1\u003e@?1???R\u003clambda_4\u003e@?4??validate_all@TrackNetwork@model@nimby@@QEBA_NXZ@QEBA@PEBUTrack@45@@Z@",
+      "rva": "0xb63f70",
+      "references": []
+    },
+    {
+      "text": ".?AV\u003clambda_3\u003e@?4??validate_all@TrackNetwork@model@nimby@@QEBA_NXZ@",
+      "rva": "0xb641a0",
+      "references": []
+    },
+    {
+      "text": ".?AV\u003clambda_1\u003e@?1??lost_check@PaxUpdater@model@nimby@@QEAAXAEAV?$linear_congruential_engine@I$0LMIP@$0A@$0HPPPPPPP@@std@@AEAUStation@234@AEAUTrain@234@@Z@",
+      "rva": "0xb64700",
+      "references": []
+    },
+    {
+      "text": ".?AV\u003clambda_2\u003e@?CD@??lost_check@PaxUpdater@model@nimby@@QEAAXAEAV?$linear_congruential_engine@I$0LMIP@$0A@$0HPPPPPPP@@std@@AEAUStation@234@@Z@",
+      "rva": "0xb647b0",
+      "references": []
+    },
+    {
+      "text": ".?AV\u003clambda_1\u003e@?BM@??lost_check@PaxUpdater@model@nimby@@QEAAXAEAV?$linear_congruential_engine@I$0LMIP@$0A@$0HPPPPPPP@@std@@AEAUStation@234@@Z@",
+      "rva": "0xb64850",
+      "references": []
+    },
+    {
+      "text": ".?AV\u003clambda_1\u003e@?P@??update_game_banners@Playing@shell@nimby@@QEAA_NAEAUContext@34@AEAUUITxn@34@AEAV?$map@V?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@V12@U?$less@V?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@@eastl@@Vallocator@4@@eastl@@_N@Z@",
+      "rva": "0xb64c10",
+      "references": []
+    },
+    {
+      "text": ".?AV\u003clambda_1\u003e@?BK@??update_client_banners@Playing@shell@nimby@@QEAAXAEAUContext@34@AEAUUITxn@34@@Z@",
+      "rva": "0xb64d40",
+      "references": []
+    },
+    {
+      "text": ".?AV\u003clambda_1\u003e@?CI@??update_right_bar@Playing@shell@nimby@@QEAAXAEAUContext@34@AEAUUITxn@34@AEAUDeclare@ui@34@@Z@",
+      "rva": "0xb64dc0",
+      "references": []
+    },
+    {
+      "text": ".?AV\u003clambda_2\u003e@?BN@??update_server_banners@Playing@shell@nimby@@QEAAXAEAUContext@34@AEAUUITxn@34@@Z@",
+      "rva": "0xb64fe0",
+      "references": []
+    },
+    {
+      "text": ".?AV\u003clambda_1\u003e@?BM@??update_server_banners@Playing@shell@nimby@@QEAAXAEAUContext@34@AEAUUITxn@34@@Z@",
+      "rva": "0xb65220",
+      "references": []
+    },
+    {
+      "text": ".?AV\u003clambda_3\u003e@?BO@??update_server_banners@Playing@shell@nimby@@QEAAXAEAUContext@34@AEAUUITxn@34@@Z@",
+      "rva": "0xb65360",
+      "references": []
+    },
+    {
+      "text": ".?AV\u003clambda_1\u003e@?1???R0?7??render_realtime@TrainWindow@shell@nimby@@QEAAXAEAUDeclare@ui@34@AEAUContext@34@AEAUUITxn@34@@Z@QEBA@1AEAUVGCanvas@34@MMMMMMMM@Z@",
+      "rva": "0xb65470",
+      "references": []
+    },
+    {
+      "text": ".?AV\u003clambda_1\u003e@?7??render_realtime@TrainWindow@shell@nimby@@QEAAXAEAUDeclare@ui@34@AEAUContext@34@AEAUUITxn@34@@Z@",
+      "rva": "0xb655b0",
+      "references": []
+    },
+    {
+      "text": ".?AV\u003clambda_1\u003e@?1??export_timetable_now@UITxn@shell@nimby@@QEAAXXZ@",
+      "rva": "0xb65d70",
+      "references": []
+    },
+    {
+      "text": ".?AV\u003clambda_1\u003e@?BA@??update_last@NewTrackContinuationEditor@Impl@TrackEditor@shell@nimby@@QEAAXAEAUEventContext@3456@@Z@",
+      "rva": "0xb66810",
+      "references": []
+    },
+    {
+      "text": ".?AV\u003clambda_3\u003e@?CK@??update_last@NewTrackContinuationEditor@Impl@TrackEditor@shell@nimby@@QEAAXAEAUEventContext@3456@@Z@",
+      "rva": "0xb668a0",
+      "references": []
+    },
+    {
+      "text": ".?AV\u003clambda_2\u003e@?BN@??update_last@NewTrackContinuationEditor@Impl@TrackEditor@shell@nimby@@QEAAXAEAUEventContext@3456@@Z@",
+      "rva": "0xb66930",
+      "references": []
+    },
+    {
+      "text": ".?AV?$CCallResult@VModUGCManagerSteam@gamer@platform@nimby@@USubmitItemUpdateResult_t@@@@",
+      "rva": "0xb6e260",
+      "references": []
+    },
+    {
+      "text": ".?AUCompanyCheats@misc@cmd@model@nimby@@",
+      "rva": "0xb6f320",
+      "references": []
+    },
+    {
+      "text": ".?AUWarp@train@cmd@model@nimby@@",
+      "rva": "0xb6fac0",
+      "references": []
+    },
+    {
+      "text": ".?AV?$_Func_impl_no_alloc@V\u003clambda_3\u003e@?4??validate_all@TrackNetwork@model@nimby@@QEBA_NXZ@_NAEB_J@std@@",
+      "rva": "0xb70110",
+      "references": []
+    },
+    {
+      "text": ".?AV?$_Func_impl_no_alloc@V\u003clambda_1\u003e@?1???R\u003clambda_4\u003e@?4??validate_all@TrackNetwork@model@nimby@@QEBA_NXZ@QEBA@PEBUTrack@56@@Z@_NAEB_J@std@@",
+      "rva": "0xb70620",
+      "references": []
+    },
+    {
+      "text": ".?AUTrainWarp@SimCmd@model@nimby@@",
+      "rva": "0xb706f8",
+      "references": []
+    },
+    {
+      "text": ".?AV?$_Func_impl_no_alloc@V\u003clambda_1\u003e@?BM@??lost_check@PaxUpdater@model@nimby@@QEAAXAEAV?$linear_congruential_engine@I$0LMIP@$0A@$0HPPPPPPP@@std@@AEAUStation@345@@Z@_NAEBUPax@45@@std@@",
+      "rva": "0xb712e0",
+      "references": []
+    },
+    {
+      "text": ".?AV?$_Func_impl_no_alloc@V\u003clambda_2\u003e@?CD@??lost_check@PaxUpdater@model@nimby@@QEAAXAEAV?$linear_congruential_engine@I$0LMIP@$0A@$0HPPPPPPP@@std@@AEAUStation@345@@Z@_NAEBUPax@45@@std@@",
+      "rva": "0xb713b0",
+      "references": []
+    },
+    {
+      "text": ".?AV?$_Func_impl_no_alloc@V\u003clambda_1\u003e@?1??lost_check@PaxUpdater@model@nimby@@QEAAXAEAV?$linear_congruential_engine@I$0LMIP@$0A@$0HPPPPPPP@@std@@AEAUStation@345@AEAUTrain@345@@Z@_NAEBUPax@45@@std@@",
+      "rva": "0xb71480",
+      "references": []
+    },
+    {
+      "text": ".?AV?$_Func_impl_no_alloc@V\u003clambda_1\u003e@?BK@??update_client_banners@Playing@shell@nimby@@QEAAXAEAUContext@45@AEAUUITxn@45@@Z@XAEAU745@@std@@",
+      "rva": "0xb726d0",
+      "references": []
+    },
+    {
+      "text": ".?AV?$_Func_impl_no_alloc@V\u003clambda_2\u003e@?BN@??update_server_banners@Playing@shell@nimby@@QEAAXAEAUContext@45@AEAUUITxn@45@@Z@XAEAU745@@std@@",
+      "rva": "0xb72930",
+      "references": []
+    },
+    {
+      "text": ".?AV?$_Func_impl_no_alloc@V\u003clambda_1\u003e@?P@??update_game_banners@Playing@shell@nimby@@QEAA_NAEAUContext@45@AEAUUITxn@45@AEAV?$map@V?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@V12@U?$less@V?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@@eastl@@Vallocator@4@@eastl@@_N@Z@XAEAU745@@std@@",
+      "rva": "0xb72c80",
+      "references": []
+    },
+    {
+      "text": ".?AV?$_Func_impl_no_alloc@V\u003clambda_3\u003e@?BO@??update_server_banners@Playing@shell@nimby@@QEAAXAEAUContext@45@AEAUUITxn@45@@Z@XAEAU745@@std@@",
+      "rva": "0xb72dd0",
+      "references": []
+    },
+    {
+      "text": ".?AV?$_Func_impl_no_alloc@V\u003clambda_1\u003e@?CI@??update_right_bar@Playing@shell@nimby@@QEAAXAEAUContext@45@AEAUUITxn@45@AEAUDeclare@ui@45@@Z@XAEAU645@AEAUVGCanvas@45@MMMMMMMM@std@@",
+      "rva": "0xb72f10",
+      "references": []
+    },
+    {
+      "text": ".?AV?$_Func_impl_no_alloc@V\u003clambda_1\u003e@?BM@??update_server_banners@Playing@shell@nimby@@QEAAXAEAUContext@45@AEAUUITxn@45@@Z@XAEAU745@@std@@",
+      "rva": "0xb73300",
+      "references": []
+    },
+    {
+      "text": ".?AV?$_Func_impl_no_alloc@V\u003clambda_1\u003e@?1???R1?7??render_realtime@TrainWindow@shell@nimby@@QEAAXAEAUDeclare@ui@45@AEAUContext@45@AEAUUITxn@45@@Z@QEBA@1AEAUVGCanvas@45@MMMMMMMM@Z@V?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@_J@std@@",
+      "rva": "0xb733f0",
+      "references": []
+    },
+    {
+      "text": ".?AV?$_Func_impl_no_alloc@V\u003clambda_1\u003e@?7??render_realtime@TrainWindow@shell@nimby@@QEAAXAEAUDeclare@ui@45@AEAUContext@45@AEAUUITxn@45@@Z@XAEAU845@AEAUVGCanvas@45@MMMMMMMM@std@@",
+      "rva": "0xb73500",
+      "references": []
+    },
+    {
+      "text": ".?AV?$_Func_impl_no_alloc@V\u003clambda_1\u003e@?1??export_timetable_now@UITxn@shell@nimby@@QEAAXXZ@XAEAUUIState@45@@std@@",
+      "rva": "0xb743e0",
+      "references": []
+    },
+    {
+      "text": ".?AV?$_Func_impl_no_alloc@V\u003clambda_1\u003e@?BA@??update_last@NewTrackContinuationEditor@Impl@TrackEditor@shell@nimby@@QEAAXAEAUEventContext@4567@@Z@_NPEBUTrack@model@7@@std@@",
+      "rva": "0xb74d80",
+      "references": []
+    },
+    {
+      "text": ".?AV?$_Func_impl_no_alloc@V\u003clambda_3\u003e@?CK@??update_last@NewTrackContinuationEditor@Impl@TrackEditor@shell@nimby@@QEAAXAEAUEventContext@4567@@Z@_NPEBUTrack@model@7@@std@@",
+      "rva": "0xb75280",
+      "references": []
+    },
+    {
+      "text": ".?AV?$_Func_impl_no_alloc@V\u003clambda_2\u003e@?BN@??update_last@NewTrackContinuationEditor@Impl@TrackEditor@shell@nimby@@QEAAXAEAUEventContext@4567@@Z@_NPEBUTrack@model@7@@std@@",
+      "rva": "0xb75950",
+      "references": []
+    }
+  ]
+}

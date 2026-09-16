@@ -19,7 +19,7 @@ void printSnapshot(const nimby::Snapshot& snapshot) {
             if (auto station = snapshot.getStationForTrack(*track)) {
                 std::cout << " | station=" << station->getName().value_or("unknown name");
                 if (auto platforms = snapshot.getPlatformOccupationsForStation(station->getId()))
-                    for (const auto& row : *platforms) if (row.platform.getTrackId() == *track)
+                    for (const auto& row : *platforms) if (row.platform.containsTrack(*track))
                         std::cout << " | platform=" << row.platform.getName().value_or("unknown");
             } else std::cout << " | outside station";
         } else if (service && service->isOnNetwork() == false) std::cout << " | not placed on network";

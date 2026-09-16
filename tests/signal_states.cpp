@@ -3,6 +3,21 @@
 #include <cstdio>
 #define CHECK(x) do { if(!(x)){std::fprintf(stderr,"FAIL %d: %s\n",__LINE__,#x);return 1;} } while(false)
 int main() {
+    nimby::engine::Signal native{};native.id=0x8000000000001;native.kind=4;
+    auto absent=signal_render_state(native,true,{});
+    CHECK(absent.texture_state==0&&(absent.flags&NIMBY_SIGNAL_TEXTURE_STATE_VALID));
+    CHECK(absent.flags&NIMBY_SIGNAL_TEXTURE_STATE_DEFAULT);
+    CHECK(!(absent.flags&NIMBY_SIGNAL_ASPECT_VALID));
+    CHECK(signal_render_state(native,false,{}).flags==0);
+    const std::map<uint64_t,int32_t> other{{native.id+1,10}};
+    CHECK(signal_render_state(native,true,other).flags&NIMBY_SIGNAL_TEXTURE_STATE_DEFAULT);
+    for(int selector:{0,9,10,-1}){
+        const auto explicit_state=signal_render_state(native,true,{{native.id,selector}});
+        CHECK(explicit_state.texture_state==selector);
+        CHECK(!(explicit_state.flags&NIMBY_SIGNAL_TEXTURE_STATE_DEFAULT));
+        CHECK(explicit_state.flags&NIMBY_SIGNAL_TEXTURE_STATE_VALID);
+        CHECK(signal_render_state(native,false,{{native.id,selector}}).flags==0);
+    }
     Snapshot fixture;
     NimbySignalState unknown{};unknown.signal_id=0x8000000000001;
     NimbySignalState specific{};specific.signal_id=0x8000000010001;

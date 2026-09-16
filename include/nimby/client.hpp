@@ -12,6 +12,7 @@
 #include <chrono>
 #include <condition_variable>
 #include <cstdint>
+#include <cstdio>
 #include <memory>
 #include <mutex>
 #include <optional>
@@ -31,7 +32,7 @@ enum class ErrorCode : std::uint32_t {
     Ok = 0, InvalidArgument = 1, IoError = 2, InvalidBinary = 3,
     AlreadyInitialized = 4, HooksUnavailable = 5, InternalError = 6,
     UnsupportedGame = 7, DataUnavailable = 8, InvalidHandle = 9,
-    BufferTooSmall = 10, ProcessExited = 11, ResourceLimit = 12
+    BufferTooSmall = 10, ProcessExited = 11, ResourceLimit = 12, ClockWriteFailed = 13
 };
 
 struct Error {
@@ -65,12 +66,41 @@ inline Version getVersion() {
     version.struct_size = sizeof version;
     detail::check(NimbyInternal_GetVersion(&version), "GetVersion");
     if (version.abi_version != NIMBY_OBSERVATION_ABI_VERSION ||
-        version.major != 0 || version.minor != 7)
-        detail::check(NIMBY_INVALID_ARGUMENT, "NimbyRailsFranceSDK 0.7.x required");
+        version.major != 0 || version.minor != 7 || version.patch < 1)
+        detail::check(NIMBY_INVALID_ARGUMENT, "NimbyRailsFranceSDK 0.7.1+ required");
     return {version.major, version.minor, version.patch, version.abi_version};
 }
 struct Coordinates { double x, y; };
 struct SpecificState { std::string system, state; };
+
+class SimulationClock {
+public:
+    explicit SimulationClock(const NimbySimulationClock& data) : data_(data) {}
+    std::chrono::sys_time<Milliseconds> getDateTimeUtc() const {
+        return std::chrono::sys_time<Milliseconds>{Milliseconds{data_.epoch_seconds*1000+data_.ticks*10}};
+    }
+    Milliseconds getElapsedTime() const { return Milliseconds{data_.ticks*10}; }
+    int64_t getEpochSeconds() const { return data_.epoch_seconds; }
+    std::string getDateTimeUtcString() const {
+        const auto time=getDateTimeUtc();
+        const auto day=std::chrono::floor<std::chrono::days>(time);
+        const std::chrono::year_month_day date{day};
+        const std::chrono::hh_mm_ss tod{time-day};
+        char text[40]{};
+        std::snprintf(text,sizeof text,"%04d-%02u-%02uT%02lld:%02lld:%02lld.%03lldZ",
+            int(date.year()),unsigned(date.month()),unsigned(date.day()),
+            static_cast<long long>(tod.hours().count()),static_cast<long long>(tod.minutes().count()),
+            static_cast<long long>(tod.seconds().count()),static_cast<long long>(tod.subseconds().count()));
+        return text;
+    }
+private:
+    NimbySimulationClock data_;
+};
+
+struct SimulationTimeChange {
+    SimulationClock clock;
+    std::uint32_t interventions;
+};
 
 class Position {
 public:
@@ -212,6 +242,7 @@ public:
     std::optional<std::uint32_t> getAspect() const { return (data_.flags & NIMBY_SIGNAL_ASPECT_VALID) ? std::optional<std::uint32_t>{data_.aspect} : std::nullopt; }
     std::optional<SpecificState> getSpecificState() const { return (data_.flags & NIMBY_SIGNAL_SPECIFIC_STATE_VALID) ? std::optional<SpecificState>{SpecificState{data_.system_utf8, data_.specific_state_utf8}} : std::nullopt; }
     std::optional<std::int32_t> getTextureSelector() const { return (data_.flags & NIMBY_SIGNAL_TEXTURE_STATE_VALID) ? std::optional<std::int32_t>{data_.texture_state} : std::nullopt; }
+    bool usesDefaultTextureSelector() const noexcept { return (data_.flags & (NIMBY_SIGNAL_TEXTURE_STATE_VALID | NIMBY_SIGNAL_TEXTURE_STATE_DEFAULT)) == (NIMBY_SIGNAL_TEXTURE_STATE_VALID | NIMBY_SIGNAL_TEXTURE_STATE_DEFAULT); }
 private:
     NimbySignalState data_;
 };
@@ -256,12 +287,17 @@ private:
 
 class Platform {
 public:
-    explicit Platform(const NimbyPlatform& data) : data_(data) {}
+    explicit Platform(const NimbyPlatform& data) : data_(data),track_ids_{data.track_id} {}
+    Platform(const Platform& first,std::vector<Id> tracks) : data_(first.data_),track_ids_(std::move(tracks)) {}
+    // Representative section only. Use getTrackIds()/containsTrack() for a whole platform.
     Id getTrackId() const { return data_.track_id; }
+    const std::vector<Id>& getTrackIds() const noexcept { return track_ids_; }
+    bool containsTrack(Id id) const { return std::find(track_ids_.begin(),track_ids_.end(),id)!=track_ids_.end(); }
     Id getStationId() const { return data_.station_id; }
     std::optional<std::string> getName() const { return data_.flags&NIMBY_PLATFORM_NAME_VALID?std::optional<std::string>{data_.name_utf8}:std::nullopt; }
 private:
     NimbyPlatform data_;
+    std::vector<Id> track_ids_;
 };
 struct PlatformOccupation {
     Platform platform;
@@ -335,6 +371,7 @@ public:
     }
     bool isOlderThan(Milliseconds age) const { return getAge() > age; }
     std::string getGameSha256() const { return info_.game_sha256; }
+    std::optional<SimulationClock> getSimulationClock() const { return clock_; }
     std::span<const Train> getAllTrains() const noexcept { return trains_.rows; }
     std::optional<Train> getTrainById(Id id) const { return trains_.find(id); }
     std::optional<TrainDetails> getTrainDetailsById(Id id) const { return details_.find(id); }
@@ -375,8 +412,8 @@ public:
             auto position = v.getPosition(); return position && position->getTrackId() == id;
         });
     }
-    // One result per station track section. Labels can repeat; track IDs cannot.
-    std::optional<std::vector<PlatformOccupation>> getPlatformOccupationsForStation(Id id) const {
+    // Raw section detail; use getPlatformOccupationsForStation for grouped platforms.
+    std::optional<std::vector<PlatformOccupation>> getPlatformSectionOccupationsForStation(Id id) const {
         if(!getStationById(id))return std::nullopt;
         std::vector<PlatformOccupation> result;
         const auto it=station_platforms_.find(id);
@@ -393,6 +430,31 @@ public:
         };
         for(const auto& platform:it->second)result.push_back({platform,
             trainsFor(occupations_,occupant_ids_,platform.getTrackId()),trainsFor(reservations_,reservation_ids_,platform.getTrackId())});
+        return result;
+    }
+    // Same station ID + exact known platform name. Unknown/empty names stay separate.
+    std::optional<std::vector<PlatformOccupation>> getPlatformOccupationsForStation(Id id) const {
+        auto sections=getPlatformSectionOccupationsForStation(id);
+        if(!sections)return std::nullopt;
+        std::vector<PlatformOccupation> result;
+        std::unordered_map<std::string,size_t> names;
+        auto merge=[](auto& into,const auto& from){
+            if(!into||!from){into.reset();return;}
+            for(const auto& train:*from)if(std::none_of(into->begin(),into->end(),[&](const Train& existing){return existing.getId()==train.getId();}))
+                into->push_back(train);
+        };
+        for(auto& section:*sections){
+            const auto name=section.platform.getName();
+            if(!name||name->empty()){result.push_back(std::move(section));continue;}
+            const auto [found,inserted]=names.emplace(*name,result.size());
+            if(inserted){result.push_back(std::move(section));continue;}
+            auto& group=result[found->second];
+            auto tracks=group.platform.getTrackIds();
+            if(std::find(tracks.begin(),tracks.end(),section.platform.getTrackId())==tracks.end())tracks.push_back(section.platform.getTrackId());
+            group.platform=Platform{group.platform,std::move(tracks)};
+            merge(group.occupying_trains,section.occupying_trains);
+            merge(group.reserving_trains,section.reserving_trains);
+        }
         return result;
     }
     std::vector<Track> getTracksForStation(Id id) const {
@@ -433,6 +495,7 @@ private:
     friend class Client;
     Snapshot() = default;
     NimbySnapshotInfo info_{};
+    std::optional<SimulationClock> clock_;
     std::chrono::steady_clock::time_point captured_;
     detail::Table<Train> trains_;
     detail::Table<TrainService> services_;
@@ -461,6 +524,10 @@ private:
         result->captured_ = std::chrono::steady_clock::now();
         result->info_.struct_size = sizeof result->info_;
         detail::check(NimbyInternal_GetSnapshotInfo(native.value, &result->info_), "GetSnapshotInfo");
+        NimbySimulationClock clock{};clock.struct_size=sizeof clock;
+        const auto clockStatus=NimbyInternal_GetSimulationClock(native.value,&clock);
+        if(clockStatus==NIMBY_OK)result->clock_=SimulationClock{clock};
+        else if(clockStatus!=NIMBY_DATA_UNAVAILABLE)detail::check(clockStatus,"GetSimulationClock");
         result->trains_ = detail::table<Train, NimbyTrain>(
             [&](auto* out, auto capacity, auto* count) { return NimbyInternal_CopyTrains(native.value, out, capacity, count); },
             [](const NimbyTrain& row) { return row.id; }, "CopyTrains");
@@ -569,7 +636,33 @@ public:
         if (session_) NimbyInternal_CloseSession(session_);
     }
     Version getSdkVersion() const noexcept { return version_; }
+    // Experimental: rebases the calendar and active train service dates together,
+    // preserving ticks, elapsed-time deadlines and the subsecond fraction.
+    // UTC input, not the map's local time. Existing retained snapshots remain unchanged.
+    SimulationClock setSimulationDateTime(std::chrono::sys_seconds utc) {
+        std::lock_guard captureLock(captureMutex_);
+        NimbySimulationClock result{};result.struct_size=sizeof result;
+        detail::check(NimbyInternal_SetSimulationDateTime(session_,utc.time_since_epoch().count(),&result),"SetSimulationDateTime");
+        {
+            std::lock_guard lock(mutex_);
+            latest_.reset();
+            error_.reset();
+        }
+        return SimulationClock{result};
+    }
     std::uint32_t getProcessId() const noexcept { return pid_; }
+    // Native all-trains intervention after changing UTC: resets services, relocates
+    // passengers and respawns eligible trains, with the game's normal intervention cost.
+    SimulationTimeChange setSimulationDateTimeAndRecalculateTrains(std::chrono::sys_seconds utc) {
+        std::lock_guard captureLock(captureMutex_);
+        NimbySimulationClock result{};result.struct_size=sizeof result;
+        uint32_t count{};
+        const auto status=NimbyInternal_SetSimulationDateTimeAndRecalculateTrains(
+            session_,utc.time_since_epoch().count(),&result,&count);
+        {std::lock_guard lock(mutex_);latest_.reset();error_.reset();}
+        detail::check(status,"SetSimulationDateTimeAndRecalculateTrains");
+        return {SimulationClock{result},count};
+    }
     ConnectionState getConnectionState() const {
         std::lock_guard lock(mutex_); return connection_;
     }

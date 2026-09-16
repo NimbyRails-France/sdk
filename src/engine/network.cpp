@@ -1,4 +1,5 @@
 #include "engine/network.h"
+#include "engine/simulation_clock.h"
 #include <algorithm>
 #include <array>
 #include <cmath>
@@ -99,6 +100,12 @@ void resolve_station_names(ReadMemory read,void* context,const LiveState& state,
     // An unavailable cache must not hide otherwise valid network data.
     if(stable)for(auto& [id,name]:names)stations[automatic.at(id)].name=std::move(name);
 }
+}
+bool plan_simulation_calendar(ReadMemory read,void* context,uint64_t simulation,
+                              int64_t delta,std::vector<CalendarWrite>& edits) {
+    return collect(read,context,simulation+0xa0,5,0x638,[&](const unsigned char* p,uint64_t address){
+        return plan_motion_calendar(p,address,delta,edits);
+    });
 }
 bool decode_train_service(const void* motion,size_t size,int32_t order_mode,NimbyTrainService& out) noexcept {
     out={};if(!motion||size<0x638||order_mode<0||order_mode>2)return false;
@@ -211,7 +218,7 @@ bool read_trains(ReadMemory read,void* context,const LiveState& state,bool recog
                 }
                 if(clock_read&&ticks>=0&&ticks<10000000000000LL){
                     auto& s=t.service;s.game_time_us=ticks*10000;s.flags|=NIMBY_SERVICE_CLOCK_VALID;
-                    if(read(context,state.simulation+0x20,&epoch,sizeof epoch)&&epoch>=0&&epoch<32503680000LL){
+                    if(read(context,state.simulation+0x20,&epoch,sizeof epoch)&&epoch>=-62135596800LL&&epoch<=253402300799LL-s.game_time_us/1000000){
                         s.game_epoch_seconds=epoch;s.flags|=NIMBY_SERVICE_CALENDAR_VALID;
                     }
                     if(s.flags&NIMBY_SERVICE_ARRIVAL_VALID)s.arrival_remaining_seconds=double(s.arrival_time_us-s.game_time_us)/1000000;

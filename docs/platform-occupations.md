@@ -16,16 +16,21 @@ if (auto platforms = snapshot->getPlatformOccupationsForStation(stationId)) {
 }
 ```
 
-Chaque resultat correspond a une **section de voie de gare** avec son nom de
-quai natif, son ID de voie et son ID de gare. Un quai peut comprendre plusieurs
-sections, parfois avec des noms identiques ou des suffixes N/S/E/W. Ne pas
-considerer une section libre comme la preuve que tout le quai est libre ;
-les identifiants de voie restent les cles uniques. Les trains sont dedoublonnes
-par ID complet au sein de chaque section, meme si plusieurs voitures l'occupent.
-Plusieurs trains sur une section sont tous retournes.
+Chaque resultat regroupe les sections ayant le **meme ID de gare et le meme
+nom de quai connu, non vide**. Le quai B n'apparait donc qu'une fois pour cette
+gare. Les noms restent exacts : les suffixes N/S/E/W ne sont pas supprimes.
+Les sections sans nom connu restent separees, ainsi que deux gares homonymes.
+
+`row.platform.getTrackIds()` retourne tous les troncons du quai et
+`containsTrack(trackId)` permet d'y localiser un train. `getTrackId()` conserve
+uniquement le premier troncon comme representant ; il ne decrit pas tout le quai.
+Les trains occupants et reservant sont dedoublonnes par ID complet sur l'ensemble
+des troncons. Un troncon libre ne masque jamais un autre troncon occupe.
+`getPlatformSectionOccupationsForStation(stationId)` conserve le detail brut,
+avec une entree par section et les memes regles de disponibilite.
 
 - `isOccupied() == true` : au moins une occupation native de voiture.
-- `isOccupied() == false` : table d'occupation lue, aucune occupation sur cette section.
+- `isOccupied() == false` : occupation connue, aucun train sur les troncons du quai.
 - `isOccupied() == nullopt` : occupation indisponible ; ne pas afficher libre.
 - `occupying_trains` et `reserving_trains` sont independamment optionnels.
 - Gare inconnue : resultat `nullopt`. Gare existante sans section : tableau vide.
@@ -55,6 +60,8 @@ vitesse ou du seul point avant du train n'est utilise.
 
 Tests : noms manuels, numerotation automatique et quatre orientations,
 lecture impossible, reservation seule, occupation par plusieurs trains,
-dedoublonnage des voitures, occupation indisponible et gare inconnue.
+dedoublonnage des voitures et des troncons, fusion des reservations, premier
+troncon libre et suivant occupe, noms inconnus/vides, gares distinctes,
+occupation indisponible et gare inconnue.
 Sur la partie de verification : 3 342 gares et 23 190 sections, toutes avec
 un nom resolu. L'outil automatique et la verification de l'API terminent sans erreur.

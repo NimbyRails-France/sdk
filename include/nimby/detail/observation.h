@@ -12,6 +12,7 @@ extern "C" {
 #define NIMBY_BUFFER_TOO_SMALL 10u
 #define NIMBY_PROCESS_EXITED 11u
 #define NIMBY_RESOURCE_LIMIT 12u
+#define NIMBY_CLOCK_WRITE_FAILED 13u
 #define NIMBY_TRAIN_ACTIVE_DRIVE 1u
 #define NIMBY_TRAIN_POSITION_VALID 2u
 // Independent speed validity; active Drive alone does not validate speed.
@@ -35,6 +36,7 @@ extern "C" {
 #define NIMBY_SIGNAL_ASPECT_VALID 1u
 #define NIMBY_SIGNAL_SPECIFIC_STATE_VALID 2u
 #define NIMBY_SIGNAL_TEXTURE_STATE_VALID 4u
+#define NIMBY_SIGNAL_TEXTURE_STATE_DEFAULT 8u
 #define NIMBY_SIGNAL_TEXTURE_REFERENCE_VALID 1u
 #define NIMBY_SIGNAL_TEXTURE_FILE_VALID 2u
 #define NIMBY_SIGNAL_TEXTURE_DEFAULT_SET 4u
@@ -192,6 +194,10 @@ typedef struct NimbySnapshotInfo {
     char game_sha256[65];
     uint8_t reserved[7];
 } NimbySnapshotInfo;
+typedef struct NimbySimulationClock {
+    uint32_t struct_size, reserved;
+    int64_t epoch_seconds, ticks;
+} NimbySimulationClock;
 #pragma pack(pop)
 
 // Independent of diagnostics Initialize/Shutdown. pid=0 means the calling process.
@@ -202,6 +208,11 @@ NIMBY_API uint32_t __cdecl NimbyInternal_CloseSession(NimbySession session) NIMB
 NIMBY_API uint32_t __cdecl NimbyInternal_CaptureSnapshot(NimbySession session, NimbySnapshot* out) NIMBY_NOEXCEPT;
 NIMBY_API uint32_t __cdecl NimbyInternal_ReleaseSnapshot(NimbySnapshot snapshot) NIMBY_NOEXCEPT;
 NIMBY_API uint32_t __cdecl NimbyInternal_GetSnapshotInfo(NimbySnapshot snapshot, NimbySnapshotInfo* out) NIMBY_NOEXCEPT;
+NIMBY_API uint32_t __cdecl NimbyInternal_GetSimulationClock(NimbySnapshot snapshot, NimbySimulationClock* out) NIMBY_NOEXCEPT;
+// Explicit experimental calendar rebase. Does not advance ticks or simulate history.
+NIMBY_API uint32_t __cdecl NimbyInternal_SetSimulationDateTime(NimbySession session, int64_t utc_seconds, NimbySimulationClock* out) NIMBY_NOEXCEPT;
+// Explicit native all-trains intervention; installs a version-specific in-process bridge.
+NIMBY_API uint32_t __cdecl NimbyInternal_SetSimulationDateTimeAndRecalculateTrains(NimbySession session, int64_t utc_seconds, NimbySimulationClock* out, uint32_t* interventions) NIMBY_NOEXCEPT;
 // Query count with records=NULL, capacity=0. No partial copy when too small.
 // required is mandatory; capacity and required are record counts, not byte sizes.
 NIMBY_API uint32_t __cdecl NimbyInternal_CopyTrains(NimbySnapshot snapshot, NimbyTrain* records, uint32_t capacity, uint32_t* required) NIMBY_NOEXCEPT;

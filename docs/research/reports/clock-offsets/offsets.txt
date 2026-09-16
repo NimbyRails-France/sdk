@@ -1,0 +1,64 @@
+1404380e6 MOVUPS xmmword ptr [RDI + 0x4b8],XMM0 caller 140437d30
+1404380ff MOV byte ptr [RDI + 0x4b8],SIL caller 140437d30
+1404381de MOV qword ptr [RDI + 0x5c0],0xf caller 140437d30
+14043824c MOV qword ptr [RDI + 0x630],RSI caller 140437d30
+14043a667 LEA RCX,[RSI + 0x4b8] caller 14043a010
+14043e7ae MOVUPS XMM0,xmmword ptr [RSI + 0x4b8] caller 14043e3b0
+14043e7c8 MOVUPS xmmword ptr [RBX + 0x4b8],XMM0 caller 14043e3b0
+14043e90c MOVUPS XMM0,xmmword ptr [RSI + 0x5c0] caller 14043e3b0
+14043e913 MOVUPS xmmword ptr [RBX + 0x5c0],XMM0 caller 14043e3b0
+14043e983 MOV RAX,qword ptr [RSI + 0x630] caller 14043e3b0
+14043e98a MOV qword ptr [RBX + 0x630],RAX caller 14043e3b0
+140440f2b ADD qword ptr [RAX + 0x4b8],RCX caller 140440eb0
+1404412ad MOVUPS xmmword ptr [RBX + 0x5c0],XMM0 caller 140441130
+140443302 MOV R12,qword ptr [RBX + 0x5c0] caller 140443200
+140443503 MOVUPS xmmword ptr [RBX + 0x4b8],XMM0 caller 140443200
+140443534 MOV qword ptr [RBX + 0x4b8],RCX caller 140443200
+140443d1d ADD qword ptr [RBX + 0x5c0],0x93a80 caller 140443ac0
+140443d5b ADD qword ptr [RBX + 0x5c0],RAX caller 140443ac0
+140443f70 MOV RCX,qword ptr [RBX + 0x5c0] caller 140443ac0
+140445c45 MOVUPS xmmword ptr [RAX + 0x5c0],XMM0 caller 140444230
+140449f36 MOV RAX,qword ptr [RDI + 0x4b8] caller 140449e40
+14044b72c ADD RDX,0x630 caller 14044b5b0
+14044f8d2 MOV R8D,0x630 caller 14044f7e0
+140450608 MOVUPS XMM0,xmmword ptr [RDI + 0x4b8] caller 140450420
+140450616 MOVUPS xmmword ptr [RBX + 0x4b8],XMM0 caller 140450420
+14045070a MOVUPS XMM0,xmmword ptr [RDI + 0x5c0] caller 140450420
+140450711 MOVUPS xmmword ptr [RBX + 0x5c0],XMM0 caller 140450420
+1404507a9 MOV RAX,qword ptr [RDI + 0x630] caller 140450420
+1404507ba MOV qword ptr [RBX + 0x630],RAX caller 140450420
+140459820 MOV R8D,0x630 caller 1404597b0
+140459930 MOV qword ptr [RCX + 0x630],RAX caller 140459860
+14045ae63 MOVUPS XMM0,xmmword ptr [R14 + 0x4b8] caller 14045ac60
+14045ae6b MOVUPS xmmword ptr [RSI + 0x4b8],XMM0 caller 14045ac60
+14045af51 MOVUPS XMM0,xmmword ptr [R14 + 0x5c0] caller 14045ac60
+14045af59 MOVUPS xmmword ptr [RSI + 0x5c0],XMM0 caller 14045ac60
+14045b042 MOV RAX,qword ptr [R14 + 0x630] caller 14045ac60
+14045b049 MOV qword ptr [RSI + 0x630],RAX caller 14045ac60
+1404644cb MOVUPS XMM0,xmmword ptr [RDI + 0x4b8] caller 1404642f0
+1404644d2 MOVUPS xmmword ptr [RBX + 0x4b8],XMM0 caller 1404642f0
+14046464c MOVUPS XMM0,xmmword ptr [RDI + 0x5c0] caller 1404642f0
+140464653 MOVUPS xmmword ptr [RBX + 0x5c0],XMM0 caller 1404642f0
+140464714 MOV RAX,qword ptr [RDI + 0x630] caller 1404642f0
+14046471b MOV qword ptr [RBX + 0x630],RAX caller 1404642f0
+14046685b MOV RCX,qword ptr [RCX + 0x5c0] caller 140466690
+140466975 MOV RCX,qword ptr [RCX + 0x5c0] caller 140466690
+140466beb MOV RCX,qword ptr [RCX + 0x5c0] caller 140466690
+14046ac48 SUB RAX,qword ptr [RBX + 0x630] caller 14046a8a0
+14046ac99 MOV qword ptr [RBX + 0x630],RAX caller 14046a8a0
+14046ada4 ADD qword ptr [RBX + 0x4b8],RCX caller 14046a8a0
+140470c55 MOV RAX,qword ptr [RAX + 0x5c0] caller 140470c30
+140478db1 MOV R8D,0x630 caller 140478b20
+1404798da LEA RCX,[RSI + 0x4b8] caller 140479530
+14047a4f9 LEA RCX,[RBX + 0x4b8] caller 14047a370
+140487d2b MOV qword ptr [RDX + 0x630],-0x1 caller 140487840
+140488a9b MOV RDX,qword ptr [RDX + 0x5c0] caller 140488a50
+140489746 MOV RAX,qword ptr [RDI + 0x630] caller 140488f80
+14048974d MOV qword ptr [RBX + 0x630],RAX caller 140488f80
+1404897d8 MOV RSI,qword ptr [RBX + 0x5c0] caller 140489780
+140489800 MOV RAX,qword ptr [RCX + 0x5c0] caller 140489780
+140489823 MOV RAX,qword ptr [RAX + 0x5c0] caller 140489780
+14048982f MOV RAX,qword ptr [RAX + 0x5c0] caller 140489780
+140489836 MOV qword ptr [RCX + 0x5c0],RAX caller 140489780
+140489bc4 MOV qword ptr [RSI + 0x630],RAX caller 140489ad0
+14048b2ed MOV RDX,qword ptr [RDX + 0x5c0] caller 14048a9f0

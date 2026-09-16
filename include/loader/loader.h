@@ -21,6 +21,7 @@ public:
     Monitor(const Monitor&) = delete;
     Monitor& operator=(const Monitor&) = delete;
     std::vector<Event> poll();
+    Event attach_process(DWORD pid);
     const std::wstring& executable() const noexcept { return executable_; }
 private:
     std::wstring executable_, sdk_;

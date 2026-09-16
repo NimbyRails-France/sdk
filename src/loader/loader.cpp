@@ -247,4 +247,11 @@ std::vector<Event> Monitor::poll() {
     } while (Process32NextW(snapshot.value,&entry));
     return events;
 }
+Event Monitor::attach_process(DWORD pid) {
+    try {
+        Handle process{OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION|SYNCHRONIZE,FALSE,pid)};
+        if(!process.value)fail("Open selected process");
+        return attach(pid,creation_time(process.value));
+    }catch(const std::exception& error){return {pid,false,error.what()};}
+}
 }

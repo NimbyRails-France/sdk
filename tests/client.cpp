@@ -12,6 +12,7 @@ std::atomic<int> captures{}, releases{}, closes{}, active{}, peak{}, delayMs{};
 std::atomic<uint32_t> captureStatus{NIMBY_OK}, trackStatus{NIMBY_OK};
 std::atomic<bool> reservationsAvailable{true};
 std::atomic<bool> emptyReservations{false}, occupationsAvailable{true}, occupiedPlatform{false};
+std::atomic<bool> groupedPlatforms{false};
 std::set<NimbySnapshot> handles;
 std::mutex handlesMutex;
 template<class T>
@@ -26,9 +27,21 @@ uint32_t copy(NimbySnapshot snapshot, T* out, uint32_t capacity, uint32_t* count
     return NIMBY_OK;
 }
 }
-static uint32_t runtimeMinor = 7, runtimeAbi = 2;
+static uint32_t runtimeMinor = 7, runtimeAbi = 2, runtimePatch = 1;
+static std::atomic<int64_t> clockEpoch{1781123300};
+static std::atomic<bool> clockAvailable{true};
 uint32_t __cdecl NimbyInternal_GetVersion(NimbySdkVersion* out) noexcept {
-    *out = {sizeof *out, runtimeAbi, 0, runtimeMinor, 0}; return NIMBY_OK;
+    *out = {sizeof *out, runtimeAbi, 0, runtimeMinor, runtimePatch}; return NIMBY_OK;
+}
+uint32_t __cdecl NimbyInternal_GetSimulationClock(NimbySnapshot,NimbySimulationClock* out) noexcept {
+    if(!clockAvailable)return NIMBY_DATA_UNAVAILABLE;
+    *out={sizeof *out,0,clockEpoch,542534653};return NIMBY_OK;
+}
+uint32_t __cdecl NimbyInternal_SetSimulationDateTime(NimbySession,int64_t seconds,NimbySimulationClock* out) noexcept {
+    clockEpoch=seconds-5425346;*out={sizeof *out,0,clockEpoch,542534653};return NIMBY_OK;
+}
+uint32_t __cdecl NimbyInternal_SetSimulationDateTimeAndRecalculateTrains(NimbySession session,int64_t seconds,NimbySimulationClock* out,uint32_t* count) noexcept {
+    *count=345;return NimbyInternal_SetSimulationDateTime(session,seconds,out);
 }
 const char* __cdecl NimbyInternal_StatusString(uint32_t code) noexcept {
     return code == NIMBY_PROCESS_EXITED ? "Process exited" : "Test status";
@@ -92,10 +105,21 @@ uint32_t __cdecl NimbyInternal_CopyTracks(NimbySnapshot s, NimbyTrack* out, uint
 }
 uint32_t __cdecl NimbyInternal_CopyPlatforms(NimbySnapshot s,NimbyPlatform* out,uint32_t cap,uint32_t* n) noexcept {
     NimbyPlatform row{};row.track_id=20;row.station_id=30;row.flags=NIMBY_PLATFORM_NAME_VALID;std::strcpy(row.name_utf8,"A");
+    if(groupedPlatforms){
+        auto second=row;second.track_id=21;
+        auto other=row;other.track_id=22;std::strcpy(other.name_utf8,"B");
+        auto unknown=row;unknown.track_id=23;unknown.flags=0;
+        auto unknown2=unknown;unknown2.track_id=24;
+        auto empty=row;empty.track_id=25;empty.name_utf8[0]=0;
+        auto empty2=empty;empty2.track_id=26;
+        auto elsewhere=row;elsewhere.station_id=31;elsewhere.track_id=29;
+        return copy(s,out,cap,n,std::vector{row,second,other,unknown,unknown2,empty,empty2,elsewhere});
+    }
     return copy(s,out,cap,n,std::vector{row});
 }
 uint32_t __cdecl NimbyInternal_CopyStations(NimbySnapshot s, NimbyStation* out, uint32_t cap, uint32_t* n) noexcept {
     NimbyStation station{}; station.id = 30; // Unresolved automatic name.
+    if(groupedPlatforms){auto other=station;other.id=31;return copy(s,out,cap,n,std::vector{station,other});}
     return copy(s, out, cap, n, std::vector{station});
 }
 uint32_t __cdecl NimbyInternal_CopySignals(NimbySnapshot s, NimbySignal* out, uint32_t cap, uint32_t* n) noexcept {
@@ -114,12 +138,14 @@ uint32_t __cdecl NimbyInternal_CopyTrackNodes(NimbySnapshot s, NimbyTrackNode* o
 }
 uint32_t __cdecl NimbyInternal_CopyTrackReservations(NimbySnapshot s, NimbyTrackUsage* out, uint32_t cap, uint32_t* n) noexcept {
     if (!reservationsAvailable) { *n = 0; return NIMBY_DATA_UNAVAILABLE; }
+    if(groupedPlatforms)return copy(s,out,cap,n,std::vector<NimbyTrackUsage>{{0x10000000001ULL,20,0,1},{0x10000000001ULL,21,0,1},{2,21,0,1}});
     const auto rows = emptyReservations ? std::vector<NimbyTrackUsage>{}
         : std::vector<NimbyTrackUsage>{{0x10000000001ULL, 20, .1, .6}};
     return copy(s, out, cap, n, rows);
 }
 uint32_t __cdecl NimbyInternal_CopyTrackOccupations(NimbySnapshot s, NimbyTrackUsage* out, uint32_t cap, uint32_t* n) noexcept {
     if(!occupationsAvailable){*n=0;return NIMBY_DATA_UNAVAILABLE;}
+    if(groupedPlatforms)return copy(s,out,cap,n,std::vector<NimbyTrackUsage>{{0x10000000001ULL,21,0,.5},{0x10000000001ULL,21,.5,1},{2,21,0,1}});
     const auto rows=occupiedPlatform?std::vector<NimbyTrackUsage>{{0x10000000001ULL,20,0,.5},{0x10000000001ULL,20,.5,1},{2,20,.1,.2}}:std::vector<NimbyTrackUsage>{};
     return copy(s, out, cap, n, rows);
 }
@@ -141,6 +167,12 @@ int main() {
             REQUIRE(rejected);
         }
         runtimeMinor = 7; runtimeAbi = 2;
+        runtimePatch=0;
+        bool oldPatchRejected=false;
+        try { (void)nimby::getVersion(); } catch(const nimby::Exception&) { oldPatchRejected=true; }
+        REQUIRE(oldPatchRejected);runtimePatch=1;
+        NimbySimulationClock historical{sizeof(NimbySimulationClock),0,-946771200,53};
+        REQUIRE(nimby::SimulationClock{historical}.getDateTimeUtcString()=="1940-01-01T00:00:00.530Z");
         // Active Drive no longer substitutes for explicit speed validity.
         NimbyTrain speedRecord{};
         speedRecord.speed_mps=12.5;
@@ -186,6 +218,21 @@ int main() {
                 REQUIRE(rejected);
             }
             retained = client.capture();
+            REQUIRE(retained->getSimulationClock().has_value());
+            const auto originalClock=retained->getSimulationClock()->getDateTimeUtc();
+            const auto changedClock=client.setSimulationDateTime(std::chrono::sys_seconds{std::chrono::seconds{-946771200}});
+            REQUIRE(changedClock.getDateTimeUtcString()=="1940-01-01T00:00:00.530Z");
+            REQUIRE(!client.latest());
+            REQUIRE(retained->getSimulationClock()->getDateTimeUtc()==originalClock);
+            REQUIRE(client.capture()->getSimulationClock()->getDateTimeUtc()==changedClock.getDateTimeUtc());
+            const auto reset=client.setSimulationDateTimeAndRecalculateTrains(std::chrono::sys_seconds{std::chrono::seconds{-946767600}});
+            REQUIRE(reset.interventions==345);
+            REQUIRE(reset.clock.getDateTimeUtcString()=="1940-01-01T01:00:00.530Z");
+            REQUIRE(!client.latest());
+            REQUIRE(retained->getSimulationClock()->getDateTimeUtc()==originalClock);
+            clockAvailable=false;
+            REQUIRE(!client.capture()->getSimulationClock());
+            clockAvailable=true;
             REQUIRE(captures == releases);
             REQUIRE(retained->getAllTrains().size() == 2);
             REQUIRE(retained->getAllTrainServices().size()==2);
@@ -224,6 +271,13 @@ int main() {
             REQUIRE(retained->getAllOccupations()->empty());
             REQUIRE(!retained->getSignalStateById(40)->getAspect());
             REQUIRE(retained->getSignalStateById(40)->getTextureSelector() == 0);
+            REQUIRE(!retained->getSignalStateById(40)->usesDefaultTextureSelector());
+            NimbySignalState defaultSelector{};
+            defaultSelector.flags=NIMBY_SIGNAL_TEXTURE_STATE_VALID|NIMBY_SIGNAL_TEXTURE_STATE_DEFAULT;
+            REQUIRE(nimby::SignalState{defaultSelector}.usesDefaultTextureSelector());
+            REQUIRE(nimby::SignalState{defaultSelector}.getTextureSelector()==0);
+            defaultSelector.flags=NIMBY_SIGNAL_TEXTURE_STATE_DEFAULT;
+            REQUIRE(!nimby::SignalState{defaultSelector}.usesDefaultTextureSelector());
             REQUIRE(!retained->getSignalStateById(40)->getSpecificState());
             REQUIRE(!retained->getSignalTextureById(40)->getReference());
             REQUIRE(!retained->getSignalTextureById(40)->getFilePath());
@@ -257,6 +311,25 @@ int main() {
             REQUIRE(!unknown->front().isOccupied()&&!unknown->front().occupying_trains);
             REQUIRE(unknown->front().reserving_trains.has_value());
             occupationsAvailable=true;occupiedPlatform=false;
+            groupedPlatforms=true;
+            auto groupedSnapshot=client.capture();
+            auto grouped=groupedSnapshot->getPlatformOccupationsForStation(30);
+            REQUIRE(grouped->size()==6); // A, B, two unknown names, two empty names.
+            REQUIRE(grouped->front().platform.getTrackIds()==std::vector<nimby::Id>({20,21}));
+            REQUIRE(grouped->front().platform.containsTrack(21));
+            REQUIRE(!grouped->front().platform.containsTrack(29));
+            REQUIRE(grouped->front().isOccupied()==true);
+            REQUIRE(grouped->front().occupying_trains->size()==2);
+            REQUIRE(grouped->front().reserving_trains->size()==2);
+            REQUIRE((*grouped)[1].isOccupied()==false);
+            const auto sections=groupedSnapshot->getPlatformSectionOccupationsForStation(30);
+            REQUIRE(sections->size()==7&&sections->front().isOccupied()==false&&(*sections)[1].isOccupied()==true);
+            REQUIRE(groupedSnapshot->getPlatformOccupationsForStation(31)->front().platform.getTrackIds()==std::vector<nimby::Id>{29});
+            occupationsAvailable=false;
+            REQUIRE(!client.capture()->getPlatformOccupationsForStation(30)->front().isOccupied());
+            occupationsAvailable=true;reservationsAvailable=false;
+            REQUIRE(!client.capture()->getPlatformOccupationsForStation(30)->front().reserving_trains);
+            reservationsAvailable=true;groupedPlatforms=false;
             // Auto/manual captures share a gate even when a capture overruns its period.
             delayMs = 35;
             client.startAutoRefresh(10ms);

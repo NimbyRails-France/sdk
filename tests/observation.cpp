@@ -9,6 +9,15 @@
 int main(int argc,char** argv) {
     static_assert(sizeof(NimbyTrackUsage)==32);
     NimbySession session=123;NimbySnapshot snapshot=123;uint32_t count=99;
+    NimbySimulationClock clock{};clock.struct_size=sizeof clock;
+    CHECK(NimbyInternal_GetSimulationClock(0,&clock)==NIMBY_INVALID_HANDLE);
+    CHECK(NimbyInternal_SetSimulationDateTime(0,-946771200,&clock)==NIMBY_INVALID_HANDLE);
+    CHECK(NimbyInternal_SetSimulationDateTime(0,INT64_MAX,&clock)==NIMBY_INVALID_ARGUMENT);
+    CHECK(NimbyInternal_SetSimulationDateTime(0,0,nullptr)==NIMBY_INVALID_ARGUMENT);
+    CHECK(NimbyInternal_SetSimulationDateTimeAndRecalculateTrains(0,0,&clock,&count)==NIMBY_INVALID_HANDLE);
+    CHECK(count==0);
+    CHECK(NimbyInternal_SetSimulationDateTimeAndRecalculateTrains(0,INT64_MAX,&clock,&count)==NIMBY_INVALID_ARGUMENT);
+    CHECK(NimbyInternal_SetSimulationDateTimeAndRecalculateTrains(0,0,&clock,nullptr)==NIMBY_INVALID_ARGUMENT);
     CHECK(NimbyInternal_OpenProcess(99,0,&session)==NIMBY_INVALID_ARGUMENT&&session==0);
     CHECK(NimbyInternal_OpenProcess(1,0,&session)==NIMBY_INVALID_ARGUMENT&&session==0);
     CHECK(NimbyInternal_OpenProcess(NIMBY_OBSERVATION_ABI_VERSION,0,&session)==NIMBY_UNSUPPORTED_GAME&&session==0);

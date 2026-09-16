@@ -13,7 +13,7 @@ cliquer sur le triangle vert (Run) :
   CLion demande le PID du jeu au lancement. Il change lorsque le jeu redémarre.
 
 Ces configurations partagées sont dans `.run/` et compilent leur outil en Debug
-avant de le lancer. Elles consomment toutes le SDK installé dans `install/0.7.0/Release`.
+avant de le lancer. Elles consomment toutes le SDK installé dans `install/0.7.1/Release`.
 Pour travailler dans cette fenêtre, conserver le projet CMake racine chargé ;
 il suffit de sélectionner une configuration pour changer d'outil.
 
@@ -22,7 +22,7 @@ il suffit de sélectionner une configuration pour changer d'outil.
 Les presets Debug et Release exposent aussi `MyFirstNimbyTool`,
 `MyNimbyObserver` et `MyNimbyClient` dans la même fenêtre. Garder le
 `CMakeLists.txt` racine comme projet CMake. Ces outils utilisent le paquet
-**installé dans `install/0.7.0/Release`**, via `find_package`, y compris en Debug :
+**installé dans `install/0.7.1/Release`**, via `find_package`, y compris en Debug :
 headers, bibliothèque d'import et DLL proviennent de cette installation.
 Après une modification du SDK, compiler `sdk-dev-install` en **Release**,
 puis recompiler l'outil. `NimbyRailsFranceSDK_DIR` permet de choisir un autre paquet.
@@ -42,7 +42,7 @@ Ouvrir **ce dossier** comme un projet indépendant. Profils **Debug** et **Relea
 
 Les profils sont définis dans `CMakePresets.json`. Compiler avec `cmake --preset Debug`, puis `cmake --build --preset Debug`. Tester avec `ctest --preset Debug`. Remplacer Debug par Release pour la distribution.
 
-Le SDK utilise le MinGW fourni avec CLion. Pour préparer le SDK consommé par les outils C++ : configurer Release, puis compiler la cible **sdk-dev-install** (ou `cmake --build --preset install-sdk`). Le résultat est installé dans `install/0.7.0/Release`, sans modifier le jeu. Le chargeur et le proxy font partie du SDK ; l’exemple observer reste un exemple de consommation du SDK.
+Le SDK utilise le MinGW fourni avec CLion. Pour préparer le SDK consommé par les outils C++ : configurer Release, puis compiler la cible **sdk-dev-install** (ou `cmake --build --preset install-sdk`). Le résultat est installé dans `install/0.7.1/Release`, sans modifier le jeu. Le chargeur et le proxy font partie du SDK ; l’exemple observer reste un exemple de consommation du SDK.
 
 
 Les emplacements de compilation, de distribution et les réglages personnels CLion sont exclus de Git. Adapter les chemins des outils avec `CMakeUserPresets.json` sur une autre machine. Les sources et configurations partagées restent dans le dépôt sdk.

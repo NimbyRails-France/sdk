@@ -5,6 +5,7 @@
 #include <iomanip>
 
 using namespace std::chrono_literals;
+int runObserverWindow(std::uint32_t pid=0);
 
 // Location comes from native state, never from a future stop or a reservation.
 void printLocation(const nimby::Snapshot& snapshot, const nimby::Train& train,
@@ -16,7 +17,7 @@ void printLocation(const nimby::Snapshot& snapshot, const nimby::Train& train,
         if(auto station=snapshot.getStationForTrack(*trackId)){
             std::cout << station->getName().value_or("gare de nom inconnu");
             if(auto platforms=snapshot.getPlatformOccupationsForStation(station->getId())){
-                for(const auto& row:*platforms)if(row.platform.getTrackId()==*trackId){
+                for(const auto& row:*platforms)if(row.platform.containsTrack(*trackId)){
                     auto name=row.platform.getName();
                     std::cout << " / quai " << (name&&!name->empty()?*name:"nom inconnu");
                     break;
@@ -46,6 +47,9 @@ int observe(nimby::Client& client) {
                   << " | age=" << snapshot->getAge().count() << " ms"
                   << " | " << (fresh ? "new snapshot" : "same snapshot") << '\n';
         if (snapshot->isOlderThan(1s)) std::cout << "Stale data\n";
+        if(auto clock=snapshot->getSimulationClock())
+            std::cout << "Simulation date (UTC): " << clock->getDateTimeUtcString() << '\n';
+        else std::cout << "Simulation date unavailable\n";
 
         for (const auto& train : snapshot->getAllTrains()) {
             std::cout << train.getName() << " | id=" << train.getId();
@@ -61,7 +65,7 @@ int observe(nimby::Client& client) {
                     std::cout << " | service stop=" << station->getName().value_or("unknown");
                 if(auto remaining=service->getDepartureRemainingSeconds())std::cout << " | departs in=" << *remaining << " game s";
                 if(auto time=service->getDepartureCalendarSeconds()){
-                    const auto day=*time%86400;
+                    const auto day=(*time%86400+86400)%86400;
                     std::cout << " | departure=" << std::setfill('0') << std::setw(2) << day/3600 << ':' << std::setw(2) << day/60%60 << ':' << std::setw(2) << day%60 << std::setfill(' ') << " (game)";
                 }
                 if(auto remaining=service->getArrivalRemainingSeconds())std::cout << " | arrival delta=" << *remaining << " game s";
@@ -90,7 +94,8 @@ int observe(nimby::Client& client) {
             if(!platforms){std::cout << "  Quais inconnus\n";continue;}
             if(platforms->empty())std::cout << "  Aucune voie de quai dans ce snapshot\n";
             for(const auto& state:*platforms){
-                std::cout << "  Quai " << state.platform.getName().value_or("nom inconnu") << " | voie=" << state.platform.getTrackId();
+                std::cout << "  Quai " << state.platform.getName().value_or("nom inconnu") << " | voies=";
+                for(auto id:state.platform.getTrackIds())std::cout<<id<<' ';
                 const auto occupied=state.isOccupied();
                 std::cout << " | " << (!occupied?"OCCUPATION INCONNUE":*occupied?"OCCUPE":"LIBRE");
                 auto printTrains=[&](const auto& trains){
@@ -114,26 +119,63 @@ int observe(nimby::Client& client) {
 }
 int main(int argc, char** argv) {
     try {
+        if(argc==3 && (std::strcmp(argv[1],"--set-date-utc")==0 || std::strcmp(argv[1],"--set-date-and-recalculate-utc")==0)) {
+            const std::string_view input{argv[2]};
+            if(input.size()!=20 || input[4]!='-' || input[7]!='-' || input[10]!='T' || input[13]!=':' || input[16]!=':' || input[19]!='Z')
+                throw std::invalid_argument("Expected YYYY-MM-DDTHH:MM:SSZ (UTC)");
+            auto number=[&](size_t offset,size_t count){
+                int value{};const char* first=input.data()+offset;const char* last=first+count;
+                for(auto p=first;p!=last;++p)if(*p<'0'||*p>'9')throw std::invalid_argument("Invalid date digit");
+                const auto parsed=std::from_chars(first,last,value);
+                if(parsed.ec!=std::errc{}||parsed.ptr!=last)throw std::invalid_argument("Invalid date number");
+                return value;
+            };
+            const int year=number(0,4),month=number(5,2),day=number(8,2),hour=number(11,2),minute=number(14,2),second=number(17,2);
+            if(year<1 || month<1 || month>12 || day<1 || day>31 || hour>23 || minute>59 || second>59)
+                throw std::invalid_argument("Expected YYYY-MM-DDTHH:MM:SSZ (UTC)");
+            const std::chrono::year_month_day date{std::chrono::year{year},std::chrono::month{static_cast<unsigned>(month)},std::chrono::day{static_cast<unsigned>(day)}};
+            if(!date.ok())throw std::invalid_argument("Invalid calendar date");
+            auto client=nimby::Client::connect();
+            const auto utc=std::chrono::sys_days{date}+std::chrono::hours{hour}+std::chrono::minutes{minute}+std::chrono::seconds{second};
+            if(std::strcmp(argv[1],"--set-date-and-recalculate-utc")==0) {
+                const auto result=client.setSimulationDateTimeAndRecalculateTrains(utc);
+                std::cout<<"Simulation date (UTC): "<<result.clock.getDateTimeUtcString()<<" | native interventions="<<result.interventions<<'\n';
+            }else {
+                const auto result=client.setSimulationDateTime(utc);
+                std::cout << "Simulation calendar changed (UTC): " << result.getDateTimeUtcString() << '\n';
+            }
+            return 0;
+        }
+        if(argc==2 && std::strcmp(argv[1],"--clock")==0){
+            auto client=nimby::Client::connect();
+            const auto snapshot=client.capture();
+            const auto clock=snapshot->getSimulationClock();
+            if(!clock)throw std::runtime_error("Simulation clock unavailable");
+            std::cout << clock->getDateTimeUtcString() << " | epoch=" << clock->getEpochSeconds()
+                      << " | elapsed_ms=" << clock->getElapsedTime().count() << '\n';
+            return 0;
+        }
         if (argc == 2 && std::strcmp(argv[1], "--check-sdk") == 0) {
             const auto version = nimby::getVersion();
             std::cout << "C++ helpers ready | SDK " << version.major << '.' << version.minor
                       << '.' << version.patch << " | internal ABI " << version.abi << '\n';
             return 0; // This check does not need a running game.
         }
+        if(argc==2 && std::strcmp(argv[1],"--console")==0){
+            auto client=nimby::Client::connect();return observe(client);
+        }
         if (argc == 1) {
-            auto client = nimby::Client::connect();
-            return observe(client);
+            return runObserverWindow();
         }
         if (argc == 2) {
             std::uint32_t gamePid{};
             const auto end = argv[1] + std::strlen(argv[1]);
             const auto parsed = std::from_chars(argv[1], end, gamePid);
             if (parsed.ec == std::errc{} && parsed.ptr == end && gamePid != 0) {
-                auto client = nimby::Client::connect(gamePid);
-                return observe(client);
+                return runObserverWindow(gamePid);
             }
         }
-        std::cerr << "Usage: MyNimbyClient [game-pid | --check-sdk]\n";
+        std::cerr << "Usage: MyNimbyClient [game-pid | --console | --check-sdk | --clock | --set-date-utc YYYY-MM-DDTHH:MM:SSZ | --set-date-and-recalculate-utc YYYY-MM-DDTHH:MM:SSZ]\n";
         return 2;
     } catch (const nimby::Exception& error) {
         std::cerr << "SDK error " << error.error().code << ": " << error.what() << '\n';
