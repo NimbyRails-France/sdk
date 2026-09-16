@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.24)
 project(MyFirstNimbyTool LANGUAGES CXX)
 
-find_package(NimbyRailsSDK 0.6 CONFIG REQUIRED)
+find_package(NimbyRailsSDK 0.6.6 CONFIG REQUIRED)
 add_executable(MyFirstNimbyTool main.cpp)
 target_compile_features(MyFirstNimbyTool PRIVATE cxx_std_20)
 target_link_libraries(MyFirstNimbyTool PRIVATE NimbyRailsSDK::SDK)

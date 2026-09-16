@@ -1,4 +1,20 @@
-# NimbyRailsSDK 0.6.0
+# NimbyRailsSDK 0.6.6
+
+La version 0.6.6 corrige le compteur de voyageurs : il lit les voyageurs embarqués, et non la capacité du train.
+
+La version 0.6.5 ajoute les noms de quai et la [vue des occupations par gare](docs/platform-occupations.md), avec trains presents et reservations separes.
+
+La version 0.6.4 ajoute les voyageurs, les identifiants de service affecté et le plan des arrêts de ligne avec temps relatifs. Voir [les données détaillées](docs/research/train-line-plan.md).
+
+La version 0.6.3 expose les états de service des trains, les arrêts actifs,
+la localisation au dépôt quand elle est confirmée, et les comptes à rebours
+dans le temps du jeu. Voir [les sources et limites](docs/research/train-service.md).
+
+Les sources 0.6.2 résolvent aussi les noms automatiques des gares depuis le
+cache natif du jeu. Les noms personnalisés restent prioritaires.
+
+Les sources 0.6.1 ajoutent la vitesse d'affichage native pour les trains sans
+Drive : `0 km/h`, avec un indicateur explicite de valeur par défaut.
 
 SDK Windows x64 pour créer des outils qui observent NIMBY Rails : trains,
 vitesses, voies, gares, signaux, textures, Paths, réservations et occupation natives.
@@ -44,13 +60,13 @@ et traite les exceptions. Le [tutoriel](docs/tutorial-cpp-client.md) fournit le 
 
 | Objectif | Paquet / outil |
 |---|---|
-| Développer un programme externe | **NimbyRailsSDK-0.6.0-windows-x64-mingw.zip** |
-| Charger le SDK au démarrage du jeu | **NimbyRailsSDK-0.6.0-drop-in-windows-x64.zip** |
+| Développer un programme externe | **NimbyRailsSDK-0.6.6-windows-x64-mingw.zip** |
+| Charger le SDK au démarrage du jeu | **NimbyRailsSDK-0.6.6-drop-in-windows-x64.zip** |
 | Gérer SDK et TCO ensemble | [NRF Hub](https://github.com/NimbyRails-France/hub) |
 | Utiliser simplement le TCO | [TCO prêt à lancer](https://github.com/NimbyRails-France/tco/releases) |
 
 Les deux ZIP autonomes sont dans les
-[assets de la release SDK 0.6.0](https://github.com/NimbyRails-France/sdk/releases/tag/v0.6.0).
+[assets de la release SDK 0.6.6](https://github.com/NimbyRails-France/sdk/releases/tag/v0.6.6).
 Le kit MinGW contient `include/`, `lib/`, `bin/` et `share/`.
 Le paquet du Hub contient aussi un sous-dossier `loader/`.
 
@@ -67,7 +83,7 @@ Copier ses deux fichiers dans un dossier de travail. Avec MinGW x64, CMake et
 Ninja dans `PATH`, depuis ce dossier :
 
 ```powershell
-cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH=C:/SDK/NimbyRailsSDK-0.6.0
+cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH=C:/SDK/NimbyRailsSDK-0.6.6
 cmake --build build
 ./build/MyFirstNimbyTool.exe --check-sdk
 Get-Process -Name NIMBYRails | Select-Object Id, ProcessName
@@ -76,10 +92,9 @@ Get-Process -Name NIMBYRails | Select-Object Id, ProcessName
 ```
 
 Le [tutoriel](docs/tutorial-first-tool.md) explique l'installation des outils,
-le code, les résultats et les erreurs. Ce nouvel exemple s'utilise avec la DLL
-0.6.0 ; il sera inclus dans les prochains paquets construits depuis ces sources.
-Les anciens ZIP peuvent ne contenir que [observer](examples/observer), l'exemple
-plus complet avec signaux et portions réservées/occupées.
+le code, les résultats et les erreurs. Les trois exemples sont inclus dans le
+paquet 0.6.6 et requièrent sa DLL. L'exemple [observer](examples/observer)
+présente aussi les signaux et les portions réservées/occupées.
 
 ## Compatibilité et données disponibles
 

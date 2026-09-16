@@ -72,11 +72,81 @@ public:
     explicit Train(const NimbyTrain& data) : data_(data) {}
     Id getId() const { return data_.id; }
     std::string getName() const { return data_.name_utf8; }
-    std::optional<double> getSpeedMps() const { return (data_.flags & NIMBY_TRAIN_PRESENT) ? std::optional<double>{data_.speed_mps} : std::nullopt; }
-    std::optional<double> getSpeedKmh() const { return (data_.flags & NIMBY_TRAIN_PRESENT) ? std::optional<double>{data_.speed_mps * 3.6} : std::nullopt; }
+    // PRESENT keeps compatibility with installed SDK 0.6.0.
+    std::optional<double> getSpeedMps() const { return (data_.flags & (NIMBY_TRAIN_SPEED_VALID | NIMBY_TRAIN_PRESENT)) ? std::optional<double>{data_.speed_mps} : std::nullopt; }
+    std::optional<double> getSpeedKmh() const { auto speed = getSpeedMps(); return speed ? std::optional<double>{*speed * 3.6} : std::nullopt; }
+    bool isSpeedDefaulted() const { return (data_.flags & (NIMBY_TRAIN_SPEED_VALID | NIMBY_TRAIN_SPEED_DEFAULTED)) == (NIMBY_TRAIN_SPEED_VALID | NIMBY_TRAIN_SPEED_DEFAULTED); }
     std::optional<Position> getPosition() const { return (data_.flags & NIMBY_TRAIN_POSITION_VALID) ? std::optional<Position>{Position{data_.track_id, data_.track_fraction, data_.direction}} : std::nullopt; }
 private:
     NimbyTrain data_;
+};
+
+class TrainDetails {
+public:
+    explicit TrainDetails(const NimbyTrainDetails& data) : data_(data) {}
+    Id getTrainId() const { return data_.train_id; }
+    std::optional<int32_t> getPassengerCount() const { return data_.flags&NIMBY_TRAIN_PASSENGERS_VALID?std::optional<int32_t>{data_.passenger_count}:std::nullopt; }
+    std::optional<Id> getScheduleId() const { return data_.flags&NIMBY_TRAIN_ASSIGNMENT_VALID?std::optional<Id>{data_.schedule_id}:std::nullopt; }
+    std::optional<Id> getShiftId() const { return data_.flags&NIMBY_TRAIN_ASSIGNMENT_VALID?std::optional<Id>{data_.shift_id}:std::nullopt; }
+    std::optional<int32_t> getOrderIndex() const { return data_.flags&NIMBY_TRAIN_ASSIGNMENT_VALID?std::optional<int32_t>{data_.order_index}:std::nullopt; }
+    int32_t getOrderMode() const { return data_.order_mode; }
+private:
+    NimbyTrainDetails data_;
+};
+class LineStop {
+public:
+    explicit LineStop(const NimbyLineStop& data) : data_(data) {}
+    Id getLineId() const { return data_.line_id; }
+    Id getTrackId() const { return data_.track_id; }
+    Id getStationId() const { return data_.station_id; }
+    uint32_t getIndex() const { return data_.index; }
+    std::optional<int32_t> getArrivalOffsetSeconds() const { return data_.flags&NIMBY_LINE_STOP_TIMES_VALID?std::optional<int32_t>{data_.arrival_offset_seconds}:std::nullopt; }
+    std::optional<int32_t> getDepartureOffsetSeconds() const { return data_.flags&NIMBY_LINE_STOP_TIMES_VALID?std::optional<int32_t>{data_.departure_offset_seconds}:std::nullopt; }
+    std::optional<int32_t> getPlannedDwellSeconds() const { return data_.flags&NIMBY_LINE_STOP_TIMES_VALID?std::optional<int32_t>{data_.departure_offset_seconds-data_.arrival_offset_seconds}:std::nullopt; }
+private:
+    NimbyLineStop data_;
+};
+
+class TrainService {
+public:
+    explicit TrainService(const NimbyTrainService& data) : data_(data) {}
+    Id getTrainId() const { return data_.train_id; }
+    std::optional<uint32_t> getStatus() const { return valid(NIMBY_SERVICE_STATE_VALID)?std::optional<uint32_t>{data_.status}:std::nullopt; }
+    const char* getStatusName() const {
+        if(!getStatus())return "unknown";
+        switch(data_.status){
+            case NIMBY_SERVICE_DRIVING:return "driving";
+            case NIMBY_SERVICE_STATION_STOP:return "stopped at station";
+            case NIMBY_SERVICE_TIMED_STOP:return "timed stop";
+            case NIMBY_SERVICE_DEPOT:return "at depot (hidden)";
+            case NIMBY_SERVICE_DISPATCH_WAIT:return "waiting for dispatch";
+            case NIMBY_SERVICE_SIGNAL_WAIT:return "waiting at signal";
+            case NIMBY_SERVICE_MOTHBALLED:return "mothballed";
+            case NIMBY_SERVICE_NOT_PRESENT:return "not present on tracks";
+            default:return "other";
+        }
+    }
+    std::optional<uint32_t> getMotionFlags() const { return valid(NIMBY_SERVICE_STATE_VALID)?std::optional<uint32_t>{data_.motion_flags}:std::nullopt; }
+    std::optional<uint32_t> getAlert() const { return valid(NIMBY_SERVICE_STATE_VALID)?std::optional<uint32_t>{data_.alert}:std::nullopt; }
+    std::optional<Id> getLocationTrackId() const { return valid(NIMBY_SERVICE_LOCATION_VALID)?detail::reference(data_.location_track_id):std::nullopt; }
+    std::optional<Id> getLocationStationId() const { return valid(NIMBY_SERVICE_LOCATION_VALID)?detail::reference(data_.location_station_id):std::nullopt; }
+    std::optional<Id> getLineId() const { return valid(NIMBY_SERVICE_RUN_VALID)?detail::reference(data_.line_id):std::nullopt; }
+    std::optional<std::string> getLineName() const { return valid(NIMBY_SERVICE_LINE_VALID)&&data_.line_name_utf8[0]?std::optional<std::string>{data_.line_name_utf8}:std::nullopt; }
+    std::optional<Id> getStopStationId() const { return valid(NIMBY_SERVICE_STOP_VALID)?detail::reference(data_.stop_station_id):std::nullopt; }
+    std::optional<Id> getStopTrackId() const { return valid(NIMBY_SERVICE_STOP_VALID)?detail::reference(data_.stop_track_id):std::nullopt; }
+    std::optional<int32_t> getStopIndex() const { return valid(NIMBY_SERVICE_RUN_VALID)?std::optional<int32_t>{data_.stop_index}:std::nullopt; }
+    std::optional<int64_t> getGameTimeUs() const { return valid(NIMBY_SERVICE_CLOCK_VALID)?std::optional<int64_t>{data_.game_time_us}:std::nullopt; }
+    std::optional<int64_t> getDepartureTimeUs() const { return valid(NIMBY_SERVICE_DEPARTURE_VALID)?std::optional<int64_t>{data_.departure_time_us}:std::nullopt; }
+    std::optional<int64_t> getArrivalTimeUs() const { return valid(NIMBY_SERVICE_ARRIVAL_VALID)?std::optional<int64_t>{data_.arrival_time_us}:std::nullopt; }
+    std::optional<int64_t> getGameCalendarSeconds() const { return valid(NIMBY_SERVICE_CALENDAR_VALID|NIMBY_SERVICE_CLOCK_VALID)?std::optional<int64_t>{data_.game_epoch_seconds+data_.game_time_us/1000000}:std::nullopt; }
+    std::optional<int64_t> getDepartureCalendarSeconds() const { return valid(NIMBY_SERVICE_CALENDAR_VALID|NIMBY_SERVICE_DEPARTURE_VALID)?std::optional<int64_t>{data_.game_epoch_seconds+data_.departure_time_us/1000000}:std::nullopt; }
+    std::optional<int64_t> getArrivalCalendarSeconds() const { return valid(NIMBY_SERVICE_CALENDAR_VALID|NIMBY_SERVICE_ARRIVAL_VALID)?std::optional<int64_t>{data_.game_epoch_seconds+data_.arrival_time_us/1000000}:std::nullopt; }
+    std::optional<double> getDepartureRemainingSeconds() const { return valid(NIMBY_SERVICE_CLOCK_VALID|NIMBY_SERVICE_DEPARTURE_VALID)?std::optional<double>{data_.departure_remaining_seconds}:std::nullopt; }
+    std::optional<double> getArrivalRemainingSeconds() const { return valid(NIMBY_SERVICE_CLOCK_VALID|NIMBY_SERVICE_ARRIVAL_VALID)?std::optional<double>{data_.arrival_remaining_seconds}:std::nullopt; }
+    std::optional<double> getDispatchRemainingSeconds() const { return valid(NIMBY_SERVICE_CLOCK_VALID|NIMBY_SERVICE_COOLDOWN_VALID)?std::optional<double>{data_.dispatch_remaining_seconds}:std::nullopt; }
+private:
+    bool valid(uint32_t flags) const { return (data_.flags&flags)==flags; }
+    NimbyTrainService data_;
 };
 
 class Track {
@@ -160,6 +230,24 @@ private:
     NimbyTrackNode data_;
 };
 
+class Platform {
+public:
+    explicit Platform(const NimbyPlatform& data) : data_(data) {}
+    Id getTrackId() const { return data_.track_id; }
+    Id getStationId() const { return data_.station_id; }
+    std::optional<std::string> getName() const { return data_.flags&NIMBY_PLATFORM_NAME_VALID?std::optional<std::string>{data_.name_utf8}:std::nullopt; }
+private:
+    NimbyPlatform data_;
+};
+struct PlatformOccupation {
+    Platform platform;
+    // nullopt means unknown; an available empty vector means no trains observed.
+    std::optional<std::vector<Train>> occupying_trains, reserving_trains;
+    std::optional<bool> isOccupied() const {
+        return occupying_trains?std::optional<bool>{!occupying_trains->empty()}:std::nullopt;
+    }
+};
+
 class TrackUsage {
 public:
     explicit TrackUsage(const NimbyTrackUsage& data) : data_(data) {}
@@ -225,6 +313,13 @@ public:
     std::string getGameSha256() const { return info_.game_sha256; }
     std::span<const Train> getAllTrains() const noexcept { return trains_.rows; }
     std::optional<Train> getTrainById(Id id) const { return trains_.find(id); }
+    std::optional<TrainDetails> getTrainDetailsById(Id id) const { return details_.find(id); }
+    std::optional<std::span<const LineStop>> getLineStopsForTrain(Id id) const {
+        const auto it=line_stops_.find(id);
+        return it==line_stops_.end()?std::nullopt:std::optional<std::span<const LineStop>>{it->second};
+    }
+    std::span<const TrainService> getAllTrainServices() const noexcept { return services_.rows; }
+    std::optional<TrainService> getTrainServiceById(Id id) const { return services_.find(id); }
     std::span<const Track> getAllTracks() const noexcept { return tracks_.rows; }
     std::optional<Track> getTrackById(Id id) const { return tracks_.find(id); }
     std::span<const Station> getAllStations() const noexcept { return stations_.rows; }
@@ -255,6 +350,26 @@ public:
         return filter(trains_.rows, [id](const Train& v) {
             auto position = v.getPosition(); return position && position->getTrackId() == id;
         });
+    }
+    // One result per station track section. Labels can repeat; track IDs cannot.
+    std::optional<std::vector<PlatformOccupation>> getPlatformOccupationsForStation(Id id) const {
+        if(!getStationById(id))return std::nullopt;
+        std::vector<PlatformOccupation> result;
+        const auto it=station_platforms_.find(id);
+        if(it==station_platforms_.end())return result;
+        auto trainsFor=[&](const auto& usage,const auto& index,Id track)->std::optional<std::vector<Train>>{
+            if(!usage)return std::nullopt;
+            std::vector<Train> trains;std::unordered_map<Id,bool> seen;
+            const auto found=index.find(track);if(found==index.end())return trains;
+            for(const auto trainId:found->second)if(seen.emplace(trainId,true).second){
+                auto train=getTrainById(trainId);if(!train)return std::nullopt;
+                trains.push_back(*train);
+            }
+            return trains;
+        };
+        for(const auto& platform:it->second)result.push_back({platform,
+            trainsFor(occupations_,occupant_ids_,platform.getTrackId()),trainsFor(reservations_,reservation_ids_,platform.getTrackId())});
+        return result;
     }
     std::vector<Track> getTracksForStation(Id id) const {
         return filter(tracks_.rows, [id](const Track& v) { return v.getStationId() == id; });
@@ -296,7 +411,11 @@ private:
     NimbySnapshotInfo info_{};
     std::chrono::steady_clock::time_point captured_;
     detail::Table<Train> trains_;
+    detail::Table<TrainService> services_;
+    detail::Table<TrainDetails> details_;
+    std::unordered_map<Id,std::vector<LineStop>> line_stops_;
     detail::Table<Track> tracks_;
+    std::unordered_map<Id,std::vector<Platform>> station_platforms_;
     detail::Table<Station> stations_;
     detail::Table<Signal> signals_;
     detail::Table<TrackNode> nodes_;
@@ -304,6 +423,7 @@ private:
     detail::Table<SignalTexture> textures_;
     std::unordered_map<Id, std::vector<Id>> paths_;
     std::optional<std::vector<TrackUsage>> reservations_, occupations_;
+    std::unordered_map<Id,std::vector<Id>> occupant_ids_,reservation_ids_;
     template<class T, class Predicate>
     static std::vector<T> filter(const std::vector<T>& rows, Predicate predicate) {
         std::vector<T> result;
@@ -320,12 +440,23 @@ private:
         result->trains_ = detail::table<Train, NimbyTrain>(
             [&](auto* out, auto capacity, auto* count) { return NimbySdk_CopyTrains(native.value, out, capacity, count); },
             [](const NimbyTrain& row) { return row.id; }, "CopyTrains");
+        result->services_ = detail::table<TrainService, NimbyTrainService>(
+            [&](auto* out, auto capacity, auto* count) { return NimbySdk_CopyTrainServices(native.value, out, capacity, count); },
+            [](const NimbyTrainService& row) { return row.train_id; }, "CopyTrainServices");
+        result->details_ = detail::table<TrainDetails, NimbyTrainDetails>(
+            [&](auto* out, auto capacity, auto* count) { return NimbySdk_CopyTrainDetails(native.value, out, capacity, count); },
+            [](const NimbyTrainDetails& row) { return row.train_id; }, "CopyTrainDetails");
         result->tracks_ = detail::table<Track, NimbyTrack>(
             [&](auto* out, auto capacity, auto* count) { return NimbySdk_CopyTracks(native.value, out, capacity, count); },
             [](const NimbyTrack& row) { return row.id; }, "CopyTracks");
         result->stations_ = detail::table<Station, NimbyStation>(
             [&](auto* out, auto capacity, auto* count) { return NimbySdk_CopyStations(native.value, out, capacity, count); },
             [](const NimbyStation& row) { return row.id; }, "CopyStations");
+        auto platforms=detail::copyRecords<NimbyPlatform>([&](auto* out,auto capacity,auto* count){
+            return NimbySdk_CopyPlatforms(native.value,out,capacity,count);
+        },"CopyPlatforms");
+        if(!platforms)throw Exception({NIMBY_DATA_UNAVAILABLE,"CopyPlatforms","Platform catalog unavailable"});
+        for(const auto& row:*platforms)result->station_platforms_[row.station_id].emplace_back(row);
         result->signals_ = detail::table<Signal, NimbySignal>(
             [&](auto* out, auto capacity, auto* count) { return NimbySdk_CopySignals(native.value, out, capacity, count); },
             [](const NimbySignal& row) { return row.id; }, "CopySignals");
@@ -340,6 +471,10 @@ private:
             [](const NimbySignalTexture& row) { return row.signal_id; }, "CopySignalTextures");
 
         for (const auto& train : result->trains_.rows) {
+            auto stops=detail::copyRecords<NimbyLineStop>([&](auto* out,auto capacity,auto* count){
+                return NimbySdk_CopyTrainLineStops(native.value,train.getId(),out,capacity,count);
+            },"CopyTrainLineStops");
+            if(stops){auto& rows=result->line_stops_[train.getId()];for(const auto& row:*stops)rows.emplace_back(row);}
             auto path = detail::copyRecords<Id>(
                 [&](auto* out, auto capacity, auto* count) {
                     return NimbySdk_CopyTrainPathTracks(native.value, train.getId(), out, capacity, count);
@@ -352,6 +487,7 @@ private:
             if (rows) {
                 result->reservations_.emplace();
                 for (const auto& row : *rows) result->reservations_->emplace_back(row);
+                for (const auto& row : *rows) result->reservation_ids_[row.track_id].push_back(row.train_id);
             }
         }
         {
@@ -360,6 +496,7 @@ private:
             if (rows) {
                 result->occupations_.emplace();
                 for (const auto& row : *rows) result->occupations_->emplace_back(row);
+                for (const auto& row : *rows) result->occupant_ids_[row.track_id].push_back(row.train_id);
             }
         }
         return result;

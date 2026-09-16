@@ -14,6 +14,10 @@ extern "C" {
 #define NIMBY_RESOURCE_LIMIT 12u
 #define NIMBY_TRAIN_PRESENT 1u
 #define NIMBY_TRAIN_POSITION_VALID 2u
+// Since 0.6.1: independent of PRESENT (the legacy active-Drive indicator).
+#define NIMBY_TRAIN_SPEED_VALID 4u
+// Native UI convention: matching Motion without Drive displays zero, not a measurement.
+#define NIMBY_TRAIN_SPEED_DEFAULTED 8u
 #define NIMBY_SNAPSHOT_EXPERIMENTAL 1u
 #define NIMBY_SNAPSHOT_NON_ATOMIC 2u
 #define NIMBY_SIGNAL_ONE_WAY 0
@@ -47,10 +51,83 @@ typedef struct NimbyTrain {
     char name_utf8[257];
     uint8_t reserved[7];
 } NimbyTrain;
+
+// Since 0.6.3. Independent validity bits: zero values never imply availability.
+#define NIMBY_SERVICE_STATE_VALID 1u
+#define NIMBY_SERVICE_CLOCK_VALID 2u
+#define NIMBY_SERVICE_LOCATION_VALID 4u
+#define NIMBY_SERVICE_RUN_VALID 8u
+#define NIMBY_SERVICE_STOP_VALID 16u
+#define NIMBY_SERVICE_ARRIVAL_VALID 32u
+#define NIMBY_SERVICE_DEPARTURE_VALID 64u
+#define NIMBY_SERVICE_COOLDOWN_VALID 128u
+#define NIMBY_SERVICE_LINE_VALID 256u
+#define NIMBY_SERVICE_CALENDAR_VALID 512u
+#define NIMBY_MOTION_PRESENCE 1u
+#define NIMBY_MOTION_HIDDEN 2u
+#define NIMBY_MOTION_DRIVE 4u
+#define NIMBY_MOTION_TIMED_STOP 8u
+#define NIMBY_MOTION_SCHEDULE_STOP 16u
+#define NIMBY_MOTION_RUN_STOP 32u
+#define NIMBY_MOTION_STATION_STOP 64u
+#define NIMBY_MOTION_DISPATCH_COOLDOWN 128u
+#define NIMBY_MOTION_RUN 256u
+#define NIMBY_MOTION_SCHEDULE 512u
+#define NIMBY_MOTION_HITCH 1024u
+#define NIMBY_SERVICE_UNKNOWN 0u
+#define NIMBY_SERVICE_DRIVING 1u
+#define NIMBY_SERVICE_STATION_STOP 2u
+#define NIMBY_SERVICE_TIMED_STOP 3u
+#define NIMBY_SERVICE_DEPOT 4u
+#define NIMBY_SERVICE_DISPATCH_WAIT 5u
+#define NIMBY_SERVICE_SIGNAL_WAIT 6u
+#define NIMBY_SERVICE_MOTHBALLED 7u
+#define NIMBY_SERVICE_NOT_PRESENT 8u
+#define NIMBY_SERVICE_OTHER 9u
+typedef struct NimbyTrainService {
+    uint64_t train_id;
+    uint32_t flags, motion_flags, status, alert;
+    uint64_t location_track_id, location_station_id;
+    uint64_t line_id, stop_track_id, stop_station_id;
+    // Microseconds on the simulation's own clock; NOT Unix timestamps.
+    int64_t game_time_us, arrival_time_us, departure_time_us, dispatch_time_us;
+    // In-game calendar epoch. Add to *_time_us / 1e6 for game calendar seconds;
+    // this is not the computer's capture time or a real-world departure estimate.
+    int64_t game_epoch_seconds;
+    // Signed arrival difference; departure/cooldown clamped to zero as in the UI.
+    double arrival_remaining_seconds, departure_remaining_seconds, dispatch_remaining_seconds;
+    int32_t stop_index, line_kind;
+    char line_name_utf8[257];
+    uint8_t reserved[7];
+} NimbyTrainService;
+// Since 0.6.4; separate records preserve the 0.6.3 struct sizes.
+#define NIMBY_TRAIN_PASSENGERS_VALID 1u
+#define NIMBY_TRAIN_ASSIGNMENT_VALID 2u
+typedef struct NimbyTrainDetails {
+    uint64_t train_id, schedule_id, shift_id;
+    uint32_t flags;
+    int32_t passenger_count, order_index, order_mode;
+} NimbyTrainDetails;
+#define NIMBY_LINE_STOP_TIMES_VALID 1u
+typedef struct NimbyLineStop {
+    uint64_t line_id, track_id, station_id; // station_id=0 for points outside a station.
+    uint32_t index, flags;
+    // Relative line timetable offsets, NOT absolute times or live predictions.
+    int32_t arrival_offset_seconds, departure_offset_seconds;
+} NimbyLineStop;
 typedef struct NimbyTrack {
     uint64_t id, station_id;
     double speed_limit_mps;
 } NimbyTrack;
+// Since 0.6.5. A station track section, identified by its full track ID.
+// Several sections can share a label; labels are not unique identifiers.
+#define NIMBY_PLATFORM_NAME_VALID 1u
+typedef struct NimbyPlatform {
+    uint64_t track_id, station_id;
+    uint32_t flags, reserved0;
+    char name_utf8[257];
+    uint8_t reserved[7];
+} NimbyPlatform;
 typedef struct NimbyStation {
     uint64_t id;
     char name_utf8[257]; // Empty when automatic name is not resolved.
@@ -128,7 +205,15 @@ NIMBY_API uint32_t __cdecl NimbySdk_GetSnapshotInfo(NimbySnapshot snapshot, Nimb
 // Query count with records=NULL, capacity=0. No partial copy when too small.
 // required is mandatory; capacity and required are record counts, not byte sizes.
 NIMBY_API uint32_t __cdecl NimbySdk_CopyTrains(NimbySnapshot snapshot, NimbyTrain* records, uint32_t capacity, uint32_t* required) NIMBY_NOEXCEPT;
+// One record per train; STATE_VALID unset means unobserved/unstable, not at depot.
+// Stop is current during a run stop, otherwise the active run's target stop.
+NIMBY_API uint32_t __cdecl NimbySdk_CopyTrainServices(NimbySnapshot snapshot, NimbyTrainService* records, uint32_t capacity, uint32_t* required) NIMBY_NOEXCEPT;
+NIMBY_API uint32_t __cdecl NimbySdk_CopyTrainDetails(NimbySnapshot snapshot, NimbyTrainDetails* records, uint32_t capacity, uint32_t* required) NIMBY_NOEXCEPT;
+// Complete line plan associated with the active run, including already passed stops.
+// Partial runs/loops may serve a subset; this is not a promised future itinerary.
+NIMBY_API uint32_t __cdecl NimbySdk_CopyTrainLineStops(NimbySnapshot snapshot, uint64_t train_id, NimbyLineStop* records, uint32_t capacity, uint32_t* required) NIMBY_NOEXCEPT;
 NIMBY_API uint32_t __cdecl NimbySdk_CopyTracks(NimbySnapshot snapshot, NimbyTrack* records, uint32_t capacity, uint32_t* required) NIMBY_NOEXCEPT;
+NIMBY_API uint32_t __cdecl NimbySdk_CopyPlatforms(NimbySnapshot snapshot, NimbyPlatform* records, uint32_t capacity, uint32_t* required) NIMBY_NOEXCEPT;
 NIMBY_API uint32_t __cdecl NimbySdk_CopyStations(NimbySnapshot snapshot, NimbyStation* records, uint32_t capacity, uint32_t* required) NIMBY_NOEXCEPT;
 NIMBY_API uint32_t __cdecl NimbySdk_CopySignals(NimbySnapshot snapshot, NimbySignal* records, uint32_t capacity, uint32_t* required) NIMBY_NOEXCEPT;
 // One state per CopySignals record, joined by full signal_id, same snapshot.

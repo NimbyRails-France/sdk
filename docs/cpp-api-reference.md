@@ -3,8 +3,46 @@
 [Documentation](README.md) · [Tutoriel C++](tutorial-cpp-client.md) · [API C](api-reference.md)
 
 Inclure `<nimby/client.hpp>` et compiler en **C++20 / Windows x64**.
-Les helpers sont définis dans ce header et utilisent la DLL **0.6.x / ABI 1**.
+Les helpers sont définis dans ce header et utilisent la DLL **0.6.5+ / ABI 1**.
 Ils sont compilés dans votre application ; aucun objet C++ ne traverse l'ABI de la DLL.
+
+## Service et horaires d'un train
+
+`snapshot->getAllTrainServices()` renvoie `std::span<const TrainService>`.
+`snapshot->getTrainServiceById(id)` renvoie `std::optional<TrainService>`.
+Les objets sont des copies ; les vues conservent les règles de durée de vie
+des autres tables du snapshot.
+
+```cpp
+if (auto service = snapshot->getTrainServiceById(train.getId())) {
+    std::cout << service->getStatusName();
+    if (auto seconds = service->getDepartureRemainingSeconds())
+        std::cout << " | départ dans " << *seconds << " secondes de jeu";
+    if (auto stationId = service->getLocationStationId()) {
+        if (auto station = snapshot->getStationById(*stationId))
+            std::cout << " | " << station->getName().value_or("nom inconnu");
+    }
+}
+```
+
+Les getters `getStatus`, `getMotionFlags`, `getAlert`, `getLineId`,
+`getLineName`, `getStopIndex`, `getStopTrackId`, `getStopStationId`,
+`getLocationTrackId` et `getLocationStationId` renvoient des `optional`.
+`getStatusName()` fournit un libellé, dont `unknown` si non observé.
+L'arrêt est la cible pendant la conduite et l'arrêt actuel pendant RunStop.
+
+`getGameTimeUs`, `getArrivalTimeUs`, `getDepartureTimeUs` renvoient les
+microsecondes de simulation. `getGameCalendarSeconds`,
+`getArrivalCalendarSeconds`, `getDepartureCalendarSeconds` renvoient les
+secondes du calendrier du jeu, sans fuseau local de l'ordinateur.
+Les trois getters `getArrivalRemainingSeconds`, `getDepartureRemainingSeconds`
+et `getDispatchRemainingSeconds` renvoient des `optional<double>`.
+Ils exigent une horloge valide ; ne pas décrémenter ces valeurs avec l'horloge
+réelle quand le jeu est en pause ou accéléré. Recapturer un snapshot.
+
+Le départ est disponible pendant un arrêt temporisé ; les départs futurs
+de toute la grille horaire ne sont pas exposés. Voir les
+[limites de lecture](research/train-service.md).
 Le header est fourni avec cette révision des sources et les paquets construits depuis
 celle-ci. Il n'est pas présent dans les anciens ZIP 0.6.0.
 
@@ -213,6 +251,7 @@ de la voie, pas une direction géographique.
 | `getName()` | `std::string` |
 | `getSpeedMps()` | `std::optional<double>` |
 | `getSpeedKmh()` | `std::optional<double>` |
+| `isSpeedDefaulted()` | `bool` : zéro d'affichage natif sans Drive, depuis SDK 0.6.1 |
 | `getPosition()` | `std::optional<Position>` |
 
 La vitesse est optionnelle indépendamment de la position. Une vitesse inconnue n'est pas zéro. `getName()` conserve le nom UTF-8 du SDK ; il peut être vide.
@@ -235,7 +274,9 @@ La limite de vitesse est une propriété de voie, pas une consigne de train. `ge
 | `getId()` | `Id` |
 | `getName()` | `std::optional<std::string>` |
 
-`getName()` renvoie `nullopt` lorsque le nom automatique n'est pas résolu (chaîne native vide).
+`getName()` renvoie le nom personnalisé ou automatique sélectionné par le jeu
+(résolution des noms automatiques depuis SDK 0.6.2). Il renvoie `nullopt` si le nom
+est vide ou si le cache automatique n'a pas pu être lu de manière cohérente.
 
 ### Signal
 
@@ -329,3 +370,20 @@ individuelles et filtres renvoient des copies possédées.
 4 Hz est une valeur par défaut, pas une garantie de performance sur toute taille
 de partie. Mesurer sur les cartes visées ; la fluidité du rendu du TCO peut être
 traitée séparément par interpolation.
+
+## Donn?es d?taill?es et plan de ligne (0.6.4)
+
+`Snapshot::getTrainDetailsById(id)` fournit `getPassengerCount()`, `getScheduleId()`,
+`getShiftId()` et `getOrderIndex()` sous forme d'optionnels. Le mode brut du mod?le
+est accessible via `getOrderMode()`.
+
+`getLineStopsForTrain(id)` renvoie une vue optionnelle sur le plan complet de la
+ligne associ?e ? la course active. Conserver le snapshot propri?taire de la vue.
+Chaque `LineStop` expose les IDs de ligne, voie et gare, l'index ? partir de z?ro,
+les offsets relatifs d'arriv?e/d?part et `getPlannedDwellSeconds()`.
+Ce plan inclut les arr?ts d?j? pass?s ; une course partielle peut en desservir un
+sous-ensemble. Il ne constitue pas une pr?diction d'horaires absolus.
+
+## Quais par gare (0.6.5)
+
+`getPlatformOccupationsForStation(stationId)` retourne les sections de quai, leurs noms, les trains occupants et les trains reservant la voie. Voir [contrat, exemple et etats inconnus](platform-occupations.md).

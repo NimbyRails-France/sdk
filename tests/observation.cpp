@@ -14,6 +14,9 @@ int main(int argc,char** argv) {
     CHECK(NimbySdk_CaptureSnapshot(0,&snapshot)==NIMBY_INVALID_HANDLE&&snapshot==0);
     CHECK(NimbySdk_CopyTrains(0,nullptr,0,&count)==NIMBY_INVALID_HANDLE&&count==0);
     CHECK(NimbySdk_CopyTrains(0,nullptr,1,&count)==NIMBY_INVALID_ARGUMENT);
+    CHECK(NimbySdk_CopyTrainServices(0,nullptr,0,&count)==NIMBY_INVALID_HANDLE&&count==0);
+    CHECK(NimbySdk_CopyTrainServices(0,nullptr,1,&count)==NIMBY_INVALID_ARGUMENT&&count==0);
+    CHECK(NimbySdk_CopyTrainServices(0,nullptr,0,nullptr)==NIMBY_INVALID_ARGUMENT);
     CHECK(NimbySdk_CopySignalStates(0,nullptr,0,&count)==NIMBY_INVALID_HANDLE&&count==0);
     CHECK(NimbySdk_CopySignalStates(0,nullptr,1,&count)==NIMBY_INVALID_ARGUMENT&&count==0);
     CHECK(NimbySdk_CopySignalStates(0,nullptr,0,nullptr)==NIMBY_INVALID_ARGUMENT);
@@ -28,6 +31,17 @@ int main(int argc,char** argv) {
     CHECK(NimbySdk_CopyTrainPathTracks(0,0,nullptr,0,&count)==NIMBY_INVALID_HANDLE&&count==0);
     CHECK(NimbySdk_CloseSession(0)==NIMBY_INVALID_HANDLE);
     CHECK(NimbySdk_ReleaseSnapshot(0)==NIMBY_INVALID_HANDLE);
+    static_assert(sizeof(NimbyLineStop)==40&&sizeof(NimbyTrainDetails)==40);
+    CHECK(NimbySdk_CopyTrainDetails(0,nullptr,0,&count)==NIMBY_INVALID_HANDLE&&count==0);
+    CHECK(NimbySdk_CopyTrainDetails(0,nullptr,1,&count)==NIMBY_INVALID_ARGUMENT);
+    CHECK(NimbySdk_CopyTrainDetails(0,nullptr,0,nullptr)==NIMBY_INVALID_ARGUMENT);
+    CHECK(NimbySdk_CopyTrainLineStops(0,0,nullptr,0,&count)==NIMBY_INVALID_HANDLE&&count==0);
+    CHECK(NimbySdk_CopyTrainLineStops(0,0,nullptr,1,&count)==NIMBY_INVALID_ARGUMENT);
+    CHECK(NimbySdk_CopyTrainLineStops(0,0,nullptr,0,nullptr)==NIMBY_INVALID_ARGUMENT);
+    static_assert(sizeof(NimbyPlatform)==288);
+    CHECK(NimbySdk_CopyPlatforms(0,nullptr,0,&count)==NIMBY_INVALID_HANDLE&&count==0);
+    CHECK(NimbySdk_CopyPlatforms(0,nullptr,1,&count)==NIMBY_INVALID_ARGUMENT);
+    CHECK(NimbySdk_CopyPlatforms(0,nullptr,0,nullptr)==NIMBY_INVALID_ARGUMENT);
     NimbySnapshotInfo info{};
     CHECK(NimbySdk_GetSnapshotInfo(0,&info)==NIMBY_INVALID_ARGUMENT);
     if(argc==2) {
@@ -42,6 +56,56 @@ int main(int argc,char** argv) {
         CHECK(std::memcmp(&sentinel,&previous,sizeof sentinel)==0);
         std::vector<NimbyTrain> before(count),after(count);
         CHECK(NimbySdk_CopyTrains(snapshot,before.data(),count,&count)==NIMBY_OK);
+        uint32_t serviceCount{};
+        CHECK(NimbySdk_CopyTrainServices(snapshot,nullptr,0,&serviceCount)==NIMBY_OK&&serviceCount==count);
+        std::vector<NimbyTrainService> services(serviceCount);
+        NimbyTrainService serviceSentinel{};std::memset(&serviceSentinel,0x5a,sizeof serviceSentinel);
+        const auto servicePrevious=serviceSentinel;
+        CHECK(NimbySdk_CopyTrainServices(snapshot,&serviceSentinel,0,&serviceCount)==NIMBY_BUFFER_TOO_SMALL);
+        CHECK(std::memcmp(&servicePrevious,&serviceSentinel,sizeof serviceSentinel)==0);
+        CHECK(NimbySdk_CopyTrainServices(snapshot,services.data(),serviceCount,&serviceCount)==NIMBY_OK);
+        unsigned servicesResolved=0;
+        for(size_t i=0;i<services.size();++i){
+            const auto& s=services[i];CHECK(s.train_id==before[i].id);
+            if(s.flags&NIMBY_SERVICE_STATE_VALID)++servicesResolved;
+            if(s.status==NIMBY_SERVICE_DEPOT)CHECK(s.line_kind==1&&(s.motion_flags&NIMBY_MOTION_HIDDEN)&&s.location_station_id==s.stop_station_id&&s.stop_station_id);
+            if(s.status==NIMBY_SERVICE_STATION_STOP)CHECK((s.motion_flags&NIMBY_MOTION_TIMED_STOP)&&s.location_station_id==s.stop_station_id&&s.stop_station_id);
+            if(s.flags&NIMBY_SERVICE_DEPARTURE_VALID)CHECK(s.motion_flags&NIMBY_MOTION_TIMED_STOP);
+            if(s.flags&NIMBY_SERVICE_CLOCK_VALID)CHECK(s.departure_remaining_seconds>=0&&s.dispatch_remaining_seconds>=0);
+        }
+        std::printf("Train services resolved: %u/%u\n",servicesResolved,serviceCount);
+        uint32_t detailCount{};CHECK(NimbySdk_CopyTrainDetails(snapshot,nullptr,0,&detailCount)==NIMBY_OK&&detailCount==before.size());
+        std::vector<NimbyTrainDetails> details(detailCount);
+        CHECK(NimbySdk_CopyTrainDetails(snapshot,details.data(),detailCount,&detailCount)==NIMBY_OK);
+        uint32_t platformCount{};CHECK(NimbySdk_CopyPlatforms(snapshot,nullptr,0,&platformCount)==NIMBY_OK);
+        std::vector<NimbyPlatform> platforms(platformCount);
+        CHECK(NimbySdk_CopyPlatforms(snapshot,platforms.data(),platformCount,&platformCount)==NIMBY_OK);
+        unsigned named=0;std::unordered_set<uint64_t> platformTracks;
+        for(const auto& p:platforms){CHECK(p.track_id>>48==1&&p.station_id>>48==2&&platformTracks.insert(p.track_id).second);if(p.flags&NIMBY_PLATFORM_NAME_VALID)++named;}
+        std::printf("Platforms: %u; named: %u\n",platformCount,named);
+        unsigned plans=0,passengers=0,assignments=0;
+        for(size_t i=0;i<details.size();++i){
+            CHECK(details[i].train_id==before[i].id);
+            if(details[i].flags&NIMBY_TRAIN_PASSENGERS_VALID){CHECK(details[i].passenger_count>=0);++passengers;}
+            if(details[i].flags&NIMBY_TRAIN_ASSIGNMENT_VALID){CHECK(details[i].schedule_id>>48==6&&details[i].shift_id&&details[i].order_index>=0);++assignments;}
+            uint32_t n{};auto status=NimbySdk_CopyTrainLineStops(snapshot,details[i].train_id,nullptr,0,&n);
+            CHECK(status==NIMBY_OK||status==NIMBY_DATA_UNAVAILABLE);
+            if(status==NIMBY_OK){
+                ++plans;std::vector<NimbyLineStop> stops(n);
+                CHECK(NimbySdk_CopyTrainLineStops(snapshot,details[i].train_id,stops.data(),n,&n)==NIMBY_OK);
+                for(size_t j=0;j<stops.size();++j){CHECK(stops[j].index==j&&stops[j].line_id==services[i].line_id);}
+                if(n){auto sentinel=stops[0],old=sentinel;CHECK(NimbySdk_CopyTrainLineStops(snapshot,details[i].train_id,&sentinel,0,&n)==NIMBY_BUFFER_TOO_SMALL);CHECK(!std::memcmp(&old,&sentinel,sizeof old));}
+            }
+        }
+        std::printf("Line plans: %u; passenger counts: %u; assignments: %u\n",plans,passengers,assignments);
+        for(const auto& t:before){
+            if(t.flags&NIMBY_TRAIN_PRESENT)CHECK(t.flags&NIMBY_TRAIN_SPEED_VALID);
+            if(t.flags&NIMBY_TRAIN_SPEED_VALID)CHECK(std::isfinite(t.speed_mps));
+            if(t.flags&NIMBY_TRAIN_SPEED_DEFAULTED){
+                CHECK(t.flags&NIMBY_TRAIN_SPEED_VALID);
+                CHECK(!(t.flags&NIMBY_TRAIN_PRESENT)&&t.speed_mps==0);
+            }
+        }
         uint32_t nodeCount=0;CHECK(NimbySdk_CopyTrackNodes(snapshot,nullptr,0,&nodeCount)==NIMBY_OK);
         std::vector<NimbyTrackNode> nodes(nodeCount);CHECK(NimbySdk_CopyTrackNodes(snapshot,nodes.data(),nodeCount,&nodeCount)==NIMBY_OK);
         std::unordered_set<uint64_t> nodeIds;for(auto& n:nodes)nodeIds.insert(n.id);
@@ -75,6 +139,14 @@ int main(int argc,char** argv) {
         CHECK(std::memcmp(before.data(),after.data(),count*sizeof(NimbyTrain))==0);
         CHECK(NimbySdk_CopyTracks(snapshot,nullptr,0,&count)==NIMBY_OK&&count==info.track_count);
         CHECK(NimbySdk_CopyStations(snapshot,nullptr,0,&count)==NIMBY_OK&&count==info.station_count);
+        std::vector<NimbyStation> stations(count);
+        CHECK(NimbySdk_CopyStations(snapshot,stations.data(),count,&count)==NIMBY_OK);
+        unsigned namedStations=0;
+        for(const auto& station:stations){
+            CHECK(std::memchr(station.name_utf8,0,sizeof station.name_utf8));
+            if(station.name_utf8[0])++namedStations;
+        }
+        std::printf("Station names resolved: %u/%u\n",namedStations,count);
         CHECK(NimbySdk_CopySignals(snapshot,nullptr,0,&count)==NIMBY_OK&&count==info.signal_count);
         std::vector<NimbySignal> signals(count);
         CHECK(NimbySdk_CopySignals(snapshot,signals.data(),count,&count)==NIMBY_OK);

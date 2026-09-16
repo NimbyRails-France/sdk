@@ -28,7 +28,11 @@ struct Session {
 struct Snapshot {
     NimbySnapshotInfo info{};
     std::vector<NimbyTrain> trains;
+    std::vector<NimbyTrainService> train_services;
+    std::vector<NimbyTrainDetails> train_details;
+    std::map<uint64_t,std::vector<NimbyLineStop>> line_stops;
     std::vector<NimbyTrack> tracks;
+    std::vector<NimbyPlatform> platforms;
     std::vector<NimbyStation> stations;
     std::vector<NimbySignal> signals;
     std::vector<NimbySignalState> signal_states;
@@ -154,6 +158,10 @@ uint32_t __cdecl NimbySdk_CaptureSnapshot(NimbySession handle,NimbySnapshot* out
         Snapshot snapshot;
         std::unordered_set<uint64_t> track_ids;
         for(const auto& t:network.tracks)track_ids.insert(t.id);
+        std::map<uint64_t,uint64_t> track_stations;
+        for(const auto& t:network.tracks)track_stations.emplace(t.id,t.station_id);
+        std::unordered_set<uint64_t> station_ids;
+        for(const auto& s:network.stations)station_ids.insert(s.id);
         std::unordered_set<uint64_t> train_ids;for(const auto& t:trains)train_ids.insert(t.id);
         auto usage=[&](auto reader,std::vector<NimbyTrackUsage>& dest){
             std::vector<nimby::engine::TrackUsage> values;
@@ -168,15 +176,41 @@ uint32_t __cdecl NimbySdk_CaptureSnapshot(NimbySession handle,NimbySnapshot* out
         for(const auto& t:trains) {
             NimbyTrain value{};value.id=t.id;
             std::memcpy(value.name_utf8,t.name.data(),t.name.size());
-            if(t.present){value.flags|=NIMBY_TRAIN_PRESENT;value.speed_mps=t.speed_mps;}
+            if(t.present)value.flags|=NIMBY_TRAIN_PRESENT;
+            if(t.speed_available){
+                value.flags|=NIMBY_TRAIN_SPEED_VALID;value.speed_mps=t.speed_mps;
+                if(!t.present)value.flags|=NIMBY_TRAIN_SPEED_DEFAULTED;
+            }
             if(t.positioned){
                 if(!track_ids.contains(t.position.track_id))return NIMBY_DATA_UNAVAILABLE;
                 value.flags|=NIMBY_TRAIN_POSITION_VALID;value.track_id=t.position.track_id;
                 value.track_fraction=t.position.fraction;value.direction=t.position.direction;
             }
             snapshot.trains.push_back(value);
+            auto service=t.service;service.train_id=t.id;
+            if((service.flags&NIMBY_SERVICE_LOCATION_VALID)&&track_stations.contains(service.location_track_id))
+                service.location_station_id=track_stations.at(service.location_track_id);
+            else {service.flags&=~NIMBY_SERVICE_LOCATION_VALID;service.location_track_id=0;}
+            if((service.flags&NIMBY_SERVICE_STOP_VALID)&&!service.stop_station_id&&track_stations.contains(service.stop_track_id))
+                service.stop_station_id=track_stations.at(service.stop_track_id);
+            if((service.flags&NIMBY_SERVICE_STOP_VALID)&&
+               (!track_ids.contains(service.stop_track_id)||!station_ids.contains(service.stop_station_id)||
+                track_stations.at(service.stop_track_id)!=service.stop_station_id)){
+                service.flags&=~NIMBY_SERVICE_STOP_VALID;service.stop_track_id=service.stop_station_id=0;
+            }
+            if((service.status==NIMBY_SERVICE_STATION_STOP||service.status==NIMBY_SERVICE_DEPOT)&&
+               (!(service.flags&NIMBY_SERVICE_STOP_VALID)||!service.location_station_id||
+                service.location_station_id!=service.stop_station_id))service.status=NIMBY_SERVICE_TIMED_STOP;
+            snapshot.train_services.push_back(service);
+            snapshot.train_details.push_back(t.details);
+            auto stops=t.line_stops;
+            for(auto& stop:stops)if(!stop.station_id&&track_stations.contains(stop.track_id))stop.station_id=track_stations.at(stop.track_id);
+            if(t.line_stops_available&&std::all_of(stops.begin(),stops.end(),[&](const auto& stop){
+                return track_stations.contains(stop.track_id)&&(!stop.station_id||station_ids.contains(stop.station_id))&&track_stations.at(stop.track_id)==stop.station_id;
+            }))snapshot.line_stops.emplace(t.id,std::move(stops));
             if(t.path_available&&std::all_of(t.path.begin(),t.path.end(),[&](uint64_t id){return track_ids.contains(id);}))snapshot.paths.emplace(t.id,t.path);
         }
+        snapshot.platforms=std::move(network.platforms);
         for(const auto& t:network.tracks)snapshot.tracks.push_back({t.id,t.station_id,t.limit_mps});
         for(const auto& s:network.stations){NimbyStation value{};value.id=s.id;std::memcpy(value.name_utf8,s.name.data(),s.name.size());snapshot.stations.push_back(value);}
         std::vector<nimby::engine::SignalTextureState> native_signal_states;
@@ -241,14 +275,28 @@ uint32_t __cdecl NimbySdk_GetSnapshotInfo(NimbySnapshot handle,NimbySnapshotInfo
     *out=found->second.info;return NIMBY_OK;
 }
 uint32_t __cdecl NimbySdk_CopyTrains(NimbySnapshot s,NimbyTrain* out,uint32_t cap,uint32_t* count) noexcept {return copy(s,out,cap,count,&Snapshot::trains);}
+uint32_t __cdecl NimbySdk_CopyTrainServices(NimbySnapshot s,NimbyTrainService* out,uint32_t cap,uint32_t* count) noexcept {return copy(s,out,cap,count,&Snapshot::train_services);}
 uint32_t __cdecl NimbySdk_CopyTrackReservations(NimbySnapshot s,NimbyTrackUsage* out,uint32_t cap,uint32_t* count) noexcept {return copy(s,out,cap,count,&Snapshot::reservations,&Snapshot::reservations_available);}
 uint32_t __cdecl NimbySdk_CopyTrackOccupations(NimbySnapshot s,NimbyTrackUsage* out,uint32_t cap,uint32_t* count) noexcept {return copy(s,out,cap,count,&Snapshot::occupations,&Snapshot::occupations_available);}
 uint32_t __cdecl NimbySdk_CopyTracks(NimbySnapshot s,NimbyTrack* out,uint32_t cap,uint32_t* count) noexcept {return copy(s,out,cap,count,&Snapshot::tracks);}
+uint32_t __cdecl NimbySdk_CopyPlatforms(NimbySnapshot s,NimbyPlatform* out,uint32_t cap,uint32_t* count) noexcept {return copy(s,out,cap,count,&Snapshot::platforms);}
 uint32_t __cdecl NimbySdk_CopyStations(NimbySnapshot s,NimbyStation* out,uint32_t cap,uint32_t* count) noexcept {return copy(s,out,cap,count,&Snapshot::stations);}
 uint32_t __cdecl NimbySdk_CopySignals(NimbySnapshot s,NimbySignal* out,uint32_t cap,uint32_t* count) noexcept {return copy(s,out,cap,count,&Snapshot::signals);}
 uint32_t __cdecl NimbySdk_CopySignalStates(NimbySnapshot s,NimbySignalState* out,uint32_t cap,uint32_t* count) noexcept {return copy(s,out,cap,count,&Snapshot::signal_states);}
 uint32_t __cdecl NimbySdk_CopySignalTextures(NimbySnapshot s,NimbySignalTexture* out,uint32_t cap,uint32_t* count) noexcept {return copy(s,out,cap,count,&Snapshot::signal_textures);}
 uint32_t __cdecl NimbySdk_CopyTrackNodes(NimbySnapshot s,NimbyTrackNode* out,uint32_t cap,uint32_t* count) noexcept {return copy(s,out,cap,count,&Snapshot::nodes);}
+uint32_t __cdecl NimbySdk_CopyTrainDetails(NimbySnapshot s,NimbyTrainDetails* out,uint32_t cap,uint32_t* count) noexcept {return copy(s,out,cap,count,&Snapshot::train_details);}
+uint32_t __cdecl NimbySdk_CopyTrainLineStops(NimbySnapshot handle,uint64_t train,NimbyLineStop* out,uint32_t cap,uint32_t* count) noexcept {
+    if(!count)return NIMBY_INVALID_ARGUMENT;
+    *count=0;
+    if(!out&&cap)return NIMBY_INVALID_ARGUMENT;
+    Guard guard;auto s=registry().snapshots.find(handle);if(s==registry().snapshots.end())return NIMBY_INVALID_HANDLE;
+    auto p=s->second.line_stops.find(train);if(p==s->second.line_stops.end())return NIMBY_DATA_UNAVAILABLE;
+    *count=static_cast<uint32_t>(p->second.size());if(!out&&!cap)return NIMBY_OK;
+    if(cap<p->second.size())return NIMBY_BUFFER_TOO_SMALL;
+    if(!p->second.empty())std::memcpy(out,p->second.data(),p->second.size()*sizeof(NimbyLineStop));
+    return NIMBY_OK;
+}
 uint32_t __cdecl NimbySdk_CopyTrainPathTracks(NimbySnapshot handle,uint64_t train,uint64_t* out,uint32_t cap,uint32_t* count) noexcept {
     if(!count)return NIMBY_INVALID_ARGUMENT;
     *count=0;

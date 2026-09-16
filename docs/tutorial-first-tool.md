@@ -196,13 +196,17 @@ pas un nombre d'octets. Le snapshot reste identique entre les deux appels.
 Le champ `flags` contient des bits : chaque bit indique une propriété disponible.
 
 ```cpp
-if (train.flags & NIMBY_TRAIN_PRESENT) {
+if (train.flags & (NIMBY_TRAIN_SPEED_VALID | NIMBY_TRAIN_PRESENT)) {
     std::printf("%.1f km/h\n", train.speed_mps * 3.6);
 }
 ```
 
 La vitesse est fournie en mètres par seconde. Pour la position, tester séparément
 `NIMBY_TRAIN_POSITION_VALID` avant de lire `track_id`, `track_fraction` et `direction`.
+Depuis 0.6.1, `NIMBY_TRAIN_SPEED_DEFAULTED` distingue le zéro affiché par le jeu
+sans Drive actif d'une vitesse lue dans Drive. Une vitesse sans indicateur de
+validité reste inconnue. Le test de `NIMBY_TRAIN_PRESENT` conserve la compatibilité
+avec les DLL 0.6.0.
 
 ### Relier les objets
 

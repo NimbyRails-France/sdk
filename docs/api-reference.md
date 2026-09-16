@@ -3,6 +3,38 @@
 Cette page décrit l'API C bas niveau. Pour les objets, getters et captures
 automatiques C++ : [référence C++ et types de retour](cpp-api-reference.md).
 
+## États de service (depuis 0.6.3)
+
+`NimbySdk_CopyTrainServices(snapshot, records, capacity, required)` suit le
+même contrat de copie que `CopyTrains` : comptage avec `NULL, 0`, aucune
+copie partielle, données immuables appartenant au snapshot. Jointure par
+`train_id` complet. Il y a un enregistrement par train, même si son état
+est inconnu (`STATE_VALID` absent).
+
+`NimbyTrainService` fournit le statut, les `motion_flags` indépendants,
+l'alerte native, la localisation (y compris masquée), la ligne et l'arrêt
+actif. Un arrêt actif peut être la cible pendant la conduite ; ne pas le
+présenter systématiquement comme la gare où le train est arrêté.
+
+Les bits `NIMBY_SERVICE_*_VALID` indiquent quels champs sont disponibles.
+Les échéances `*_time_us` sont en microsecondes de simulation. Les délais
+nécessitent aussi `CLOCK_VALID`. `CALENDAR_VALID` permet de convertir une
+échéance vers le calendrier du jeu : `game_epoch_seconds + time_us / 1000000`.
+Afficher cette heure sans conversion vers le fuseau horaire de l'ordinateur.
+Le départ est lu pendant TimedStop, l'arrivée pendant Drive. Le délai de
+dispatch signifie « prochaine tentative », pas « prochain départ ».
+
+Les statuts distinguent conduite active, arrêt en gare confirmé, arrêt
+temporisé, dépôt masqué confirmé, attente de dispatch, attente au signal,
+train remisé (mothballed), absence des voies et autre état. Une valeur nulle
+de vitesse ne sert jamais de preuve pour ces statuts.
+
+Alertes : 0 aucune, 1 ligne fermée, 3 trajet introuvable, 4 ordres incorrects,
+5 collision, 6 signal, 7 horaire fermé, 8 voies de dispatch occupées,
+9 aucun service activé, 10 services déjà affectés.
+
+[Sources natives, validation et limites](research/train-service.md).
+
 [Documentation](README.md) · [Tutoriel](tutorial-first-tool.md) · [Dépannage](troubleshooting.md)
 
 Les déclarations de référence sont `include/nimby/sdk.h` et
@@ -96,7 +128,7 @@ if (status == NIMBY_OK) {
 |---|---|---|
 | `NimbySdk_CopyTrains` | `NimbyTrain` | Trains et validité individuelle de vitesse/position |
 | `NimbySdk_CopyTracks` | `NimbyTrack` | Voies, limites de vitesse et références de gare |
-| `NimbySdk_CopyStations` | `NimbyStation` | Gares ; nom automatique parfois non résolu |
+| `NimbySdk_CopyStations` | `NimbyStation` | Gares ; nom personnalisé ou automatique sélectionné par le jeu |
 | `NimbySdk_CopySignals` | `NimbySignal` | Implantation et type des signaux |
 | `NimbySdk_CopySignalStates` | `NimbySignalState` | Une ligne par signal ; vérifier les bits de validité |
 | `NimbySdk_CopySignalTextures` | `NimbySignalTexture` | Une ligne par signal ; référence et fichier valides indépendamment |
@@ -118,20 +150,31 @@ textures, `NIMBY_OK` peut accompagner des lignes dont `flags=0`.
 | `id` | ID complet du train |
 | `name_utf8[257]` | Nom UTF-8, jusqu'à 256 octets utiles |
 | `flags` | Tester les bits ci-dessous indépendamment |
-| `speed_mps` | Vitesse en m/s si `NIMBY_TRAIN_PRESENT` ; multiplier par 3,6 pour les km/h |
+| `speed_mps` | Vitesse d'affichage en m/s si `NIMBY_TRAIN_SPEED_VALID` (ou `NIMBY_TRAIN_PRESENT` pour SDK 0.6.0) ; multiplier par 3,6 pour les km/h |
 | `track_id` | Voie référencée si `NIMBY_TRAIN_POSITION_VALID` |
 | `track_fraction` | Position normalisée dans `[0,1]` si position valide |
 | `direction` | `+1` ou `-1` selon l'orientation de la voie, si position valide |
 
 L'absence de `NIMBY_TRAIN_PRESENT` ne permet pas de conclure à une vitesse nulle.
+Depuis 0.6.1, `NIMBY_TRAIN_SPEED_VALID` valide la vitesse indépendamment de ce
+bit historique, qui indique toujours un Drive actif. Si
+`NIMBY_TRAIN_SPEED_DEFAULTED` est aussi présent, la valeur est le zéro utilisé
+par l'affichage natif pour un Motion sans Drive : ce n'est pas une mesure.
+Un train sans Motion correspondant conserve une vitesse indisponible.
+Les anciens clients restent compatibles (ABI 1, structure inchangée), mais
+doivent utiliser le nouveau bit pour afficher ces zéros par défaut.
 L'absence du bit de position ne permet pas de tracer le train à la position zéro.
 
 ### `NimbyTrack` et `NimbyStation`
 
 Une voie contient `id`, `station_id` et `speed_limit_mps`. Sa limite de vitesse
 est une propriété de la voie, pas la consigne actuelle d'un train.
-Une gare contient `id` et `name_utf8[257]`. Un nom vide peut être un nom automatique
-non résolu. Une référence `station_id=0` indique l'absence de référence de gare.
+Une gare contient `id` et `name_utf8[257]`. Depuis 0.6.2, les noms automatiques
+proviennent du cache natif, joint par l'ID complet (génération comprise).
+Un nom personnalisé reste prioritaire lorsque le mode automatique est désactivé.
+Un cache absent, instable ou invalide laisse le nom indisponible sans faire
+échouer la capture du réseau. Un nom vide peut aussi être volontairement vide.
+Une référence `station_id=0` indique l'absence de référence de gare.
 
 Liaison : `train.track_id → track.id`, puis `track.station_id → station.id`.
 Elle ne donne ni l'horaire, ni la destination, ni le prochain arrêt du train.
@@ -269,3 +312,28 @@ Un exécutable reconnu pour la recherche ne constitue pas une cible de hook vali
 Tous les appels se font hors `DllMain` et hors callback TLS. Avant de décharger
 la DLL : arrêter et joindre les threads appelants, libérer les snapshots, fermer
 les sessions, puis arrêter les diagnostics si vous les aviez initialisés.
+
+## Donn?es d?taill?es et plan de ligne (0.6.4)
+
+`NimbySdk_CopyTrainDetails(snapshot, out, capacity, required)` renvoie un
+`NimbyTrainDetails` par train. `NIMBY_TRAIN_PASSENGERS_VALID` valide le nombre de
+voyageurs ; `NIMBY_TRAIN_ASSIGNMENT_VALID` valide les IDs opaques schedule/shift
+et l'index d'ordre ? partir de z?ro. Ces IDs ne sont pas des noms de service.
+
+`NimbySdk_CopyTrainLineStops(snapshot, train_id, out, capacity, required)` copie
+le plan complet de la ligne active : IDs ligne/voie/gare et index ? partir de
+z?ro. `NIMBY_LINE_STOP_TIMES_VALID` valide les offsets d'arriv?e/d?part en
+secondes dans le plan de ligne. Leur diff?rence est la dur?e d'arr?t pr?vue,
+pas le temps restant r?el. Courses partielles et boucles peuvent modifier les
+arr?ts effectivement desservis et leurs horaires.
+
+Les deux nouvelles structures font 40 octets (pack 8). Les structures ant?rieures
+restent inchang?es. Les conventions de comptage, buffer trop petit et snapshot
+immuable sont identiques aux autres exports. Un plan absent renvoie
+`NIMBY_DATA_UNAVAILABLE`, pas un tableau d'arr?ts invent?s.
+
+## Quais (0.6.5)
+
+`NimbySdk_CopyPlatforms` expose `NimbyPlatform` (288 octets) : voie, gare, nom et validite. Voir [occupations et reservations par gare](platform-occupations.md).
+
+Depuis 0.6.6, `NimbyTrainDetails.passenger_count` utilise la table des voyageurs embarqu?s affich?e dans la fiche du jeu. Les versions 0.6.4/0.6.5 lisaient ? tort la capacit?. Une lecture impossible reste indisponible via le bit de validit?.

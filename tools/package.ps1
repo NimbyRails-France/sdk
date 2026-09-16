@@ -5,7 +5,7 @@ $cmake = Join-Path $ClionHome 'bin/cmake/win/x64/bin/cmake.exe'
 $ninja = Join-Path $ClionHome 'bin/ninja/win/x64/ninja.exe'
 $compiler = Join-Path $ClionHome 'bin/mingw/bin/c++.exe'
 if(!$OutputRoot){$OutputRoot=Join-Path $projectRoot 'dist'}
-$prefix = Join-Path $OutputRoot 'NimbyRailsSDK-0.6.0'
+$prefix = Join-Path $OutputRoot 'NimbyRailsSDK-0.6.6'
 if(!$SkipBuild) { & "$PSScriptRoot/build.ps1" -ClionHome $ClionHome -Configuration Release }
 & $cmake --install "$projectRoot/build/Release" --prefix $prefix
 if($LASTEXITCODE) { throw 'SDK installation failed' }
@@ -46,7 +46,7 @@ if($LASTEXITCODE) { throw 'C++ client build failed' }
 if($LASTEXITCODE) { throw 'C++ client runtime check failed' }
 
 Copy-Item -LiteralPath "$projectRoot/README.md" -Destination $prefix -Force
-$zip=Join-Path $projectRoot 'dist/NimbyRailsSDK-0.6.0-windows-x64-mingw.zip'
+$zip=Join-Path $projectRoot 'dist/NimbyRailsSDK-0.6.6-windows-x64-mingw.zip'
 Compress-Archive -LiteralPath $prefix -DestinationPath $zip -Force
 $hash=(Get-FileHash -LiteralPath $zip -Algorithm SHA256).Hash.ToLowerInvariant()
 "$hash  $([IO.Path]::GetFileName($zip))" | Set-Content "$projectRoot/dist/SHA256SUMS.txt" -Encoding ascii

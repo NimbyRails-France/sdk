@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.24)
-project(NimbyRailsSDK VERSION 0.6.0 LANGUAGES C CXX)
+project(NimbyRailsSDK VERSION 0.6.6 LANGUAGES C CXX)
 if(NOT WIN32 OR NOT CMAKE_SIZEOF_VOID_P EQUAL 8)
     message(FATAL_ERROR "NimbyRailsSDK requires Windows x64")
 endif()
@@ -37,7 +37,7 @@ target_include_directories(NimbyRailsSDK
     PUBLIC "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>" "$<INSTALL_INTERFACE:include>")
 target_link_libraries(NimbyRailsSDK PRIVATE nimby_build bcrypt nimby_hook_backend)
 set_target_properties(NimbyRailsSDK PROPERTIES PREFIX "" EXPORT_NAME SDK)
-add_library(NimbyRailsSDK::SDK ALIAS NimbyRailsSDK)
+# NimbyRailsSDK::SDK is reserved for the installed package consumed by examples.
 if(MINGW)
     # Exceptions stay inside the C ABI. GCC/C++ runtimes are embedded;
     # this MinGW toolchain still requires the shipped libwinpthread-1.dll.
@@ -174,6 +174,13 @@ if(BUILD_TESTING)
         add_test(NAME proxy_forwarding COMMAND nimby_proxy_tests "${CMAKE_BINARY_DIR}/proxy-test/SDL3.dll")
     endif()
 endif()
+option(NIMBY_BUILD_EXAMPLES "Build tools against an installed SDK package" OFF)
+if(NIMBY_BUILD_EXAMPLES)
+    add_subdirectory(examples/first-observer)
+    add_subdirectory(examples/observer)
+    add_subdirectory(examples/auto-observer)
+endif()
+
 include(CMakePackageConfigHelpers)
 configure_package_config_file(cmake/NimbyRailsSDKConfig.cmake.in
     "${CMAKE_CURRENT_BINARY_DIR}/NimbyRailsSDKConfig.cmake"

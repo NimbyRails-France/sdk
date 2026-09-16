@@ -1,4 +1,4 @@
-#include <nimby/observation.h>
+#include <nimby/client.hpp>
 #include <charconv>
 #include <chrono>
 #include <cstdio>
@@ -35,6 +35,14 @@ int main(int argc,char** argv) {
             auto trains=records<NimbyTrain>(snapshot.value,NimbySdk_CopyTrains);
             auto tracks=records<NimbyTrack>(snapshot.value,NimbySdk_CopyTracks);
             auto stations=records<NimbyStation>(snapshot.value,NimbySdk_CopyStations);
+            auto services=records<NimbyTrainService>(snapshot.value,NimbySdk_CopyTrainServices);
+            for(const auto& row:services){
+                nimby::TrainService service(row);
+                std::printf("service train=%llu state=%s",row.train_id,service.getStatusName());
+                if(auto seconds=service.getDepartureRemainingSeconds())std::printf(" departs_in=%.1f_game_s",*seconds);
+                if(auto station=service.getLocationStationId())std::printf(" station=%llu",*station);
+                std::puts("");
+            }
             auto signals=records<NimbySignal>(snapshot.value,NimbySdk_CopySignals);
             auto signalStates=records<NimbySignalState>(snapshot.value,NimbySdk_CopySignalStates);
             for(const auto& state:signalStates){
@@ -67,7 +75,8 @@ int main(int argc,char** argv) {
             }
             for(const auto& train:trains) {
                 std::printf("%s id=%llx ",train.name_utf8,static_cast<unsigned long long>(train.id));
-                if(train.flags&NIMBY_TRAIN_PRESENT)std::printf("%.1f km/h ",train.speed_mps*3.6);
+                if(train.flags&(NIMBY_TRAIN_SPEED_VALID|NIMBY_TRAIN_PRESENT))std::printf("%.1f km/h%s ",train.speed_mps*3.6,
+                    (train.flags&NIMBY_TRAIN_SPEED_DEFAULTED)?" (game display default; speed not measured)":"");
                 else std::printf("speed unavailable ");
                 if(train.flags&NIMBY_TRAIN_POSITION_VALID)std::printf("track=%llx %.2f%%",static_cast<unsigned long long>(train.track_id),train.track_fraction*100);
                 std::puts("");

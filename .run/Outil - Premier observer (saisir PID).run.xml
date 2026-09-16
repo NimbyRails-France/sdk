@@ -1,0 +1,7 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="Outil - Premier observer (saisir PID)" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="NimbyRailsSDK" TARGET_NAME="MyFirstNimbyTool" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="NimbyRailsSDK" RUN_TARGET_NAME="MyFirstNimbyTool" PROGRAM_PARAMS="$Prompt$">
+    <method v="2">
+      <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+    </method>
+  </configuration>
+</component>
