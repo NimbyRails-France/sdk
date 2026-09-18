@@ -1,11 +1,13 @@
 param([string]$ClionHome = "$env:LOCALAPPDATA/Programs/CLion", [switch]$SkipBuild, [string]$OutputRoot)
 $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path $PSScriptRoot -Parent
+$version=(Get-Content -LiteralPath "$projectRoot/VERSION" -Raw).Trim()
+if($version -notmatch '^\d+\.\d+\.\d+(?:-(?:alpha|beta)\.[1-9]\d*)?$'){throw 'Invalid VERSION'}
 $cmake = Join-Path $ClionHome 'bin/cmake/win/x64/bin/cmake.exe'
 $ninja = Join-Path $ClionHome 'bin/ninja/win/x64/ninja.exe'
 $compiler = Join-Path $ClionHome 'bin/mingw/bin/c++.exe'
 if(!$OutputRoot){$OutputRoot=Join-Path $projectRoot 'dist'}
-$prefix = Join-Path $OutputRoot 'NimbyRailsFranceSDK-0.7.2'
+$prefix = Join-Path $OutputRoot "NimbyRailsFranceSDK-$version"
 if(!$SkipBuild) { & "$PSScriptRoot/build.ps1" -ClionHome $ClionHome -Configuration Release }
 & $cmake --install "$projectRoot/build/Release" --prefix $prefix
 if($LASTEXITCODE) { throw 'SDK installation failed' }
@@ -49,7 +51,7 @@ if($LASTEXITCODE) { throw 'C++ client build failed' }
 if($LASTEXITCODE) { throw 'C++ client runtime check failed' }
 
 Copy-Item -LiteralPath "$projectRoot/README.md" -Destination $prefix -Force
-$zip=Join-Path $projectRoot 'dist/NimbyRailsFranceSDK-0.7.2-windows-x64-mingw.zip'
+$zip=Join-Path $projectRoot "dist/NimbyRailsFranceSDK-$version-windows-x64-mingw.zip"
 Compress-Archive -LiteralPath $prefix -DestinationPath $zip -Force
 $hash=(Get-FileHash -LiteralPath $zip -Algorithm SHA256).Hash.ToLowerInvariant()
 "$hash  $([IO.Path]::GetFileName($zip))" | Set-Content "$projectRoot/dist/SHA256SUMS.txt" -Encoding ascii
