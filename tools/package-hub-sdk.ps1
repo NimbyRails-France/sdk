@@ -3,7 +3,7 @@ $ErrorActionPreference='Stop'
 $root=Split-Path $PSScriptRoot -Parent
 $currentVersion=(Get-Content -LiteralPath "$root/VERSION" -Raw).Trim()
 if(!$Version){$Version=$currentVersion}
-if($Version -notmatch '^\d+\.\d+\.\d+$' -or $Version -ne $currentVersion){throw 'Package version must match VERSION'}
+if($Version -notmatch '^\d+\.\d+\.\d+(?:-(?:alpha|beta)\.[1-9]\d*)?$' -or $Version -ne $currentVersion){throw 'Package version must match VERSION'}
 $parent=Join-Path $root ('build/hub-sdk-'+[guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Path $parent | Out-Null
 $stage=Join-Path $parent "NimbyRailsFranceSDK-$Version"
