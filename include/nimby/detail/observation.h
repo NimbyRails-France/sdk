@@ -37,6 +37,8 @@ extern "C" {
 #define NIMBY_SIGNAL_SPECIFIC_STATE_VALID 2u
 #define NIMBY_SIGNAL_TEXTURE_STATE_VALID 4u
 #define NIMBY_SIGNAL_TEXTURE_STATE_DEFAULT 8u
+#define NIMBY_SIGNAL_FILTER_VALID 16u
+#define NIMBY_SIGNAL_FILTER_DEFAULT_IGNORED 32u
 #define NIMBY_SIGNAL_TEXTURE_REFERENCE_VALID 1u
 #define NIMBY_SIGNAL_TEXTURE_FILE_VALID 2u
 #define NIMBY_SIGNAL_TEXTURE_DEFAULT_SET 4u
@@ -150,7 +152,7 @@ typedef struct NimbySignalState {
     uint64_t signal_id;
     uint32_t flags, aspect;
     int32_t texture_state; // Native selector before renderer clamping/fallback.
-    uint32_t reserved;
+    union { uint32_t reserved; uint32_t exception_count; }; // Valid with NIMBY_SIGNAL_FILTER_VALID; ABI unchanged.
     char system_utf8[32];
     char specific_state_utf8[64];
 } NimbySignalState;
@@ -179,6 +181,14 @@ typedef struct NimbyTrackNode {
     uint64_t id, link_a, link_b;
     double x, y;
 } NimbyTrackNode;
+
+// Native branch attachment. main_direction approaches the branch on the main
+// track; branch_direction leaves the attachment on the branch (no reversal).
+typedef struct NimbyTrackJunction {
+    uint64_t branch_track_id, main_track_id;
+    double main_fraction;
+    int32_t main_direction, branch_direction;
+} NimbyTrackJunction;
 
 // Experimental native query interval on one track, normalized low <= high.
 // Not an ordered route, switch position, signal permission or proof of a free block.
@@ -237,6 +247,7 @@ NIMBY_API uint32_t __cdecl NimbyInternal_CopySignalStates(NimbySnapshot snapshot
 // leaves flags=0. Read-only lookup, native default atlas and index clamping.
 NIMBY_API uint32_t __cdecl NimbyInternal_CopySignalTextures(NimbySnapshot snapshot, NimbySignalTexture* records, uint32_t capacity, uint32_t* required) NIMBY_NOEXCEPT;
 NIMBY_API uint32_t __cdecl NimbyInternal_CopyTrackNodes(NimbySnapshot snapshot, NimbyTrackNode* records, uint32_t capacity, uint32_t* required) NIMBY_NOEXCEPT;
+NIMBY_API uint32_t __cdecl NimbyInternal_CopyTrackJunctions(NimbySnapshot snapshot, NimbyTrackJunction* records, uint32_t capacity, uint32_t* required) NIMBY_NOEXCEPT;
 // These components are captured independently. DATA_UNAVAILABLE means unknown,
 // not zero reservations/occupations. NIMBY_OK with count=0 means observed empty.
 // Read-only native reservations; does not invoke script-defined virtual reservations.

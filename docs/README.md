@@ -2,7 +2,8 @@
 
 Cette documentation décrit **NimbyRailsFranceSDK 0.7, API C++20**, pour Windows x64.
 Le SDK permet à votre programme de lire les trains et le réseau d'une partie de
-NIMBY Rails. L'API publique ne propose pas de commandes pour modifier la simulation.
+NIMBY Rails. Des commandes expérimentales distinctes gèrent les textures et la
+date de simulation ; voir leurs contrats avant utilisation.
 
 ## Commencer
 
@@ -19,6 +20,7 @@ Le tutoriel suppose que vous savez ouvrir un terminal et compiler un petit
 programme C++. Il explique les notions propres au SDK au fur et à mesure.
 
 Pour les captures manuelles : [premier outil C++](tutorial-first-tool.md).
+Pour écrire votre propre DLL : [créer un mod, fichier par fichier](tutorial-create-mod.md).
 L'ancienne API C est retirée ; voir la [migration 0.7](migration-0.7.md).
 
 ## Choisir le bon parcours
@@ -26,6 +28,7 @@ L'ancienne API C est retirée ; voir la [migration 0.7](migration-0.7.md).
 | Votre objectif | Point de départ |
 |---|---|
 | Créer un programme qui lit la partie | [Client C++](tutorial-cpp-client.md) ; le kit de développement suffit |
+| Écrire un mod C++ chargé par NRF Loader | [Créer son mod depuis zéro](tutorial-create-mod.md) ; adaptateur du SDK de développement requis |
 | Utiliser le TCO déjà prêt | [Projet TCO](https://github.com/NimbyRails-France/tco) ; aucun code à écrire |
 | Gérer SDK et TCO avec le Hub | [Projet Hub](https://github.com/NimbyRails-France/hub) |
 | Charger le SDK au démarrage du jeu | [Installation du proxy SDL](install-drop-in.md) ; usage distinct de l'observation externe |

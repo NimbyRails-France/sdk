@@ -1,5 +1,7 @@
 # Référence C++ : objets et types de retour
 
+Ordre des signaux, sens et parcours des nœuds : [topologie des signaux](signal-topology.md).
+
 [Documentation](README.md) · [Tutoriel C++](tutorial-cpp-client.md) · [Migration 0.7](migration-0.7.md)
 
 Inclure `<nimby/client.hpp>` et compiler en **C++20 / Windows x64**.
@@ -314,6 +316,8 @@ Le type est une valeur native (0 : sens unique, 1 : arrêt quai, 3 : balise, 4 :
 | `getAspect()` | `std::optional<std::uint32_t>` |
 | `getSpecificState()` | `std::optional<SpecificState>` |
 | `getTextureSelector()` | `std::optional<std::int32_t>` |
+| `getExceptionCount()` | `std::optional<std::uint32_t>` — nombre de tags d’exception natifs, zéro distinct d’inconnu |
+| `isIgnoredByDefault()` | `std::optional<bool>` — mode par défaut du filtre, sans évaluation pour un train |
 | `usesDefaultTextureSelector()` | `bool` : zero choisi par le rendu pour un ID absent d'une table valide |
 
 Chaque optional est commandé par son propre bit de validité. Un sélecteur de texture égal à zéro peut être valide. `SpecificState` possède deux champs `std::string` : `system` et `state`. L'aspect général reste inconnu dans l'adaptateur actuel ; les valeurs générales sont 0 inconnu, 1 arrêt, 2 prudence, 3 passage, 4 éteint.

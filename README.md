@@ -52,6 +52,7 @@ montrent aussi leur copie automatique par CMake.
 
 - [Tutoriel C++ et rafraîchissement automatique](docs/tutorial-cpp-client.md)
 - [Premier outil : captures manuelles](docs/tutorial-first-tool.md)
+- [Créer un mod C++ depuis un dossier vide](docs/tutorial-create-mod.md) — écrire ses fichiers, sa DLL et ses actions avec l'adaptateur du SDK de développement
 - [Référence C++ complète](docs/cpp-api-reference.md)
 - [Migration 0.6 vers 0.7](docs/migration-0.7.md)
 - [Quais et occupations](docs/platform-occupations.md)

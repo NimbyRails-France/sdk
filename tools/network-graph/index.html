@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Étoile lyonnaise · Graphe technique</title><link rel="stylesheet" href="style.css"></head>
+<body>
+<header><div class="brand"><span class="mark">N<span>↗</span></span><div><small>NIMBY RAILS FRANCE SDK / EXPLORATEUR</small><h1>Étoile lyonnaise <span>Graphe technique</span></h1></div></div><div class="header-actions"><span id="capture"></span><button id="download">↓ Export JSON</button><label class="button">Ouvrir un JSON<input id="upload" type="file" accept=".json" hidden></label></div></header>
+<div class="scope"><span class="dot"></span><strong>Vaise ↔ Perrache</strong><span>·</span><strong>V&eacute;nissieux</strong><span>·</span><strong>Saint-Fons</strong><span>·</span><strong>Collonges-au-Mont-d’Or</strong><span>·</span><strong>Sathonay–Rillieux</strong><span class="scope-note">Données natives de ta partie · capture figée</span></div>
+<main>
+<aside>
+ <div class="search-block"><label for="search">RECHERCHER DANS LE RÉSEAU</label><input id="search" placeholder="ID hexadécimal, décimal ou gare…" autocomplete="off"><select id="station"><option value="">Tout le périmètre</option></select><div class="results-head"><span id="result-count"></span><button id="clear" class="text-button">Effacer</button></div><div id="results" class="results"></div><button id="more" class="more">Afficher davantage</button></div>
+ <section id="inspector"><div class="empty"><span>↖</span><h2>Choisis un signal</h2><p>Clique sur un symbole ou cherche son ID pour explorer ses connexions.</p></div></section>
+</aside>
+<section class="workspace">
+ <div class="toolbar"><div class="segmented"><button id="overview" class="active">Réseau complet</button><button id="route">Parcours technique</button></div><div class="tools"><label id="depth-label" hidden>Chaînage <select id="depth"><option value="1">1 signal</option><option value="2">2 signaux</option><option value="3">3 signaux</option><option value="4" selected>4 signaux</option><option value="8">8 signaux</option><option value="all">Tous les suivants</option></select></label><label><input type="checkbox" id="labels"> IDs sur la vue d’ensemble</label><button id="fit">Tout cadrer</button><button id="zoom-out" aria-label="Dézoomer">−</button><button id="zoom-in" aria-label="Zoomer">+</button></div></div>
+ <div class="metrics"><div><b id="signal-count">—</b><span>signaux</span></div><div><b id="junction-count">—</b><span>raccordements d’aiguille</span></div><div><b id="track-count">—</b><span>tronçons natifs</span></div><div class="proof"><span>✓</span><p id="proof"></p></div></div>
+ <div class="viewport" id="viewport"><canvas id="graph" tabindex="0" aria-label="Graphe des signaux et des aiguilles. Utilisez la recherche et les listes pour naviguer sans la souris."></canvas><div class="view-title"><small id="view-kicker">VUE D’ENSEMBLE</small><strong id="view-title">Les connexions de l’étoile lyonnaise</strong><span id="view-subtitle">Positions schématiques · liaisons issues du moteur</span></div><div id="tooltip" hidden></div><div class="legend"><span><i class="signal"></i>Signal</span><span><i class="junction"></i>Aiguille</span><span><i class="boundary"></i>Limite / non observé</span><span><i class="path"></i>Parcours sélectionné</span></div><div class="canvas-help">Molette : zoom · Glisser : déplacer · Clic signal : surligner le parcours · Survol : isoler les liaisons</div><div id="notice" hidden></div></div>
+ <footer><span id="footer-count"></span><span>Les possibilités de parcours ne sont pas des itinéraires réservés.</span><button id="about" class="text-button">À propos des données</button></footer>
+</section></main>
+<dialog id="data-dialog"><h2>Ce que représente ce graphe</h2><div id="data-notes"></div><button id="close-dialog">Fermer</button></dialog>
+<script src="network-data.js"></script><script src="app.js"></script>
+</body></html>

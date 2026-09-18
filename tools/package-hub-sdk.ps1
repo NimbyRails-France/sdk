@@ -12,6 +12,7 @@ $metadata = [ordered]@{
     url = "https://github.com/NimbyRails-France/sdk/releases/download/v$Version/$([IO.Path]::GetFileName($asset))"
     id = 'sdk'
     kind = 'sdk'
+    loaderApi = 1
     size = (Get-Item -LiteralPath $asset).Length
     version = $Version
     rootFolder = "NimbyRailsFranceSDK-$Version"

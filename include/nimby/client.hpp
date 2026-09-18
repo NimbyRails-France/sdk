@@ -10,6 +10,8 @@
 #include <windows.h>
 #include <tlhelp32.h>
 #include <chrono>
+#include <algorithm>
+#include <cmath>
 #include <condition_variable>
 #include <cstdint>
 #include <cstdio>
@@ -17,6 +19,8 @@
 #include <mutex>
 #include <optional>
 #include <span>
+#include <set>
+#include <tuple>
 #include <stdexcept>
 #include <string>
 #include <thread>
@@ -238,6 +242,8 @@ private:
 class SignalState {
 public:
     explicit SignalState(const NimbySignalState& data) : data_(data) {}
+    std::optional<std::uint32_t> getExceptionCount() const { return (data_.flags & NIMBY_SIGNAL_FILTER_VALID) ? std::optional<std::uint32_t>{data_.exception_count} : std::nullopt; }
+    std::optional<bool> isIgnoredByDefault() const { return (data_.flags & NIMBY_SIGNAL_FILTER_VALID) ? std::optional<bool>{(data_.flags & NIMBY_SIGNAL_FILTER_DEFAULT_IGNORED)!=0} : std::nullopt; }
     Id getSignalId() const { return data_.signal_id; }
     std::optional<std::uint32_t> getAspect() const { return (data_.flags & NIMBY_SIGNAL_ASPECT_VALID) ? std::optional<std::uint32_t>{data_.aspect} : std::nullopt; }
     std::optional<SpecificState> getSpecificState() const { return (data_.flags & NIMBY_SIGNAL_SPECIFIC_STATE_VALID) ? std::optional<SpecificState>{SpecificState{data_.system_utf8, data_.specific_state_utf8}} : std::nullopt; }
@@ -283,6 +289,191 @@ public:
     std::optional<Id> getLinkBId() const { return detail::reference(data_.link_b); }
 private:
     NimbyTrackNode data_;
+};
+
+class TrackJunction {
+public:
+    explicit TrackJunction(const NimbyTrackJunction& data) : data_(data) {}
+    Id getId() const { return data_.branch_track_id; }
+    Id getBranchTrackId() const { return data_.branch_track_id; }
+    Id getMainTrackId() const { return data_.main_track_id; }
+    double getMainFraction() const { return data_.main_fraction; }
+    std::int32_t getMainDirection() const { return data_.main_direction; }
+    std::int32_t getBranchDirection() const { return data_.branch_direction; }
+private:
+    NimbyTrackJunction data_;
+};
+
+// Ordering is geometric, not a route reservation or a signal aspect decision.
+enum class SignalTraceStop { UnobservedConnection, UnknownTrack, InconsistentConnection,
+                             AmbiguousConnection, Cycle, TrackLimit, Junction };
+struct OrderedSignalSection {
+    Id trackId;
+    std::int32_t direction;
+    std::vector<Signal> orderedSignals;
+    double fromFraction = 0, toFraction = 1;
+};
+struct SignalTrace {
+    std::vector<OrderedSignalSection> sections;
+    SignalTraceStop stop = SignalTraceStop::TrackLimit;
+    Id stoppedAtTrack = 0;
+    std::vector<Position> continuations;
+};
+struct NextSignals {
+    std::vector<Signal> nextSignals;
+    bool truncated = false;
+    bool incomplete = false; // At least one path ended at an unobserved connection.
+    std::size_t exploredSections = 0;
+};
+class SignalTopology {
+public:
+    SignalTopology(std::span<const Signal> signalRows, std::span<const TrackNode> nodes,
+                   std::span<const TrackJunction> junctions = {}) {
+        for (const auto& node : nodes) nodes_.emplace(node.getId(), node);
+        for (const auto& signal : signalRows) signals_[signal.getTrackId()].push_back(signal);
+        for (const auto& j : junctions) {
+            const auto main=nodes_.find(j.getMainTrackId()), branch=nodes_.find(j.getBranchTrackId());
+            if(main==nodes_.end()||branch==nodes_.end()||main==branch||
+               !std::isfinite(j.getMainFraction())||j.getMainFraction()<0||j.getMainFraction()>1||
+               (j.getMainDirection()!=1&&j.getMainDirection()!=-1)||
+               (j.getBranchDirection()!=1&&j.getBranchDirection()!=-1))continue;
+            const auto& b=branch->second;
+            if(j.getBranchDirection()==1 ? (b.getLinkAId()||!b.getLinkBId()) : (b.getLinkBId()||!b.getLinkAId()))continue;
+            branches_[j.getMainTrackId()].push_back(j);
+            attachments_.emplace(j.getBranchTrackId(),j);
+        }
+        for(auto& [id, rows]:branches_)std::sort(rows.begin(),rows.end(),[](const auto& a,const auto& b){return a.getId()<b.getId();});
+        for (auto& [id, rows] : signals_) std::sort(rows.begin(), rows.end(), [](const Signal& a, const Signal& b) {
+            return a.getFraction() != b.getFraction() ? a.getFraction() < b.getFraction() : a.getId() < b.getId();
+        });
+    }
+    // All kinds and both facing directions remain present by default.
+    std::vector<Signal> getSignalsForTrack(Id track, std::int32_t direction = 1, bool facingOnly = false) const {
+        checkDirection(direction);
+        auto it = signals_.find(track);
+        if (it == signals_.end()) return {};
+        auto rows = it->second;
+        if (direction == -1) std::reverse(rows.begin(), rows.end());
+        if (facingOnly) std::erase_if(rows, [direction](const Signal& s) { return s.getDirection() != direction; });
+        return rows;
+    }
+    // Approximate A -> B axis from observed node coordinates; not a curve tangent.
+    std::optional<Coordinates> getTrackAxis(Id track) const {
+        const auto it = nodes_.find(track); if (it == nodes_.end()) return std::nullopt;
+        const auto& node = it->second;
+        auto a = nodes_.find(node.getLinkAId().value_or(0)), b = nodes_.find(node.getLinkBId().value_or(0));
+        if (a == nodes_.end() && b == nodes_.end()) return std::nullopt;
+        const auto from = a == nodes_.end() ? node.getCoordinates() : a->second.getCoordinates();
+        const auto to = b == nodes_.end() ? node.getCoordinates() : b->second.getCoordinates();
+        const double x = to.x-from.x, y = to.y-from.y, length = std::hypot(x,y);
+        if (!std::isfinite(length) || length <= 0) return std::nullopt;
+        return Coordinates{x/length,y/length};
+    }
+    // A single trace stops at a facing junction rather than choosing a route.
+    SignalTrace traceFrom(Position start, std::size_t maxTracks = 256, bool facingOnly = false) const {
+        checkPosition(start);
+        SignalTrace result; Cursor cursor{start,false}; std::set<Key> visited;
+        for(std::size_t step=0;step<maxTracks;++step){
+            result.stoppedAtTrack=cursor.position.getTrackId();
+            if(!visited.insert(key(cursor)).second){result.stop=SignalTraceStop::Cycle;return result;}
+            auto segment=advance(cursor,facingOnly);
+            if(segment.section)result.sections.push_back(std::move(*segment.section));
+            result.stop=segment.stop;
+            if(segment.next.size()!=1){
+                for(const auto& next:segment.next)result.continuations.push_back(next.position);
+                return result;
+            }
+            cursor=segment.next.front();
+        }
+        result.stop=SignalTraceStop::TrackLimit;result.stoppedAtTrack=cursor.position.getTrackId();return result;
+    }
+    // First signals reached on every observed branch, without selecting a train route.
+    // Pass the starting signal ID as excludeSignal to look beyond that signal.
+    NextSignals findNextSignals(Position start, std::size_t maxSections = 4096,
+                                bool facingOnly = false, Id excludeSignal = 0) const {
+        checkPosition(start);
+        NextSignals result;std::vector<Cursor> pending{{start,false}};std::set<Key> visited;
+        std::set<Id> found;
+        while(!pending.empty()){
+            auto cursor=pending.back();pending.pop_back();
+            if(!visited.insert(key(cursor)).second)continue;
+            if(result.exploredSections==maxSections){result.truncated=true;break;}
+            ++result.exploredSections;
+            auto segment=advance(cursor,facingOnly);
+            bool hit=false;double fraction=0;
+            if(segment.section)for(const auto& signal:segment.section->orderedSignals){
+                if(signal.getId()==excludeSignal)continue;
+                if(hit&&signal.getFraction()!=fraction)break;
+                hit=true;fraction=signal.getFraction();
+                if(found.insert(signal.getId()).second)result.nextSignals.push_back(signal);
+            }
+            if(hit)continue;
+            if(segment.next.empty())result.incomplete=true;
+            for(const auto& next:segment.next)pending.push_back(next);
+        }
+        std::sort(result.nextSignals.begin(),result.nextSignals.end(),[](const auto& a,const auto& b){return a.getId()<b.getId();});
+        return result;
+    }
+private:
+    struct Cursor { Position position; bool skipStartJunction; };
+    using Key=std::tuple<Id,std::int32_t,double,bool>;
+    struct Segment {
+        std::optional<OrderedSignalSection> section;
+        std::vector<Cursor> next;
+        SignalTraceStop stop=SignalTraceStop::UnobservedConnection;
+    };
+    static Key key(const Cursor& c){return {c.position.getTrackId(),c.position.getDirection(),c.position.getFraction(),c.skipStartJunction};}
+    static void checkPosition(Position p){
+        checkDirection(p.getDirection());
+        if(!std::isfinite(p.getFraction())||p.getFraction()<0||p.getFraction()>1)
+            throw std::invalid_argument("Signal trace fraction must be in [0,1]");
+    }
+    Segment advance(const Cursor& cursor,bool facingOnly) const {
+        Segment result;
+        const auto track=cursor.position.getTrackId();const auto direction=cursor.position.getDirection();
+        const auto start=cursor.position.getFraction();
+        const auto node=nodes_.find(track);
+        if(node==nodes_.end()){result.stop=SignalTraceStop::UnknownTrack;return result;}
+        double end=direction==1?1:0;std::vector<TrackJunction> forks;
+        const auto branchRows=branches_.find(track);
+        if(branchRows!=branches_.end())for(const auto& j:branchRows->second){
+            const auto f=j.getMainFraction();
+            if(j.getMainDirection()!=direction||(direction==1?f<start:f>start)||
+               (cursor.skipStartJunction&&f==start))continue;
+            if(direction==1?f<end:f>end){end=f;forks.clear();}
+            if(f==end)forks.push_back(j);
+        }
+        auto rows=getSignalsForTrack(track,direction,facingOnly);
+        std::erase_if(rows,[&](const auto& s){const auto f=s.getFraction();return direction==1?(f<start||f>end):(f>start||f<end);});
+        result.section=OrderedSignalSection{track,direction,std::move(rows),start,end};
+        if(!forks.empty()){
+            result.stop=SignalTraceStop::Junction;
+            result.next.push_back({Position{track,end,direction},true});
+            for(const auto& j:forks)result.next.push_back({Position{j.getBranchTrackId(),j.getBranchDirection()==1?0.:1.,j.getBranchDirection()},false});
+            return result;
+        }
+        const auto nextId=direction==1?node->second.getLinkBId():node->second.getLinkAId();
+        if(!nextId){
+            const auto a=attachments_.find(track);
+            if(a!=attachments_.end()&&direction==-a->second.getBranchDirection()){
+                const auto& j=a->second;
+                result.next.push_back({Position{j.getMainTrackId(),j.getMainFraction(),-j.getMainDirection()},false});
+            }
+            return result;
+        }
+        const auto next=nodes_.find(*nextId);
+        if(next==nodes_.end()){result.stop=SignalTraceStop::InconsistentConnection;return result;}
+        const bool a=next->second.getLinkAId()==track,b=next->second.getLinkBId()==track;
+        if(a==b){result.stop=a?SignalTraceStop::AmbiguousConnection:SignalTraceStop::InconsistentConnection;return result;}
+        result.next.push_back({Position{*nextId,a?0.:1.,a?1:-1},false});return result;
+    }
+    static void checkDirection(std::int32_t direction) {
+        if (direction!=1 && direction!=-1) throw std::invalid_argument("Signal order direction must be +1 or -1");
+    }
+    std::unordered_map<Id,TrackNode> nodes_;
+    std::unordered_map<Id,std::vector<TrackJunction>> branches_;
+    std::unordered_map<Id,TrackJunction> attachments_;
+    std::unordered_map<Id,std::vector<Signal>> signals_;
 };
 
 class Platform {
@@ -387,6 +578,7 @@ public:
     std::optional<Station> getStationById(Id id) const { return stations_.find(id); }
     std::span<const Signal> getAllSignals() const noexcept { return signals_.rows; }
     std::optional<Signal> getSignalById(Id id) const { return signals_.find(id); }
+    std::span<const TrackJunction> getAllTrackJunctions() const noexcept { return junctions_.rows; }
     std::span<const TrackNode> getAllTrackNodes() const noexcept { return nodes_.rows; }
     std::optional<TrackNode> getTrackNodeById(Id id) const { return nodes_.find(id); }
     std::span<const SignalState> getAllSignalStates() const noexcept { return states_.rows; }
@@ -405,8 +597,13 @@ public:
         return station ? getStationById(*station) : std::nullopt;
     }
     std::vector<Signal> getSignalsForTrack(Id id) const {
-        return filter(signals_.rows, [id](const Signal& v) { return v.getTrackId() == id; });
+        auto rows=filter(signals_.rows, [id](const Signal& v) { return v.getTrackId() == id; });
+        std::sort(rows.begin(),rows.end(),[](const Signal& a,const Signal& b) {
+            return a.getFraction()!=b.getFraction() ? a.getFraction()<b.getFraction() : a.getId()<b.getId();
+        });
+        return rows;
     }
+    SignalTopology getSignalTopology() const { return SignalTopology{signals_.rows,nodes_.rows,junctions_.rows}; }
     std::vector<Train> getTrainsOnTrack(Id id) const {
         return filter(trains_.rows, [id](const Train& v) {
             auto position = v.getPosition(); return position && position->getTrackId() == id;
@@ -506,6 +703,7 @@ private:
     detail::Table<Station> stations_;
     detail::Table<Signal> signals_;
     detail::Table<TrackNode> nodes_;
+    detail::Table<TrackJunction> junctions_;
     detail::Table<SignalState> states_;
     detail::Table<SignalTexture> textures_;
     std::unordered_map<Id, std::vector<Id>> paths_;
@@ -554,6 +752,9 @@ private:
         result->nodes_ = detail::table<TrackNode, NimbyTrackNode>(
             [&](auto* out, auto capacity, auto* count) { return NimbyInternal_CopyTrackNodes(native.value, out, capacity, count); },
             [](const NimbyTrackNode& row) { return row.id; }, "CopyTrackNodes");
+        result->junctions_ = detail::table<TrackJunction, NimbyTrackJunction>(
+            [&](auto* out, auto capacity, auto* count) { return NimbyInternal_CopyTrackJunctions(native.value, out, capacity, count); },
+            [](const NimbyTrackJunction& row) { return row.branch_track_id; }, "CopyTrackJunctions");
         result->states_ = detail::table<SignalState, NimbySignalState>(
             [&](auto* out, auto capacity, auto* count) { return NimbyInternal_CopySignalStates(native.value, out, capacity, count); },
             [](const NimbySignalState& row) { return row.signal_id; }, "CopySignalStates");

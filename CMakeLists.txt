@@ -28,6 +28,7 @@ add_library(NimbyRailsFranceSDK SHARED
     src/runtime/runtime.cpp
     src/runtime/observation.cpp
     src/runtime/clock_bridge_client.cpp
+    src/runtime/texture_bridge_client.cpp
     src/engine/live_state.cpp
     src/engine/network.cpp
     src/engine/signal_textures.cpp
@@ -69,6 +70,15 @@ if(MINGW)
 endif()
 add_dependencies(NimbyRailsFranceLoader NimbyRailsFranceSDK)
 add_library(NimbyRailsFranceClockBridge SHARED src/runtime/clock_bridge.cpp src/engine/binary_identity.cpp src/engine/network.cpp src/engine/live_state.cpp)
+if(MINGW)
+    add_library(NimbyRailsFranceTextureBridge SHARED src/runtime/texture_bridge.cpp src/engine/binary_identity.cpp)
+    target_include_directories(NimbyRailsFranceTextureBridge PRIVATE include)
+    target_link_libraries(NimbyRailsFranceTextureBridge PRIVATE nimby_build nimby_minhook bcrypt)
+    target_link_options(NimbyRailsFranceTextureBridge PRIVATE -static-libgcc -static-libstdc++)
+    set_target_properties(NimbyRailsFranceTextureBridge PROPERTIES PREFIX "" OUTPUT_NAME "NimbyRailsFranceTextureBridge-experimental-v3")
+    add_dependencies(NimbyRailsFranceSDK NimbyRailsFranceTextureBridge)
+    install(TARGETS NimbyRailsFranceTextureBridge RUNTIME DESTINATION bin)
+endif()
 target_include_directories(NimbyRailsFranceClockBridge PRIVATE include)
 target_link_libraries(NimbyRailsFranceClockBridge PRIVATE nimby_build nimby_minhook bcrypt)
 set_target_properties(NimbyRailsFranceClockBridge PROPERTIES PREFIX "" OUTPUT_NAME "NimbyRailsFranceClockBridge-0.7.1")
@@ -79,13 +89,14 @@ if(MINGW)
     target_link_options(nimby_clock_bridge_probe PRIVATE -municode)
     target_link_options(NimbyRailsFranceClockBridge PRIVATE -static-libgcc -static-libstdc++)
 endif()
-add_library(NimbyRailsProxy SHARED src/proxy/main.cpp src/proxy/SDL3.def src/engine/binary_identity.cpp)
+add_library(NimbyRailsProxy SHARED src/proxy/main.cpp src/proxy/SDL3.def src/engine/binary_identity.cpp src/loader/mods.cpp)
 target_include_directories(NimbyRailsProxy PRIVATE include)
 target_link_libraries(NimbyRailsProxy PRIVATE nimby_build bcrypt)
 set_target_properties(NimbyRailsProxy PROPERTIES PREFIX "" OUTPUT_NAME "SDL3"
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/drop-in")
 if(MINGW)
     target_compile_options(NimbyRailsProxy PRIVATE -fno-exceptions -fno-rtti)
+    target_link_options(NimbyRailsProxy PRIVATE -static-libgcc -static-libstdc++)
 endif()
 add_dependencies(NimbyRailsProxy NimbyRailsFranceSDK)
 add_custom_command(TARGET NimbyRailsProxy POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy_if_different
@@ -93,6 +104,8 @@ add_custom_command(TARGET NimbyRailsProxy POST_BUILD COMMAND ${CMAKE_COMMAND} -E
 if(MINGW)
     add_custom_command(TARGET NimbyRailsProxy POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy_if_different
         "${NIMBY_COMPILER_BIN}/libwinpthread-1.dll" "$<TARGET_FILE_DIR:NimbyRailsProxy>")
+    add_custom_command(TARGET NimbyRailsProxy POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "$<TARGET_FILE:NimbyRailsFranceTextureBridge>" "$<TARGET_FILE_DIR:NimbyRailsProxy>")
 endif()
 option(BUILD_TESTING "Build standalone SDK tests" ON)
 add_executable(NimbyTrainMonitor WIN32 src/train_monitor.cpp src/engine/binary_identity.cpp src/engine/live_state.cpp src/engine/network.cpp)
@@ -108,12 +121,22 @@ if(MINGW)
     endforeach()
 endif()
 if(BUILD_TESTING)
+    add_executable(nimby_mod_entry_tests tests/mod_entry.cpp src/mod/entry.cpp)
+    target_link_libraries(nimby_mod_entry_tests PRIVATE NimbyRailsFranceSDK nimby_build)
+    add_test(NAME mod_entry_adapter COMMAND nimby_mod_entry_tests)
+    add_executable(nimby_texture_command_tests tests/texture_commands.cpp)
+    target_link_libraries(nimby_texture_command_tests PRIVATE NimbyRailsFranceSDK nimby_build)
+    add_test(NAME texture_command_arguments COMMAND nimby_texture_command_tests)
     enable_testing()
     add_executable(nimby_client_tests tests/client.cpp)
     target_include_directories(nimby_client_tests PRIVATE include)
     target_compile_definitions(nimby_client_tests PRIVATE NIMBY_SDK_BUILD)
     target_link_libraries(nimby_client_tests PRIVATE nimby_build)
     add_test(NAME cpp_client_helpers COMMAND nimby_client_tests)
+    add_executable(nimby_signal_topology_tests tests/signal_topology.cpp)
+    target_include_directories(nimby_signal_topology_tests PRIVATE include)
+    target_link_libraries(nimby_signal_topology_tests PRIVATE nimby_build)
+    add_test(NAME signal_topology COMMAND nimby_signal_topology_tests)
     set_tests_properties(cpp_client_helpers PROPERTIES TIMEOUT 20)
     add_executable(nimby_signal_texture_tests tests/signal_textures.cpp src/engine/signal_textures.cpp src/engine/live_state.cpp)
     target_include_directories(nimby_signal_texture_tests PRIVATE include)
@@ -211,6 +234,7 @@ install(EXPORT NimbyRailsFranceSDKTargets NAMESPACE NimbyRailsFranceSDK:: DESTIN
 install(FILES "${CMAKE_CURRENT_BINARY_DIR}/NimbyRailsFranceSDKConfig.cmake"
     "${CMAKE_CURRENT_BINARY_DIR}/NimbyRailsFranceSDKConfigVersion.cmake" DESTINATION lib/cmake/NimbyRailsFranceSDK)
 install(DIRECTORY include/nimby DESTINATION include)
+install(FILES src/mod/entry.cpp DESTINATION share/NimbyRailsFranceSDK/mod)
 install(FILES third_party/minhook/LICENSE.txt DESTINATION share/licenses/MinHook)
 install(FILES docs/developing.md DESTINATION share/doc/NimbyRailsFranceSDK)
 install(DIRECTORY examples/observer examples/first-observer examples/auto-observer DESTINATION share/NimbyRailsFranceSDK/examples

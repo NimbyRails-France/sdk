@@ -34,6 +34,7 @@ int main(int argc,char** argv) {
     CHECK(NimbyInternal_CopySignalTextures(0,nullptr,1,&count)==NIMBY_INVALID_ARGUMENT&&count==0);
     CHECK(NimbyInternal_CopySignalTextures(0,nullptr,0,nullptr)==NIMBY_INVALID_ARGUMENT);
     CHECK(NimbyInternal_CopyTrackNodes(0,nullptr,0,&count)==NIMBY_INVALID_HANDLE&&count==0);
+    CHECK(NimbyInternal_CopyTrackJunctions(0,nullptr,0,&count)==NIMBY_INVALID_HANDLE&&count==0);
     CHECK(NimbyInternal_CopyTrackReservations(0,nullptr,0,&count)==NIMBY_INVALID_HANDLE&&count==0);
     CHECK(NimbyInternal_CopyTrackOccupations(0,nullptr,0,&count)==NIMBY_INVALID_HANDLE&&count==0);
     CHECK(NimbyInternal_CopyTrackReservations(0,nullptr,1,&count)==NIMBY_INVALID_ARGUMENT&&count==0);
@@ -173,8 +174,8 @@ int main(int argc,char** argv) {
         for(size_t i=0;i<states.size();++i){
             CHECK(states[i].signal_id==signals[i].id);
             CHECK(states[i].aspect==NIMBY_SIGNAL_ASPECT_UNKNOWN);
-            CHECK(states[i].flags==0||states[i].flags==(NIMBY_SIGNAL_TEXTURE_STATE_VALID|NIMBY_SIGNAL_SPECIFIC_STATE_VALID));
-            if(states[i].flags){CHECK(states[i].system_utf8[0]!=0&&states[i].specific_state_utf8[0]!=0);
+            CHECK((states[i].flags&~(NIMBY_SIGNAL_TEXTURE_STATE_VALID|NIMBY_SIGNAL_SPECIFIC_STATE_VALID|NIMBY_SIGNAL_TEXTURE_STATE_DEFAULT|NIMBY_SIGNAL_FILTER_VALID|NIMBY_SIGNAL_FILTER_DEFAULT_IGNORED))==0);
+            if(states[i].flags&NIMBY_SIGNAL_SPECIFIC_STATE_VALID){CHECK(states[i].system_utf8[0]!=0&&states[i].specific_state_utf8[0]!=0);
                 std::printf("Signal %llx: %s:%s selector=%d\n",static_cast<unsigned long long>(states[i].signal_id),states[i].system_utf8,states[i].specific_state_utf8,states[i].texture_state);}
         }
         CHECK(NimbyInternal_CopySignalTextures(snapshot,nullptr,0,&count)==NIMBY_OK&&count==info.signal_count);

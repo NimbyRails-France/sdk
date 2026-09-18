@@ -4,7 +4,7 @@ $root=Split-Path $PSScriptRoot -Parent
 if(!$SkipBuild){ & "$PSScriptRoot/build.ps1" -ClionHome $ClionHome -Configuration Release }
 $stage=Join-Path $root 'dist/NimbyRailsFranceSDK-0.7.1-drop-in'
 New-Item -ItemType Directory -Force -Path $stage | Out-Null
-foreach($name in @('SDL3.dll','NimbyRailsFranceSDK.dll','libwinpthread-1.dll')){
+foreach($name in @('SDL3.dll','NimbyRailsFranceSDK.dll','libwinpthread-1.dll','NimbyRailsFranceTextureBridge-experimental-v3.dll')){
  $source=if($name -eq 'SDL3.dll'){"$root/build/Release/drop-in/$name"}else{"$root/build/Release/$name"}
  Copy-Item -LiteralPath $source -Destination $stage -Force
 }

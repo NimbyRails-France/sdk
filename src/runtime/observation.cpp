@@ -43,6 +43,7 @@ struct Snapshot {
     std::vector<NimbySignalState> signal_states;
     std::vector<NimbySignalTexture> signal_textures;
     std::vector<NimbyTrackNode> nodes;
+    std::vector<NimbyTrackJunction> junctions;
     std::map<uint64_t,std::vector<uint64_t>> paths;
     std::vector<NimbyTrackUsage> reservations,occupations;
     bool reservations_available=false,occupations_available=false;
@@ -58,12 +59,16 @@ Registry& registry() { static Registry value;return value; }
 NimbySignalState signal_render_state(const nimby::engine::Signal& signal,bool table_available,
                                     const std::map<uint64_t,int32_t>& selectors) {
     NimbySignalState result{};result.signal_id=signal.id;
+    if(signal.filter_available){
+        result.flags|=NIMBY_SIGNAL_FILTER_VALID;result.exception_count=signal.exception_count;
+        if(signal.filter_default_ignored)result.flags|=NIMBY_SIGNAL_FILTER_DEFAULT_IGNORED;
+    }
     if(!table_available)return result;
     const auto it=selectors.find(signal.id);
     // Native renderer RVA 0x620140 initializes the selector to zero on a missing ID.
     // An unreadable table must not be confused with a successfully observed absence.
     result.texture_state=it==selectors.end()?0:it->second;
-    result.flags=NIMBY_SIGNAL_TEXTURE_STATE_VALID|NIMBY_SIGNAL_SPECIFIC_STATE_VALID;
+    result.flags|=NIMBY_SIGNAL_TEXTURE_STATE_VALID|NIMBY_SIGNAL_SPECIFIC_STATE_VALID;
     if(it==selectors.end())result.flags|=NIMBY_SIGNAL_TEXTURE_STATE_DEFAULT;
     std::snprintf(result.system_utf8,sizeof result.system_utf8,"nimby:%016llx",static_cast<unsigned long long>(signal.textures_hash));
     std::snprintf(result.specific_state_utf8,sizeof result.specific_state_utf8,"kind.%d.state.%d",signal.kind,result.texture_state);
@@ -367,6 +372,9 @@ uint32_t __cdecl NimbyInternal_CaptureSnapshot(NimbySession handle,NimbySnapshot
             auto link=[&](uint64_t target){return target!=id&&geometry.contains(target)?target:uint64_t(0);};
             snapshot.nodes.push_back({id,link(t->links[0]),link(t->links[1]),t->x,t->y});
         }
+        for(const auto& junction:network.junctions)
+            if(geometry.contains(junction.branch_track_id)&&geometry.contains(junction.main_track_id))
+                snapshot.junctions.push_back(junction);
         auto& info=snapshot.info;
         info.struct_size=sizeof info;info.abi_version=NIMBY_OBSERVATION_ABI_VERSION;info.process_id=session.pid;
         info.flags=NIMBY_SNAPSHOT_EXPERIMENTAL|NIMBY_SNAPSHOT_NON_ATOMIC;
@@ -396,6 +404,7 @@ uint32_t __cdecl NimbyInternal_CopySignals(NimbySnapshot s,NimbySignal* out,uint
 uint32_t __cdecl NimbyInternal_CopySignalStates(NimbySnapshot s,NimbySignalState* out,uint32_t cap,uint32_t* count) noexcept {return copy(s,out,cap,count,&Snapshot::signal_states);}
 uint32_t __cdecl NimbyInternal_CopySignalTextures(NimbySnapshot s,NimbySignalTexture* out,uint32_t cap,uint32_t* count) noexcept {return copy(s,out,cap,count,&Snapshot::signal_textures);}
 uint32_t __cdecl NimbyInternal_CopyTrackNodes(NimbySnapshot s,NimbyTrackNode* out,uint32_t cap,uint32_t* count) noexcept {return copy(s,out,cap,count,&Snapshot::nodes);}
+uint32_t __cdecl NimbyInternal_CopyTrackJunctions(NimbySnapshot s,NimbyTrackJunction* out,uint32_t cap,uint32_t* count) noexcept {return copy(s,out,cap,count,&Snapshot::junctions);}
 uint32_t __cdecl NimbyInternal_CopyTrainDetails(NimbySnapshot s,NimbyTrainDetails* out,uint32_t cap,uint32_t* count) noexcept {return copy(s,out,cap,count,&Snapshot::train_details);}
 uint32_t __cdecl NimbyInternal_CopyTrainLineStops(NimbySnapshot handle,uint64_t train,NimbyLineStop* out,uint32_t cap,uint32_t* count) noexcept {
     if(!count)return NIMBY_INVALID_ARGUMENT;

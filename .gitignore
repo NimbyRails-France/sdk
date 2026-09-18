@@ -7,3 +7,6 @@
 *.log
 /install/
 /CMakeUserPresets.json
+/exports/
+__pycache__/
+*.pyc

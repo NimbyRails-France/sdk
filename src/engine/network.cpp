@@ -339,6 +339,8 @@ bool read_network(ReadMemory read,void* context,const LiveState& state,bool reco
         Network result;
         struct Label { NimbyPlatform value{}; bool automatic{},geometry_valid{}; int32_t number{}; double dx{},dy{}; uint64_t links[2]{}; };
         std::vector<Label> labels;
+        struct Attachment { uint64_t address{}; std::array<unsigned char,0x30> identity{}; std::array<unsigned char,0x30> data{}; };
+        std::map<uint64_t,Attachment> attachments;
         if(!collect(read,context,state.database,1,0x4e8,[&](const unsigned char* p,uint64_t address){
             Track t{field<uint64_t>(p,0),field<uint64_t>(p,0xd0),field<float>(p,0x80),field<float>(p,0x84),0};
             if(!std::isfinite(t.physical_mps)||!std::isfinite(t.manual_mps)||t.physical_mps<0||t.physical_mps>10000||t.manual_mps>10000) return false;
@@ -346,6 +348,11 @@ bool read_network(ReadMemory read,void* context,const LiveState& state,bool reco
             t.links[0]=field<uint64_t>(p,8);t.links[1]=field<uint64_t>(p,16);
             t.x=field<double>(p,0x30);t.y=field<double>(p,0x38);
             t.geometry=std::isfinite(t.x)&&std::isfinite(t.y)&&std::abs(t.x)<1e9&&std::abs(t.y)<1e9;
+            Attachment attachment;attachment.address=address;
+            std::memcpy(attachment.identity.data(),p,0x30);
+            std::memcpy(attachment.data.data(),p+0x3f0,0x30);
+            if(field<uint64_t>(p,0x3f0)||field<uint64_t>(p,0x408)!=field<uint64_t>(p,0x410))
+                attachments.emplace(t.id,attachment);
             // RVA 0x4282f0 and threshold at RVA 0xaab904 (float 1/3.6).
             t.limit_mps=t.manual_mps<0.27777761220932007f?t.physical_mps:std::min(t.physical_mps,t.manual_mps);
             if(t.station_id){
@@ -387,6 +394,31 @@ bool read_network(ReadMemory read,void* context,const LiveState& state,bool reco
             }
             result.tracks.push_back(t);return true;
         })) return false;
+        // Native topology: Track+3f0 parent ID, +3f8 attachment fraction,
+        // +400 approach direction; parent+408 lists its attached branches.
+        // Evidence: RVA 379d10 / 37cf30, docs/research/track-junctions.md.
+        for(const auto& t:result.tracks){
+            const auto candidate=attachments.find(t.id);if(candidate==attachments.end())continue;
+            const auto& a=candidate->second;const auto* p=a.data.data();
+            const auto parent=field<uint64_t>(p,0);const auto fraction=field<double>(p,8);
+            const auto direction=field<int32_t>(p,16);
+            if(!parent||parent==t.id||!t.geometry||(t.links[0]==0)==(t.links[1]==0)||
+               !std::isfinite(fraction)||fraction<0||fraction>1||(direction!=1&&direction!=-1))continue;
+            const auto found=attachments.find(parent);if(found==attachments.end())continue;
+            const auto& main=found->second;
+            const auto begin=field<uint64_t>(main.data.data(),24),end=field<uint64_t>(main.data.data(),32),cap=field<uint64_t>(main.data.data(),40);
+            if(!pointer(begin)||end<begin||cap<end||(end-begin)%8||cap-begin>4096*8)continue;
+            std::vector<uint64_t> ids((end-begin)/8),again(ids.size());
+            if(ids.empty()||!read(context,begin,ids.data(),ids.size()*8)||
+               std::count(ids.begin(),ids.end(),t.id)!=1||
+               !read(context,begin,again.data(),again.size()*8)||ids!=again)continue;
+            auto stable=[&](const Attachment& row){
+                std::array<unsigned char,0x30> identity{},data{};
+                return read(context,row.address,identity.data(),identity.size())&&identity==row.identity&&
+                    read(context,row.address+0x3f0,data.data(),data.size())&&data==row.data;
+            };
+            if(stable(a)&&stable(main))result.junctions.push_back({t.id,parent,fraction,direction,t.links[0]==0?1:-1});
+        }
         std::map<uint64_t,uint64_t> track_stations;
         for(const auto& track:result.tracks)track_stations.emplace(track.id,track.station_id);
         for(auto& label:labels){
@@ -430,12 +462,27 @@ bool read_network(ReadMemory read,void* context,const LiveState& state,bool reco
             result.stations.push_back(std::move(s));return true;
         })) return false;
         resolve_station_names(read,context,state,automatic_stations,result.stations);
-        if(!collect(read,context,state.database+0x380,8,0xc8,[&](const unsigned char* p,uint64_t){
+        if(!collect(read,context,state.database+0x380,8,0xc8,[&](const unsigned char* p,uint64_t address){
             TrainPosition pos;
             if(!position(p+0x40,pos)) return false;
             const int kind=field<int32_t>(p,0x30);
             if(kind<0||kind>6) return false;
-            result.signals.push_back({field<uint64_t>(p,0),pos.track_id,pos.fraction,pos.direction,kind,field<uint64_t>(p,0x38)});return true;
+            Signal signal{field<uint64_t>(p,0),pos.track_id,pos.fraction,pos.direction,kind,field<uint64_t>(p,0x38)};
+            // Signal editor RVA 0x79f4d0: exceptions at +78/+80/+88.
+            // RVA 0x7a0a40: default filter mode at +70 (0 applies, 1 ignored).
+            const auto mode=field<uint32_t>(p,0x70);
+            const auto begin=field<uint64_t>(p,0x78),end=field<uint64_t>(p,0x80),cap=field<uint64_t>(p,0x88);
+            if(mode<=1&&end>=begin&&cap>=end&&cap-begin<=32768&&(end-begin)%8==0&&
+               (begin==0?(end==0&&cap==0):pointer(begin))){
+                std::vector<uint64_t> tags((end-begin)/8),again(tags.size());
+                std::array<unsigned char,32> header{};uint64_t verify_id{};
+                if((tags.empty()||(read(context,begin,tags.data(),tags.size()*8)&&read(context,begin,again.data(),again.size()*8)&&tags==again))&&
+                   read(context,address+0x70,header.data(),header.size())&&std::memcmp(header.data(),p+0x70,header.size())==0&&
+                   read(context,address,&verify_id,8)&&verify_id==signal.id){
+                    signal.filter_available=true;signal.filter_default_ignored=mode==1;signal.exception_count=static_cast<uint32_t>(tags.size());
+                }
+            }
+            result.signals.push_back(signal);return true;
         })) return false;
         // Reject unresolved references, including IDs whose generation changed.
         std::unordered_set<uint64_t> station_ids,track_ids;

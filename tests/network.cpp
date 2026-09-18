@@ -73,6 +73,47 @@ int main() {
     Network out;
     if(!read_network(read,&m,state,true,out)||out.tracks.size()!=1||out.tracks[0].limit_mps!=30||out.signals[0].kind!=3)return 1;
     if(!out.stations[0].name.empty())return 50; // Missing optional cache is allowed.
+    {
+        auto fm=m;const uint64_t tags=0x300090000;
+        fm.put(gb,0x70,uint32_t(0));fm.put(gb,0x78,tags);fm.put(gb,0x80,tags+16);fm.put(gb,0x88,tags+16);
+        fm.put(tags,0,uint64_t(10115));fm.put(tags,8,uint64_t(10400)); // Tag keys are scalar IDs, not object-generation IDs.
+        Network fn;
+        if(!read_network(read,&fm,state,true,fn)||!fn.signals[0].filter_available||fn.signals[0].exception_count!=2||fn.signals[0].filter_default_ignored)return 110;
+        fm.put(gb,0x70,uint32_t(1));
+        if(!read_network(read,&fm,state,true,fn)||!fn.signals[0].filter_default_ignored)return 111;
+        fm.put(gb,0x80,tags+3);
+        if(!read_network(read,&fm,state,true,fn)||fn.signals[0].filter_available)return 112;
+        fm.put(gb,0x80,tags+16);fm.fail=tags;
+        if(!read_network(read,&fm,state,true,fn)||fn.signals[0].filter_available)return 113;
+        fm.fail=0;fm.put(gb,0x78,uint64_t(0));fm.put(gb,0x80,uint64_t(0));fm.put(gb,0x88,uint64_t(0));
+        if(!read_network(read,&fm,state,true,fn)||!fn.signals[0].filter_available||fn.signals[0].exception_count)return 114;
+    }
+    {
+        auto jm=m;const uint64_t branch=track+0x10000,offset=0x4e8;
+        jm.put(tb,offset,branch);jm.put(tb,offset+0x10,track);
+        jm.put(tb,offset+0x3f0,track);jm.put(tb,offset+0x3f8,.4);jm.put(tb,offset+0x400,int32_t(1));
+        jm.put(tb,0x408,tb+0x428);jm.put(tb,0x410,tb+0x430);jm.put(tb,0x418,tb+0x438);
+        jm.put(tb,0x428,branch);
+        Network jn;
+        if(!read_network(read,&jm,state,true,jn)||jn.junctions.size()!=1||
+           jn.junctions[0].branch_direction!=1||jn.junctions[0].main_fraction!=.4)return 90;
+        auto valid=jm;
+        jm.put(tb,offset+0x400,int32_t(0));
+        if(!read_network(read,&jm,state,true,jn)||!jn.junctions.empty())return 91;
+        jm=valid;jm.put(tb,offset+0x3f8,std::nan(""));
+        if(!read_network(read,&jm,state,true,jn)||!jn.junctions.empty())return 92;
+        jm=valid;jm.put(tb,0x428,branch+1); // Recycled slot: require full-generation identity.
+        if(!read_network(read,&jm,state,true,jn)||!jn.junctions.empty())return 93;
+        jm=valid;jm.put(tb,offset+8,track); // Both primary ends connected: not an attachment exit.
+        if(!read_network(read,&jm,state,true,jn)||!jn.junctions.empty())return 94;
+        jm=valid;jm.put(tb,0x410,tb+0x427); // Invalid native vector bounds.
+        if(!read_network(read,&jm,state,true,jn)||!jn.junctions.empty())return 95;
+        jm=valid;jm.fail=tb+offset+0x3f0;
+        if(!read_network(read,&jm,state,true,jn)||!jn.junctions.empty())return 96;
+        jm=valid;jm.put(tb,offset+8,track);jm.put(tb,offset+0x10,uint64_t(0));jm.put(tb,offset+0x400,int32_t(-1));
+        if(!read_network(read,&jm,state,true,jn)||jn.junctions.size()!=1||
+           jn.junctions[0].branch_direction!=-1||jn.junctions[0].main_direction!=-1)return 97;
+    }
     const uint64_t nameBlock=0x300050000,nameText=0x300060000;
     pool(0x430,nameBlock,0xf8,station);
     std::memcpy(m.regions[nameBlock].data()+8,"Tours",6);

@@ -14,6 +14,9 @@ $proxyStage = Join-Path $gameRoot 'SDL3.NimbySDK.tmp'
 $sdkStage = Join-Path $gameRoot 'NimbyRailsFranceSDK.tmp'
 $pthread = Join-Path $gameRoot 'libwinpthread-1.dll'
 $pthreadStage = Join-Path $gameRoot 'libwinpthread-1.NimbySDK.tmp'
+$textureName = 'NimbyRailsFranceTextureBridge-experimental-v3.dll'
+$texture = Join-Path $gameRoot $textureName
+$textureStage = Join-Path $gameRoot 'NimbyRailsFranceTextureBridge.NimbySDK.tmp'
 $manifestStage = Join-Path $gameRoot 'NimbyRailsFranceSDK-install.tmp'
 $originalExeHash = 'FFF49AC21720ABFC824C2B4F68B862727630EB0DB71CFE1F9EA8F685D0DB10AE'
 $originalSdlHash = '2A2704678BF6C9C6A944270AB35079DF76F5AFE92B780394ED72D9C8218B98D8'
@@ -21,7 +24,7 @@ function Hash([string]$path) { (Get-FileHash -LiteralPath $path -Algorithm SHA25
 function RequireHash([string]$path, [string]$expected) {
     if (!(Test-Path -LiteralPath $path) -or (Hash $path) -ne $expected) { throw "Unexpected file contents: $path. Nothing will be overwritten." }
 }
-foreach($target in @($exe,$sdl,$backup,$sdk,$manifestPath,$proxyStage,$sdkStage,$manifestStage,$pthread,$pthreadStage)) {
+foreach($target in @($exe,$sdl,$backup,$sdk,$manifestPath,$proxyStage,$sdkStage,$manifestStage,$pthread,$pthreadStage,$texture,$textureStage)) {
     if([IO.Path]::GetDirectoryName([IO.Path]::GetFullPath($target)) -ne $gameRoot) { throw 'Path outside selected game directory' }
 }
 $running = Get-Process -Name NimbyRails -ErrorAction SilentlyContinue | Where-Object { !$_.Path -or $_.Path -ieq $exe }
@@ -35,11 +38,13 @@ if($Action -eq 'Remove') {
     RequireHash $sdk $manifest.sdkSha256
     RequireHash $backup $originalSdlHash
     if($manifest.pthreadSha256) { RequireHash $pthread $manifest.pthreadSha256 }
+    if($manifest.textureBridgeSha256) { RequireHash $texture $manifest.textureBridgeSha256 }
     # Fixed filenames and verified contents only; no recursive deletion.
     Remove-Item -LiteralPath $sdl
     Move-Item -LiteralPath $backup -Destination $sdl
     Remove-Item -LiteralPath $sdk
     if($manifest.pthreadSha256) { Remove-Item -LiteralPath $pthread }
+    if($manifest.textureBridgeSha256) { Remove-Item -LiteralPath $texture }
     Remove-Item -LiteralPath $manifestPath
     RequireHash $sdl $originalSdlHash
     Write-Output 'Original SDL3.dll restored. Proxy and SDK removed.'
@@ -48,7 +53,7 @@ if($Action -eq 'Remove') {
 
 RequireHash $exe $originalExeHash
 RequireHash $sdl $originalSdlHash
-foreach($target in @($backup,$sdk,$manifestPath,$proxyStage,$sdkStage,$manifestStage,$pthreadStage)) {
+foreach($target in @($backup,$sdk,$manifestPath,$proxyStage,$sdkStage,$manifestStage,$pthreadStage,$texture,$textureStage)) {
     if(Test-Path -LiteralPath $target) { throw "File already exists; refusing to overwrite: $target" }
 }
 $sourceRoot = (Resolve-Path -LiteralPath $SourceDirectory).Path
@@ -56,6 +61,8 @@ $proxySource = Join-Path $sourceRoot 'SDL3.dll'
 $sdkSource = Join-Path $sourceRoot 'NimbyRailsFranceSDK.dll'
 $proxyHash = Hash $proxySource
 $sdkHash = Hash $sdkSource
+$textureSource = Join-Path $sourceRoot $textureName
+$textureHash = Hash $textureSource
 $pthreadSource = Join-Path $sourceRoot 'libwinpthread-1.dll'
 $pthreadHash = $null
 if(Test-Path -LiteralPath $pthreadSource) {
@@ -66,11 +73,16 @@ $renamed = $false
 $proxyCopied = $false
 $sdkCopied = $false
 $pthreadCopied = $false
+$textureCopied = $false
 try {
     # Validate staged copies before changing any game dependency.
     Copy-Item -LiteralPath $sdkSource -Destination $sdkStage
     Copy-Item -LiteralPath $proxySource -Destination $proxyStage
     RequireHash $sdkStage $sdkHash
+    Copy-Item -LiteralPath $textureSource -Destination $textureStage
+    RequireHash $textureStage $textureHash
+    Move-Item -LiteralPath $textureStage -Destination $texture
+    $textureCopied = $true
     RequireHash $proxyStage $proxyHash
     if($pthreadHash) {
         Copy-Item -LiteralPath $pthreadSource -Destination $pthreadStage
@@ -79,7 +91,7 @@ try {
         $pthreadCopied = $true
     }
     [ordered]@{format=2; installedUtc=[DateTime]::UtcNow.ToString('o'); executableSha256=$originalExeHash;
-        originalSdlSha256=$originalSdlHash; proxySha256=$proxyHash; sdkSha256=$sdkHash; pthreadSha256=$pthreadHash} |
+        originalSdlSha256=$originalSdlHash; proxySha256=$proxyHash; sdkSha256=$sdkHash; pthreadSha256=$pthreadHash; textureBridgeSha256=$textureHash} |
         ConvertTo-Json | Set-Content -LiteralPath $manifestStage -Encoding UTF8
     Move-Item -LiteralPath $sdkStage -Destination $sdk
     $sdkCopied = $true
@@ -98,7 +110,8 @@ try {
     if($renamed -and !(Test-Path -LiteralPath $sdl)) { Move-Item -LiteralPath $backup -Destination $sdl }
     if($sdkCopied -and (Test-Path -LiteralPath $sdk) -and (Hash $sdk) -eq $sdkHash) { Remove-Item -LiteralPath $sdk }
     if($pthreadCopied -and (Test-Path -LiteralPath $pthread) -and (Hash $pthread) -eq $pthreadHash) { Remove-Item -LiteralPath $pthread }
-    foreach($stage in @($proxyStage,$sdkStage,$manifestStage,$pthreadStage)) {
+    if($textureCopied -and (Test-Path -LiteralPath $texture) -and (Hash $texture) -eq $textureHash) { Remove-Item -LiteralPath $texture }
+    foreach($stage in @($proxyStage,$sdkStage,$manifestStage,$pthreadStage,$textureStage)) {
         if(Test-Path -LiteralPath $stage) { Remove-Item -LiteralPath $stage }
     }
     throw

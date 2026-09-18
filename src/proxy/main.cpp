@@ -2,6 +2,7 @@
 #include <stdint.h>
 #include <bit>
 #include "engine/binary_identity.h"
+#include "loader/mods.h"
 
 namespace {
 HMODULE self{};
@@ -17,6 +18,7 @@ Shutdown shutdown_sdk{};
 SRWLOCK lock=SRWLOCK_INIT;
 bool attempted=false;
 bool initialized=false;
+nimby::loader::Mods mods;
 
 void log(const char* text) noexcept {
     OutputDebugStringA("[NimbyRailsFranceSDK proxy] "); OutputDebugStringA(text); OutputDebugStringA("\n");
@@ -77,6 +79,8 @@ void initialize_sdk() noexcept {
     initialized=status==NIMBY_OK;
     log(initialized ? "OK: SDK initialized after SDL_Init; game hooks disabled" :
         status==NIMBY_ALREADY_INITIALIZED ? "INFO: SDK already initialized by another owner" : "ERROR: SDK initialization failed");
+    if ((initialized || status == NIMBY_ALREADY_INITIALIZED) && sibling_path(L"NRFMods", path))
+        mods.start(path, log);
 }
 }
 
@@ -100,10 +104,12 @@ extern "C" void __cdecl Proxy_SDL_Quit() noexcept {
     AcquireSRWLockExclusive(&lock);
     const bool resolved=resolve_original();
     const DWORD last_error=GetLastError();
-    if(initialized && shutdown_sdk) {
+    const bool mods_stopped = mods.stop(log);
+    if(mods_stopped && initialized && shutdown_sdk) {
         if(shutdown_sdk()==NIMBY_OK) { initialized=false; attempted=false; log("OK: SDK stopped before SDL_Quit"); }
         else log("ERROR: SDK shutdown failed; module retained");
     }
+    if(mods_stopped && !initialized) attempted=false;
     ReleaseSRWLockExclusive(&lock);
     SetLastError(last_error);
     if(resolved) quit();

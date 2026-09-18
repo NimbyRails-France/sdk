@@ -136,6 +136,9 @@ uint32_t __cdecl NimbyInternal_CopySignalTextures(NimbySnapshot s, NimbySignalTe
 uint32_t __cdecl NimbyInternal_CopyTrackNodes(NimbySnapshot s, NimbyTrackNode* out, uint32_t cap, uint32_t* n) noexcept {
     return copy(s, out, cap, n, std::vector<NimbyTrackNode>{{20, 0, 21, 10, 15}});
 }
+uint32_t __cdecl NimbyInternal_CopyTrackJunctions(NimbySnapshot s, NimbyTrackJunction* out, uint32_t cap, uint32_t* n) noexcept {
+    return copy(s, out, cap, n, std::vector<NimbyTrackJunction>{{21,20,.5,1,-1}});
+}
 uint32_t __cdecl NimbyInternal_CopyTrackReservations(NimbySnapshot s, NimbyTrackUsage* out, uint32_t cap, uint32_t* n) noexcept {
     if (!reservationsAvailable) { *n = 0; return NIMBY_DATA_UNAVAILABLE; }
     if(groupedPlatforms)return copy(s,out,cap,n,std::vector<NimbyTrackUsage>{{0x10000000001ULL,20,0,1},{0x10000000001ULL,21,0,1},{2,21,0,1}});
@@ -263,6 +266,7 @@ int main() {
             REQUIRE(retained->getTracksForStation(30).size() == 1);
             REQUIRE(retained->getTrainsOnTrack(20).size() == 1);
             REQUIRE(retained->getSignalsForTrack(20).size() == 1);
+            REQUIRE(retained->getSignalTopology().getSignalsForTrack(20)[0].getId() == 40);
             REQUIRE(retained->getPathTrackIdsForTrain(trainId)->size() == 2);
             REQUIRE(!retained->getPathTrackIdsForTrain(2));
             REQUIRE(!retained->getPathTrackIdsForTrain(999));
@@ -273,6 +277,13 @@ int main() {
             REQUIRE(retained->getSignalStateById(40)->getTextureSelector() == 0);
             REQUIRE(!retained->getSignalStateById(40)->usesDefaultTextureSelector());
             NimbySignalState defaultSelector{};
+            REQUIRE(!nimby::SignalState{defaultSelector}.getExceptionCount());
+            defaultSelector.flags=NIMBY_SIGNAL_FILTER_VALID|NIMBY_SIGNAL_FILTER_DEFAULT_IGNORED;
+            defaultSelector.exception_count=2;
+            REQUIRE(nimby::SignalState{defaultSelector}.getExceptionCount()==2);
+            REQUIRE(nimby::SignalState{defaultSelector}.isIgnoredByDefault()==true);
+            defaultSelector.exception_count=0;
+            REQUIRE(nimby::SignalState{defaultSelector}.getExceptionCount()==0);
             defaultSelector.flags=NIMBY_SIGNAL_TEXTURE_STATE_VALID|NIMBY_SIGNAL_TEXTURE_STATE_DEFAULT;
             REQUIRE(nimby::SignalState{defaultSelector}.usesDefaultTextureSelector());
             REQUIRE(nimby::SignalState{defaultSelector}.getTextureSelector()==0);
@@ -283,6 +294,9 @@ int main() {
             REQUIRE(!retained->getSignalTextureById(40)->getFilePath());
             REQUIRE(!retained->getTrackNodeById(20)->getLinkAId());
             REQUIRE(retained->getTrackNodeById(20)->getLinkBId() == 21);
+            REQUIRE(retained->getAllTrackJunctions().size() == 1);
+            REQUIRE(retained->getAllTrackJunctions()[0].getMainTrackId() == 20);
+            REQUIRE(retained->getAllTrackJunctions()[0].getBranchDirection() == -1);
             const auto speed = retained->getTrainById(trainId)->getSpeedKmh();
             reservationsAvailable = false;
             auto unavailable = client.capture();
