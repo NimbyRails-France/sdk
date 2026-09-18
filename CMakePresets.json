@@ -16,7 +16,7 @@
         "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
         "BUILD_TESTING": "ON",
         "NIMBY_BUILD_EXAMPLES": "ON",
-        "NimbyRailsFranceSDK_DIR": "${sourceDir}/install/0.7.1/Release/lib/cmake/NimbyRailsFranceSDK",
+        "NimbyRailsFranceSDK_DIR": "${sourceDir}/install/0.7.2/Release/lib/cmake/NimbyRailsFranceSDK",
         "CMAKE_CXX_COMPILER": "$penv{LOCALAPPDATA}/Programs/CLion/bin/mingw/bin/g++.exe",
         "CMAKE_MAKE_PROGRAM": "$penv{LOCALAPPDATA}/Programs/CLion/bin/ninja/win/x64/ninja.exe",
         "CMAKE_C_COMPILER": "$penv{LOCALAPPDATA}/Programs/CLion/bin/mingw/bin/gcc.exe",
