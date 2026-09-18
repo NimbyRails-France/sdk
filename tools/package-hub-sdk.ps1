@@ -1,4 +1,4 @@
-param([Parameter(Mandatory=$true)][string]$SdkRoot,[string]$Version='0.7.1')
+param([Parameter(Mandatory=$true)][string]$SdkRoot,[string]$Version='0.7.2')
 $ErrorActionPreference='Stop'
 $root=Split-Path $PSScriptRoot -Parent
 $parent=Join-Path $root ('build/hub-sdk-'+[guid]::NewGuid().ToString('N'))

@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.24)
-project(NimbyRailsFranceSDK VERSION 0.7.1 LANGUAGES C CXX)
+project(NimbyRailsFranceSDK VERSION 0.7.2 LANGUAGES C CXX)
 if(NOT WIN32 OR NOT CMAKE_SIZEOF_VOID_P EQUAL 8)
     message(FATAL_ERROR "NimbyRailsFranceSDK requires Windows x64")
 endif()

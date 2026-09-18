@@ -1,4 +1,9 @@
-# NimbyRailsFranceSDK 0.7.1
+# NimbyRailsFranceSDK 0.7.2
+
+La 0.7.2 ajoute les mods C++ chargés par NRF Loader, l'adaptateur
+`NimbyRailsFranceSDK::Mod`, les commandes de textures par chemin et
+[le tutoriel pour créer son propre mod](docs/tutorial-create-mod.md).
+L'ABI C reste en version 2. Utiliser le Hub 0.2.3 pour gérer ces mods.
 
 La 0.7.1 ajoute la [date de simulation et sa modification expérimentale](docs/simulation-clock.md),
 une interface graphique pour auto-observer, les quais regroupés par gare et
@@ -12,7 +17,7 @@ La 0.7.0 est une rupture avec NimbyRailsSDK 0.6.x. L'API publique est
 `nimby/sdk.h` et `nimby/observation.h` sont retirés. Le TCO existant doit être
 migré séparément ; remplacer sa DLL ne suffit pas.
 
-Télécharger les paquets : [release 0.7.1](https://github.com/NimbyRails-France/sdk/releases/tag/v0.7.1).
+Télécharger les paquets : [release 0.7.2](https://github.com/NimbyRails-France/sdk/releases/tag/v0.7.2).
 
 Voir les [essais de la 0.7.1](docs/release-0.7.1-validation.md), dont le changement
 de sauvegarde et les textures qui suivent les états des signaux.
@@ -63,7 +68,7 @@ montrent aussi leur copie automatique par CMake.
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File tools/package.ps1
 powershell -NoProfile -ExecutionPolicy Bypass -File tools/package-drop-in.ps1 -SkipBuild
-powershell -NoProfile -ExecutionPolicy Bypass -File tools/package-hub-sdk.ps1 -SdkRoot ./dist/NimbyRailsFranceSDK-0.7.1
+powershell -NoProfile -ExecutionPolicy Bypass -File tools/package-hub-sdk.ps1 -SdkRoot ./dist/NimbyRailsFranceSDK-0.7.2
 ```
 
 Le premier script construit Release, lance les tests et compile les trois

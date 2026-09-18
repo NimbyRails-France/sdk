@@ -21,8 +21,8 @@ Utilisez le **kit de développement mis à jour** qui contient :
 - la cible CMake `NimbyRailsFranceSDK::Mod` ;
 - `share/NimbyRailsFranceSDK/mod/entry.cpp`.
 
-Ces ajouts sont ceux de la version de développement actuelle. Le numéro
-`0.7.1` seul ne garantit pas leur présence dans une ancienne archive publiée.
+Ces ajouts sont disponibles à partir du SDK **0.7.2**. Une ancienne archive
+`0.7.1` ne contient pas cet adaptateur.
 Le NRF Loader installé dans le jeu doit également être celui qui prend en charge
 les mods C++ et leur manifeste `nrf-mod.ini`.
 
@@ -80,7 +80,7 @@ L'adaptateur du SDK les ajoute à votre DLL lors de sa compilation.
 cmake_minimum_required(VERSION 3.24)
 project(MonPremierMod VERSION 0.1.0 LANGUAGES CXX)
 
-find_package(NimbyRailsFranceSDK 0.7.1 CONFIG REQUIRED)
+find_package(NimbyRailsFranceSDK 0.7.2 CONFIG REQUIRED)
 if(NOT TARGET NimbyRailsFranceSDK::Mod)
     message(FATAL_ERROR "Ce kit SDK est trop ancien : adaptateur de mod absent")
 endif()
@@ -269,7 +269,7 @@ déclare notamment :
   "modId": "MonPremierMod",
   "loaderApi": 1,
   "module": "MonPremierMod.dll",
-  "sdkMin": "0.7.1",
+  "sdkMin": "0.7.2",
   "sdkMaxExclusive": "0.8.0"
 }
 ```
