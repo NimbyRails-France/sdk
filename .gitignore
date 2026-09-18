@@ -10,3 +10,6 @@
 /exports/
 __pycache__/
 *.pyc
+
+# Isolated CI dependencies
+.ci/
