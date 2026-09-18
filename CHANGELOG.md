@@ -2,17 +2,14 @@
 
 ## [Unreleased]
 
-- Politique de canaux alpha / bêta / stable contrôlée en CI ; publication directe par release GitHub.
-
-- Les scripts de packaging utilisent la version du projet au lieu de numéros écrits en dur.
-
-- Validation Woodpecker et contrôle de cohérence des versions et du changelog.
-
 ## [0.7.2] - 2026-09-18
 
-SDK 0.7.2 : adaptateur C++ pour les mods, chargement automatique par NRF Loader, commandes de textures par chemin utilisables dans le jeu, tutoriel de creation de mod et outils de topologie. ABI interne 2 conservee. Utiliser le Hub 0.2.3 pour installer les mods C++.
+### Nouveautés
+- Prise en charge du chargement automatique des mods compatibles.
+- Nouveaux outils pour accompagner la création de mods et l’exploration du réseau.
+- Ajout de commandes expérimentales pour modifier et restaurer l’apparence des signaux.
 
-Validation : 17 tests CTest, consommateurs du kit installe, proxy SDL et installation/retrait du pont sur des copies des binaires. Les commandes visuelles restent experimentales ; leur rendu en jeu et les regles de signalisation ne sont pas annonces comme valides par ces tests.
+Les fonctions d’affichage restent expérimentales. Cette version ne garantit pas encore le fonctionnement complet d’une signalisation française automatique.
 
 ## [0.7.1] - 2026-09-16
 

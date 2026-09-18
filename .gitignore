@@ -13,3 +13,9 @@ __pycache__/
 
 # Isolated CI dependencies
 .ci/
+
+.release-plan.json
+
+dist/
+
+nrf-package-*/
