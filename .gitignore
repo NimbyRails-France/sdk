@@ -16,3 +16,12 @@ __pycache__/
 /examples/kotlin-mod/build/
 /local-notes/
 /kotlin-client/build/
+
+# Isolated CI dependencies
+.ci/
+
+.release-plan.json
+
+dist/
+
+nrf-package-*/
