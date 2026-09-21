@@ -1,7 +1,7 @@
 # NimbyRails France SDK
 
-SDK pour développer des mods Kotlin/Native et des clients C++20 pour NIMBY Rails
-sur Windows x64. Le SDK fournit les observations du jeu, l'intégration native et
+SDK pour développer des mods Kotlin/Native et des clients Kotlin pour NIMBY Rails.
+Windows x64 est pris en charge et Linux x64 reste en migration. Le SDK fournit les observations du jeu, l'intégration native et
 le contrat de chargement. Les règles de signalisation et les ressources restent
 dans les mods.
 
@@ -37,7 +37,7 @@ requiert aucun script PowerShell, CMake, compilateur C++ ou dossier `tools`.
 | Besoin | Kit et documentation |
 | --- | --- |
 | Écrire un mod Kotlin | Kit Kotlin : API `.klib`, plugin Gradle, pont précompilé, exemple autonome |
-| Écrire un client ou un mod C++ | Kit C++ : headers, bibliothèques, cibles CMake ; [guide C++](docs/developing.md) |
+| Écrire un outil Kotlin | Client JVM, bibliothèque native et [exemple d'observation](docs/kotlin-client.md) |
 | Jouer avec des mods | SDK d'exécution et NRF Loader, installés par le Hub ; aucun JDK requis |
 | Contribuer au SDK | [Guide de contribution et de construction](docs/sdk-maintainers.md) |
 

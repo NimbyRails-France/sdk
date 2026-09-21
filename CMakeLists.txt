@@ -390,12 +390,6 @@ if(BUILD_TESTING)
         add_test(NAME proxy_forwarding COMMAND nimby_proxy_tests "${CMAKE_BINARY_DIR}/proxy-test/SDL3.dll")
     endif()
 endif()
-option(NIMBY_BUILD_EXAMPLES "Build tools against an installed SDK package" OFF)
-if(NIMBY_BUILD_EXAMPLES)
-    add_subdirectory(examples/first-observer)
-    add_subdirectory(examples/observer)
-    add_subdirectory(examples/auto-observer)
-endif()
 
 include(CMakePackageConfigHelpers)
 configure_package_config_file(cmake/NimbyRailsFranceSDKConfig.cmake.in
@@ -414,9 +408,10 @@ install(FILES src/mod/entry.cpp DESTINATION share/NimbyRailsFranceSDK/mod)
 install(DIRECTORY kotlin/ DESTINATION share/NimbyRailsFranceSDK/kotlin)
 install(FILES third_party/minhook/LICENSE.txt DESTINATION share/licenses/MinHook)
 install(FILES docs/developing.md DESTINATION share/doc/NimbyRailsFranceSDK)
-install(DIRECTORY examples/observer examples/first-observer examples/auto-observer DESTINATION share/NimbyRailsFranceSDK/examples
-    FILES_MATCHING PATTERN "*.cpp" PATTERN "CMakeLists.txt"
-    PATTERN ".idea" EXCLUDE PATTERN "cmake-build-*" EXCLUDE)
+install(DIRECTORY examples/kotlin-mod examples/kotlin-observer DESTINATION share/NimbyRailsFranceSDK/examples
+    PATTERN ".idea" EXCLUDE PATTERN ".gradle" EXCLUDE PATTERN ".kotlin" EXCLUDE PATTERN "build" EXCLUDE)
+install(DIRECTORY kotlin-client DESTINATION share/NimbyRailsFranceSDK
+    PATTERN ".idea" EXCLUDE PATTERN ".gradle" EXCLUDE PATTERN ".kotlin" EXCLUDE PATTERN "build" EXCLUDE)
 install(DIRECTORY docs/ DESTINATION share/doc/NimbyRailsFranceSDK
     PATTERN "reports" EXCLUDE PATTERN "source-reports" EXCLUDE)
 install(FILES README.md DESTINATION .)

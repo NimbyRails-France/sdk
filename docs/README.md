@@ -15,16 +15,11 @@ de publication.
 | Choisir les versions et migrer un projet | [Compatibilité et versions](sdk-version.md) |
 | Résoudre un problème | [Dépannage](troubleshooting.md) |
 
-## Utiliser les API C++
+## Développer un outil Kotlin
 
-Le SDK conserve son API C++20 pour les clients externes et les intégrations natives.
-
-- [Captures automatiques avec le client C++](tutorial-cpp-client.md).
-- [Premier outil à captures manuelles](tutorial-first-tool.md).
-- [Intégration et distribution du kit C++](developing.md).
-- [Référence C++](cpp-api-reference.md).
-- [Création d'un mod C++](tutorial-create-mod.md) et [contrat du loader](mod-loader.md).
-- [Migration de l'ancienne API 0.6](migration-0.7.md).
+Utiliser le [client Kotlin/JVM](kotlin-client.md) et l'exemple
+`examples/kotlin-observer`. Les anciens exemples clients C++ ont été retirés.
+Les références C++ restantes documentent les composants internes du SDK.
 
 ## Références par domaine
 

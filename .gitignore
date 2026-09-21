@@ -25,3 +25,5 @@ __pycache__/
 dist/
 
 nrf-package-*/
+
+/examples/kotlin-observer/build/

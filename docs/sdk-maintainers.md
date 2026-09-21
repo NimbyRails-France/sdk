@@ -7,13 +7,13 @@ le [démarrage Kotlin](kotlin-mods.md) et n'ont pas à construire le pont natif.
 
 | Dossier | Responsabilité |
 | --- | --- |
-| `include/nimby/` | API C++ publique et adaptateurs |
+| `include/nimby/` | Contrats natifs internes et adaptateurs |
 | `src/` | Observations, ponts natifs et runtime |
 | `kotlin/src/nimby/` | API Kotlin publique |
 | `kotlin/native/` | Transport Kotlin/natif, adaptateur et vérifications |
 | `gradle-plugin/` | Plugin Gradle commun aux mods |
 | `examples/kotlin-mod/` | Projet Kotlin autonome distribué dans le kit |
-| `examples/` | Exemples C++ autonomes |
+| `examples/kotlin-observer/` | Exemple client Kotlin/JVM |
 | `tests/` | Tests natifs du SDK |
 | `tools/` | Construction des kits et diagnostics du SDK |
 | `docs/` | Guides et références ; recherches historiques identifiées séparément |
@@ -53,7 +53,7 @@ projet indépendant, y compris avec des espaces dans le chemin du SDK.
 Depuis la racine du SDK, avec les outils CMake disponibles :
 
 ```text
-cmake --preset Release -DNIMBY_BUILD_EXAMPLES=OFF
+cmake --preset Release
 cmake --build --preset Release
 ctest --preset Release
 cmake --install build/clion-Release --prefix install/development
@@ -75,7 +75,7 @@ la documentation et les licences. Il prépare `install/kotlin` et le ZIP sous
 
 Les autres distributions restent distinctes :
 
-- `tools/package.ps1` : kit C++ et vérification de ses exemples autonomes.
+- `tools/package.ps1` : composants natifs internes et vérification de l'exemple client Kotlin installé.
 - `tools/package-drop-in.ps1` : runtime et loader pour le jeu.
 - `tools/package-hub-sdk.ps1` : paquet SDK et métadonnées du Hub.
 
