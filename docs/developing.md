@@ -1,5 +1,9 @@
 # Guide développeur — NimbyRailsFranceSDK 0.7
 
+Ce guide concerne l'intégration **C++**. Pour créer un mod Kotlin, suivre
+le [démarrage Kotlin](kotlin-mods.md). La construction des distributions du SDK
+est décrite dans le [guide des mainteneurs](sdk-maintainers.md).
+
 Le SDK expose `<nimby/client.hpp>` en C++20, Windows x64. Sa DLL s'appelle
 `NimbyRailsFranceSDK.dll`. Le pont C sous `detail/` est privé ; il ne doit
 pas être utilisé directement par les consommateurs.
@@ -18,7 +22,7 @@ add_custom_command(TARGET mon_outil POST_BUILD
     COMMAND_EXPAND_LISTS)
 ```
 
-Configurer avec `-DCMAKE_PREFIX_PATH=C:/SDK/NimbyRailsFranceSDK-0.7.0`.
+Configurer avec `-DCMAKE_PREFIX_PATH=C:/SDK/NimbyRailsFranceSDK-0.7.3`.
 Le kit MinGW requiert un consommateur MinGW x64 ; pour MSVC, reconstruire
 un kit MSVC. Les helpers sont compilés dans le consommateur et ne font
 traverser aucun objet STL à la frontière de la DLL.
@@ -30,7 +34,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tools/build.ps1 -Configurati
 powershell -NoProfile -ExecutionPolicy Bypass -File tools/package.ps1 -SkipBuild
 ```
 
-`tools/package.ps1` installe un kit dans `dist/NimbyRailsFranceSDK-0.7.0/`
+`tools/package.ps1` installe un kit dans `dist/NimbyRailsFranceSDK-0.7.3/`
 et compile les trois exemples à partir de ce kit. Le code des exemples ne
 dépend pas d'une cible locale du SDK. Voir [CLion](clion.md) pour les presets.
 

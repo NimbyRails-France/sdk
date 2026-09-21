@@ -1,0 +1,34 @@
+plugins {
+    id 'groovy'
+    id 'java-gradle-plugin'
+    id 'maven-publish'
+}
+
+group = 'fr.nimbyrails'
+version = '0.7.3'
+repositories { mavenCentral(); gradlePluginPortal() }
+dependencies {
+    implementation 'org.jetbrains.kotlin:kotlin-gradle-plugin:2.2.20'
+    testImplementation gradleTestKit()
+    testImplementation 'junit:junit:4.13.2'
+}
+java { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }
+gradlePlugin {
+    plugins {
+        nrfMod {
+            id = 'fr.nimbyrails.mod'
+            implementationClass = 'fr.nimbyrails.gradle.NrfModPlugin'
+            displayName = 'NRF Kotlin/Native mod'
+            description = 'Build, verify and package Kotlin mods for NRF Loader.'
+        }
+    }
+}
+publishing {
+    repositories {
+        maven {
+            name = 'sdk'
+            url = uri(providers.gradleProperty('sdkRepository').orElse(layout.buildDirectory.dir('repository').map { it.asFile.path }).get())
+        }
+    }
+}
+tasks.withType(Test).configureEach { testLogging { events 'failed', 'skipped' } }

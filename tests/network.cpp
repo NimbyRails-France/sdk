@@ -10,7 +10,7 @@
 using namespace nimby::engine;
 struct Memory {
     std::map<uint64_t,std::vector<unsigned char>> regions;
-    uint64_t fail{},replace_header{},changing_slots{},changing_motion{},changing_station{},changing_service{};unsigned header_reads{},reads{},slot_reads{};
+    uint64_t fail{},replace_header{},changing_slots{},changing_motion{},changing_station{},changing_service{},changing_presence{},changing_identity{};unsigned header_reads{},reads{},slot_reads{};
     template<class T> void put(uint64_t base,size_t off,T value) {
         auto& b=regions[base];if(b.size()<off+sizeof value)b.resize(off+sizeof value);
         std::memcpy(b.data()+off,&value,sizeof value);
@@ -22,9 +22,11 @@ bool read(void* ctx,uint64_t address,void* out,size_t size) {
     auto i=m.regions.upper_bound(address);if(i==m.regions.begin())return false;--i;
     if(address-i->first>i->second.size()||size>i->second.size()-(address-i->first))return false;
     std::memcpy(out,i->second.data()+address-i->first,size);
-    if(address==m.changing_motion && size==0x4b1)static_cast<unsigned char*>(out)[0x4b0]=1;
+    if(address==m.changing_motion && size==0x638)static_cast<unsigned char*>(out)[0x4b0]=1;
     if(address==m.changing_station && size==0x28)static_cast<unsigned char*>(out)[0]^=1;
     if(address==m.changing_service && size==0x638)static_cast<unsigned char*>(out)[0x4d0]^=1;
+    if(address==m.changing_presence && size==0x638)static_cast<unsigned char*>(out)[0x1d0]^=1;
+    if(address==m.changing_identity && size==0x638)static_cast<unsigned char*>(out)[0]^=1;
     if(address==m.replace_header && ++m.header_reads==2)static_cast<unsigned char*>(out)[0]^=1;
     if(address==m.changing_slots && (++m.slot_reads%2)==0 && size>8)static_cast<unsigned char*>(out)[8]^=1;
     return true;
@@ -71,6 +73,61 @@ int main() {
     m.put(sb,0x40,uint8_t(1)); // Automatic name intentionally unavailable.
     m.put(gb,0x30,int32_t(3));m.put(gb,0x40,track);m.put(gb,0x48,0.5);m.put(gb,0x50,int8_t(-1));
     Network out;
+    {
+        auto scoped=m;scoped.put(gb,0x30,int32_t(4));scoped.put(gb,0x38,uint64_t(77));
+        Network local;
+        scoped.fail=sb; // Stations are not dependencies of this scope.
+        if(!read_signalling_network(read,&scoped,state,77,local)||local.tracks.size()!=1||local.signals.size()!=1)return 220;
+        scoped.fail=0;scoped.put(gb,0x48,0.7);
+        if(!read_signalling_network(read,&scoped,state,77,local)||local.signals[0].fraction!=0.7)return 221;
+        scoped.put(tb,0,track+1);
+        if(read_signalling_network(read,&scoped,state,77,local))return 222;
+        scoped=m;scoped.put(gb,0x30,int32_t(4));scoped.put(gb,0x38,uint64_t(77));
+        scoped.fail=tb;
+        if(read_signalling_network(read,&scoped,state,77,local))return 223;
+        if(!read_signalling_network(read,&scoped,state,99,local)||!local.tracks.empty()||!local.signals.empty())return 224;
+    }
+    {
+        auto minimal=m;minimal.fail=sb;
+        Network signalling;
+        if(read_network(read,&minimal,state,true,signalling))return 214;
+        if(!read_network(read,&minimal,state,true,signalling,true)||
+           signalling.tracks.size()!=1||signalling.signals.size()!=1||
+           !signalling.stations.empty()||!signalling.platforms.empty())return 215;
+        minimal.fail=tb;
+        if(read_network(read,&minimal,state,true,signalling,true))return 216;
+    }
+    {
+        bool found=false;
+        auto membership=m;
+        // Texture validation must not depend on unrelated tracks or station names.
+        membership.fail=tb;
+        if(!read_signal_membership(read,&membership,state,true,signal,found)||!found)return 190;
+        if(!read_signal_membership(read,&membership,state,true,signal+1,found)||found)return 191;
+        if(!read_signal_membership(read,&membership,state,true,signal+0x10000,found)||found)return 192;
+        if(!read_signal_membership(read,&membership,state,true,signal+0x20000,found)||found)return 193;
+        if(read_signal_membership(read,&membership,state,false,signal,found)||found)return 194;
+        if(read_signal_membership(read,&membership,state,true,track,found)||found)return 195;
+        membership.fail=gb;
+        if(read_signal_membership(read,&membership,state,true,signal,found)||found)return 196;
+        membership.fail=0;membership.replace_header=state.database+0x380;membership.header_reads=0;
+        if(read_signal_membership(read,&membership,state,true,signal,found)||found)return 197;
+        membership=m;membership.put(state.database+0x380,4,uint32_t(32));
+        if(read_signal_membership(read,&membership,state,true,signal,found)||found)return 198;
+        membership=m;membership.replace_header=gb;membership.header_reads=0;
+        if(read_signal_membership(read,&membership,state,true,signal,found)||found)return 201;
+        membership=m;membership.replace_header=gb-0x1000;membership.header_reads=0;
+        if(read_signal_membership(read,&membership,state,true,signal,found)||found)return 202;
+        membership=m;membership.put(state.root,0x540,state.database+0x10000);
+        if(read_signal_membership(read,&membership,state,true,signal,found)||found)return 203;
+        // A nonzero slot and block exercise the index split, beyond slot zero.
+        membership=m;membership.put(gb,0xc8,signal+0x10000);
+        if(!read_signal_membership(read,&membership,state,true,signal+0x10000,found)||!found)return 199;
+        const auto table=gb-0x1000,secondBlock=gb+0x1000;
+        membership.put(state.database+0x380,32,table+16);membership.put(state.database+0x380,40,table+16);
+        membership.put(table,8,secondBlock);membership.put(secondBlock,0,signal+0x20000);
+        if(!read_signal_membership(read,&membership,state,true,signal+0x20000,found)||!found)return 200;
+    }
     if(!read_network(read,&m,state,true,out)||out.tracks.size()!=1||out.tracks[0].limit_mps!=30||out.signals[0].kind!=3)return 1;
     if(!out.stations[0].name.empty())return 50; // Missing optional cache is allowed.
     {
@@ -100,6 +157,13 @@ int main() {
         auto valid=jm;
         jm.put(tb,offset+0x400,int32_t(0));
         if(!read_network(read,&jm,state,true,jn)||!jn.junctions.empty())return 91;
+        {
+            auto scoped=valid;scoped.put(gb,0x30,int32_t(4));scoped.put(gb,0x38,uint64_t(77));
+            Network local;
+            if(!read_signalling_network(read,&scoped,state,77,local)||local.junctions.size()!=1||local.tracks.size()!=2)return 225;
+            scoped.put(tb,offset+0x3f8,std::nan(""));
+            if(read_signalling_network(read,&scoped,state,77,local))return 226;
+        }
         jm=valid;jm.put(tb,offset+0x3f8,std::nan(""));
         if(!read_network(read,&jm,state,true,jn)||!jn.junctions.empty())return 92;
         jm=valid;jm.put(tb,0x428,branch+1); // Recycled slot: require full-generation identity.
@@ -229,6 +293,13 @@ int main() {
     if(!read_trains(read,&m,state,true,trains)||trains.size()!=1||trains[0].name!="T"||trains[0].speed_mps!=20||!trains[0].positioned||!trains[0].speed_available)return 14;
     m.put(motionBlock,0,train+1);if(read_trains(read,&m,state,true,trains)||!trains.empty())return 15;
     m.put(motionBlock,0,train);m.put(trainBlock,0x20,uint64_t(257));if(read_trains(read,&m,state,true,trains))return 16;
+    // Un nom corrompu n'empeche pas de verifier la presence pour le BAL.
+    if(!read_trains(read,&m,state,true,trains,true)||trains.size()!=1||
+       trains[0].service.flags!=NIMBY_SERVICE_PRESENCE_VALID||trains[0].speed_available||
+       !trains[0].name.empty()||trains[0].path_available)return 210;
+    m.put(motionBlock,0,train+1);
+    if(read_trains(read,&m,state,true,trains,true))return 211;
+    m.put(motionBlock,0,train);
     m.put(trainBlock,0x20,uint64_t(1));m.put(motionBlock,0x4b0,uint8_t(0));
     if(!read_trains(read,&m,state,true,trains)||trains[0].present||trains[0].positioned)return 17;
     m.put(motionBlock,0x4b0,uint8_t(1));m.put(motionBlock,0x320,uint8_t(1));
@@ -250,7 +321,15 @@ int main() {
     m.put(motionBlock,0x1d0,uint8_t(0));
     if(!read_trains(read,&m,state,true,trains)||!trains[0].speed_available||trains[0].speed_mps!=0||trains[0].positioned)return 41;
     m.changing_motion=motionBlock;
-    if(read_trains(read,&m,state,true,trains)||!trains.empty())return 42;
+    if(!read_trains(read,&m,state,true,trains)||trains.size()!=1||trains[0].speed_available||trains[0].service.flags)return 42;
+    if(!read_trains(read,&m,state,true,trains,true)||trains[0].service.flags)return 212;
+    // Already physically present: starting Drive must not invalidate membership.
+    m.put(motionBlock,0x1d0,uint8_t(1));
+    if(!read_trains(read,&m,state,true,trains)||trains[0].speed_available||
+       trains[0].service.flags!=NIMBY_SERVICE_PRESENCE_VALID)return 206;
+    if(!read_trains(read,&m,state,true,trains,true)||
+       trains[0].service.flags!=NIMBY_SERVICE_PRESENCE_VALID)return 213;
+    m.put(motionBlock,0x1d0,uint8_t(0));
     m.changing_motion=0;
     // No Motion is different from a confirmed Motion without Drive.
     m.put(motionBlock,0,uint64_t(0));
@@ -332,7 +411,13 @@ int main() {
     if(!read_trains(read,&m,state,true,trains)||trains[0].service.status==NIMBY_SERVICE_DEPOT||
        trains[0].service.flags&NIMBY_SERVICE_STOP_VALID)return 83;
     m.fail=0;m.changing_service=motionBlock;
-    if(!read_trains(read,&m,state,true,trains)||trains[0].service.flags||!trains[0].speed_available)return 84;
+    if(!read_trains(read,&m,state,true,trains)||trains[0].service.flags!=NIMBY_SERVICE_PRESENCE_VALID||!trains[0].speed_available)return 84;
     m.changing_service=0;
+    m.changing_presence=motionBlock;
+    m.put(motionBlock,0x218,uint8_t(0)); // Test a real membership change, not hidden presence bookkeeping.
+    if(!read_trains(read,&m,state,true,trains)||trains[0].service.flags)return 204;
+    m.changing_presence=0;m.changing_identity=motionBlock;
+    if(!read_trains(read,&m,state,true,trains)||trains[0].service.flags)return 205;
+    m.changing_identity=0;
     std::puts("Synthetic network: full ID joins, pool replacement, read failure, unknown version, invalid position and limits rejected.");
 }

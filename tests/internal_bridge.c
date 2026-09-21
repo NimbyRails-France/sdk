@@ -6,6 +6,7 @@ _Static_assert(sizeof(NimbySignal)==32,"Signal ABI");
 _Static_assert(sizeof(NimbySignalState)==120,"Signal state ABI");
 _Static_assert(sizeof(NimbySignalTexture)==1960,"Signal texture ABI");
 _Static_assert(sizeof(NimbySnapshotInfo)==112,"Snapshot ABI");
+_Static_assert(sizeof(NimbyGameSession)==48,"Game session ABI");
 int main(void) {
     NimbySdkVersion version={sizeof(NimbySdkVersion),0,0,0,0};
     if(NimbyInternal_GetVersion(&version)!=NIMBY_OK || version.abi_version!=2 || version.major!=0 || version.minor!=7)return 1;

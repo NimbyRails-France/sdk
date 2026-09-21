@@ -19,11 +19,21 @@ function Run([string]$action,[bool]$expected=$true){
 }
 Run 'Install'
 $record=Get-Content -LiteralPath "$root/NimbyRailsFranceSDK-install.json" -Raw | ConvertFrom-Json
-$bridge=Join-Path $root 'NimbyRailsFranceTextureBridge-experimental-v3.dll'
+$bridge=Join-Path $root 'NimbyRailsFranceTextureBridge-experimental-v4.dll'
 if(!$record.textureBridgeSha256 -or (Get-FileHash -LiteralPath $bridge).Hash -ne $record.textureBridgeSha256){throw 'Texture bridge installation/hash missing'}
+$uiBridge=Join-Path $root 'NimbySignalUiBridge-experimental-v1.dll'
+if(!$record.signalUiBridgeSha256 -or (Get-FileHash -LiteralPath $uiBridge).Hash -ne $record.signalUiBridgeSha256){throw 'UI bridge installation/hash missing'}
+$drivingBridge=Join-Path $root 'NimbyAutomaticDrivingBridge-v1.dll'
+if(!$record.automaticDrivingBridgeSha256 -or (Get-FileHash -LiteralPath $drivingBridge).Hash -ne $record.automaticDrivingBridgeSha256){throw 'Automatic driving bridge installation/hash missing'}
 Run 'Remove'
+if(Test-Path -LiteralPath $drivingBridge){throw 'Automatic driving bridge not removed'}
+if(Test-Path -LiteralPath $uiBridge){throw 'UI bridge not removed'}
 if((Get-FileHash -LiteralPath "$root/SDL3.dll").Hash -ne $originalHash -or (Test-Path -LiteralPath $bridge)){throw 'Proxy removal did not restore SDL and remove the managed bridge'}
 [IO.File]::WriteAllText($bridge,'foreign bridge')
 Run 'Install' $false
 if((Get-FileHash -LiteralPath "$root/SDL3.dll").Hash -ne $originalHash -or [IO.File]::ReadAllText($bridge) -ne 'foreign bridge'){throw 'Installer changed foreign files'}
+Remove-Item -LiteralPath $bridge
+[IO.File]::WriteAllText($uiBridge,'foreign UI bridge')
+Run 'Install' $false
+if((Get-FileHash -LiteralPath "$root/SDL3.dll").Hash -ne $originalHash -or [IO.File]::ReadAllText($uiBridge) -ne 'foreign UI bridge'){throw 'Installer changed foreign UI bridge'}
 Write-Output 'PASS: proxy/SDK/texture bridge installation, hash verification, removal, existing bridge protection (copied binaries only)'

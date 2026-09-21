@@ -5,12 +5,19 @@
 #include <vector>
 #include <algorithm>
 namespace nimby::texture_bridge {
-constexpr uint32_t version=3;
-constexpr auto filename=L"NimbyRailsFranceTextureBridge-experimental-v3.dll";
+constexpr uint32_t version=4;
+constexpr auto filename=L"NimbyRailsFranceTextureBridge-experimental-v4.dll";
 struct Command {
     uint64_t signal=0,set_hash=0,expires=0;
     uint32_t index=0;
+    uint32_t alternate_index=0, half_period_ms=0;
 };
+// Select against simulation time, never polling/wall time. A paused simulation
+// therefore keeps the same phase even while frames continue to be drawn.
+inline uint32_t frame_index(const Command& command, uint64_t simulation_ms) noexcept {
+    return command.half_period_ms && (simulation_ms/command.half_period_ms)%2
+        ? command.alternate_index : command.index;
+}
 // Sorted by full signal ID: bounded binary search in the render hook.
 struct Table {
     std::vector<Command> entries;
@@ -47,7 +54,8 @@ struct alignas(8) Shared {
     uint64_t request_signal=0,request_hash=0,request_expiry=0;
     uint64_t request_database=0,request_simulation=0,active_count=0,result_expiry=0;
     uint32_t request_index=0;
+    uint32_t request_alternate_index=0, request_half_period_ms=0;
 
 };
-inline std::wstring name(DWORD pid){return L"Local\\NimbyRailsFranceSDK.TexturePreview.v3."+std::to_wstring(pid);}
+inline std::wstring name(DWORD pid){return L"Local\\NimbyRailsFranceSDK.TexturePreview.v4."+std::to_wstring(pid);}
 }

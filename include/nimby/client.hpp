@@ -1,14 +1,19 @@
 #pragma once
 // Public C++20 API for NimbyRailsFranceSDK. detail/ is implementation-only.
 #include "detail/observation.h"
+#include "signal_settings.hpp"
 #ifndef NOMINMAX
 #define NOMINMAX
 #endif
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
 #endif
+#ifdef _WIN32
 #include <windows.h>
 #include <tlhelp32.h>
+#else
+#include <filesystem>
+#endif
 #include <chrono>
 #include <algorithm>
 #include <cmath>
@@ -31,6 +36,7 @@
 namespace nimby {
 using Id = std::uint64_t;
 using Milliseconds = std::chrono::milliseconds;
+enum class SnapshotScope { Complete, Signalling };
 
 enum class ErrorCode : std::uint32_t {
     Ok = 0, InvalidArgument = 1, IoError = 2, InvalidBinary = 3,
@@ -133,6 +139,10 @@ private:
     NimbyTrain data_;
 };
 
+} // namespace nimby
+#include "detail/driving_types.hpp"
+namespace nimby {
+
 class TrainDetails {
 public:
     explicit TrainDetails(const NimbyTrainDetails& data) : data_(data) {}
@@ -180,10 +190,10 @@ public:
     }
     std::optional<uint32_t> getMotionFlags() const { return valid(NIMBY_SERVICE_STATE_VALID)?std::optional<uint32_t>{data_.motion_flags}:std::nullopt; }
     std::optional<bool> isHidden() const {
-        return valid(NIMBY_SERVICE_STATE_VALID) ? std::optional<bool>{(data_.motion_flags & NIMBY_MOTION_HIDDEN) != 0} : std::nullopt;
+        return (data_.flags&(NIMBY_SERVICE_STATE_VALID|NIMBY_SERVICE_PRESENCE_VALID)) ? std::optional<bool>{(data_.motion_flags & NIMBY_MOTION_HIDDEN) != 0} : std::nullopt;
     }
     std::optional<bool> isOnNetwork() const {
-        return valid(NIMBY_SERVICE_STATE_VALID) ? std::optional<bool>{(data_.motion_flags & (NIMBY_MOTION_PRESENCE | NIMBY_MOTION_DRIVE | NIMBY_MOTION_HIDDEN)) != 0} : std::nullopt;
+        return (data_.flags&(NIMBY_SERVICE_STATE_VALID|NIMBY_SERVICE_PRESENCE_VALID)) ? std::optional<bool>{(data_.motion_flags & (NIMBY_MOTION_PRESENCE | NIMBY_MOTION_DRIVE | NIMBY_MOTION_HIDDEN)) != 0} : std::nullopt;
     }
     std::optional<uint32_t> getAlert() const { return valid(NIMBY_SERVICE_STATE_VALID)?std::optional<uint32_t>{data_.alert}:std::nullopt; }
     std::optional<Id> getLocationTrackId() const { return valid(NIMBY_SERVICE_LOCATION_VALID)?detail::reference(data_.location_track_id):std::nullopt; }
@@ -235,6 +245,11 @@ public:
     double getFraction() const { return data_.track_fraction; }
     std::int32_t getDirection() const { return data_.direction; }
     std::int32_t getKind() const { return data_.kind; }
+    // Native Signal_M_forward reverses the stored position for Path signals.
+    // Keep getDirection() raw for existing geometric/inspection consumers.
+    std::int32_t getForwardDirection() const {
+        return data_.kind == NIMBY_SIGNAL_PATH ? -data_.direction : data_.direction;
+    }
 private:
     NimbySignal data_;
 };
@@ -274,6 +289,16 @@ class SignalTexture {
 public:
     explicit SignalTexture(const NimbySignalTexture& data) : data_(data) {}
     Id getSignalId() const { return data_.signal_id; }
+    // Vue sans copie de la description complete, valide tant que cet objet vit.
+    // Une reference absente ou un nom non termine reste indisponible.
+    std::optional<std::string_view> getTexturesIdView() const & noexcept {
+        if (!(data_.flags & NIMBY_SIGNAL_TEXTURE_REFERENCE_VALID)) return std::nullopt;
+        const auto& name = data_.textures_id_utf8;
+        for (std::size_t length = 0; length < sizeof(name); ++length)
+            if (!name[length]) return std::string_view{name, length};
+        return std::nullopt;
+    }
+    std::optional<std::string_view> getTexturesIdView() const && = delete;
     std::optional<TextureReference> getReference() const { return (data_.flags & NIMBY_SIGNAL_TEXTURE_REFERENCE_VALID) ? std::optional<TextureReference>{TextureReference{data_}} : std::nullopt; }
     std::optional<std::string> getFilePath() const { return (data_.flags & NIMBY_SIGNAL_TEXTURE_FILE_VALID) ? std::optional<std::string>{data_.file_path_utf8} : std::nullopt; }
 private:
@@ -306,7 +331,7 @@ private:
 
 // Ordering is geometric, not a route reservation or a signal aspect decision.
 enum class SignalTraceStop { UnobservedConnection, UnknownTrack, InconsistentConnection,
-                             AmbiguousConnection, Cycle, TrackLimit, Junction };
+                             AmbiguousConnection, Cycle, TrackLimit, Junction, SignalReached };
 struct OrderedSignalSection {
     Id trackId;
     std::int32_t direction;
@@ -325,10 +350,17 @@ struct NextSignals {
     bool incomplete = false; // At least one path ended at an unobserved connection.
     std::size_t exploredSections = 0;
 };
+enum class SignalDirectionConvention { Stored, Forward };
 class SignalTopology {
 public:
     SignalTopology(std::span<const Signal> signalRows, std::span<const TrackNode> nodes,
-                   std::span<const TrackJunction> junctions = {}) {
+                   std::span<const TrackJunction> junctions = {},
+                   SignalDirectionConvention directionConvention = SignalDirectionConvention::Stored)
+        : directionConvention_(directionConvention) {
+        nodes_.reserve(nodes.size());
+        signals_.reserve(signalRows.size());
+        branches_.reserve(junctions.size());
+        attachments_.reserve(junctions.size());
         for (const auto& node : nodes) nodes_.emplace(node.getId(), node);
         for (const auto& signal : signalRows) signals_[signal.getTrackId()].push_back(signal);
         for (const auto& j : junctions) {
@@ -354,7 +386,9 @@ public:
         if (it == signals_.end()) return {};
         auto rows = it->second;
         if (direction == -1) std::reverse(rows.begin(), rows.end());
-        if (facingOnly) std::erase_if(rows, [direction](const Signal& s) { return s.getDirection() != direction; });
+        if (facingOnly) std::erase_if(rows, [this,direction](const Signal& s) {
+            return (directionConvention_==SignalDirectionConvention::Forward?s.getForwardDirection():s.getDirection()) != direction;
+        });
         return rows;
     }
     // Approximate A -> B axis from observed node coordinates; not a curve tangent.
@@ -371,6 +405,15 @@ public:
     }
     // A single trace stops at a facing junction rather than choosing a route.
     SignalTrace traceFrom(Position start, std::size_t maxTracks = 256, bool facingOnly = false) const {
+        return trace(start,maxTracks,facingOnly,std::nullopt);
+    }
+    // Blocks need only the first facing boundary, not the geometry beyond it.
+    // Keep every signal in that section so coincident boundaries stay ambiguous.
+    SignalTrace traceToNextSignal(Position start, Id excludeSignal, std::size_t maxTracks = 256) const {
+        return trace(start,maxTracks,true,excludeSignal);
+    }
+private:
+    SignalTrace trace(Position start, std::size_t maxTracks, bool facingOnly, std::optional<Id> stopAtSignal) const {
         checkPosition(start);
         SignalTrace result; Cursor cursor{start,false}; std::set<Key> visited;
         for(std::size_t step=0;step<maxTracks;++step){
@@ -378,6 +421,11 @@ public:
             if(!visited.insert(key(cursor)).second){result.stop=SignalTraceStop::Cycle;return result;}
             auto segment=advance(cursor,facingOnly);
             if(segment.section)result.sections.push_back(std::move(*segment.section));
+            if(stopAtSignal && !result.sections.empty() &&
+               std::any_of(result.sections.back().orderedSignals.begin(),result.sections.back().orderedSignals.end(),
+                   [&](const auto& signal){return signal.getId()!=*stopAtSignal;})){
+                result.stop=SignalTraceStop::SignalReached;return result;
+            }
             result.stop=segment.stop;
             if(segment.next.size()!=1){
                 for(const auto& next:segment.next)result.continuations.push_back(next.position);
@@ -387,6 +435,7 @@ public:
         }
         result.stop=SignalTraceStop::TrackLimit;result.stoppedAtTrack=cursor.position.getTrackId();return result;
     }
+public:
     // First signals reached on every observed branch, without selecting a train route.
     // Pass the starting signal ID as excludeSignal to look beyond that signal.
     NextSignals findNextSignals(Position start, std::size_t maxSections = 4096,
@@ -471,6 +520,7 @@ private:
         if (direction!=1 && direction!=-1) throw std::invalid_argument("Signal order direction must be +1 or -1");
     }
     std::unordered_map<Id,TrackNode> nodes_;
+    SignalDirectionConvention directionConvention_;
     std::unordered_map<Id,std::vector<TrackJunction>> branches_;
     std::unordered_map<Id,TrackJunction> attachments_;
     std::unordered_map<Id,std::vector<Signal>> signals_;
@@ -535,6 +585,8 @@ Table<T> table(Copy copy, Key key, const char* operation) {
     if (!rows) check(NIMBY_DATA_UNAVAILABLE, operation);
     Table<T> result;
     result.rows.reserve(rows->size());
+    // Counts are known: avoid repeated rehashing during the freshness budget.
+    result.index.reserve(rows->size());
     for (const auto& row : *rows) {
         result.index.emplace(key(row), result.rows.size());
         result.rows.emplace_back(row);
@@ -550,9 +602,15 @@ struct NativeSnapshot {
 }
 
 class Client;
+struct GameSession {
+    uint64_t generation=0;
+    std::string worldId; // World lineage; Save As may preserve it.
+    bool operator==(const GameSession&) const = default;
+};
 class Snapshot {
 public:
     using Ptr = std::shared_ptr<const Snapshot>;
+    const std::optional<GameSession>& getGameSession() const noexcept {return gameSession_;}
     std::uint32_t getProcessId() const noexcept { return info_.process_id; }
     std::chrono::system_clock::time_point getCapturedAt() const {
         return std::chrono::system_clock::time_point{Milliseconds{static_cast<std::int64_t>(info_.captured_unix_ms)}};
@@ -585,6 +643,26 @@ public:
     std::optional<SignalState> getSignalStateById(Id id) const { return states_.find(id); }
     std::span<const SignalTexture> getAllSignalTextures() const noexcept { return textures_.rows; }
     std::optional<SignalTexture> getSignalTextureById(Id id) const { return textures_.find(id); }
+    // Experimental native extension settings, owned by this immutable snapshot.
+    // Duplicate type names from distinct scripts are ambiguous, never first-wins.
+    SignalSettings getSignalSettings(Id id,std::string_view typeName) const {
+        if(typeName.empty())return {};
+        const auto state=extension_available_.find(id);
+        if(state==extension_available_.end()||!state->second)return {};
+        SignalSettings result;result.status=SettingsStatus::Absent;
+        const auto records=extension_fields_.find(id);
+        if(records==extension_fields_.end())return result;
+        size_t matches=0;
+        for(const auto& row:records->second)if(typeName==row.type_name && !row.field_name[0])++matches;
+        if(matches>1)return {};
+        if(!matches)return result;
+        result.status=SettingsStatus::Present;
+        for(const auto& row:records->second)if(typeName==row.type_name && row.field_name[0]){
+            const auto value=row.boolean_valid?std::optional<bool>(row.boolean_value!=0):std::nullopt;
+            if(!result.booleans.emplace(row.field_name,value).second)return {};
+        }
+        return result;
+    }
 
     std::optional<Track> getTrackForTrain(Id id) const {
         auto train = getTrainById(id);
@@ -691,6 +769,7 @@ public:
 private:
     friend class Client;
     Snapshot() = default;
+    std::optional<GameSession> gameSession_;
     NimbySnapshotInfo info_{};
     std::optional<SimulationClock> clock_;
     std::chrono::steady_clock::time_point captured_;
@@ -706,6 +785,8 @@ private:
     detail::Table<TrackJunction> junctions_;
     detail::Table<SignalState> states_;
     detail::Table<SignalTexture> textures_;
+    std::unordered_map<Id,bool> extension_available_;
+    std::unordered_map<Id,std::vector<NimbySignalExtensionField>> extension_fields_;
     std::unordered_map<Id, std::vector<Id>> paths_;
     std::optional<std::vector<TrackUsage>> reservations_, occupations_;
     std::unordered_map<Id,std::vector<Id>> occupant_ids_,reservation_ids_;
@@ -715,13 +796,29 @@ private:
         for (const auto& row : rows) if (predicate(row)) result.push_back(row);
         return result;
     }
-    static Ptr capture(NimbySession session) {
+    static Ptr capture(NimbySession session, SnapshotScope scope,const char* textureSet=nullptr) {
         detail::NativeSnapshot native;
-        detail::check(NimbyInternal_CaptureSnapshot(session, &native.value), "CaptureSnapshot");
+        uint32_t stage{};
+        const auto captureStatus=textureSet ? NimbyInternal_CaptureSignallingFor(session,textureSet,&native.value,&stage) : scope==SnapshotScope::Signalling
+            ? NimbyInternal_CaptureSignallingSnapshot(session, &native.value, &stage)
+            : NimbyInternal_CaptureSnapshotDiagnostic(session, &native.value, &stage);
+        constexpr const char* stages[]{"CaptureSnapshot", "CaptureSnapshot/live roots",
+            "CaptureSnapshot/trains", "CaptureSnapshot/network", "CaptureSnapshot/roots after network",
+            "CaptureSnapshot/roots after occupations", "CaptureSnapshot/train track reference",
+            "CaptureSnapshot/roots after textures"};
+        detail::check(captureStatus,stages[stage<std::size(stages)?stage:0]);
         auto result = std::shared_ptr<Snapshot>(new Snapshot);
         result->captured_ = std::chrono::steady_clock::now();
         result->info_.struct_size = sizeof result->info_;
         detail::check(NimbyInternal_GetSnapshotInfo(native.value, &result->info_), "GetSnapshotInfo");
+        NimbyGameSession game{};game.struct_size=sizeof(game);
+        const auto gameStatus=NimbyInternal_GetGameSession(native.value,&game);
+        if(gameStatus==NIMBY_OK){
+            GameSession value;value.generation=game.generation;
+            constexpr char hex[]="0123456789abcdef";
+            for(auto byte:game.world_value){value.worldId+=hex[byte>>4];value.worldId+=hex[byte&15];}
+            result->gameSession_=std::move(value);
+        }else if(gameStatus!=NIMBY_DATA_UNAVAILABLE)detail::check(gameStatus,"GetGameSession");
         NimbySimulationClock clock{};clock.struct_size=sizeof clock;
         const auto clockStatus=NimbyInternal_GetSimulationClock(native.value,&clock);
         if(clockStatus==NIMBY_OK)result->clock_=SimulationClock{clock};
@@ -762,7 +859,15 @@ private:
             [&](auto* out, auto capacity, auto* count) { return NimbyInternal_CopySignalTextures(native.value, out, capacity, count); },
             [](const NimbySignalTexture& row) { return row.signal_id; }, "CopySignalTextures");
 
-        for (const auto& train : result->trains_.rows) {
+        const auto extensionStates=detail::copyRecords<NimbySignalExtensionsState>(
+            [&](auto* out,auto capacity,auto* count){return NimbyInternal_CopySignalExtensionsStates(native.value,out,capacity,count);},"CopySignalExtensionsStates");
+        const auto extensionFields=detail::copyRecords<NimbySignalExtensionField>(
+            [&](auto* out,auto capacity,auto* count){return NimbyInternal_CopySignalExtensionFields(native.value,out,capacity,count);},"CopySignalExtensionFields");
+        if(extensionStates && extensionFields){
+            for(const auto& row:*extensionStates)result->extension_available_.emplace(row.signal_id,row.available==1);
+            for(const auto& row:*extensionFields)result->extension_fields_[row.signal_id].push_back(row);
+        }
+        if(scope==SnapshotScope::Complete)for (const auto& train : result->trains_.rows) {
             auto stops=detail::copyRecords<NimbyLineStop>([&](auto* out,auto capacity,auto* count){
                 return NimbyInternal_CopyTrainLineStops(native.value,train.getId(),out,capacity,count);
             },"CopyTrainLineStops");
@@ -799,6 +904,7 @@ enum class ConnectionState { Connected, ProcessExited };
 
 namespace detail {
 inline std::uint32_t discoverProcess() {
+#ifdef _WIN32
     const HANDLE handle = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
     if (handle == INVALID_HANDLE_VALUE) check(NIMBY_IO_ERROR, "FindProcess");
     struct Close { HANDLE value; ~Close() { CloseHandle(value); } } owner{handle};
@@ -815,6 +921,20 @@ inline std::uint32_t discoverProcess() {
     if (GetLastError() != ERROR_NO_MORE_FILES) check(NIMBY_IO_ERROR, "FindProcess");
     if (!found) throw Exception({NIMBY_IO_ERROR, "FindProcess", "NIMBY Rails is not running"});
     return found;
+#else
+    std::uint32_t found=0;
+    for(const auto& entry:std::filesystem::directory_iterator("/proc")) {
+        const auto name=entry.path().filename().string();
+        if(name.empty() || name.find_first_not_of("0123456789")!=std::string::npos)continue;
+        std::error_code error;
+        const auto executable=std::filesystem::read_symlink(entry.path()/"exe",error);
+        if(error || executable.filename()!="nimbyrails")continue;
+        if(found)throw Exception({NIMBY_INVALID_ARGUMENT,"FindProcess","Several NIMBY Rails processes found; use connect(pid)"});
+        found=static_cast<std::uint32_t>(std::stoul(name));
+    }
+    if(!found)throw Exception({NIMBY_IO_ERROR,"FindProcess","NIMBY Rails is not running"});
+    return found;
+#endif
 }
 }
 
@@ -837,6 +957,21 @@ public:
         if (session_) NimbyInternal_CloseSession(session_);
     }
     Version getSdkVersion() const noexcept { return version_; }
+    DrivingCapabilities getDrivingCapabilities() const noexcept {
+        // Do not advertise experimental memory writes as vehicle controls.
+        return {version_.patch>=3,false,false,false,false,false};
+    }
+    // Targeted read, independent of latest()/the full network snapshot.
+    // nullopt means absent/unstable, never a stopped train. No automatic retry loop.
+    std::optional<DrivingObservation> readTrain(Id id) {
+        if(version_.patch<3) detail::check(NIMBY_INVALID_ARGUMENT,"readTrain requires SDK 0.7.3+");
+        std::lock_guard captureLock(captureMutex_);
+        NimbyDrivingObservation value{};value.struct_size=sizeof value;
+        const auto code=NimbyInternal_ReadTrainDriving(session_,id,&value);
+        if(code==NIMBY_DATA_UNAVAILABLE)return std::nullopt;
+        detail::check(code,"ReadTrainDriving");
+        return DrivingObservation{value};
+    }
     // Experimental: rebases the calendar and active train service dates together,
     // preserving ticks, elapsed-time deadlines and the subsecond fraction.
     // UTC input, not the map's local time. Existing retained snapshots remain unchanged.
@@ -887,10 +1022,17 @@ public:
         });
         return bool(latest_);
     }
-    Snapshot::Ptr capture() {
+    // Capture BAL : occupations et presence verifiees, sans donnees de service.
+    Snapshot::Ptr captureSignalling() { return capture(SnapshotScope::Signalling); }
+    // Fresh topology limited to this catalogue and its next boundaries.
+    Snapshot::Ptr captureSignalling(std::string_view textureSet) {
+        if(textureSet.empty()||textureSet.size()>256||textureSet.find('\0')!=std::string_view::npos)throw std::invalid_argument("Invalid texture set");
+        const std::string name(textureSet);return capture(SnapshotScope::Signalling,name.c_str());
+    }
+    Snapshot::Ptr capture(SnapshotScope scope=SnapshotScope::Complete,const char* textureSet=nullptr) {
         std::lock_guard captureLock(captureMutex_);
         try {
-            auto snapshot = Snapshot::capture(session_);
+            auto snapshot = Snapshot::capture(session_,scope,textureSet);
             {
                 std::lock_guard lock(mutex_);
                 latest_ = snapshot;

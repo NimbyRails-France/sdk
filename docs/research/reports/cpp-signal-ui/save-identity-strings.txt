@@ -1,0 +1,146 @@
+SHA256: fff49ac21720abfc824c2b4f68b862727630eb0db71cfe1f9ea8f685d0db10ae
+1409b4110 download_write header(type=%x, blen=%zu) -> %d
+  1408ec59c caller 1408ec4b0
+1409b4140 download_write body(type=%x, blen=%zu), did not want a BODY
+  1408ec62a caller 1408ec4b0
+1409b41a8 download_write body(type=%x, blen=%zu) -> %d
+  1408ec795 caller 1408ec4b0
+140a02f58 .nimbyrails5
+  14049f984 caller 14049f830
+  14049f995 caller 14049f830
+  14049f9c4 caller 14049f830
+  14049fa0d caller 14049f830
+  14049ce18 caller 14049cb20
+  14049ce23 caller 14049cb20
+140a4d490 load_extension
+140a5e370 WaW.NIMBYRails.nimbyrails5
+  1402eeeb4 caller 1402eee70
+140a5fbf0 \\.\mailslot\waw.nimbyrails1.args
+  1402f0b48 caller 1402f0a40
+  1402f0bbf caller 1402f0a40
+140a5fc38 waw.nimbyrails1.running
+  1402f0adc caller 1402f0a40
+140a5fcc0 Cannot create save games folder in your Saved Games folder or in Roaming AppData folder
+  1402f1394 caller 1402f0a40
+140a5fd18 Cannot create mods folder in your saved games folder
+  1402f1308 caller 1402f0a40
+140a74140 Current microseconds since the creation of this saved game. This is used as the timing root of the simulation.
+  14045582c caller 140452f40
+140a75918 error_too_new_save_v
+  14049dbae caller 14049d9a0
+140a7c9a0 https://share.nimbyrails.com/{slug}/preview.jpg
+  1404e2b27 caller 1404e2900
+140a7c9d0 https://share.nimbyrails.com/{slug}/save
+  1404e2abf caller 1404e2900
+140a7ca08 https://share.nimbyrails.com/{slug}/preview-small.jpg
+  1404e2bad caller 1404e2900
+140a7ca60 share_upload_save2
+  1405e6c72 caller 1405e6b90
+140a7ca78 Uploading saved game
+  1405e6c6b caller 1405e6b90
+140a7cac8 https://share.nimbyrails.com/
+  1404e299d caller 1404e2900
+140a7cae8 https://api-share-v1.nimbyrails.com
+  1404e2942 caller 1404e2900
+140a7cb10 https://share.nimbyrails.com/{slug}
+  1404e2a52 caller 1404e2900
+140a7cb38 https://share.nimbyrails.com/feed.json
+  1404e29f8 caller 1404e2900
+140a82bb8 load_game
+  1405df197 caller 1405df030
+  140564ecb caller 140564c50
+  1405e437b caller 1405e4220
+  1405e3af2 caller 1405e39c0
+  1405ec64e caller 1405eb540
+  1405e230e caller 1405e1a00
+140a82bc8 Quit current game and load saved game {}?
+  140564d5f caller 140564c50
+140a82bf8 banner_prompt_quit_load_cmd_line
+  140564d66 caller 140564c50
+140a82cf0 {0} proposes you to join a game hosted by {1}. Do you want to join? Your current game will be autosaved and you will quit the current server.
+  140565463 caller 140564c50
+140a82da0 Do you want to join a game hosted by {}? WARNING: You are currently hosting a game. All your connected players will be disconnected. Your current game will be autosaved.
+  140565342 caller 140564c50
+140a82e70 {0} proposes you to join a game hosted by {1}. Do you want to join? Your current game will be autosaved.
+  1405655fd caller 140564c50
+140a82f00 Do you want to join a game hosted by {}? Your current game will be autosaved and you will quit the current server.
+  1405654ec caller 140564c50
+140a83010 {0} proposes you to join a game hosted by {1}. Do you want to join? WARNING: You are currently hosting a game. All your connected players will be disconnected. Your current game will be autosaved.
+  1405651fb caller 140564c50
+140a832c0 Do you want to join a game hosted by {}? Your current game will be autosaved.
+  1405656e1 caller 140564c50
+140a89128 mod_uploader_info_guide
+  1405cf10c caller 1405ce310
+140a89140 Mod development guide
+  1405cf105 caller 1405ce310
+140a89210 upload_mod
+  1405cde92 caller 1405cc620
+140a89a38 autosave_interval
+  140725a10 caller 1407255f0
+  1405d4231 caller 1405d3f60
+  1405d43bf caller 1405d3f60
+  1405d4502 caller 1405d3f60
+  1405d4601 caller 1405d3f60
+  1405d46ee caller 1405d3f60
+  1405d4769 caller 1405d3f60
+  140681f90 caller 140681dd0
+  1405d4b07 caller 1405d3f60
+  1405d4b62 caller 1405d3f60
+  1405d4bc0 caller 1405d3f60
+  1405d4c1e caller 1405d3f60
+  1405d4c7c caller 1405d3f60
+  1405d4cd7 caller 1405d3f60
+  1405d5003 caller 1405d4eb0
+140a89a68 autosave_slots
+  140725991 caller 1407255f0
+  1405d4055 caller 1405d3f60
+  1405d49a7 caller 1405d3f60
+  140681e3c caller 140681dd0
+  1405d4f2d caller 1405d4eb0
+140a8aa08 save_game
+  1405df1e9 caller 1405df030
+  1405df4a4 caller 1405df030
+  1405e4e31 caller 1405e4d80
+  1405e4b01 caller 1405e46f0
+140a8aaf0 https://wiki.nimbyrails.com/
+  1405df5eb caller 1405df030
+140a8b780 Open saved games auto backup folder
+  1405e407c caller 1405e3d60
+140a8b980 new_save_file_name
+  1405e5bd8 caller 1405e5b60
+140a8b9b0 new_save_placeholder
+  1405e4773 caller 1405e46f0
+140a8ba00 save_file_name
+  1405e4fe0 caller 1405e4f40
+140a8ba20 ##mm_save_file_name
+  1405e4fb7 caller 1405e4f40
+140a8bac0 Open saved games folder
+  1405e41db caller 1405e3d60
+140a8bc80 {} was saved with a different game version. Do you want to overwrite it, or rename it to keep its original contents, then save the game?
+  1405e5506 caller 1405e4f40
+140a8c018 share_game_upload_desc
+  1405e7964 caller 1405e7030
+140a9cff8 Hold Ctrl to hide guides and disable snapping.
+  14077c824 caller 14077c4a0
+140a9d040 Hold Ctrl to show guides and snap to previous track alignment.
+  14077c834 caller 14077c4a0
+140a9f728 signal_editor_save_template
+  1407a0c47 caller 1407a0a40
+140a9ff98 save_clipboard
+  1407ae3f8 caller 1407ad460
+140a9fff0 Show saved clipboard clips
+  1407ae27a caller 1407ad460
+140aa0100 Your saved and subscribed clips reached the limit of 50,000 tracks and buildings. Please delete some saved clips and/or unsubscribe from some collections.
+  1407ac597 caller 1407ab240
+140aa1310 icon_auto_guide.svg
+  1407b3564 caller 1407b2830
+  1407b356b caller 1407b2830
+140aa1328 trackeditor_always_show_auto_guide
+  1407b3545 caller 1407b2830
+140aa1428 Always display snapping track guides
+  1407b353e caller 1407b2830
+140b65ea0 .?AV<lambda_1>@?1??lifecycle_start_sp_load_http@UITxn@shell@nimby@@QEAAXV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@0@Z@
+140b660f0 .?AV<lambda_1>@?1??save_local_game@UITxn@shell@nimby@@QEAAXVpath@filesystem@std@@@Z@
+140b71590 .?AUmy_stringbuf@?2??save_ostream@saves@sync@nimby@@YA?AV?$optional@V?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@@std@@AEAV?$basic_ostream@DU?$char_traits@D@std@@@6@AEBUGame@234@@Z@
+140b741f0 .?AV?$_Func_impl_no_alloc@V<lambda_1>@?1??lifecycle_start_sp_load_http@UITxn@shell@nimby@@QEAAXV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@0@Z@XAEAUUIState@45@@std@@
+140b74510 .?AV?$_Func_impl_no_alloc@V<lambda_1>@?1??save_local_game@UITxn@shell@nimby@@QEAAXVpath@filesystem@std@@@Z@XAEAUUIState@45@@std@@

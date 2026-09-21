@@ -110,3 +110,9 @@ sont lus dans cette partie. Depuis le signal d'entrée en sens -1,
 en 12 sections, sans troncature ni connexion manquante. Depuis la branche déviée
 en sens -1, il retrouve `8000000140003` en 8 sections. Les détails du décodage
 et la preuve au débogueur sont dans [le rapport de recherche](research/track-junctions.md).
+
+BlockTopology now uses `traceToNextSignal`: it stops collecting track sections
+as soon as a facing boundary is present, reporting `SignalReached`. It still
+retains all signals in the final section to detect coincident/ambiguous exits.
+The general `traceFrom` API keeps its previous full-trace behavior. A junction
+before the boundary remains unresolved; no branch is chosen automatically.

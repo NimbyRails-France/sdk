@@ -10,3 +10,9 @@
 /exports/
 __pycache__/
 *.pyc
+**/.gradle/
+**/.kotlin/
+/gradle-plugin/build/
+/examples/kotlin-mod/build/
+/local-notes/
+/kotlin-client/build/

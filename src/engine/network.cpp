@@ -1,4 +1,5 @@
 #include "engine/network.h"
+#include "engine/native_string.h"
 #include "engine/simulation_clock.h"
 #include <algorithm>
 #include <array>
@@ -42,7 +43,7 @@ bool passenger_counts(ReadMemory read,void* context,const LiveState& state,std::
     out.clear();
     for(int attempt=0;attempt<3;++attempt){
         uint64_t query{},query_after{};std::array<uint64_t,2> header{},after{};
-        if(!read(context,state.simulation+0x2208,&query,8)||!pointer(query)||
+        if(!read(context,state.simulation+(state.profile==LiveStateProfile::Linux119?0x17e8:0x2208),&query,8)||!pointer(query)||
            !read(context,query+0x90,header.data(),sizeof header))continue;
         const auto buckets=header[0],count=header[1];
         if(!pointer(buckets)||!count||count>1048576)continue;
@@ -61,7 +62,7 @@ bool passenger_counts(ReadMemory read,void* context,const LiveState& state,std::
         }
         if(!valid||!read(context,buckets,verify.data(),verify.size()*8)||heads!=verify||
            !read(context,query+0x90,after.data(),sizeof after)||header!=after||
-           !read(context,state.simulation+0x2208,&query_after,8)||query!=query_after)continue;
+           !read(context,state.simulation+(state.profile==LiveStateProfile::Linux119?0x17e8:0x2208),&query_after,8)||query!=query_after)continue;
         out=std::move(result);return true;
     }
     return false;
@@ -80,21 +81,13 @@ void resolve_station_names(ReadMemory read,void* context,const LiveState& state,
         [&](const unsigned char* p,uint64_t address){
             const auto id=field<uint64_t>(p,0);
             if(!automatic.contains(id))return true; // Includes the ID generation.
-            const auto length=field<uint64_t>(p,0x18),capacity=field<uint64_t>(p,0x20);
-            if(length>256||capacity<15||capacity<length||capacity>4096)return true;
-            std::array<char,257> text{},verify{};
-            if(capacity==15)std::memcpy(text.data(),p+8,length+1);
-            else {
-                const auto data=field<uint64_t>(p,8);
-                if(!pointer(data)||!read(context,data,text.data(),length+1)||
-                   !read(context,data,verify.data(),length+1)||text!=verify)return true;
-            }
+            std::string text;
+            if(!read_native_string(read,context,address+8,p+8,state.profile,text))return true;
             // Reject missing terminators, embedded NULs and concurrent replacement.
             std::array<unsigned char,0x28> after{};
-            if(text[length]||std::memchr(text.data(),0,length)||
-               !read(context,address,after.data(),after.size())||
+            if(!read(context,address,after.data(),after.size())||
                std::memcmp(p,after.data(),after.size())!=0)return true;
-            names.emplace(id,std::string(text.data(),length));
+            names.emplace(id,std::move(text));
             return true;
         });
     // An unavailable cache must not hide otherwise valid network data.
@@ -172,23 +165,20 @@ bool decode_train_position(const void* motion,size_t size,TrainPosition& out) no
 const char* signal_kind_name(int kind) noexcept {
     switch(kind) {case 0:return "OneWay";case 1:return "PlatformStop";case 3:return "Balise";case 4:return "Path";case 5:return "NoWay";case 6:return "Marker";default:return "Unknown";}
 }
-bool read_trains(ReadMemory read,void* context,const LiveState& state,bool recognized,std::vector<Train>& out) noexcept {
+bool read_trains(ReadMemory read,void* context,const LiveState& state,bool recognized,std::vector<Train>& out,bool presenceOnly) noexcept {
     out.clear();if(!read||!recognized)return false;
     try {
         LiveState current;
-        if(!resolve_live_state(read,context,state.module_base,true,current)||current!=state)return false;
+        if(!resolve_live_state(read,context,state.module_base,true,state.profile,current)||current!=state)return false;
         std::map<uint64_t,Train> trains;
         std::map<uint64_t,uint64_t> model_addresses;
         size_t path_budget=1048576;
         if(!collect(read,context,state.database+0x200,5,0x178,[&](const unsigned char* p,uint64_t address){
             Train t;t.id=field<uint64_t>(p,0);
-            const auto length=field<uint64_t>(p,0x20),capacity=field<uint64_t>(p,0x28);
-            if(length>256||capacity<15||capacity<length||capacity>4096)return false;
-            std::array<char,257> text{};
-            if(capacity<=15)std::memcpy(text.data(),p+0x10,length+1);
-            else if(!pointer(field<uint64_t>(p,0x10))||!read(context,field<uint64_t>(p,0x10),text.data(),length+1))return false;
-            if(text[length])return false;
-            t.name.assign(text.data(),length);t.order_mode=field<int32_t>(p,0xb8);
+            // BAL : seules l'identite et la presence physique sont necessaires.
+            if(presenceOnly){t.service.train_id=t.id;trains.emplace(t.id,std::move(t));return true;}
+            if(!read_native_string(read,context,address+0x10,p+0x10,state.profile,t.name))return false;
+            t.order_mode=field<int32_t>(p,0xb8);
             t.service.train_id=t.id;t.details.train_id=t.id;t.details.order_mode=t.order_mode;t.details.order_index=-1;
             model_addresses.emplace(t.id,address);trains.emplace(t.id,std::move(t));return true;
         }))return false;
@@ -198,13 +188,30 @@ bool read_trains(ReadMemory read,void* context,const LiveState& state,bool recog
             // Service validity is independent of speed/network availability.
             NimbyTrainService first{},second{};
             std::array<unsigned char,0x638> service_after{};
+            const bool motionRechecked=read(context,address,service_after.data(),service_after.size())&&
+                field<uint64_t>(service_after.data(),0)==t.id;
+            // Presence means network membership plus visibility, not whether a
+            // Drive was engaged. Starting to move need not change occupancy.
+            if(motionRechecked){
+                uint32_t presenceFlags=0,afterFlags=0;bool stable=true;
+                for(auto [offset,flag]:std::array<std::pair<size_t,uint32_t>,3>{{
+                    {0x1d0,NIMBY_MOTION_PRESENCE},{0x218,NIMBY_MOTION_HIDDEN},{0x4b0,NIMBY_MOTION_DRIVE}}}){
+                    if(p[offset]>1||service_after[offset]>1)stable=false;
+                    if(p[offset]==1)presenceFlags|=flag;
+                    if(service_after[offset]==1)afterFlags|=flag;
+                }
+                stable=stable && (presenceFlags!=0)==(afterFlags!=0) &&
+                    (presenceFlags&NIMBY_MOTION_HIDDEN)==(afterFlags&NIMBY_MOTION_HIDDEN);
+                if(stable){t.service.flags=NIMBY_SERVICE_PRESENCE_VALID;t.service.motion_flags=presenceFlags;}
+            }
+            if(presenceOnly)return true;
             int64_t ticks{},epoch{};
             const bool clock_read=read(context,state.simulation+0x28,&ticks,sizeof ticks);
             std::array<unsigned char,0xbc> model_after{};
             if(decode_train_service(p,0x638,t.order_mode,first)&&
                read(context,model_addresses.at(t.id),model_after.data(),model_after.size())&&
                field<uint64_t>(model_after.data(),0)==t.id&&field<int32_t>(model_after.data(),0xb8)==t.order_mode&&
-               read(context,address,service_after.data(),service_after.size())&&
+               motionRechecked&&
                decode_train_service(service_after.data(),service_after.size(),t.order_mode,second)&&
                std::memcmp(&first,&second,sizeof first)==0){
                 t.service=first;
@@ -246,15 +253,21 @@ bool read_trains(ReadMemory read,void* context,const LiveState& state,bool recog
             if(!t.present) {
                 // Native train-info UI (RVA 0x7f5be3): no Drive => display zero.
                 // Never expose residual speed bytes from a disengaged optional.
-                std::array<unsigned char,0x4b1> after{};
-                if(!read(context,address,after.data(),after.size())||
-                   field<uint64_t>(after.data(),0)!=t.id||after[0x4b0]!=0)return false;
                 t.speed_mps=0;
+                // Reuse the verified Motion read. An optional Drive transition
+                // invalidates the default speed, not the whole network snapshot.
+                t.speed_available=motionRechecked&&service_after[0x4b0]==0;
+            } else {
+                t.speed_available=true;
             }
-            t.speed_available=true; // A matching Motion was actually observed.
             if(!t.positioned&&p[0x1d0]==1){t.positioned=position(p+0xb8,t.position);}
             return true;
         }))return false;
+        if(presenceOnly){
+            if(!resolve_live_state(read,context,state.module_base,true,state.profile,current)||current!=state)return false;
+            for(auto& [id,t]:trains)out.push_back(std::move(t));
+            return true;
+        }
         std::map<uint64_t,int32_t> passengers;
         if(passenger_counts(read,context,state,passengers)){
             for(auto& [id,t]:trains)if((t.service.flags&NIMBY_SERVICE_STATE_VALID)&&(t.service.motion_flags&NIMBY_MOTION_PRESENCE)){
@@ -279,14 +292,9 @@ bool read_trains(ReadMemory read,void* context,const LiveState& state,bool recog
             const auto kind=field<int32_t>(p,0xfc);
             if(kind<0||kind>2)continue;
             s.line_kind=kind;s.flags|=NIMBY_SERVICE_LINE_VALID;
-            const auto length=field<uint64_t>(p,0x88),capacity=field<uint64_t>(p,0x90);
-            if(length<=256&&capacity>=15&&capacity>=length&&capacity<=4096){
-                std::array<char,257> name{},verify{};
-                bool ok=true;
-                if(capacity==15)std::memcpy(name.data(),p+0x78,length+1);
-                else {auto address=field<uint64_t>(p,0x78);ok=pointer(address)&&read(context,address,name.data(),length+1)&&read(context,address,verify.data(),length+1)&&name==verify;}
-                if(ok&&!name[length]&&!std::memchr(name.data(),0,length))std::memcpy(s.line_name_utf8,name.data(),length);
-            }
+            std::string name;
+            if(read_native_string(read,context,line_addresses.at(s.line_id)+0x78,p+0x78,state.profile,name))
+                std::memcpy(s.line_name_utf8,name.data(),name.size());
             std::array<unsigned char,0x280> line_verify{};
             if(!read(context,line_addresses.at(s.line_id),line_verify.data(),line_verify.size())||line_verify!=line){
                 s.flags&=~NIMBY_SERVICE_LINE_VALID;s.line_kind=-1;s.line_name_utf8[0]=0;continue;
@@ -326,16 +334,16 @@ bool read_trains(ReadMemory read,void* context,const LiveState& state,bool recog
             if(kind==1&&(s.motion_flags&NIMBY_MOTION_HIDDEN)&&(s.motion_flags&NIMBY_MOTION_RUN_STOP)&&
                !(s.motion_flags&NIMBY_MOTION_DRIVE)&&s.status!=NIMBY_SERVICE_MOTHBALLED)s.status=NIMBY_SERVICE_DEPOT;
         }
-        if(!resolve_live_state(read,context,state.module_base,true,current)||current!=state)return false;
+        if(!resolve_live_state(read,context,state.module_base,true,state.profile,current)||current!=state)return false;
         for(auto& [id,t]:trains)out.push_back(std::move(t));
         return true;
     }catch(...){out.clear();return false;}
 }
-bool read_network(ReadMemory read,void* context,const LiveState& state,bool recognized,Network& out) noexcept {
+bool read_network(ReadMemory read,void* context,const LiveState& state,bool recognized,Network& out,bool signallingOnly) noexcept {
     out={};if(!read||!recognized) return false;
     try {
         LiveState current{};
-        if(!resolve_live_state(read,context,state.module_base,true,current)||current!=state) return false;
+        if(!resolve_live_state(read,context,state.module_base,true,state.profile,current)||current!=state) return false;
         Network result;
         struct Label { NimbyPlatform value{}; bool automatic{},geometry_valid{}; int32_t number{}; double dx{},dy{}; uint64_t links[2]{}; };
         std::vector<Label> labels;
@@ -355,7 +363,7 @@ bool read_network(ReadMemory read,void* context,const LiveState& state,bool reco
                 attachments.emplace(t.id,attachment);
             // RVA 0x4282f0 and threshold at RVA 0xaab904 (float 1/3.6).
             t.limit_mps=t.manual_mps<0.27777761220932007f?t.physical_mps:std::min(t.physical_mps,t.manual_mps);
-            if(t.station_id){
+            if(t.station_id&&!signallingOnly){
                 Label label;label.value.track_id=t.id;label.value.station_id=t.station_id;
                 label.links[0]=t.links[0];label.links[1]=t.links[1];
                 bool valid=p[0xc8]<=1;label.automatic=p[0xc8]==1;
@@ -375,15 +383,9 @@ bool read_network(ReadMemory read,void* context,const LiveState& state,bool reco
                         }
                     }
                 }else if(valid){
-                    const auto length=field<uint64_t>(p,0xb8),capacity=field<uint64_t>(p,0xc0);
-                    valid=length<=256&&capacity>=15&&capacity>=length&&capacity<=4096;
-                    std::array<char,257> name{},again{};
-                    if(valid){
-                        if(capacity==15)std::memcpy(name.data(),p+0xa8,length+1);
-                        else {const auto ptr=field<uint64_t>(p,0xa8);valid=pointer(ptr)&&read(context,ptr,name.data(),length+1)&&read(context,ptr,again.data(),length+1)&&name==again;}
-                        valid=valid&&!name[length]&&!std::memchr(name.data(),0,length);
-                        if(valid)std::memcpy(label.value.name_utf8,name.data(),length);
-                    }
+                    std::string name;
+                    valid=read_native_string(read,context,address+0xa8,p+0xa8,state.profile,name);
+                    if(valid)std::memcpy(label.value.name_utf8,name.data(),name.size());
                 }
                 std::array<unsigned char,0x1c0> verify{};
                 valid=valid&&read(context,address,verify.data(),verify.size())&&
@@ -446,28 +448,22 @@ bool read_network(ReadMemory read,void* context,const LiveState& state,bool reco
             result.platforms.push_back(label.value);
         }
         std::map<uint64_t,size_t> automatic_stations;
-        if(!collect(read,context,state.database+0x80,2,0x3e8,[&](const unsigned char* p,uint64_t){
+        if(!signallingOnly&&!collect(read,context,state.database+0x80,2,0x3e8,[&](const unsigned char* p,uint64_t address){
             Station s{field<uint64_t>(p,0),{}};
             if(p[0x40]>1) return false;
             if(!p[0x40]) {
-                const auto length=field<uint64_t>(p,0x30),capacity=field<uint64_t>(p,0x38);
-                if(length>256||capacity<15||capacity<length||capacity>4096) return false;
-                std::array<char,257> text{};
-                if(capacity<=15) std::memcpy(text.data(),p+0x20,length+1);
-                else if(!pointer(field<uint64_t>(p,0x20))||!read(context,field<uint64_t>(p,0x20),text.data(),length+1)) return false;
-                if(text[length]) return false;
-                s.name.assign(text.data(),length);
+                if(!read_native_string(read,context,address+0x20,p+0x20,state.profile,s.name))return false;
             }
             if(p[0x40])automatic_stations.emplace(s.id,result.stations.size());
             result.stations.push_back(std::move(s));return true;
         })) return false;
-        resolve_station_names(read,context,state,automatic_stations,result.stations);
+        if(!signallingOnly)resolve_station_names(read,context,state,automatic_stations,result.stations);
         if(!collect(read,context,state.database+0x380,8,0xc8,[&](const unsigned char* p,uint64_t address){
             TrainPosition pos;
             if(!position(p+0x40,pos)) return false;
             const int kind=field<int32_t>(p,0x30);
             if(kind<0||kind>6) return false;
-            Signal signal{field<uint64_t>(p,0),pos.track_id,pos.fraction,pos.direction,kind,field<uint64_t>(p,0x38)};
+            Signal signal{field<uint64_t>(p,0),pos.track_id,pos.fraction,pos.direction,kind,field<uint64_t>(p,0x38),false,false,0,false,{}};
             // Signal editor RVA 0x79f4d0: exceptions at +78/+80/+88.
             // RVA 0x7a0a40: default filter mode at +70 (0 applies, 1 ignored).
             const auto mode=field<uint32_t>(p,0x70);
@@ -482,27 +478,154 @@ bool read_network(ReadMemory read,void* context,const LiveState& state,bool reco
                     signal.filter_available=true;signal.filter_default_ignored=mode==1;signal.exception_count=static_cast<uint32_t>(tags.size());
                 }
             }
-            result.signals.push_back(signal);return true;
+            // Native script-extension research stays opt-in. The C++ mod UI
+            // must not require NimbyScript or add per-signal reads for it.
+            result.signals.push_back(std::move(signal));return true;
         })) return false;
         // Reject unresolved references, including IDs whose generation changed.
         std::unordered_set<uint64_t> station_ids,track_ids;
         for(const auto& s:result.stations)station_ids.insert(s.id);
         for(const auto& t:result.tracks)track_ids.insert(t.id);
-        for(const auto& t:result.tracks) if(t.station_id&&!station_ids.contains(t.station_id)) return false;
+        if(!signallingOnly)for(const auto& t:result.tracks) if(t.station_id&&!station_ids.contains(t.station_id)) return false;
         for(const auto& s:result.signals) if(!track_ids.contains(s.track_id)) return false;
-        if(!resolve_live_state(read,context,state.module_base,true,current)||current!=state) return false;
+        if(!resolve_live_state(read,context,state.module_base,true,state.profile,current)||current!=state) return false;
         out=std::move(result);return true;
     } catch(...) {out={};return false;}
+}
+bool read_signalling_network(ReadMemory read,void* context,const LiveState& state,uint64_t texturesHash,Network& out) noexcept {
+    out={};if(!read)return false;
+    try {
+        LiveState current{};
+        if(!resolve_live_state(read,context,state.module_base,true,state.profile,current)||current!=state)return false;
+        std::vector<Signal> signals;
+        // Discover new/deleted/moved boundaries every time, including other mods.
+        if(!collect(read,context,state.database+0x380,8,0xc8,[&](const unsigned char* p,uint64_t){
+            TrainPosition pos;if(!position(p+0x40,pos))return false;
+            const auto kind=field<int32_t>(p,0x30);if(kind<0||kind>6)return false;
+            signals.push_back({field<uint64_t>(p,0),pos.track_id,pos.fraction,pos.direction,kind,field<uint64_t>(p,0x38),false,false,0,false,{}});
+            return true;
+        }))return false;
+        std::map<uint64_t,std::array<unsigned char,0x4e8>> records;
+        auto track=[&](uint64_t id)->const std::array<unsigned char,0x4e8>* {
+            if(auto it=records.find(id);it!=records.end())return &it->second;
+            if((id>>48)!=1||records.size()>=32768)return nullptr;
+            std::array<unsigned char,48> header{},again{};
+            if(!read(context,state.database,header.data(),header.size()))return nullptr;
+            const auto shift=field<uint32_t>(header.data(),4),size=field<uint32_t>(header.data(),8),mask=field<uint32_t>(header.data(),16);
+            const auto begin=field<uint64_t>(header.data(),24),end=field<uint64_t>(header.data(),32),cap=field<uint64_t>(header.data(),40);
+            if(!shift||shift>16||size!=(1u<<shift)||mask!=size-1||end<begin||cap<end||cap-begin>8192||(end-begin)%8||!pointer(begin))return nullptr;
+            const auto index=(id>>16)&0xffffffffULL,blockIndex=index>>shift;
+            if(blockIndex>=(end-begin)/8)return nullptr;
+            uint64_t block{},blockAgain{};
+            if(!read(context,begin+blockIndex*8,&block,8)||!pointer(block))return nullptr;
+            const auto address=block+(index&mask)*0x4e8;
+            std::array<unsigned char,0x4e8> bytes{},verify{};
+            if(!read(context,address,bytes.data(),bytes.size())||field<uint64_t>(bytes.data(),0)!=id||
+               !read(context,address,verify.data(),verify.size())||bytes!=verify||
+               !read(context,begin+blockIndex*8,&blockAgain,8)||block!=blockAgain||
+               !read(context,state.database,again.data(),again.size())||header!=again)return nullptr;
+            const auto x=field<double>(bytes.data(),0x30),y=field<double>(bytes.data(),0x38);
+            if(!std::isfinite(x)||!std::isfinite(y)||std::abs(x)>=1e9||std::abs(y)>=1e9)return nullptr;
+            return &records.emplace(id,bytes).first->second;
+        };
+        std::map<uint64_t,NimbyTrackJunction> junctions;
+        auto attachments=[&](uint64_t id,const unsigned char* p)->bool {
+            const auto begin=field<uint64_t>(p,0x408),end=field<uint64_t>(p,0x410),cap=field<uint64_t>(p,0x418);
+            if(end<begin||cap<end||(end-begin)%8||cap-begin>4096*8||(end!=begin&&!pointer(begin)))return false;
+            std::vector<uint64_t> children((end-begin)/8),again(children.size());
+            if(!children.empty()&&(!read(context,begin,children.data(),children.size()*8)||
+               !read(context,begin,again.data(),again.size()*8)||children!=again))return false;
+            for(auto child:children){
+                const auto* record=track(child);if(!record)return false;
+                const auto* b=record->data();const auto a=field<uint64_t>(b,8),z=field<uint64_t>(b,16);
+                const auto fraction=field<double>(b,0x3f8);const auto direction=field<int32_t>(b,0x400);
+                if(field<uint64_t>(b,0x3f0)!=id||(a==0)==(z==0)||!std::isfinite(fraction)||fraction<0||fraction>1||(direction!=1&&direction!=-1))return false;
+                junctions[child]={child,id,fraction,direction,a==0?1:-1};
+            }
+            return true;
+        };
+        size_t selected=0;
+        for(const auto& seed:signals)if(seed.textures_hash==texturesHash&&seed.kind==4){
+            if(++selected>4096)return false;
+            auto id=seed.track_id;auto fraction=seed.fraction;auto direction=-seed.direction;
+            for(unsigned step=0;step<256;++step){
+                const auto* record=track(id);if(!record)return false;
+                const auto* p=record->data();if(!attachments(id,p))return false;
+                std::optional<double> boundary;
+                for(const auto& signal:signals)if(signal.track_id==id&&signal.kind==4&&signal.id!=seed.id&&-signal.direction==direction&&
+                    (direction==1?signal.fraction>=fraction:signal.fraction<=fraction))
+                    if(!boundary||(direction==1?signal.fraction<*boundary:signal.fraction>*boundary))boundary=signal.fraction;
+                bool fork=false;
+                for(const auto& [child,j]:junctions)if(j.main_track_id==id&&j.main_direction==direction&&
+                    (direction==1?j.main_fraction>=fraction:j.main_fraction<=fraction)&&
+                    (!boundary||(direction==1?j.main_fraction<=*boundary:j.main_fraction>=*boundary)))fork=true;
+                if(boundary||fork)break;
+                const auto next=field<uint64_t>(p,direction==1?16:8);
+                if(next){
+                    const auto* following=track(next);if(!following)return false;
+                    const bool a=field<uint64_t>(following->data(),8)==id,b=field<uint64_t>(following->data(),16)==id;
+                    if(a==b)return false;
+                    id=next;direction=a?1:-1;fraction=a?0.:1.;
+                }else{
+                    const auto parent=field<uint64_t>(p,0x3f0);if(!parent)break;
+                    const auto* main=track(parent);if(!main||!attachments(parent,main->data()))return false;
+                    const auto found=junctions.find(id);if(found==junctions.end())return false;
+                    const auto& j=found->second;if(direction!=-j.branch_direction)break;
+                    id=parent;fraction=j.main_fraction;direction=-j.main_direction;
+                }
+            }
+        }
+        for(const auto& [id,record]:records){
+            const auto* p=record.data();Track t{};t.id=id;t.links[0]=field<uint64_t>(p,8);t.links[1]=field<uint64_t>(p,16);
+            t.x=field<double>(p,0x30);t.y=field<double>(p,0x38);
+            t.geometry=std::isfinite(t.x)&&std::isfinite(t.y)&&std::abs(t.x)<1e9&&std::abs(t.y)<1e9;
+            out.tracks.push_back(t);
+        }
+        for(const auto& signal:signals)if(records.contains(signal.track_id)||signal.textures_hash==texturesHash)out.signals.push_back(signal);
+        for(const auto& [id,j]:junctions)out.junctions.push_back(j);
+        if(!resolve_live_state(read,context,state.module_base,true,state.profile,current)||current!=state){out={};return false;}
+        return true;
+    }catch(...){out={};return false;}
+}
+bool read_signal_membership(ReadMemory read,void* context,const LiveState& state,
+                            bool recognized,uint64_t signal,bool& found) noexcept {
+    found=false;
+    if(!read||!recognized||(signal>>48)!=8)return false;
+    LiveState current{};
+    if(!resolve_live_state(read,context,state.module_base,true,state.profile,current)||current!=state)return false;
+    std::array<unsigned char,48> header{},after{};
+    const auto address=state.database+0x380;
+    if(!read(context,address,header.data(),header.size()))return false;
+    const auto shift=field<uint32_t>(header.data(),4),size=field<uint32_t>(header.data(),8);
+    const auto mask=field<uint32_t>(header.data(),16);
+    const auto begin=field<uint64_t>(header.data(),24),end=field<uint64_t>(header.data(),32),cap=field<uint64_t>(header.data(),40);
+    if(!shift||shift>16||size!=(1u<<shift)||mask!=size-1||end<begin||cap<end||
+       cap-begin>8192||(end-begin)%8||(end!=begin&&!pointer(begin))||
+       ((end-begin)/8)*size>1048576)return false;
+    const auto index=(signal>>16)&0xffffffffULL,blockIndex=index>>shift;
+    uint64_t block{},blockAfter{},id{},idAfter{};
+    const bool allocated=blockIndex<(end-begin)/8;
+    if(allocated){
+        if(!read(context,begin+blockIndex*8,&block,8)||!pointer(block))return false;
+        const auto slot=block+(index&mask)*0xc8;
+        // Verify the full ID, including generation, twice. Never accept a reused slot.
+        if(!read(context,slot,&id,8)||!read(context,slot,&idAfter,8)||id!=idAfter||
+           !read(context,begin+blockIndex*8,&blockAfter,8)||block!=blockAfter)return false;
+    }
+    if(!read(context,address,after.data(),after.size())||header!=after||
+       !resolve_live_state(read,context,state.module_base,true,state.profile,current)||current!=state)return false;
+    found=allocated&&id==signal;
+    return true;
 }
 bool read_signal_texture_states(ReadMemory read,void* context,const LiveState& state,bool recognized,
                                 std::vector<SignalTextureState>& out) noexcept {
     out.clear();if(!read||!recognized)return false;
     try {for(int attempt=0;attempt<3;++attempt){
         LiveState current{};uint64_t query{},after{};std::array<uint64_t,4> h{},verify{};
-        if(!resolve_live_state(read,context,state.module_base,true,current)||current!=state)return false;
+        if(!resolve_live_state(read,context,state.module_base,true,state.profile,current)||current!=state)return false;
         // Native renderer RVA 0x620140: Sim+0x2200 -> query Swiss map +0x378.
         // Slot: full signal ID +0, signed texture selector +8, stride 16.
-        if(!read(context,state.simulation+0x2200,&query,8)||!pointer(query)||
+        if(!read(context,state.simulation+(state.profile==LiveStateProfile::Linux119?0x17e0:0x2200),&query,8)||!pointer(query)||
            !read(context,query+0x378,h.data(),sizeof h))continue;
         const auto ctrl=h[0],slots=h[1],size=h[2],mask=h[3];
         if(mask>1048575||size>mask||(mask&(mask+1))||!pointer(ctrl)||(mask&&!pointer(slots)))continue;
@@ -518,8 +641,8 @@ bool read_signal_texture_states(ReadMemory read,void* context,const LiveState& s
         if(mask&&(!read(context,ctrl,controls_after.data(),controls_after.size())||controls!=controls_after||
                   !read(context,slots,values_after.data(),values_after.size())||values!=values_after))continue;
         if(!read(context,query+0x378,verify.data(),sizeof verify)||h!=verify||
-           !read(context,state.simulation+0x2200,&after,8)||query!=after||
-           !resolve_live_state(read,context,state.module_base,true,current)||current!=state)continue;
+           !read(context,state.simulation+(state.profile==LiveStateProfile::Linux119?0x17e0:0x2200),&after,8)||query!=after||
+           !resolve_live_state(read,context,state.module_base,true,state.profile,current)||current!=state)continue;
         out=std::move(result);return true;
     }}catch(...){}return false;
 }

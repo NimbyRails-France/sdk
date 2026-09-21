@@ -1,5 +1,8 @@
 # Créer son premier mod C++, fichier par fichier
 
+Ce parcours concerne l'API native C++. Pour un projet Kotlin sans CMake ni
+compilateur C++, suivre le [démarrage Kotlin](kotlin-mods.md).
+
 Ce tutoriel part d'un dossier vide. Vous créez les fichiers et écrivez le code
 vous-même. Il n'y a pas de projet préfabriqué à télécharger ni de textures SFR
 à recopier. Le nom fictif utilisé ici est **MonPremierMod** : remplacez-le par

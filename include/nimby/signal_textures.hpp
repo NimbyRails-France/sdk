@@ -7,6 +7,11 @@ extern "C" {
 NIMBY_API uint32_t __cdecl NimbyInternal_ShowSignalTexture(uint32_t pid, uint64_t signal,
     const char* texture_set, const char* relative_path) NIMBY_NOEXCEPT;
 NIMBY_API uint32_t __cdecl NimbyInternal_RestoreSignalTexture(uint32_t pid, uint64_t signal) NIMBY_NOEXCEPT;
+NIMBY_API uint32_t __cdecl NimbyInternal_ShowSignalTextureFor(uint32_t pid, uint64_t signal,
+    const char* texture_set, const char* relative_path, uint32_t duration_ms) NIMBY_NOEXCEPT;
+NIMBY_API uint32_t __cdecl NimbyInternal_ShowSignalAnimationFor(uint32_t pid, uint64_t signal,
+    const char* texture_set, const char* first_path, const char* alternate_path,
+    uint32_t half_period_ms, uint32_t duration_ms) NIMBY_NOEXCEPT;
 }
 
 namespace nimby {
@@ -33,6 +38,25 @@ public:
     }
     void restore(Id signal) const {
         detail::check(NimbyInternal_RestoreSignalTexture(pid_, signal), "RestoreSignalTexture");
+    }
+    // Expiring override for automatic observation loops. Renew with fresh data;
+    // otherwise the native renderer regains control even if cleanup fails.
+    void showFor(Id signal, const TextureImage& texture, Milliseconds duration) const {
+        if (duration.count() < 1000 || duration.count() > 60000)
+            throw std::invalid_argument("Texture lease must be 1000..60000 ms");
+        detail::check(NimbyInternal_ShowSignalTextureFor(pid_, signal, texture.set.c_str(),
+            texture.path.c_str(), static_cast<uint32_t>(duration.count())), "ShowSignalTextureFor");
+    }
+    // Both images belong to the same loaded catalogue. Phase is selected by the
+    // render bridge from simulation time, independent of observation frequency.
+    void animateFor(Id signal, const TextureImage& first, std::string_view alternatePath,
+        Milliseconds halfPeriod, Milliseconds duration) const {
+        if (duration.count()<1000 || duration.count()>60000 || halfPeriod.count()<100 || halfPeriod.count()>10000)
+            throw std::invalid_argument("Invalid texture animation timing");
+        const std::string alternate(alternatePath);
+        detail::check(NimbyInternal_ShowSignalAnimationFor(pid_,signal,first.set.c_str(),first.path.c_str(),
+            alternate.c_str(),static_cast<uint32_t>(halfPeriod.count()),static_cast<uint32_t>(duration.count())),
+            "ShowSignalAnimationFor");
     }
 };
 }

@@ -1,0 +1,139 @@
+Binary SHA256: fff49ac21720abfc824c2b4f68b862727630eb0db71cfe1f9ea8f685d0db10ae
+140a83468 nimby::shell::ui::NuklearEmit::vftable_meta_ptr
+140a83470 nimby::shell::ui::NuklearEmit::vftable
+  +000 -> 1405630d0 FUN_1405630d0
+  +008 -> 14055d2c0 FUN_14055d2c0
+  +010 -> 14055d320 FUN_14055d320
+  +018 -> 14055d430 FUN_14055d430
+  +020 -> 14055d460 FUN_14055d460
+  +028 -> 14055d590 FUN_14055d590
+  +030 -> 14055d620 FUN_14055d620
+  +038 -> 14055dc40 FUN_14055dc40
+  +040 -> 14055dcc0 FUN_14055dcc0
+  +048 -> 14055dd70 FUN_14055dd70
+  +050 -> 14055d5a0 FUN_14055d5a0
+  +058 -> 14055d5e0 FUN_14055d5e0
+  +060 -> 14055e1b0 FUN_14055e1b0
+  +068 -> 14055df00 FUN_14055df00
+  +070 -> 14055e590 FUN_14055e590
+  +078 -> 14055e5f0 FUN_14055e5f0
+  +080 -> 14055f0b0 FUN_14055f0b0
+  +088 -> 14055bc20 FUN_14055bc20
+  +090 -> 14055ef00 FUN_14055ef00
+  +098 -> 14055f340 FUN_14055f340
+  +0a0 -> 14055bc50 FUN_14055bc50
+  +0a8 -> 14055f570 FUN_14055f570
+  +0b0 -> 14055bc70 FUN_14055bc70
+  +0b8 -> 14055f640 FUN_14055f640
+  +0c0 -> 14055f700 FUN_14055f700
+  +0c8 -> 14055f7e0 FUN_14055f7e0
+  +0d0 -> 14055f930 FUN_14055f930
+  +0d8 -> 14055f9c0 FUN_14055f9c0
+  +0e0 -> 14055fe90 FUN_14055fe90
+  +0e8 -> 140560780 FUN_140560780
+  +0f0 -> 140560870 FUN_140560870
+  +0f8 -> 1405607c0 FUN_1405607c0
+  +100 -> 140562b30 FUN_140562b30
+  +108 -> 140560940 FUN_140560940
+140a83620 nimby::shell::ui::Declare::vftable_meta_ptr
+140a83628 nimby::shell::ui::Declare::vftable
+  +000 -> 14055beb0 FUN_14055beb0
+  +008 -> 140002b30 _guard_check_icall
+  +010 -> 140002b30 _guard_check_icall
+  +018 -> 140002b30 _guard_check_icall
+  +020 -> 1400030a0 FUN_1400030a0
+  +028 -> 140002b30 _guard_check_icall
+  +030 -> 14055bbc0 FUN_14055bbc0
+  +038 -> 140002b30 _guard_check_icall
+  +040 -> 140002b30 _guard_check_icall
+  +048 -> 140002b30 _guard_check_icall
+  +050 -> 140245240 FUN_140245240
+  +058 -> 140002b30 _guard_check_icall
+  +060 -> 14055bbf0 FUN_14055bbf0
+  +068 -> 14055bbf0 FUN_14055bbf0
+  +070 -> 140002b30 _guard_check_icall
+  +078 -> 140002b30 _guard_check_icall
+  +080 -> 14055bc00 FUN_14055bc00
+  +088 -> 14055bc20 FUN_14055bc20
+  +090 -> 14055bc00 FUN_14055bc00
+  +098 -> 14055bc00 FUN_14055bc00
+  +0a0 -> 14055bc50 FUN_14055bc50
+  +0a8 -> 14055bc40 FUN_14055bc40
+  +0b0 -> 14055bc70 FUN_14055bc70
+  +0b8 -> 14055bc40 FUN_14055bc40
+  +0c0 -> 140002b30 _guard_check_icall
+  +0c8 -> 14055bc90 FUN_14055bc90
+  +0d0 -> 14055bc90 FUN_14055bc90
+  +0d8 -> 14055bc40 FUN_14055bc40
+  +0e0 -> 14055bca0 FUN_14055bca0
+  +0e8 -> 140002b30 _guard_check_icall
+  +0f0 -> 140002b30 _guard_check_icall
+  +0f8 -> 140002b30 _guard_check_icall
+  +100 -> 14055bcc0 FUN_14055bcc0
+  +108 -> 14055bcd0 FUN_14055bcd0
+140a83810 nimby::shell::ui::LayoutEmit::vftable_meta_ptr
+140a83818 nimby::shell::ui::LayoutEmit::vftable
+  +000 -> 14055cf30 FUN_14055cf30
+  +008 -> 14055c6f0 FUN_14055c6f0
+  +010 -> 14055c6f0 FUN_14055c6f0
+  +018 -> 14055c770 FUN_14055c770
+  +020 -> 14055c7b0 FUN_14055c7b0
+  +028 -> 140002b30 _guard_check_icall
+  +030 -> 14055c950 FUN_14055c950
+  +038 -> 14055c980 FUN_14055c980
+  +040 -> 140002b30 _guard_check_icall
+  +048 -> 140002b30 _guard_check_icall
+  +050 -> 140245240 FUN_140245240
+  +058 -> 140002b30 _guard_check_icall
+  +060 -> 14055c990 FUN_14055c990
+  +068 -> 14055c990 FUN_14055c990
+  +070 -> 140002b30 _guard_check_icall
+  +078 -> 140002b30 _guard_check_icall
+  +080 -> 14055ca00 FUN_14055ca00
+  +088 -> 14055bc20 FUN_14055bc20
+  +090 -> 14055c9c0 FUN_14055c9c0
+  +098 -> 14055c9c0 FUN_14055c9c0
+  +0a0 -> 14055bc50 FUN_14055bc50
+  +0a8 -> 14055ca70 FUN_14055ca70
+  +0b0 -> 14055bc70 FUN_14055bc70
+  +0b8 -> 14055cb30 FUN_14055cb30
+  +0c0 -> 140002b30 _guard_check_icall
+  +0c8 -> 14055cc10 FUN_14055cc10
+  +0d0 -> 14055cc10 FUN_14055cc10
+  +0d8 -> 14055ca70 FUN_14055ca70
+  +0e0 -> 14055cc40 FUN_14055cc40
+  +0e8 -> 140002b30 _guard_check_icall
+  +0f0 -> 14055cd20 FUN_14055cd20
+  +0f8 -> 14055cd20 FUN_14055cd20
+  +100 -> 14055cea0 FUN_14055cea0
+  +108 -> 14055cd40 FUN_14055cd40
+140abc078 nimby::shell::ui::LayoutEmit::RTTI_Class_Hierarchy_Descriptor
+140abc090 nimby::shell::ui::LayoutEmit::RTTI_Base_Class_Descriptor_at_(0,-1,0,64)
+140abc0b8 nimby::shell::ui::LayoutEmit::RTTI_Complete_Object_Locator
+140abc0e0 nimby::shell::ui::Declare::RTTI_Class_Hierarchy_Descriptor
+140abc138 nimby::shell::ui::Declare::RTTI_Complete_Object_Locator
+140abc160 nimby::shell::ui::NuklearEmit::RTTI_Class_Hierarchy_Descriptor
+140abc190 nimby::shell::ui::LayoutEmit::RTTI_Base_Class_Array
+140abc1d0 nimby::shell::ui::NuklearEmit::RTTI_Complete_Object_Locator
+140abc210 nimby::shell::ui::Declare::RTTI_Base_Class_Array
+140abc238 nimby::shell::ui::NuklearEmit::RTTI_Base_Class_Array
+140abc290 nimby::shell::ui::NuklearEmit::RTTI_Base_Class_Descriptor_at_(0,-1,0,64)
+140abc308 nimby::shell::ui::Declare::RTTI_Base_Class_Descriptor_at_(0,-1,0,64)
+140b64a00 `public:_void___cdecl_nimby::shell::ScriptStructInstanceEditor::shell(nimby::shell::Context&___ptr64,nimby::shell::UITxn&___ptr64,nimby::shell::ui::Declare&___ptr64)___ptr64'::__l231::<lambda_1>::RTTI_Type_Descriptor
+140b64db0 `public:_void___cdecl_nimby::shell::Playing::update_right_bar(nimby::shell::Context&___ptr64,nimby::shell::UITxn&___ptr64,nimby::shell::ui::Declare&___ptr64)___ptr64'::__l40::<lambda_1>::RTTI_Type_Descriptor
+140b64e40 `public:_void___cdecl_nimby::shell::AccountingPlots::body(nimby::shell::Context&___ptr64,nimby::model::DBSession_const&___ptr64,eastl::map<nimby::model::AccountKind::Units,nimby::shell::Plots<nimby::model::AccountKind::ID>::Axis,eastl::less<nimby::model::AccountKind::Units>,eastl::allocator>&___ptr64,eastl::vector<nimby::shell::Plots<nimby::model::AccountKind::ID>::Legend,eastl::allocator>_const&___ptr64,nimby::shell::ui::Declare&___ptr64)___ptr64'::__l6::<lambda_1>::RTTI_Type_Descriptor
+140b65050 `public:___cdecl_`public:_void___cdecl_nimby::shell::AccountingPlots::body(nimby::shell::Context&___ptr64,nimby::model::DBSession_const&___ptr64,eastl::map<nimby::model::AccountKind::Units,nimby::shell::Plots<nimby::model::AccountKind::ID>::Axis,eastl::less<nimby::model::AccountKind::Units>,eastl::allocator>&___ptr64,eastl::vector<nimby::shell::Plots<nimby::model::AccountKind::ID>::Legend,eastl::allocator>_const&___ptr64,nimby::shell::ui::Declare&___ptr64)___ptr64'::`6'::<lambda_1>::operator()(nimby::shell::Context&___ptr64,nimby::shell::VGCanvas&___ptr64,float,float,float,float,float,float,float,float)const___ptr64'::__l2::<lambda_1>::RTTI_Type_Descriptor
+140b65290 `public:_void___cdecl_nimby::shell::DemandEditor::body_plot(nimby::shell::Context&___ptr64,nimby::shell::UITxn&___ptr64,nimby::model::DBSession_const&___ptr64,nimby::model::Demand_const&___ptr64,nimby::shell::DemandPlots::Focus,int,int,nimby::shell::ui::Declare&___ptr64)___ptr64'::__l10::<lambda_1>::RTTI_Type_Descriptor
+140b653d0 `public:_void___cdecl_nimby::shell::TrainWindow::render_footer(nimby::shell::ui::Declare&___ptr64,nimby::shell::Context&___ptr64,nimby::shell::UITxn&___ptr64,bool,bool)___ptr64'::__l50::<lambda_2>::RTTI_Type_Descriptor
+140b65460 `public:___cdecl_`public:_void___cdecl_nimby::shell::TrainWindow::render_realtime(nimby::shell::ui::Declare&___ptr64,nimby::shell::Context&___ptr64,nimby::shell::UITxn&___ptr64)___ptr64'::`8'::<lambda_1>::operator()(nimby::shell::Context&___ptr64,nimby::shell::VGCanvas&___ptr64,float,float,float,float,float,float,float,float)const___ptr64'::__l2::<lambda_1>::RTTI_Type_Descriptor
+140b65510 `public:_void___cdecl_nimby::shell::TrainWindow::render_footer(nimby::shell::ui::Declare&___ptr64,nimby::shell::Context&___ptr64,nimby::shell::UITxn&___ptr64,bool,bool)___ptr64'::__l47::<lambda_1>::RTTI_Type_Descriptor
+140b655a0 `public:_void___cdecl_nimby::shell::TrainWindow::render_realtime(nimby::shell::ui::Declare&___ptr64,nimby::shell::Context&___ptr64,nimby::shell::UITxn&___ptr64)___ptr64'::__l8::<lambda_1>::RTTI_Type_Descriptor
+140b656f0 `public:_void___cdecl_nimby::shell::ScheduleEditor::Impl::ScheduleTrains::train_matrix(nimby::shell::Context&___ptr64,nimby::shell::UITxn&___ptr64,nimby::shell::ui::Declare&___ptr64)___ptr64'::__l9::<lambda_1>::RTTI_Type_Descriptor
+140b65820 `public:_void___cdecl_nimby::shell::ScheduleEditor::Impl::ScheduleTrains::train_matrix(nimby::shell::Context&___ptr64,nimby::shell::UITxn&___ptr64,nimby::shell::ui::Declare&___ptr64)___ptr64'::__l14::<lambda_2>::RTTI_Type_Descriptor
+140b659f0 `struct_nimby::shell::WidgetPathTraceTooltip___cdecl_nimby::shell::widget_path_trace(nimby::shell::Context&___ptr64,nimby::shell::ui::Declare&___ptr64,nimby::shell::UITxn_const&___ptr64,lockfree::append_multimap<nimby::model::CarOccupancy>_const*___ptr64,nimby::model::SimSnapshotBase::ReservationQuery_const*___ptr64,__int64,float,float,int)'::__l2::<lambda_1>::RTTI_Type_Descriptor
+140b661b0 `public:_void___cdecl_nimby::shell::StationEditor::Impl::StationBasics::shell(nimby::shell::Context&___ptr64,nimby::shell::UITxn&___ptr64,nimby::shell::ui::Declare&___ptr64)___ptr64'::__l56::<lambda_1>::RTTI_Type_Descriptor
+140b662c0 `public:___cdecl_`public:_void___cdecl_nimby::shell::TrackEditor::Impl::collections_panel(nimby::shell::Context&___ptr64,nimby::shell::UITxn&___ptr64)___ptr64'::`2'::<lambda_4>::operator()(nimby::shell::ui::Declare&___ptr64)const___ptr64'::__l55::<lambda_1>::RTTI_Type_Descriptor
+140b66740 `public:___cdecl_`public:_void___cdecl_nimby::shell::TrackEditor::Impl::collections_panel(nimby::shell::Context&___ptr64,nimby::shell::UITxn&___ptr64)___ptr64'::`2'::<lambda_3>::operator()(nimby::shell::ui::Declare&___ptr64,nimby::shell::Collections::Clip_const&___ptr64,unsigned___int64)const___ptr64'::__l7::<lambda_1>::RTTI_Type_Descriptor
+140b71878 nimby::shell::ui::LayoutEmit::RTTI_Type_Descriptor
+140b718a8 nimby::shell::ui::NuklearEmit::RTTI_Type_Descriptor
+140b71a80 nimby::shell::ui::Declare::RTTI_Type_Descriptor

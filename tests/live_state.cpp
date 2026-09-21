@@ -15,19 +15,23 @@ bool read(void* context, uint64_t address, void* out, size_t length) {
     return false;
 }
 int main() {
+    using nimby::engine::LiveStateProfile;
+    for (auto profile : {LiveStateProfile::Windows119, LiveStateProfile::Linux119}) {
+    const uint64_t root_rva = profile == LiveStateProfile::Windows119 ? 0xb81998 : 0x10ee020;
     for(uint64_t relocation : {0ULL,0x12340000ULL}) {
         const uint64_t base=0x140000000ULL+relocation, root=0x200000000ULL+relocation;
-        Memory memory{{{{base+0xb81998,root},{root+0x540,root+0x10000},{root+0x5c0,root+0x20000},{root+0x680,root+0x30000}}}};
+        Memory memory{{{{base+root_rva,root},{root+0x540,root+0x10000},{root+0x5c0,root+0x20000},{root+0x680,root+0x30000}}}};
         nimby::engine::LiveState state{};
-        if(!nimby::engine::resolve_live_state(read,&memory,base,true,state) || state.module_base!=base || state.simulation!=root+0x30000 || memory.reads!=8) return 1;
+        if(!nimby::engine::resolve_live_state(read,&memory,base,true,profile,state) || state.module_base!=base || state.simulation!=root+0x30000 || memory.reads!=8) return 1;
         memory.reads=0;
-        if(nimby::engine::resolve_live_state(read,&memory,base,false,state) || memory.reads || state.root) return 2;
+        if(nimby::engine::resolve_live_state(read,&memory,base,false,profile,state) || memory.reads || state.root) return 2;
         memory.replace=true;
-        if(nimby::engine::resolve_live_state(read,&memory,base,true,state) || state.root) return 3;
+        if(nimby::engine::resolve_live_state(read,&memory,base,true,profile,state) || state.root) return 3;
         memory.replace=false; memory.cells[0][1]=0;
-        if(nimby::engine::resolve_live_state(read,&memory,base,true,state)) return 4;
+        if(nimby::engine::resolve_live_state(read,&memory,base,true,profile,state)) return 4;
         memory.cells[0][1]=root; memory.cells[3][1]=memory.cells[2][1];
-        if(nimby::engine::resolve_live_state(read,&memory,base,true,state)) return 5;
+        if(nimby::engine::resolve_live_state(read,&memory,base,true,profile,state)) return 5;
+    }
     }
     std::puts("Relocated module and heap, unknown version, replaced/null root and aliasing rejected.");
 }

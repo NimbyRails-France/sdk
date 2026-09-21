@@ -1,0 +1,732 @@
+{
+  "sha256": "fff49ac21720abfc824c2b4f68b862727630eb0db71cfe1f9ea8f685d0db10ae",
+  "image_base": "140000000",
+  "status": "Static evidence only; no validated hooks or object layouts",
+  "strings": [
+    {
+      "text": "schannel: CertFindExtension() returned no extension.",
+      "rva": "0x9c0a60",
+      "references": [
+        {
+          "from_rva": "0x92f120",
+          "type": "DATA",
+          "function_va": "14092ef70",
+          "function_rva": "0x92ef70"
+        }
+      ]
+    },
+    {
+      "text": "session-\u003ecallbacks.pack_extension_callback2 || session-\u003ecallbacks.pack_extension_callback",
+      "rva": "0x9c5f70",
+      "references": [
+        {
+          "from_rva": "0x977751",
+          "type": "DATA",
+          "function_va": "140976fa0",
+          "function_rva": "0x976fa0"
+        }
+      ]
+    },
+    {
+      "text": "load_extension",
+      "rva": "0xa4d490",
+      "references": []
+    },
+    {
+      "text": "sqlite3_extension_init",
+      "rva": "0xa4d728",
+      "references": [
+        {
+          "from_rva": "0x9a463",
+          "type": "DATA",
+          "function_va": "14009a3c0",
+          "function_rva": "0x9a3c0"
+        }
+      ]
+    },
+    {
+      "text": "automatic extension loading failed: %s",
+      "rva": "0xa4d7c0",
+      "references": [
+        {
+          "from_rva": "0xd500e",
+          "type": "DATA",
+          "function_va": "1400d4890",
+          "function_rva": "0xd4890"
+        }
+      ]
+    },
+    {
+      "text": "fields",
+      "rva": "0xa59930",
+      "references": [
+        {
+          "from_rva": "0x27fc02",
+          "type": "DATA",
+          "function_va": "14027eaf0",
+          "function_rva": "0x27eaf0"
+        },
+        {
+          "from_rva": "0x27fc54",
+          "type": "DATA",
+          "function_va": "14027eaf0",
+          "function_rva": "0x27eaf0"
+        },
+        {
+          "from_rva": "0x27fe8d",
+          "type": "DATA",
+          "function_va": "14027eaf0",
+          "function_rva": "0x27eaf0"
+        },
+        {
+          "from_rva": "0x27febf",
+          "type": "DATA",
+          "function_va": "14027eaf0",
+          "function_rva": "0x27eaf0"
+        },
+        {
+          "from_rva": "0x28042a",
+          "type": "DATA",
+          "function_va": "14027eaf0",
+          "function_rva": "0x27eaf0"
+        }
+      ]
+    },
+    {
+      "text": "script",
+      "rva": "0xa5b5bc",
+      "references": [
+        {
+          "from_rva": "0xb5ead8",
+          "type": "DATA"
+        }
+      ]
+    },
+    {
+      "text": "Script",
+      "rva": "0xa5edd4",
+      "references": [
+        {
+          "from_rva": "0x2de5dd",
+          "type": "DATA",
+          "function_va": "1402ddd10",
+          "function_rva": "0x2ddd10"
+        },
+        {
+          "from_rva": "0x2de5e4",
+          "type": "DATA",
+          "function_va": "1402ddd10",
+          "function_rva": "0x2ddd10"
+        },
+        {
+          "from_rva": "0x428a0f",
+          "type": "DATA",
+          "function_va": "140428790",
+          "function_rva": "0x428790"
+        }
+      ]
+    },
+    {
+      "text": "Scripts",
+      "rva": "0xa5f2a8",
+      "references": [
+        {
+          "from_rva": "0x2e287f",
+          "type": "DATA",
+          "function_va": "1402e2530",
+          "function_rva": "0x2e2530"
+        },
+        {
+          "from_rva": "0x2e288f",
+          "type": "DATA",
+          "function_va": "1402e2530",
+          "function_rva": "0x2e2530"
+        }
+      ]
+    },
+    {
+      "text": "nimby::model::IDRef\u003cnimby::model::Script\u003e",
+      "rva": "0xa601f8",
+      "references": [
+        {
+          "from_rva": "0x32d1d6",
+          "type": "DATA",
+          "function_va": "14032ce70",
+          "function_rva": "0x32ce70"
+        }
+      ]
+    },
+    {
+      "text": "nimby::model::ScriptStructInstance::Meta",
+      "rva": "0xa60288",
+      "references": [
+        {
+          "from_rva": "0x30fa13",
+          "type": "DATA",
+          "function_va": "14030f8b0",
+          "function_rva": "0x30f8b0"
+        },
+        {
+          "from_rva": "0x30f813",
+          "type": "DATA",
+          "function_va": "14030f6a0",
+          "function_rva": "0x30f6a0"
+        }
+      ]
+    },
+    {
+      "text": "nimby::model::ScriptStructInstance::EnumRepr",
+      "rva": "0xa602b8",
+      "references": [
+        {
+          "from_rva": "0x32cf64",
+          "type": "DATA",
+          "function_va": "14032ce70",
+          "function_rva": "0x32ce70"
+        }
+      ]
+    },
+    {
+      "text": "nimby::model::ScriptInstances",
+      "rva": "0xa602e8",
+      "references": [
+        {
+          "from_rva": "0x2f29c3",
+          "type": "DATA",
+          "function_va": "1402f29b0",
+          "function_rva": "0x2f29b0"
+        },
+        {
+          "from_rva": "0x2f2aa0",
+          "type": "DATA",
+          "function_va": "1402f2a90",
+          "function_rva": "0x2f2a90"
+        }
+      ]
+    },
+    {
+      "text": "nimby::model::ScriptStructInstance",
+      "rva": "0xa60308",
+      "references": [
+        {
+          "from_rva": "0x30d881",
+          "type": "DATA",
+          "function_va": "14030d800",
+          "function_rva": "0x30d800"
+        },
+        {
+          "from_rva": "0x30d7a1",
+          "type": "DATA",
+          "function_va": "14030d720",
+          "function_rva": "0x30d720"
+        },
+        {
+          "from_rva": "0x2f2a43",
+          "type": "DATA",
+          "function_va": "1402f29b0",
+          "function_rva": "0x2f29b0"
+        },
+        {
+          "from_rva": "0x2f2b83",
+          "type": "DATA",
+          "function_va": "1402f2a90",
+          "function_rva": "0x2f2a90"
+        }
+      ]
+    },
+    {
+      "text": "nimby::model::Script::Mod",
+      "rva": "0xa609c0",
+      "references": [
+        {
+          "from_rva": "0x329b57",
+          "type": "DATA",
+          "function_va": "140329aa0",
+          "function_rva": "0x329aa0"
+        },
+        {
+          "from_rva": "0x318dee",
+          "type": "DATA",
+          "function_va": "140318cc0",
+          "function_rva": "0x318cc0"
+        }
+      ]
+    },
+    {
+      "text": "nimby::model::Script::Direct",
+      "rva": "0xa609e0",
+      "references": [
+        {
+          "from_rva": "0x329cf0",
+          "type": "DATA",
+          "function_va": "140329aa0",
+          "function_rva": "0x329aa0"
+        },
+        {
+          "from_rva": "0x318dd9",
+          "type": "DATA",
+          "function_va": "140318cc0",
+          "function_rva": "0x318cc0"
+        }
+      ]
+    },
+    {
+      "text": "nimby::model::Script",
+      "rva": "0xa60a00",
+      "references": [
+        {
+          "from_rva": "0x32f0fc",
+          "type": "DATA",
+          "function_va": "14032f050",
+          "function_rva": "0x32f050"
+        },
+        {
+          "from_rva": "0x32e419",
+          "type": "DATA",
+          "function_va": "14032e3a0",
+          "function_rva": "0x32e3a0"
+        },
+        {
+          "from_rva": "0x4b5a43",
+          "type": "DATA",
+          "function_va": "1404b5860",
+          "function_rva": "0x4b5860"
+        },
+        {
+          "from_rva": "0x4c2983",
+          "type": "DATA",
+          "function_va": "1404c28f0",
+          "function_rva": "0x4c28f0"
+        }
+      ]
+    },
+    {
+      "text": "??$visit@UMeta@ScriptStructInstance@model@nimby@@@serde@@YAXPEBV?$vector@UMeta@ScriptStructInstance@model@nimby@@Vallocator@eastl@@@eastl@@PEAUSerializer@0@@Z",
+      "rva": "0xa67080",
+      "references": [
+        {
+          "from_rva": "0x30f7c1",
+          "type": "DATA",
+          "function_va": "14030f6a0",
+          "function_rva": "0x30f6a0"
+        }
+      ]
+    },
+    {
+      "text": "??$visit@V?$variant@_JN_NUEnumRepr@ScriptStructInstance@model@nimby@@U?$IDRef@UTrack@model@nimby@@@34@U?$IDRef@UStationGroup@model@nimby@@@34@U?$IDRef@UBuilding@model@nimby@@@34@U?$IDRef@ULine@model@nimby@@@34@U?$IDRef@UTrain@model@nimby@@@34@U?$IDRef@USchedule@model@nimby@@@34@U?$IDRef@UScript@model@nimby@@@34@U?$IDRef@USignal@model@nimby@@@34@U?$IDRef@UTagKind@model@nimby@@@34@U?$HeapBox@UTags@model@nimby@@@34@U?$HeapBox@V?$vector@U?$IDRef@ULine@model@nimby@@@model@nimby@@Vallocator@eastl@@@eastl@@@34@U?$HeapBox@V?$vector@U?$IDRef@UTrain@model@nimby@@@model@nimby@@Vallocator@eastl@@@eastl@@@34@U?$HeapBox@V?$vector@U?$IDRef@USchedule@model@nimby@@@model@nimby@@Vallocator@eastl@@@eastl@@@34@U?$HeapBox@V?$vector@U?$IDRef@USignal@model@nimby@@@model@nimby@@Vallocator@eastl@@@eastl@@@34@@std@@@serde@@YAXPEBV?$vector@V?$variant@_JN_NUEnumRepr@ScriptStructInstance@model@nimby@@U?$IDRef@UTrack@model@nimby@@@34@U?$IDRef@UStationGroup@model@nimby@@@34@U?$IDRef@UBuilding@model@nimby@@@34@U?$IDRef@ULine@model@nimby@@@34@U?$IDRef@UTrain@model@nimby@@@34@U?$IDRef@USchedule@model@nimby@@@34@U?$IDRef@UScript@model@nimby@@@34@U?$IDRef@USignal@model@nimby@@@34@U?$IDRef@UTagKind@model@nimby@@@34@U?$HeapBox@UTags@model@nimby@@@34@U?$HeapBox@V?$vector@U?$IDRef@ULine@model@nimby@@@model@nimby@@Vallocator@eastl@@@eastl@@@34@U?$HeapBox@V?$vector@U?$IDRef@UTrain@model@nimby@@@model@nimby@@Vallocator@eastl@@@eastl@@@34@U?$HeapBox@V?$vector@U?$IDRef@USchedule@model@nimby@@@model@nimby@@Vallocator@eastl@@@eastl@@@34@U?$HeapBox@V?$vector@U?$IDRef@USignal@model@nimby@@@model@nimby@@Vallocator@eastl@@@eastl@@@34@@std@@Vallocator@eastl@@@eastl@@PEAUSerializer@0@@Z",
+      "rva": "0xa67120",
+      "references": [
+        {
+          "from_rva": "0x30f704",
+          "type": "DATA",
+          "function_va": "14030f6a0",
+          "function_rva": "0x30f6a0"
+        }
+      ]
+    },
+    {
+      "text": "??$visit@UMeta@ScriptStructInstance@model@nimby@@@serde@@YAXPEAV?$vector@UMeta@ScriptStructInstance@model@nimby@@Vallocator@eastl@@@eastl@@PEAUDeserializer@0@@Z",
+      "rva": "0xa67a60",
+      "references": [
+        {
+          "from_rva": "0x30f9ad",
+          "type": "DATA",
+          "function_va": "14030f8b0",
+          "function_rva": "0x30f8b0"
+        }
+      ]
+    },
+    {
+      "text": "??$visit@V?$variant@_JN_NUEnumRepr@ScriptStructInstance@model@nimby@@U?$IDRef@UTrack@model@nimby@@@34@U?$IDRef@UStationGroup@model@nimby@@@34@U?$IDRef@UBuilding@model@nimby@@@34@U?$IDRef@ULine@model@nimby@@@34@U?$IDRef@UTrain@model@nimby@@@34@U?$IDRef@USchedule@model@nimby@@@34@U?$IDRef@UScript@model@nimby@@@34@U?$IDRef@USignal@model@nimby@@@34@U?$IDRef@UTagKind@model@nimby@@@34@U?$HeapBox@UTags@model@nimby@@@34@U?$HeapBox@V?$vector@U?$IDRef@ULine@model@nimby@@@model@nimby@@Vallocator@eastl@@@eastl@@@34@U?$HeapBox@V?$vector@U?$IDRef@UTrain@model@nimby@@@model@nimby@@Vallocator@eastl@@@eastl@@@34@U?$HeapBox@V?$vector@U?$IDRef@USchedule@model@nimby@@@model@nimby@@Vallocator@eastl@@@eastl@@@34@U?$HeapBox@V?$vector@U?$IDRef@USignal@model@nimby@@@model@nimby@@Vallocator@eastl@@@eastl@@@34@@std@@@serde@@YAXPEAV?$vector@V?$variant@_JN_NUEnumRepr@ScriptStructInstance@model@nimby@@U?$IDRef@UTrack@model@nimby@@@34@U?$IDRef@UStationGroup@model@nimby@@@34@U?$IDRef@UBuilding@model@nimby@@@34@U?$IDRef@ULine@model@nimby@@@34@U?$IDRef@UTrain@model@nimby@@@34@U?$IDRef@USchedule@model@nimby@@@34@U?$IDRef@UScript@model@nimby@@@34@U?$IDRef@USignal@model@nimby@@@34@U?$IDRef@UTagKind@model@nimby@@@34@U?$HeapBox@UTags@model@nimby@@@34@U?$HeapBox@V?$vector@U?$IDRef@ULine@model@nimby@@@model@nimby@@Vallocator@eastl@@@eastl@@@34@U?$HeapBox@V?$vector@U?$IDRef@UTrain@model@nimby@@@model@nimby@@Vallocator@eastl@@@eastl@@@34@U?$HeapBox@V?$vector@U?$IDRef@USchedule@model@nimby@@@model@nimby@@Vallocator@eastl@@@eastl@@@34@U?$HeapBox@V?$vector@U?$IDRef@USignal@model@nimby@@@model@nimby@@Vallocator@eastl@@@eastl@@@34@@std@@Vallocator@eastl@@@eastl@@PEAUDeserializer@0@@Z",
+      "rva": "0xa67b10",
+      "references": [
+        {
+          "from_rva": "0x30f917",
+          "type": "DATA",
+          "function_va": "14030f8b0",
+          "function_rva": "0x30f8b0"
+        }
+      ]
+    },
+    {
+      "text": "??$visit@UScriptStructInstance@model@nimby@@@serde@@YAXPEAV?$vector@UScriptStructInstance@model@nimby@@Vallocator@eastl@@@eastl@@PEAUDeserializer@0@@Z",
+      "rva": "0xa681a0",
+      "references": [
+        {
+          "from_rva": "0x2f2abd",
+          "type": "DATA",
+          "function_va": "1402f2a90",
+          "function_rva": "0x2f2a90"
+        }
+      ]
+    },
+    {
+      "text": "??$visit@UScriptStructInstance@model@nimby@@@serde@@YAXPEBV?$vector@UScriptStructInstance@model@nimby@@Vallocator@eastl@@@eastl@@PEAUSerializer@0@@Z",
+      "rva": "0xa68240",
+      "references": [
+        {
+          "from_rva": "0x2f29e0",
+          "type": "DATA",
+          "function_va": "1402f29b0",
+          "function_rva": "0x2f29b0"
+        }
+      ]
+    },
+    {
+      "text": "??$visit@_JN_NUEnumRepr@ScriptStructInstance@model@nimby@@U?$IDRef@UTrack@model@nimby@@@34@U?$IDRef@UStationGroup@model@nimby@@@34@U?$IDRef@UBuilding@model@nimby@@@34@U?$IDRef@ULine@model@nimby@@@34@U?$IDRef@UTrain@model@nimby@@@34@U?$IDRef@USchedule@model@nimby@@@34@U?$IDRef@UScript@model@nimby@@@34@U?$IDRef@USignal@model@nimby@@@34@U?$IDRef@UTagKind@model@nimby@@@34@U?$HeapBox@UTags@model@nimby@@@34@U?$HeapBox@V?$vector@U?$IDRef@ULine@model@nimby@@@model@nimby@@Vallocator@eastl@@@eastl@@@34@U?$HeapBox@V?$vector@U?$IDRef@UTrain@model@nimby@@@model@nimby@@Vallocator@eastl@@@eastl@@@34@U?$HeapBox@V?$vector@U?$IDRef@USchedule@model@nimby@@@model@nimby@@Vallocator@eastl@@@eastl@@@34@U?$HeapBox@V?$vector@U?$IDRef@USignal@model@nimby@@@model@nimby@@Vallocator@eastl@@@eastl@@@34@@serde@@YAXPEAV?$variant@_JN_NUEnumRepr@ScriptStructInstance@model@nimby@@U?$IDRef@UTrack@model@nimby@@@34@U?$IDRef@UStationGroup@model@nimby@@@34@U?$IDRef@UBuilding@model@nimby@@@34@U?$IDRef@ULine@model@nimby@@@34@U?$IDRef@UTrain@model@nimby@@@34@U?$IDRef@USchedule@model@nimby@@@34@U?$IDRef@UScript@model@nimby@@@34@U?$IDRef@USignal@model@nimby@@@34@U?$IDRef@UTagKind@model@nimby@@@34@U?$HeapBox@UTags@model@nimby@@@34@U?$HeapBox@V?$vector@U?$IDRef@ULine@model@nimby@@@model@nimby@@Vallocator@eastl@@@eastl@@@34@U?$HeapBox@V?$vector@U?$IDRef@UTrain@model@nimby@@@model@nimby@@Vallocator@eastl@@@eastl@@@34@U?$HeapBox@V?$vector@U?$IDRef@USchedule@model@nimby@@@model@nimby@@Vallocator@eastl@@@eastl@@@34@U?$HeapBox@V?$vector@U?$IDRef@USignal@model@nimby@@@model@nimby@@Vallocator@eastl@@@eastl@@@34@@std@@PEAUDeserializer@0@@Z",
+      "rva": "0xa6af60",
+      "references": [
+        {
+          "from_rva": "0x32ce8c",
+          "type": "DATA",
+          "function_va": "14032ce70",
+          "function_rva": "0x32ce70"
+        }
+      ]
+    },
+    {
+      "text": "??$visit@_JN_NUEnumRepr@ScriptStructInstance@model@nimby@@U?$IDRef@UTrack@model@nimby@@@34@U?$IDRef@UStationGroup@model@nimby@@@34@U?$IDRef@UBuilding@model@nimby@@@34@U?$IDRef@ULine@model@nimby@@@34@U?$IDRef@UTrain@model@nimby@@@34@U?$IDRef@USchedule@model@nimby@@@34@U?$IDRef@UScript@model@nimby@@@34@U?$IDRef@USignal@model@nimby@@@34@U?$IDRef@UTagKind@model@nimby@@@34@U?$HeapBox@UTags@model@nimby@@@34@U?$HeapBox@V?$vector@U?$IDRef@ULine@model@nimby@@@model@nimby@@Vallocator@eastl@@@eastl@@@34@U?$HeapBox@V?$vector@U?$IDRef@UTrain@model@nimby@@@model@nimby@@Vallocator@eastl@@@eastl@@@34@U?$HeapBox@V?$vector@U?$IDRef@USchedule@model@nimby@@@model@nimby@@Vallocator@eastl@@@eastl@@@34@U?$HeapBox@V?$vector@U?$IDRef@USignal@model@nimby@@@model@nimby@@Vallocator@eastl@@@eastl@@@34@@serde@@YAXPEBV?$variant@_JN_NUEnumRepr@ScriptStructInstance@model@nimby@@U?$IDRef@UTrack@model@nimby@@@34@U?$IDRef@UStationGroup@model@nimby@@@34@U?$IDRef@UBuilding@model@nimby@@@34@U?$IDRef@ULine@model@nimby@@@34@U?$IDRef@UTrain@model@nimby@@@34@U?$IDRef@USchedule@model@nimby@@@34@U?$IDRef@UScript@model@nimby@@@34@U?$IDRef@USignal@model@nimby@@@34@U?$IDRef@UTagKind@model@nimby@@@34@U?$HeapBox@UTags@model@nimby@@@34@U?$HeapBox@V?$vector@U?$IDRef@ULine@model@nimby@@@model@nimby@@Vallocator@eastl@@@eastl@@@34@U?$HeapBox@V?$vector@U?$IDRef@UTrain@model@nimby@@@model@nimby@@Vallocator@eastl@@@eastl@@@34@U?$HeapBox@V?$vector@U?$IDRef@USchedule@model@nimby@@@model@nimby@@Vallocator@eastl@@@eastl@@@34@U?$HeapBox@V?$vector@U?$IDRef@USignal@model@nimby@@@model@nimby@@Vallocator@eastl@@@eastl@@@34@@std@@PEAUSerializer@0@@Z",
+      "rva": "0xa6b5b0",
+      "references": [
+        {
+          "from_rva": "0x30f753",
+          "type": "DATA",
+          "function_va": "14030f6a0",
+          "function_rva": "0x30f6a0"
+        }
+      ]
+    },
+    {
+      "text": "building_platform_footprint_extension",
+      "rva": "0xa700a0",
+      "references": [
+        {
+          "from_rva": "0x3fe8ad",
+          "type": "READ",
+          "function_va": "1403fe640",
+          "function_rva": "0x3fe640"
+        },
+        {
+          "from_rva": "0x3fe856",
+          "type": "DATA",
+          "function_va": "1403fe640",
+          "function_rva": "0x3fe640"
+        }
+      ]
+    },
+    {
+      "text": "Platform footprint extension",
+      "rva": "0xa700c8",
+      "references": [
+        {
+          "from_rva": "0x3fe7ed",
+          "type": "READ",
+          "function_va": "1403fe640",
+          "function_rva": "0x3fe640"
+        },
+        {
+          "from_rva": "0x3fe795",
+          "type": "DATA",
+          "function_va": "1403fe640",
+          "function_rva": "0x3fe640"
+        }
+      ]
+    },
+    {
+      "text": "nimby::model::ScriptPrivStructInstance",
+      "rva": "0xa74e18",
+      "references": [
+        {
+          "from_rva": "0x4beb17",
+          "type": "DATA",
+          "function_va": "1404bea00",
+          "function_rva": "0x4bea00"
+        },
+        {
+          "from_rva": "0x4b5b43",
+          "type": "DATA",
+          "function_va": "1404b5ac0",
+          "function_rva": "0x4b5ac0"
+        },
+        {
+          "from_rva": "0x4b5c08",
+          "type": "DATA",
+          "function_va": "1404b5ac0",
+          "function_rva": "0x4b5ac0"
+        },
+        {
+          "from_rva": "0x4b5d63",
+          "type": "DATA",
+          "function_va": "1404b5c70",
+          "function_rva": "0x4b5c70"
+        },
+        {
+          "from_rva": "0x4b5e48",
+          "type": "DATA",
+          "function_va": "1404b5c70",
+          "function_rva": "0x4b5c70"
+        },
+        {
+          "from_rva": "0x4b28e2",
+          "type": "DATA",
+          "function_va": "1404b1e10",
+          "function_rva": "0x4b1e10"
+        }
+      ]
+    },
+    {
+      "text": "Extension has no configuration",
+      "rva": "0xa83dd0",
+      "references": [
+        {
+          "from_rva": "0x5790ec",
+          "type": "DATA",
+          "function_va": "140578ee0",
+          "function_rva": "0x578ee0"
+        }
+      ]
+    },
+    {
+      "text": "##ScriptStructInstancesTabs_{}_{}",
+      "rva": "0xa83fb0",
+      "references": [
+        {
+          "from_rva": "0x57ca90",
+          "type": "DATA",
+          "function_va": "14057c820",
+          "function_rva": "0x57c820"
+        },
+        {
+          "from_rva": "0x57ca97",
+          "type": "DATA",
+          "function_va": "14057c820",
+          "function_rva": "0x57c820"
+        }
+      ]
+    },
+    {
+      "text": "Extensions",
+      "rva": "0xa85598",
+      "references": [
+        {
+          "from_rva": "0x5a1f69",
+          "type": "DATA",
+          "function_va": "1405a1f30",
+          "function_rva": "0x5a1f30"
+        }
+      ]
+    },
+    {
+      "text": "script_extensions",
+      "rva": "0xa85648",
+      "references": [
+        {
+          "from_rva": "0x5a1f70",
+          "type": "DATA",
+          "function_va": "1405a1f30",
+          "function_rva": "0x5a1f30"
+        }
+      ]
+    },
+    {
+      "text": "kb1_track_plat_extension",
+      "rva": "0xa9ab18",
+      "references": [
+        {
+          "from_rva": "0x739da8",
+          "type": "DATA",
+          "function_va": "140739d80",
+          "function_rva": "0x739d80"
+        }
+      ]
+    },
+    {
+      "text": "vkEnumerateDeviceExtensionProperties",
+      "rva": "0xaa6da0",
+      "references": [
+        {
+          "from_rva": "0x84b342",
+          "type": "DATA",
+          "function_va": "14084aa70",
+          "function_rva": "0x84aa70"
+        }
+      ]
+    },
+    {
+      "text": "vkEnumerateInstanceExtensionProperties",
+      "rva": "0xaa6e18",
+      "references": [
+        {
+          "from_rva": "0x84acae",
+          "type": "DATA",
+          "function_va": "14084aa70",
+          "function_rva": "0x84aa70"
+        },
+        {
+          "from_rva": "0x84acc1",
+          "type": "READ",
+          "function_va": "14084aa70",
+          "function_rva": "0x84aa70"
+        },
+        {
+          "from_rva": "0x84acd8",
+          "type": "DATA",
+          "function_va": "14084aa70",
+          "function_rva": "0x84aa70"
+        }
+      ]
+    },
+    {
+      "text": "agsDriverExtensions_MultiDrawIndexedInstancedIndirect",
+      "rva": "0xaa7d60",
+      "references": [
+        {
+          "from_rva": "0x862738",
+          "type": "DATA",
+          "function_va": "140862420",
+          "function_rva": "0x862420"
+        },
+        {
+          "from_rva": "0x862750",
+          "type": "READ",
+          "function_va": "140862420",
+          "function_rva": "0x862420"
+        },
+        {
+          "from_rva": "0x862764",
+          "type": "DATA",
+          "function_va": "140862420",
+          "function_rva": "0x862420"
+        },
+        {
+          "from_rva": "0x862856",
+          "type": "PARAM",
+          "function_va": "140862420",
+          "function_rva": "0x862420"
+        }
+      ]
+    },
+    {
+      "text": "agsDriverExtensions_DeInit",
+      "rva": "0xaa7da8",
+      "references": [
+        {
+          "from_rva": "0x8626b8",
+          "type": "DATA",
+          "function_va": "140862420",
+          "function_rva": "0x862420"
+        },
+        {
+          "from_rva": "0x8626d0",
+          "type": "READ",
+          "function_va": "140862420",
+          "function_rva": "0x862420"
+        },
+        {
+          "from_rva": "0x8626e4",
+          "type": "DATA",
+          "function_va": "140862420",
+          "function_rva": "0x862420"
+        }
+      ]
+    },
+    {
+      "text": "agsDriverExtensions_MultiDrawInstancedIndirect",
+      "rva": "0xaa7dc8",
+      "references": [
+        {
+          "from_rva": "0x8626f8",
+          "type": "DATA",
+          "function_va": "140862420",
+          "function_rva": "0x862420"
+        },
+        {
+          "from_rva": "0x862710",
+          "type": "READ",
+          "function_va": "140862420",
+          "function_rva": "0x862420"
+        },
+        {
+          "from_rva": "0x862724",
+          "type": "DATA",
+          "function_va": "140862420",
+          "function_rva": "0x862420"
+        }
+      ]
+    },
+    {
+      "text": "agsDriverExtensions_Init",
+      "rva": "0xaa7e10",
+      "references": [
+        {
+          "from_rva": "0x862678",
+          "type": "DATA",
+          "function_va": "140862420",
+          "function_rva": "0x862420"
+        },
+        {
+          "from_rva": "0x862690",
+          "type": "READ",
+          "function_va": "140862420",
+          "function_rva": "0x862420"
+        },
+        {
+          "from_rva": "0x8626a4",
+          "type": "DATA",
+          "function_va": "140862420",
+          "function_rva": "0x862420"
+        }
+      ]
+    },
+    {
+      "text": "Extension",
+      "rva": "0xaa9568",
+      "references": [
+        {
+          "from_rva": "0xa392e0",
+          "type": "DATA"
+        }
+      ]
+    },
+    {
+      "text": "SourceExtension",
+      "rva": "0xaa9578",
+      "references": [
+        {
+          "from_rva": "0xa392b0",
+          "type": "DATA"
+        }
+      ]
+    },
+    {
+      "text": "CertFindExtension",
+      "rva": "0xb566a6",
+      "references": []
+    },
+    {
+      "text": ".?AV\u003clambda_1\u003e@?OH@??shell@ScriptStructInstanceEditor@1nimby@@QEAAXAEAUContext@13@AEAUUITxn@13@AEAUDeclare@ui@13@@Z@",
+      "rva": "0xb64a10",
+      "references": []
+    },
+    {
+      "text": ".?AV\u003clambda_1\u003e@?1???R\u003clambda_12\u003e@?BCB@??shell@ScriptStructInstanceEditor@2nimby@@QEAAXAEAUContext@24@AEAUUITxn@24@AEAUDeclare@ui@24@@Z@QEBA?AV?$optional@U?$IDRef@USignal@model@nimby@@@model@nimby@@@std@@2@Z@",
+      "rva": "0xb64aa0",
+      "references": []
+    },
+    {
+      "text": ".?AV?$_Func_impl_no_alloc@V\u003clambda_1\u003e@?1???R\u003clambda_12\u003e@?BCB@??shell@ScriptStructInstanceEditor@3nimby@@QEAAXAEAUContext@35@AEAUUITxn@35@AEAUDeclare@ui@35@@Z@QEBA?AV?$optional@U?$IDRef@USignal@model@nimby@@@model@nimby@@@std@@2@Z@_NAEBVDBSession@model@5@PEBUSignal@model@5@@std@@",
+      "rva": "0xb71ac0",
+      "references": []
+    },
+    {
+      "text": ".?AV?$_Func_impl_no_alloc@V\u003clambda_1\u003e@?OH@??shell@ScriptStructInstanceEditor@2nimby@@QEAAXAEAUContext@24@AEAUUITxn@24@AEAUDeclare@ui@24@@Z@_NAEBVDBSession@model@4@PEBUSignal@model@4@@std@@",
+      "rva": "0xb71d50",
+      "references": []
+    },
+    {
+      "text": ".?AUStructsAdaptor@ScriptStructInstancesTabs@shell@nimby@@",
+      "rva": "0xb71e70",
+      "references": []
+    }
+  ]
+}

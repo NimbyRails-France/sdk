@@ -18,6 +18,8 @@ struct NimbyTexturePreviewStatus {
 extern "C" {
 NIMBY_API uint32_t __cdecl NimbyInternal_SignalTextureOverrideStatus(uint32_t pid,uint64_t signal,
     NimbySignalTextureOverrideStatus* out) NIMBY_NOEXCEPT;
+NIMBY_API uint32_t __cdecl NimbyInternal_SignalTextureOverrideStatuses(uint32_t pid,const uint64_t* signals,
+    uint32_t count,NimbySignalTextureOverrideStatus* out) NIMBY_NOEXCEPT;
 NIMBY_API uint32_t __cdecl NimbyInternal_PreviewSignalTexture(uint32_t pid, uint64_t signal,
     const char* set_id, uint32_t index, uint32_t duration_ms) NIMBY_NOEXCEPT;
 NIMBY_API uint32_t __cdecl NimbyInternal_ForceSignalTexture(uint32_t pid, uint64_t signal,
@@ -27,6 +29,15 @@ NIMBY_API uint32_t __cdecl NimbyInternal_TexturePreviewStatus(uint32_t pid,
 NIMBY_API uint32_t __cdecl NimbyInternal_ClearTexturePreview(uint32_t pid, uint64_t signal) NIMBY_NOEXCEPT;
 }
 namespace nimby {
+// Reuse one verified connection for a bounded set. The returned statuses are
+// sequential observations, not an atomic snapshot of the rendering thread.
+inline std::vector<NimbySignalTextureOverrideStatus> getSignalTextureOverrideStatuses(uint32_t pid,std::span<const Id> signals) {
+    if(signals.empty()||signals.size()>32)throw std::invalid_argument("Invalid texture status batch (1..32)");
+    std::vector<NimbySignalTextureOverrideStatus> result(signals.size());
+    for(auto& value:result)value.struct_size=sizeof(value);
+    detail::check(NimbyInternal_SignalTextureOverrideStatuses(pid,signals.data(),static_cast<uint32_t>(signals.size()),result.data()),"SignalTextureOverrideStatuses");
+    return result;
+}
 inline NimbySignalTextureOverrideStatus getSignalTextureOverrideStatus(uint32_t pid,Id signal) {
     NimbySignalTextureOverrideStatus result{};result.struct_size=sizeof result;
     detail::check(NimbyInternal_SignalTextureOverrideStatus(pid,signal,&result),"SignalTextureOverrideStatus");

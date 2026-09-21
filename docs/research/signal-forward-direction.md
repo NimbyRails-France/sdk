@@ -15,3 +15,17 @@ Les recherches brutes export?es couvrent les deux sens. Le visualiseur compose l
 Un signal rencontr? dans son sens actif devient la prochaine destination. Un NoWay ou un OneWay pris ? revers arr?te la branche. Les ?tats d?j? visit?s bornent les boucles. Cette recherche topologique n?est pas une autorisation IPCS ni l?itin?raire r?serv? d?un train.
 
 Correction : arr?ter syst?matiquement au premier Path oppos? supprimait des destinations valides selon la r?gle de parcours demand?e. L?audit compare d?sormais cette composition avec une marche directe sur les ports natifs, sur tous les signaux de la capture.
+
+## Correction du calcul des cantons
+
+Le calcul BlockTopology utilisait le sens stocké au lieu de Signal_M_forward :
+il pouvait chercher la limite du canton en arrière du signal Path. Le SDK
+expose maintenant Signal::getForwardDirection() et BlockTopology utilise ce
+sens au départ et pour filtrer les panneaux rencontrés. Signal::getDirection()
+conserve sa valeur brute pour les consommateurs existants. SignalTopology
+accepte explicitement la convention Forward ; sa convention par défaut reste
+Stored pour préserver les outils géométriques existants.
+
+Le test de régression place deux Path de direction stockée +1 sur une même
+voie, aux fractions .8 et .2, plus un Path opposé à .5. Le premier doit trouver
+celui à .2 dans son sens de circulation -1, sans prendre le panneau opposé.

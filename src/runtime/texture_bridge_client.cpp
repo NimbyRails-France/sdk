@@ -58,7 +58,8 @@ uint32_t connect(uint32_t pid,Connection& c) {
         // Two bridges must never hook the same native function. Restart the game
         // when upgrading from the pinned v1 bridge.
         if(!_wcsicmp(entry.szModule,L"NimbyRailsFranceTextureBridge-experimental-v1.dll")||
-           !_wcsicmp(entry.szModule,L"NimbyRailsFranceTextureBridge-experimental-v2.dll"))return NIMBY_INVALID_BINARY;
+           !_wcsicmp(entry.szModule,L"NimbyRailsFranceTextureBridge-experimental-v2.dll")||
+           !_wcsicmp(entry.szModule,L"NimbyRailsFranceTextureBridge-experimental-v3.dll"))return NIMBY_INVALID_BINARY;
         if(_wcsicmp(entry.szModule,nimby::texture_bridge::filename))continue;
         NimbyBinaryInfo resident{};
         if(nimby::engine::identify(entry.szExePath,resident)!=NIMBY_OK||std::strcmp(resident.sha256,expected.sha256))return NIMBY_INVALID_BINARY;
@@ -92,35 +93,46 @@ uint32_t connect(uint32_t pid,Connection& c) {
     // Recover the wakeup if a caller exited after publishing its request.
     if(InterlockedCompareExchange(&c.shared->pending,0,0) && !SetEvent(c.event.value))return NIMBY_IO_ERROR;
     // Complete any request left in flight by an interrupted caller before reuse.
+    const auto recoveryDeadline=GetTickCount64()+2000;
     while(InterlockedCompareExchange(&c.shared->pending,0,0)){
         if(WaitForSingleObject(c.process.value,10)==WAIT_OBJECT_0)return NIMBY_PROCESS_EXITED;
+        if(GetTickCount64()>=recoveryDeadline)return NIMBY_RESOURCE_LIMIT;
     }
     return NIMBY_OK;
 }
 uint32_t submit(Connection& c,uint32_t operation,uint64_t signal,uint64_t hash=0,
-                uint64_t expiry=0,uint32_t index=0) {
+                uint64_t expiry=0,uint32_t index=0,uint32_t alternate=0,uint32_t halfPeriod=0) {
     c.shared->operation=operation;c.shared->request_signal=signal;
     c.shared->request_hash=hash;c.shared->request_expiry=expiry;c.shared->request_index=index;
+    c.shared->request_alternate_index=alternate;c.shared->request_half_period_ms=halfPeriod;
     c.shared->request_database=c.live.database;c.shared->request_simulation=c.live.simulation;
     InterlockedExchange(&c.shared->pending,1);
     if(!SetEvent(c.event.value)){InterlockedExchange(&c.shared->pending,0);return NIMBY_IO_ERROR;}
+    const auto requestDeadline=GetTickCount64()+2000;
     while(InterlockedCompareExchange(&c.shared->pending,0,0)){
-        if(WaitForSingleObject(c.process.value,10)==WAIT_OBJECT_0)return NIMBY_PROCESS_EXITED;
+        // A batch may contain several immediately answered status requests.
+        // A 10 ms polling floor per reply needlessly holds the shared command
+        // mutex and delays the mod's render updates. Still sleep, never spin.
+        if(WaitForSingleObject(c.process.value,1)==WAIT_OBJECT_0)return NIMBY_PROCESS_EXITED;
+        // Leave pending intact: the next caller must finish recovery before
+        // reusing the shared request. A timeout never cancels an in-flight write.
+        if(GetTickCount64()>=requestDeadline)return NIMBY_RESOURCE_LIMIT;
     }
     return c.shared->result;
 }
 }
 static uint32_t set_texture(uint32_t pid,uint64_t signal,const char* set_id,
-                           uint32_t index,uint32_t duration,bool persistent,const char* file=nullptr) noexcept {
-    if(!signal||!set_id||!set_id[0]||(!persistent&&(duration<1000||duration>60000)))return NIMBY_INVALID_ARGUMENT;
+                           uint32_t index,uint32_t duration,bool persistent,const char* file=nullptr,
+                           const char* alternateFile=nullptr,uint32_t halfPeriod=0) noexcept {
+    if((signal>>48)!=8||!set_id||!set_id[0]||(!persistent&&(duration<1000||duration>60000)))return NIMBY_INVALID_ARGUMENT;
+    if(halfPeriod && (!file||!alternateFile||!*alternateFile||halfPeriod<100||halfPeriod>10000))return NIMBY_INVALID_ARGUMENT;
     try {
         Connection c;const auto status=connect(pid,c);if(status!=NIMBY_OK)return status;
-        nimby::engine::Network network{};nimby::engine::SignalTextureCatalog catalog{};
-        if(!nimby::engine::read_network(read,&c,c.live,true,network)||
+        bool found=false;nimby::engine::SignalTextureCatalog catalog{};
+        if(!nimby::engine::read_signal_membership(read,&c,c.live,true,signal,found)||
            !nimby::engine::read_signal_texture_catalog(read,&c,c.live,true,catalog))return NIMBY_DATA_UNAVAILABLE;
-        bool found=false;for(const auto& s:network.signals)if(s.id==signal){found=true;break;}
         if(!found)return NIMBY_INVALID_ARGUMENT;
-        uint64_t hash{};
+        uint64_t hash{};uint32_t alternateIndex=0;
         if(file){
             const auto resolved=nimby::engine::resolve_texture_file(catalog,set_id,file,hash,index);
             if(resolved!=NIMBY_OK)return resolved;
@@ -131,14 +143,29 @@ static uint32_t set_texture(uint32_t pid,uint64_t signal,const char* set_id,
             }
         }
         if(!hash)return NIMBY_DATA_UNAVAILABLE;
+        if(halfPeriod){
+            uint64_t alternateHash{};
+            const auto resolved=nimby::engine::resolve_texture_file(catalog,set_id,alternateFile,alternateHash,alternateIndex);
+            if(resolved!=NIMBY_OK)return resolved;
+            if(alternateHash!=hash)return NIMBY_INVALID_ARGUMENT;
+        }
         nimby::engine::LiveState after{};
         if(!nimby::engine::resolve_live_state(read,&c,c.live.module_base,true,after)||after!=c.live)return NIMBY_DATA_UNAVAILABLE;
-        return submit(c,1,signal,hash,persistent?UINT64_MAX:GetTickCount64()+duration,index);
+        return submit(c,1,signal,hash,persistent?UINT64_MAX:GetTickCount64()+duration,index,alternateIndex,halfPeriod);
     }catch(...){return NIMBY_INTERNAL_ERROR;}
 }
 uint32_t __cdecl NimbyInternal_ShowSignalTexture(uint32_t pid,uint64_t signal,const char* set,const char* path) noexcept {
     if(!path||!path[0])return NIMBY_INVALID_ARGUMENT;
     return set_texture(pid?pid:GetCurrentProcessId(),signal,set,0,0,true,path);
+}
+uint32_t __cdecl NimbyInternal_ShowSignalTextureFor(uint32_t pid,uint64_t signal,const char* set,const char* path,uint32_t duration) noexcept {
+    if(!path||!path[0])return NIMBY_INVALID_ARGUMENT;
+    return set_texture(pid?pid:GetCurrentProcessId(),signal,set,0,duration,false,path);
+}
+uint32_t __cdecl NimbyInternal_ShowSignalAnimationFor(uint32_t pid,uint64_t signal,const char* set,
+    const char* path,const char* alternate,uint32_t halfPeriod,uint32_t duration) noexcept {
+    if(!path||!path[0]||!halfPeriod)return NIMBY_INVALID_ARGUMENT;
+    return set_texture(pid?pid:GetCurrentProcessId(),signal,set,0,duration,false,path,alternate,halfPeriod);
 }
 uint32_t __cdecl NimbyInternal_RestoreSignalTexture(uint32_t pid,uint64_t signal) noexcept {
     return NimbyInternal_ClearTexturePreview(pid?pid:GetCurrentProcessId(),signal);
@@ -174,12 +201,24 @@ uint32_t __cdecl NimbyInternal_ClearTexturePreview(uint32_t pid,uint64_t signal)
 }
 uint32_t __cdecl NimbyInternal_SignalTextureOverrideStatus(uint32_t pid,uint64_t signal,
                                                          NimbySignalTextureOverrideStatus* out) noexcept {
-    if(!signal||!out||out->struct_size!=sizeof(*out))return NIMBY_INVALID_ARGUMENT;
+    return NimbyInternal_SignalTextureOverrideStatuses(pid,&signal,1,out);
+}
+uint32_t __cdecl NimbyInternal_SignalTextureOverrideStatuses(uint32_t pid,const uint64_t* signals,
+    uint32_t count,NimbySignalTextureOverrideStatus* out) noexcept {
+    if(!signals||!out||!count||count>32)return NIMBY_INVALID_ARGUMENT;
+    for(uint32_t i=0;i<count;++i)
+        if(!signals[i]||out[i].struct_size!=sizeof(*out))return NIMBY_INVALID_ARGUMENT;
     try {
         Connection c;const auto status=connect(pid,c);if(status!=NIMBY_OK)return status;
-        const auto result=submit(c,3,signal);if(result!=NIMBY_OK)return result;
-        out->reserved=0;out->active=c.shared->active;out->index=c.shared->result_index;
-        out->active_count=c.shared->active_count;out->expires_at_ms=c.shared->result_expiry;
+        for(uint32_t i=0;i<count;++i) {
+            const auto result=submit(c,3,signals[i]);
+            if(result!=NIMBY_OK) {
+                for(uint32_t j=0;j<count;++j){out[j]={};out[j].struct_size=sizeof(*out);}
+                return result;
+            }
+            out[i].reserved=0;out[i].active=c.shared->active;out[i].index=c.shared->result_index;
+            out[i].active_count=c.shared->active_count;out[i].expires_at_ms=c.shared->result_expiry;
+        }
         return NIMBY_OK;
     }catch(...){return NIMBY_INTERNAL_ERROR;}
 }

@@ -2,6 +2,7 @@
 // No game objects, state tables, reservations or save data are written.
 #include "runtime/texture_bridge.h"
 #include "engine/binary_identity.h"
+#include "engine/simulation_clock.h"
 #include <nimby/detail/observation.h>
 #include "runtime/texture_commands.h"
 #include <MinHook.h>
@@ -59,11 +60,17 @@ extern "C" uintptr_t texture_select(uintptr_t rules,int kind,uint64_t hash,
     db=shared->expected_database;sim=shared->expected_simulation;
     ReleaseSRWLockShared(&table_lock);
     const auto id=command.signal,set=command.set_hash,expiry=command.expires;
-    const auto index=command.index;
+    auto index=command.index;
     if(id!=record[0]||!expiry||GetTickCount64()>=expiry)return normal;
     uintptr_t root{},current_db{},current_sim{};
     if(!read(base+0xb81998,root)||!read(root+0x540,current_db)||!read(root+0x680,current_sim)||
        current_db!=db||current_sim!=sim||rules!=db+0xa80)return normal;
+    if(command.half_period_ms){
+        nimby::engine::SimulationClock clock;
+        const auto readClock=[](void*,uint64_t address,void* out,size_t size){return read(address,out,size);};
+        if(!nimby::engine::read_simulation_clock(readClock,nullptr,sim,clock))return normal;
+        index=nimby::texture_bridge::frame_index(command,static_cast<uint64_t>(clock.ticks)*10);
+    }
     const auto selected=original(rules,kind,set);
     if(!selected)return normal;
     // Return a non-owning, thread-local view of ONE file. Native clamping then

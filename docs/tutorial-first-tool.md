@@ -7,13 +7,9 @@ voyageurs et quelques entrées du plan de ligne. Il utilise uniquement
 
 ## 1. Préparer le kit
 
-Depuis la racine du SDK :
-
-```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File tools/package.ps1
-```
-
-Le kit est dans `dist/NimbyRailsFranceSDK-0.7.0/`. Copier les deux fichiers
+Extraire le kit C++ 0.7.3 dans un dossier durable. Sa construction depuis les
+sources relève du [guide des mainteneurs](sdk-maintainers.md).
+Copier les deux fichiers
 de `share/NimbyRailsFranceSDK/examples/first-observer/` dans un nouveau dossier.
 Ne pas mélanger ce kit avec les DLL ou headers 0.6.
 
@@ -21,7 +17,7 @@ Ne pas mélanger ce kit avec les DLL ou headers 0.6.
 
 Prévoir Windows x64, CMake 3.24+, Ninja et MinGW avec C++20. Le kit utilise le
 MinGW fourni avec CLion. Le projet appelle
-`find_package(NimbyRailsFranceSDK 0.7.0 CONFIG REQUIRED)` et lie
+`find_package(NimbyRailsFranceSDK 0.7.3 CONFIG REQUIRED)` et lie
 `NimbyRailsFranceSDK::SDK`.
 
 ## 3. Compiler
@@ -29,12 +25,12 @@ MinGW fourni avec CLion. Le projet appelle
 Avec les outils dans `PATH`, depuis le dossier de l'exemple :
 
 ```powershell
-cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH=C:/SDK/NimbyRailsFranceSDK-0.7.0
+cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH=C:/SDK/NimbyRailsFranceSDK-0.7.3
 cmake --build build
 ./build/MyFirstNimbyTool.exe --check-sdk
 ```
 
-Adapter le chemin du kit. Le contrôle affiche `NimbyRailsFranceSDK 0.7.0`
+Adapter le chemin du kit. Le contrôle affiche `NimbyRailsFranceSDK 0.7.3`
 sans ouvrir le jeu. Les DLL sont copiées automatiquement près de l'exécutable.
 Dans CLion, ouvrir ce dossier et renseigner le même `CMAKE_PREFIX_PATH`.
 Dans le dépôt SDK, utiliser directement les [configurations partagées](clion.md).

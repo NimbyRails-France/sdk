@@ -1,0 +1,42 @@
+SHA256: fff49ac21720abfc824c2b4f68b862727630eb0db71cfe1f9ea8f685d0db10ae
+140b660f0 .?AV<lambda_1>@?1??save_local_game@UITxn@shell@nimby@@QEAAXVpath@filesystem@std@@@Z@
+140b71590 .?AUmy_stringbuf@?2??save_ostream@saves@sync@nimby@@YA?AV?$optional@V?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@@std@@AEAV?$basic_ostream@DU?$char_traits@D@std@@@6@AEBUGame@234@@Z@
+140b74510 .?AV?$_Func_impl_no_alloc@V<lambda_1>@?1??save_local_game@UITxn@shell@nimby@@QEAAXVpath@filesystem@std@@@Z@XAEAUUIState@45@@std@@
+SYMBOL 140a748c0 `class_std::optional<std::basic_string<char,std::char_traits<char>,std::allocator<char>_>_>___cdecl_nimby::sync::saves::save_ostream(std::basic_ostream<char,std::char_traits<char>_>&___ptr64,nimby::sync::saves::Game_const&___ptr64)'::__l3::my_stringbuf::vftable_meta_ptr
+SYMBOL 140a748c8 `class_std::optional<std::basic_string<char,std::char_traits<char>,std::allocator<char>_>_>___cdecl_nimby::sync::saves::save_ostream(std::basic_ostream<char,std::char_traits<char>_>&___ptr64,nimby::sync::saves::Game_const&___ptr64)'::__l3::my_stringbuf::vftable
+  14049f0ad caller 14049f050
+  14049f0b4 caller 14049f050
+SYMBOL 140a9bbc8 std::_Func_impl_no_alloc<`public:_void___cdecl_nimby::shell::UITxn::save_local_game(std::filesystem::path)___ptr64'::`2'::<lambda_1>,void,nimby::shell::UIState&___ptr64>::vftable_meta_ptr
+SYMBOL 140a9bbd0 std::_Func_impl_no_alloc<`public:_void___cdecl_nimby::shell::UITxn::save_local_game(std::filesystem::path)___ptr64'::`2'::<lambda_1>,void,nimby::shell::UIState&___ptr64>::vftable
+  14073f2ad caller 14073f270
+  14073f2b4 caller 14073f270
+  14074d229 caller 14074d220
+  14074d230 caller 14074d220
+  14074d1e0 caller 14074d1e0
+  14074d1ea caller 14074d1e0
+SYMBOL 140abbc70 `class_std::optional<std::basic_string<char,std::char_traits<char>,std::allocator<char>_>_>___cdecl_nimby::sync::saves::save_ostream(std::basic_ostream<char,std::char_traits<char>_>&___ptr64,nimby::sync::saves::Game_const&___ptr64)'::__l3::my_stringbuf::RTTI_Class_Hierarchy_Descriptor
+  140abbee0 caller none
+  140abbe68 caller none
+SYMBOL 140abbcf8 `class_std::optional<std::basic_string<char,std::char_traits<char>,std::allocator<char>_>_>___cdecl_nimby::sync::saves::save_ostream(std::basic_ostream<char,std::char_traits<char>_>&___ptr64,nimby::sync::saves::Game_const&___ptr64)'::__l3::my_stringbuf::RTTI_Base_Class_Array
+  140abbc7c caller none
+SYMBOL 140abbe50 `class_std::optional<std::basic_string<char,std::char_traits<char>,std::allocator<char>_>_>___cdecl_nimby::sync::saves::save_ostream(std::basic_ostream<char,std::char_traits<char>_>&___ptr64,nimby::sync::saves::Game_const&___ptr64)'::__l3::my_stringbuf::RTTI_Base_Class_Descriptor_at_(0,-1,0,64)
+  140abbcf8 caller none
+SYMBOL 140abbed0 `class_std::optional<std::basic_string<char,std::char_traits<char>,std::allocator<char>_>_>___cdecl_nimby::sync::saves::save_ostream(std::basic_ostream<char,std::char_traits<char>_>&___ptr64,nimby::sync::saves::Game_const&___ptr64)'::__l3::my_stringbuf::RTTI_Complete_Object_Locator
+  140a748c0 caller none
+SYMBOL 140abead0 std::_Func_impl_no_alloc<`public:_void___cdecl_nimby::shell::UITxn::save_local_game(std::filesystem::path)___ptr64'::`2'::<lambda_1>,void,nimby::shell::UIState&___ptr64>::RTTI_Base_Class_Array
+  140abec5c caller none
+SYMBOL 140abec50 std::_Func_impl_no_alloc<`public:_void___cdecl_nimby::shell::UITxn::save_local_game(std::filesystem::path)___ptr64'::`2'::<lambda_1>,void,nimby::shell::UIState&___ptr64>::RTTI_Class_Hierarchy_Descriptor
+  140abeda8 caller none
+  140abf190 caller none
+SYMBOL 140abed98 std::_Func_impl_no_alloc<`public:_void___cdecl_nimby::shell::UITxn::save_local_game(std::filesystem::path)___ptr64'::`2'::<lambda_1>,void,nimby::shell::UIState&___ptr64>::RTTI_Complete_Object_Locator
+  140a9bbc8 caller none
+SYMBOL 140abf178 std::_Func_impl_no_alloc<`public:_void___cdecl_nimby::shell::UITxn::save_local_game(std::filesystem::path)___ptr64'::`2'::<lambda_1>,void,nimby::shell::UIState&___ptr64>::RTTI_Base_Class_Descriptor_at_(0,-1,0,64)
+  140abead0 caller none
+SYMBOL 140b660e0 `public:_void___cdecl_nimby::shell::UITxn::save_local_game(std::filesystem::path)___ptr64'::__l2::<lambda_1>::RTTI_Type_Descriptor
+  14074d1c0 caller 14074d1c0
+SYMBOL 140b71580 `class_std::optional<std::basic_string<char,std::char_traits<char>,std::allocator<char>_>_>___cdecl_nimby::sync::saves::save_ostream(std::basic_ostream<char,std::char_traits<char>_>&___ptr64,nimby::sync::saves::Game_const&___ptr64)'::__l3::my_stringbuf::RTTI_Type_Descriptor
+  140abbedc caller none
+  140abbe50 caller none
+SYMBOL 140b74500 std::_Func_impl_no_alloc<`public:_void___cdecl_nimby::shell::UITxn::save_local_game(std::filesystem::path)___ptr64'::`2'::<lambda_1>,void,nimby::shell::UIState&___ptr64>::RTTI_Type_Descriptor
+  140abeda4 caller none
+  140abf178 caller none

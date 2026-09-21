@@ -9,6 +9,14 @@
 int main(int argc,char** argv) {
     static_assert(sizeof(NimbyTrackUsage)==32);
     NimbySession session=123;NimbySnapshot snapshot=123;uint32_t count=99;
+    uint32_t stage=99;
+    CHECK(NimbyInternal_CaptureSnapshotDiagnostic(0,&snapshot,&stage)==NIMBY_INVALID_HANDLE&&snapshot==0&&stage==0);
+    CHECK(NimbyInternal_CaptureSnapshotDiagnostic(0,nullptr,&stage)==NIMBY_INVALID_ARGUMENT&&stage==0);
+    snapshot=123;
+    CHECK(NimbyInternal_CaptureSnapshotDiagnostic(0,&snapshot,nullptr)==NIMBY_INVALID_ARGUMENT&&snapshot==0);
+    NimbyGameSession game{};game.struct_size=sizeof(game);game.generation=99;
+    CHECK(NimbyInternal_GetGameSession(0,&game)==NIMBY_INVALID_HANDLE&&game.generation==0);
+    CHECK(NimbyInternal_GetGameSession(0,nullptr)==NIMBY_INVALID_ARGUMENT);
     NimbySimulationClock clock{};clock.struct_size=sizeof clock;
     CHECK(NimbyInternal_GetSimulationClock(0,&clock)==NIMBY_INVALID_HANDLE);
     CHECK(NimbyInternal_SetSimulationDateTime(0,-946771200,&clock)==NIMBY_INVALID_HANDLE);

@@ -1,24 +1,54 @@
-# Version du SDK
+# Versions et compatibilité
 
-La version publiée est **NimbyRailsFranceSDK 0.7.2**, avec l'adaptateur de mods C++,
-le chargement automatique par NRF Loader et les commandes de textures par chemin.
-Les fonctions de lecture et de modification expérimentale de la
-[date de simulation](simulation-clock.md) sont conservées. Les consommateurs
-des nouvelles API de mod doivent utiliser le kit 0.7.2 complet (pont interne 2).
+Cette branche prépare **SDK 0.7.3**. La version du dépôt ou d'un kit local ne
+prouve pas qu'une release a été publiée.
 
-Elle propose uniquement l'API C++20 publique. Le pont interne est en version 2.
+## Chaîne Kotlin prise en charge
 
-```cpp
-#include <nimby/client.hpp>
-auto version = nimby::getVersion(); // Sans ouvrir de processus de jeu.
-```
+| Composant | Version ou cible |
+| --- | --- |
+| Kit SDK Kotlin | 0.7.3, format de manifeste 1 |
+| Plugin Gradle `fr.nimbyrails.mod` | 0.7.3, distribué dans le kit |
+| Kotlin/Native | 2.2.20 |
+| Gradle Wrapper | 8.14.3 |
+| JVM de développement vérifiée | JDK 21 |
+| Cible native | Windows x64, `mingw_x64` |
+| Contrat du loader | NRF Loader API 1 |
+| Pont interne C++ | ABI 2 |
 
-Les champs sont `major`, `minor`, `patch` et `abi` (version du pont interne).
-Une DLL incompatible déclenche `nimby::Exception`. Utiliser les headers,
-bibliothèques d'import et DLL du même kit.
+Utiliser ensemble les fichiers d'un même kit. Le plugin vérifie `sdk.json`
+et refuse un kit incomplet, une cible différente ou un SDK hors de l'intervalle
+déclaré par le mod. Mettre à jour Kotlin indépendamment du kit peut rendre
+l'API `.klib` incompatible.
 
-Les anciens TCO utilisant NimbyRailsSDK 0.6.x / ABI 1 doivent être migrés.
-Le TCO 0.5.1 utilise le pont 2 et accepte la DLL 0.7.1 ; le correctif des
-textures ne nécessite pas de reconstruire son interface.
+Le kit déclare les SHA-256 des exécutables du jeu pris en charge.
+Le profil actuellement déclaré est
+`fff49ac21720abfc824c2b4f68b862727630eb0db71cfe1f9ea8f685d0db10ae`.
+Une autre version du jeu nécessite une adaptation et une validation du SDK.
 
-Voir la [migration](migration-0.7.md) et la [référence C++](cpp-api-reference.md).
+## Versions des mods
+
+`mod.json` déclare une borne SDK minimale incluse et une borne maximale
+exclue. Les versions suivent `MAJEUR.MINEUR.CORRECTIF`, éventuellement
+`-alpha.N` ou `-beta.N`. Le Hub utilise le même ordre pour ces versions.
+
+Les identifiants Hub, du dossier de mod, du panneau et des réglages sont
+persistants. Une modification peut casser les associations ou réglages des
+utilisateurs même lorsque le code compile.
+
+## Mise à niveau
+
+1. Extraire le nouveau kit dans un dossier distinct.
+2. Vérifier ses versions et contraintes.
+3. Mettre à jour la version du plugin dans le projet et le chemin local du kit.
+4. Recompiler et exécuter les tests.
+5. Choisir le SDK d'exécution correspondant dans le profil développeur du Hub.
+6. Redémarrer le jeu et vérifier les scénarios concernés avant publication.
+
+## Clients C++
+
+`nimby::getVersion()` expose la version du SDK et du pont interne sans ouvrir
+le jeu. Les headers, bibliothèques d'import et DLL doivent provenir du même kit.
+Les clients 0.6 doivent suivre la [migration 0.7](migration-0.7.md).
+Le pont privé n'est pas une API consommateur et n'a pas de garantie indépendante
+de compatibilité.

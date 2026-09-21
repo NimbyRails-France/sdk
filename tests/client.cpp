@@ -13,6 +13,8 @@ std::atomic<uint32_t> captureStatus{NIMBY_OK}, trackStatus{NIMBY_OK};
 std::atomic<bool> reservationsAvailable{true};
 std::atomic<bool> emptyReservations{false}, occupationsAvailable{true}, occupiedPlatform{false};
 std::atomic<bool> groupedPlatforms{false};
+std::atomic<bool> duplicateExtension{false};
+std::atomic<bool> gameSessionAvailable{false};
 std::set<NimbySnapshot> handles;
 std::mutex handlesMutex;
 template<class T>
@@ -65,6 +67,23 @@ uint32_t __cdecl NimbyInternal_ReleaseSnapshot(NimbySnapshot s) noexcept {
     std::lock_guard lock(handlesMutex);
     if (handles.erase(s) != 1) return NIMBY_INVALID_HANDLE;
     ++releases; return NIMBY_OK;
+}
+uint32_t __cdecl NimbyInternal_CaptureSnapshotDiagnostic(NimbySession s,NimbySnapshot* out,uint32_t* stage) noexcept {
+    *stage=0;
+    const auto status=NimbyInternal_CaptureSnapshot(s,out);
+    if(status==NIMBY_DATA_UNAVAILABLE)*stage=2;
+    return status;
+}
+uint32_t __cdecl NimbyInternal_CaptureSignallingSnapshot(NimbySession s,NimbySnapshot* out,uint32_t* stage) noexcept {
+    return NimbyInternal_CaptureSnapshotDiagnostic(s,out,stage);
+}
+uint32_t __cdecl NimbyInternal_CaptureSignallingFor(NimbySession s,const char*,NimbySnapshot* out,uint32_t* stage) noexcept {
+    return NimbyInternal_CaptureSnapshotDiagnostic(s,out,stage);
+}
+uint32_t __cdecl NimbyInternal_GetGameSession(NimbySnapshot, NimbyGameSession* out) noexcept {
+    *out={};out->struct_size=sizeof(*out);
+    if(!gameSessionAvailable)return NIMBY_DATA_UNAVAILABLE;
+    out->generation=7;out->world_value[0]=0xaf;return NIMBY_OK;
 }
 uint32_t __cdecl NimbyInternal_GetSnapshotInfo(NimbySnapshot, NimbySnapshotInfo* out) noexcept {
     *out = {}; out->struct_size = sizeof *out; out->process_id = 42;
@@ -133,6 +152,17 @@ uint32_t __cdecl NimbyInternal_CopySignalTextures(NimbySnapshot s, NimbySignalTe
     NimbySignalTexture texture{}; texture.signal_id = 40;
     return copy(s, out, cap, n, std::vector{texture});
 }
+uint32_t __cdecl NimbyInternal_CopySignalExtensionsStates(NimbySnapshot s,NimbySignalExtensionsState* out,uint32_t cap,uint32_t* n) noexcept {
+    return copy(s,out,cap,n,std::vector<NimbySignalExtensionsState>{{40,1,0},{41,1,0},{42,0,0}});
+}
+uint32_t __cdecl NimbyInternal_CopySignalExtensionFields(NimbySnapshot s,NimbySignalExtensionField* out,uint32_t cap,uint32_t* n) noexcept {
+    NimbySignalExtensionField header{};header.signal_id=40;header.script_id=7;std::strcpy(header.type_name,"TestSettings");
+    auto value=header;std::strcpy(value.field_name,"active");value.boolean_valid=1;value.boolean_value=0;
+    auto unknown=header;std::strcpy(unknown.field_name,"nonBoolean");
+    std::vector<NimbySignalExtensionField> rows{header,value,unknown};
+    if(duplicateExtension){header.script_id=8;rows.push_back(header);}
+    return copy(s,out,cap,n,rows);
+}
 uint32_t __cdecl NimbyInternal_CopyTrackNodes(NimbySnapshot s, NimbyTrackNode* out, uint32_t cap, uint32_t* n) noexcept {
     return copy(s, out, cap, n, std::vector<NimbyTrackNode>{{20, 0, 21, 10, 15}});
 }
@@ -192,6 +222,14 @@ int main() {
         locatedService.motion_flags = NIMBY_MOTION_HIDDEN;
         REQUIRE(nimby::TrainService{locatedService}.isOnNetwork() == true);
         REQUIRE(nimby::TrainService{locatedService}.isHidden() == true);
+        locatedService.flags=NIMBY_SERVICE_PRESENCE_VALID;
+        REQUIRE(nimby::TrainService{locatedService}.isHidden()==true);
+        REQUIRE(nimby::TrainService{locatedService}.isOnNetwork()==true);
+        REQUIRE(!nimby::TrainService{locatedService}.getStatus());
+        REQUIRE(!nimby::TrainService{locatedService}.getMotionFlags());
+        locatedService.motion_flags=NIMBY_MOTION_DRIVE;
+        REQUIRE(nimby::TrainService{locatedService}.isOnNetwork()==true);
+        REQUIRE(nimby::TrainService{locatedService}.isHidden()==false);
         REQUIRE(!nimby::TrainService{unknownService}.getDepartureRemainingSeconds());
         unknownService.flags=NIMBY_SERVICE_DEPARTURE_VALID;
         REQUIRE(!nimby::TrainService{unknownService}.getDepartureRemainingSeconds()); // Needs game clock too.
@@ -221,6 +259,23 @@ int main() {
                 REQUIRE(rejected);
             }
             retained = client.capture();
+            REQUIRE(!retained->getGameSession());
+            gameSessionAvailable=true;
+            const auto identified=client.capture();
+            REQUIRE(identified->getGameSession()&&identified->getGameSession()->generation==7);
+            REQUIRE(identified->getGameSession()->worldId=="af"+std::string(62,'0'));
+            gameSessionAvailable=false;
+            REQUIRE(retained->getSignalSettings(40,"TestSettings").status==nimby::SettingsStatus::Present);
+            REQUIRE(retained->getSignalSettings(40,"TestSettings").getBoolean("active")==false);
+            REQUIRE(!retained->getSignalSettings(40,"TestSettings").getBoolean("nonBoolean"));
+            REQUIRE(!retained->getSignalSettings(40,"TestSettings").getBoolean("missing"));
+            REQUIRE(retained->getSignalSettings(41,"TestSettings").status==nimby::SettingsStatus::Absent);
+            REQUIRE(retained->getSignalSettings(42,"TestSettings").status==nimby::SettingsStatus::Unavailable);
+            REQUIRE(retained->getSignalSettings(43,"TestSettings").status==nimby::SettingsStatus::Unavailable);
+            duplicateExtension=true;
+            REQUIRE(client.capture()->getSignalSettings(40,"TestSettings").status==nimby::SettingsStatus::Unavailable);
+            duplicateExtension=false;
+            REQUIRE(retained->getSignalSettings(40,"TestSettings").status==nimby::SettingsStatus::Present);
             REQUIRE(retained->getSimulationClock().has_value());
             const auto originalClock=retained->getSimulationClock()->getDateTimeUtc();
             const auto changedClock=client.setSimulationDateTime(std::chrono::sys_seconds{std::chrono::seconds{-946771200}});
@@ -270,6 +325,14 @@ int main() {
             REQUIRE(retained->getPathTrackIdsForTrain(trainId)->size() == 2);
             REQUIRE(!retained->getPathTrackIdsForTrain(2));
             REQUIRE(!retained->getPathTrackIdsForTrain(999));
+            const auto signalling=client.captureSignalling();
+            REQUIRE(client.captureSignalling("test")->getAllTrains().size()==2);
+            bool invalidScope=false;
+            try{client.captureSignalling("");}catch(const std::invalid_argument&){invalidScope=true;}
+            REQUIRE(invalidScope);
+            REQUIRE(!signalling->getPathTrackIdsForTrain(trainId));
+            REQUIRE(!signalling->getLineStopsForTrain(trainId));
+            REQUIRE(signalling->getAllTrains().size()==retained->getAllTrains().size());
             REQUIRE(retained->getReservationsForTrain(trainId)->size() == 1);
             REQUIRE(retained->getReservationsForTrack(999)->empty());
             REQUIRE(retained->getAllOccupations()->empty());

@@ -1,5 +1,9 @@
 # Mods C++ via le NRF Loader du Hub
 
+Les mods Kotlin utilisent le même loader via le pont précompilé du SDK.
+Le [plugin Gradle](gradle-plugin.md) génère leur manifeste et assemble leurs DLL.
+Les instructions C++ ci-dessous ne sont pas requises pour un projet Kotlin.
+
 Pour débuter en créant vous-même chaque fichier, suivre
 [le tutoriel de création d'un mod](tutorial-create-mod.md).
 

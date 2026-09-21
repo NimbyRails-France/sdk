@@ -6,9 +6,23 @@
 #include "runtime/texture_commands.h"
 #include <memory>
 int main() {
+    constexpr uint64_t signal=0x8000000000001;
+    for(auto duration:{0u,999u,60001u})
+        if(NimbyInternal_ShowSignalTextureFor(0,signal,"set","a.svg",duration)!=NIMBY_INVALID_ARGUMENT)return 50;
+    for(auto half:{0u,99u,10001u})
+        if(NimbyInternal_ShowSignalAnimationFor(0,signal,"set","a.svg","b.svg",half,2500)!=NIMBY_INVALID_ARGUMENT)return 51;
+    if(NimbyInternal_ShowSignalAnimationFor(0,signal,"set","a.svg",nullptr,500,2500)!=NIMBY_INVALID_ARGUMENT)return 52;
+    const nimby::texture_bridge::Command blinking{1,123,2500,5,6,500};
+    for(const auto time:{0u,499u,1000u,1499u,4000u})
+        if(nimby::texture_bridge::frame_index(blinking,time)!=5)return 53;
+    for(const auto time:{500u,999u,1500u,1999u,4500u})
+        if(nimby::texture_bridge::frame_index(blinking,time)!=6)return 54;
+    const nimby::texture_bridge::Command fixed{1,123,2500,4};
+    if(nimby::texture_bridge::frame_index(fixed,999)!=4)return 55;
     if(NimbyInternal_ShowSignalTexture(0,1,"set",nullptr)!=NIMBY_INVALID_ARGUMENT)return 40;
     if(NimbyInternal_ShowSignalTexture(0,0,"set","imgs/test.svg")!=NIMBY_INVALID_ARGUMENT)return 41;
-    if(NimbyInternal_ShowSignalTexture(0,1,"set","imgs/test.svg")!=NIMBY_INVALID_BINARY)return 42;
+    if(NimbyInternal_ShowSignalTexture(0,signal,"set","imgs/test.svg")!=NIMBY_INVALID_BINARY)return 42;
+    if(NimbyInternal_ShowSignalTexture(0,1,"set","imgs/test.svg")!=NIMBY_INVALID_ARGUMENT)return 59;
     if(NimbyInternal_RestoreSignalTexture(0,0)!=NIMBY_INVALID_ARGUMENT)return 43;
     try { nimby::SignalTextures::connect(0); return 44; }
     catch(const nimby::Exception& error) { if(error.code()!=nimby::ErrorCode::InvalidArgument)return 45; }
@@ -31,6 +45,12 @@ int main() {
     if(NimbyInternal_TexturePreviewStatus(0,nullptr)!=NIMBY_INVALID_ARGUMENT)return 6;
     if(NimbyInternal_ClearTexturePreview(1,0)!=NIMBY_INVALID_ARGUMENT)return 7;
     if(NimbyInternal_SignalTextureOverrideStatus(1,0,nullptr)!=NIMBY_INVALID_ARGUMENT)return 8;
+    // Batch bounds are checked before connecting or touching caller arrays.
+    NimbySignalTextureOverrideStatus status{};status.struct_size=sizeof status;
+    if(NimbyInternal_SignalTextureOverrideStatuses(1,&signal,33,&status)!=NIMBY_INVALID_ARGUMENT)return 9;
+    if(NimbyInternal_SignalTextureOverrideStatuses(1,&signal,0,&status)!=NIMBY_INVALID_ARGUMENT)return 10;
+    status.struct_size=0;
+    if(NimbyInternal_SignalTextureOverrideStatuses(1,&signal,1,&status)!=NIMBY_INVALID_ARGUMENT)return 11;
     // Exercise the exact sorted table used by the client and native hook.
     auto table=std::make_unique<nimby::texture_bridge::Table>();
     for(uint64_t id=100;id>0;--id)if(!table->put({id,123,UINT64_MAX,0}))return 10;
@@ -77,5 +97,10 @@ int main() {
     if(mailbox.active||mailbox.active_count)return 30;
     mailbox.operation=1;mailbox.request_expiry=UINT64_MAX;
     if(nimby::texture_bridge::execute(mailbox,*table,200)!=NIMBY_OK||table->count()!=1)return 31;
+    mailbox.request_index=5;mailbox.request_alternate_index=6;mailbox.request_half_period_ms=500;
+    if(nimby::texture_bridge::execute(mailbox,*table,200)!=NIMBY_OK)return 56;
+    if(table->entries[0].half_period_ms!=500 || nimby::texture_bridge::frame_index(table->entries[0],500)!=6)return 57;
+    mailbox.request_half_period_ms=1;
+    if(nimby::texture_bridge::execute(mailbox,*table,200)!=NIMBY_INVALID_ARGUMENT || table->entries[0].half_period_ms!=500)return 58;
     return 0;
 }

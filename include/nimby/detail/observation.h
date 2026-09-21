@@ -67,6 +67,9 @@ typedef struct NimbyTrain {
 #define NIMBY_SERVICE_COOLDOWN_VALID 128u
 #define NIMBY_SERVICE_LINE_VALID 256u
 #define NIMBY_SERVICE_CALENDAR_VALID 512u
+// Network membership (PRESENCE|HIDDEN|DRIVE != 0) and HIDDEN are established
+// independently of service state. Individual optional bits may transition.
+#define NIMBY_SERVICE_PRESENCE_VALID 1024u
 #define NIMBY_MOTION_PRESENCE 1u
 #define NIMBY_MOTION_HIDDEN 2u
 #define NIMBY_MOTION_DRIVE 4u
@@ -208,6 +211,26 @@ typedef struct NimbySimulationClock {
     uint32_t struct_size, reserved;
     int64_t epoch_seconds, ticks;
 } NimbySimulationClock;
+// Experimental world lineage and observed load generation. Save As preserves
+// world_value; it is NOT a unique file/revision key. No native pointers exposed.
+typedef struct NimbyGameSession {
+    uint32_t struct_size,reserved;
+    uint64_t generation;
+    uint8_t world_value[32];
+} NimbyGameSession;
+// Experimental extension records. One status per signal, including empty lists.
+typedef struct NimbySignalExtensionsState {
+    uint64_t signal_id;
+    uint32_t available, reserved;
+} NimbySignalExtensionsState;
+// Empty field_name marks extension presence, even for an empty structure.
+// boolean_valid=0 preserves non-bool fields as unavailable, never false.
+typedef struct NimbySignalExtensionField {
+    uint64_t signal_id, script_id;
+    uint32_t boolean_valid, boolean_value;
+    char type_name[257], field_name[257];
+    uint8_t reserved[6];
+} NimbySignalExtensionField;
 #pragma pack(pop)
 
 // Independent of diagnostics Initialize/Shutdown. pid=0 means the calling process.
@@ -216,6 +239,13 @@ NIMBY_API uint32_t __cdecl NimbyInternal_OpenProcess(uint32_t abi_version, uint3
 NIMBY_API uint32_t __cdecl NimbyInternal_CloseSession(NimbySession session) NIMBY_NOEXCEPT;
 // Immutable owned copy; not an atomic simulation tick. Zeroes out on failure.
 NIMBY_API uint32_t __cdecl NimbyInternal_CaptureSnapshot(NimbySession session, NimbySnapshot* out) NIMBY_NOEXCEPT;
+// Same capture, with the failing consistency stage (zero on success or before
+// capture begins). Diagnostic only: none of the read guards are relaxed.
+NIMBY_API uint32_t __cdecl NimbyInternal_CaptureSnapshotDiagnostic(NimbySession session, NimbySnapshot* out, uint32_t* stage) NIMBY_NOEXCEPT;
+// Signalisation : presence globale et occupations conservees, details de service omis.
+NIMBY_API uint32_t __cdecl NimbyInternal_CaptureSignallingSnapshot(NimbySession session, NimbySnapshot* out, uint32_t* stage) NIMBY_NOEXCEPT;
+NIMBY_API uint32_t __cdecl NimbyInternal_CaptureSignallingFor(NimbySession session,const char* texture_set,NimbySnapshot* out,uint32_t* stage) NIMBY_NOEXCEPT;
+NIMBY_API uint32_t __cdecl NimbyInternal_GetGameSession(NimbySnapshot snapshot, NimbyGameSession* out) NIMBY_NOEXCEPT;
 NIMBY_API uint32_t __cdecl NimbyInternal_ReleaseSnapshot(NimbySnapshot snapshot) NIMBY_NOEXCEPT;
 NIMBY_API uint32_t __cdecl NimbyInternal_GetSnapshotInfo(NimbySnapshot snapshot, NimbySnapshotInfo* out) NIMBY_NOEXCEPT;
 NIMBY_API uint32_t __cdecl NimbyInternal_GetSimulationClock(NimbySnapshot snapshot, NimbySimulationClock* out) NIMBY_NOEXCEPT;
@@ -246,6 +276,8 @@ NIMBY_API uint32_t __cdecl NimbyInternal_CopySignalStates(NimbySnapshot snapshot
 // One row per signal; uses the same buffer/count protocol. Missing catalog/state
 // leaves flags=0. Read-only lookup, native default atlas and index clamping.
 NIMBY_API uint32_t __cdecl NimbyInternal_CopySignalTextures(NimbySnapshot snapshot, NimbySignalTexture* records, uint32_t capacity, uint32_t* required) NIMBY_NOEXCEPT;
+NIMBY_API uint32_t __cdecl NimbyInternal_CopySignalExtensionsStates(NimbySnapshot snapshot, NimbySignalExtensionsState* records, uint32_t capacity, uint32_t* required) NIMBY_NOEXCEPT;
+NIMBY_API uint32_t __cdecl NimbyInternal_CopySignalExtensionFields(NimbySnapshot snapshot, NimbySignalExtensionField* records, uint32_t capacity, uint32_t* required) NIMBY_NOEXCEPT;
 NIMBY_API uint32_t __cdecl NimbyInternal_CopyTrackNodes(NimbySnapshot snapshot, NimbyTrackNode* records, uint32_t capacity, uint32_t* required) NIMBY_NOEXCEPT;
 NIMBY_API uint32_t __cdecl NimbyInternal_CopyTrackJunctions(NimbySnapshot snapshot, NimbyTrackJunction* records, uint32_t capacity, uint32_t* required) NIMBY_NOEXCEPT;
 // These components are captured independently. DATA_UNAVAILABLE means unknown,

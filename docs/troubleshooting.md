@@ -1,5 +1,22 @@
 # Dépannage
 
+## Mods Kotlin et Gradle
+
+| Symptôme | Action |
+| --- | --- |
+| `Configurer nrfSdkDir` | Définir le chemin du kit extrait dans les réglages utilisateur de Gradle, l'environnement ou le Hub |
+| Plugin `fr.nimbyrails.mod` introuvable | Vérifier `gradle-repository/` et la version du plugin ; utiliser un kit complet avec le plugin Gradle |
+| `Unsupported class file major version` | Sélectionner JDK 21 pour Gradle ; ne pas utiliser automatiquement le runtime de l'IDE |
+| `Incomplete Kotlin SDK` | Extraire à nouveau le kit entier, sans mélanger les fichiers de plusieurs versions |
+| SDK hors de l'intervalle déclaré | Choisir un kit compatible avec `sdkMin` et `sdkMaxExclusive` du manifeste |
+| Échec de téléchargement au premier build | Vérifier l'accès aux dépôts Gradle et Maven ; le kit ne contient pas toutes les dépendances hors ligne |
+| Point d'entrée Kotlin absent | Fournir `nimby.mod.createMod(): SignallingMod` dans les sources du mod |
+| Échec de `verifyNativeMod` | Consulter la sortie du testeur et vérifier les deux DLL dans `build/gradle/verification` |
+| Changement de code invisible en jeu | Recompiler, préparer le projet local dans le Hub et redémarrer le jeu |
+| Projet refusé avant la première compilation | Vérifier les champs du `mod.json` complet et utiliser un Hub prenant en charge les projets Kotlin source |
+
+Consulter le [démarrage Kotlin](kotlin-mods.md) et le [contrat Gradle](gradle-plugin.md).
+
 ## Helpers C++
 
 - `nimby/client.hpp` introuvable : utiliser le header de cette révision ou un

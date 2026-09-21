@@ -1,4 +1,4 @@
-﻿#include "engine/track_usage.h"
+#include "engine/track_usage.h"
 #include <algorithm>
 #include <array>
 #include <cmath>
@@ -17,12 +17,13 @@ bool add(std::vector<TrackUsage>& out,uint64_t track,const unsigned char* data,s
  if((track>>48)!=1||(train>>48)!=5||!std::isfinite(a)||!std::isfinite(b)||a<0||a>1||b<0||b>1||out.size()>=max_records)return false;
  out.push_back({train,track,std::min(a,b),std::max(a,b)});return true;
 }
-bool same_root(ReadMemory r,void* c,const LiveState& s){LiveState now{};return resolve_live_state(r,c,s.module_base,true,now)&&now==s;}
+bool same_root(ReadMemory r,void* c,const LiveState& s){LiveState now{};return resolve_live_state(r,c,s.module_base,true,s.profile,now)&&now==s;}
 bool reservations(ReadMemory read,void* ctx,const LiveState& s,std::vector<TrackUsage>& out){
  // RVA 0x47a5f0: Sim+0xd98; RVA 0x45f860: 16 Swiss-map shards, stride 0x88.
  size_t slots_budget=max_slots;
  for(size_t shard=0;shard<16;++shard){
-  const auto table=s.simulation+0xd98+shard*0x88+0x50;std::array<uint64_t,4> h{};
+  const auto table=s.simulation+(s.profile==LiveStateProfile::Linux119
+      ?0x9d0+shard*0x58+0x28:0xd98+shard*0x88+0x50);std::array<uint64_t,4> h{};
   if(!read(ctx,table,h.data(),sizeof h))return false;
   const auto ctrl=h[0],slots=h[1],size=h[2],mask=h[3];
   if(!ctrl&&!slots&&!size&&!mask)continue;
@@ -47,7 +48,7 @@ bool reservations(ReadMemory read,void* ctx,const LiveState& s,std::vector<Track
 }
 bool occupations(ReadMemory read,void* ctx,const LiveState& s,std::vector<TrackUsage>& out){
  // RVA 0x6eb6d0: UI's car-occupation map at Sim+0x2c8; query iterator RVA 0x459ea0.
- const auto address=s.simulation+0x2c8;std::array<uint64_t,10> h{};
+ const auto address=s.simulation+(s.profile==LiveStateProfile::Linux119?0x278:0x2c8);std::array<uint64_t,10> h{};
  if(!read(ctx,address,h.data(),sizeof h))return false;
  if(!span(h[0],h[1],h[2],8,max_slots)||!span(h[3],h[4],h[5],32,max_slots))return false;
  size_t n=(h[1]-h[0])/8;if((h[4]-h[3])/32!=n)return false;

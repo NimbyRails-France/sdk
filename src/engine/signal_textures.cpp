@@ -1,4 +1,5 @@
 #include "engine/signal_textures.h"
+#include "engine/native_string.h"
 #include <array>
 #include <cstring>
 #include <unordered_set>
@@ -21,8 +22,13 @@ template<class Char>bool string(ReadMemory r,void* c,const void* data,size_t lim
     out.assign(chars.data(),length);return true;
 }
 bool capture(ReadMemory r,void* c,const LiveState& s,SignalTextureCatalog& out){
+    const auto text = [&](uint64_t address,const void* data,size_t limit,std::string& value) {
+        return s.profile==LiveStateProfile::Linux119
+            ? read_native_string(r,c,address,data,s.profile,value,limit)
+            : string(r,c,data,limit,value);
+    };
     // Rules live within Database at +0xa80; SignalTextures map at Rules+0x138.
-    const auto rules=s.database+0xa80,table=rules+0x138;
+    const auto rules=s.database+(s.profile==LiveStateProfile::Linux119?0xa78:0xa80),table=rules+0x138;
     std::array<uint64_t,4> h{};std::array<uint64_t,3> defaults{};
     if(!r(c,table,h.data(),sizeof h)||!r(c,rules+0x540,defaults.data(),sizeof defaults))return false;
     const auto buckets=h[1],count=h[2],size=h[3];
@@ -38,7 +44,7 @@ bool capture(ReadMemory r,void* c,const LiveState& s,SignalTextureCatalog& out){
         if(!ptr(node)||node==heads.back()||!seen.insert(node).second||seen.size()>size)return false;
         std::array<unsigned char,0xa0> data{};if(!r(c,node,data.data(),data.size()))return false;
         SignalTextureSet set;set.hash=field<uint64_t>(data.data(),0);
-        if(set.hash%count!=bucket||!string(r,c,data.data()+8,127,set.name))return false;
+        if(set.hash%count!=bucket||!text(node+8,data.data()+8,127,set.name))return false;
         const auto begin=field<uint64_t>(data.data(),0x80),end=field<uint64_t>(data.data(),0x88),cap=field<uint64_t>(data.data(),0x90);
         if(end<begin||cap<end||(end-begin)%0x50||(cap-begin)%0x50||cap-begin>4096*0x50||
            (end-begin)/0x50>file_budget||(end!=begin&&!ptr(begin)))return false;
@@ -46,7 +52,7 @@ bool capture(ReadMemory r,void* c,const LiveState& s,SignalTextureCatalog& out){
         if(!files.empty()&&!r(c,begin,files.data(),files.size()))return false;
         for(size_t i=0;i<files.size();i+=0x50){const auto* f=files.data()+i;SignalTextureFile file;
             file.source=field<int32_t>(f,0);file.hash=field<uint64_t>(f,0x48);
-            if(file.source<0||file.source>2||!string(r,c,f+8,255,file.mod)||!string(r,c,f+0x28,511,file.relative_path))return false;
+            if(file.source<0||file.source>2||!text(begin+i+8,f+8,255,file.mod)||!text(begin+i+0x28,f+0x28,511,file.relative_path))return false;
             set.files.push_back(std::move(file));
         }
         if(!stable(r,c,begin,files.data(),files.size())||!stable(r,c,node,data.data(),data.size())||
@@ -56,17 +62,25 @@ bool capture(ReadMemory r,void* c,const LiveState& s,SignalTextureCatalog& out){
     if(seen.size()!=size||!stable(r,c,table,h.data(),sizeof h)||!stable(r,c,buckets,heads.data(),heads.size()*8)||
        !stable(r,c,rules+0x540,defaults.data(),sizeof defaults)||!stable(r,c,defaults[0],out.defaults.data(),out.defaults.size()*8))return false;
     // Native local-mod directory, UTF-16 std::wstring. Optional independently.
-    std::array<unsigned char,32> root{};const auto address=s.module_base+0xb77d50;
-    if(!r(c,address,root.data(),root.size())||!string(r,c,root.data(),1023,out.local_mod_root)||
-       !stable(r,c,address,root.data(),root.size()))out.local_mod_root.clear();
+    std::array<unsigned char,32> root{};
+    const auto address=s.module_base+(s.profile==LiveStateProfile::Linux119?0x10e6678:0xb77d50);
+    if(r(c,address,root.data(),root.size())) {
+        if(s.profile==LiveStateProfile::Linux119) {
+            std::string path;
+            if(text(address,root.data(),1023,path))out.local_mod_root=std::filesystem::path(std::u8string_view(reinterpret_cast<const char8_t*>(path.data()),path.size()));
+        } else {
+            std::wstring path;
+            if(string(r,c,root.data(),1023,path)&&stable(r,c,address,root.data(),root.size()))out.local_mod_root=path;
+        }
+    }
     return true;
 }
 }
 bool read_signal_texture_catalog(ReadMemory r,void* c,const LiveState& s,bool recognized,SignalTextureCatalog& out) noexcept {
     out={};if(!r||!recognized)return false;
     try {for(int attempt=0;attempt<3;++attempt){LiveState before{},after{};SignalTextureCatalog value;
-        if(!resolve_live_state(r,c,s.module_base,true,before)||before!=s)return false;
-        if(capture(r,c,s,value)&&resolve_live_state(r,c,s.module_base,true,after)&&after==s){out=std::move(value);return true;}
+        if(!resolve_live_state(r,c,s.module_base,true,s.profile,before)||before!=s)return false;
+        if(capture(r,c,s,value)&&resolve_live_state(r,c,s.module_base,true,s.profile,after)&&after==s){out=std::move(value);return true;}
     }}catch(...){}return false;
 }
 const SignalTextureSet* select_signal_textures(const SignalTextureCatalog& catalog,int kind,uint64_t hash) noexcept {

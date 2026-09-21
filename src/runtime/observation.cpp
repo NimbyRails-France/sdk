@@ -1,12 +1,24 @@
 #include <nimby/detail/observation.h>
+#include <nimby/block_coverage.hpp>
 #include "engine/binary_identity.h"
 #include "engine/network.h"
+#include "engine/driving.h"
 #include "engine/track_usage.h"
 #include "engine/signal_textures.h"
 #include "engine/simulation_clock.h"
+#ifdef _WIN32
 #include "runtime/clock_bridge.h"
+#endif
+#include "runtime/observation_epoch.h"
+#ifdef _WIN32
 #include <windows.h>
 #include <tlhelp32.h>
+#else
+#include "platform/linux/process.h"
+#include <unistd.h>
+#endif
+#include <mutex>
+#include <thread>
 #include <algorithm>
 #include <array>
 #include <bit>
@@ -21,14 +33,37 @@
 
 namespace {
 struct Session {
+    nimby::runtime::ObservationEpoch settings_epoch;
+#ifdef _WIN32
     HANDLE process{};
+#else
+    std::unique_ptr<nimby::platform::linux_os::Process> process;
+#endif
     uint32_t pid{};
     uint64_t base{};
     NimbyBinaryInfo binary{};
     std::filesystem::path game_directory;
+    nimby::engine::LiveState driving_state{};
+    uint64_t driving_generation{};
+    int64_t driving_last_elapsed=-1;
+#ifdef _WIN32
     ~Session() { if(process) CloseHandle(process); }
+#endif
+    bool alive() const {
+#ifdef _WIN32
+        return WaitForSingleObject(process,0)==WAIT_TIMEOUT;
+#else
+        return process && process->alive();
+#endif
+    }
 };
+#ifdef _WIN32
+constexpr auto native_profile=nimby::engine::LiveStateProfile::Windows119;
+#else
+constexpr auto native_profile=nimby::engine::LiveStateProfile::Linux119;
+#endif
 struct Snapshot {
+    NimbyGameSession game_session{};
     NimbySnapshotInfo info{};
     nimby::engine::SimulationClock clock{};
     bool clock_available=false;
@@ -42,6 +77,8 @@ struct Snapshot {
     std::vector<NimbySignal> signals;
     std::vector<NimbySignalState> signal_states;
     std::vector<NimbySignalTexture> signal_textures;
+    std::vector<NimbySignalExtensionsState> extension_states;
+    std::vector<NimbySignalExtensionField> extension_fields;
     std::vector<NimbyTrackNode> nodes;
     std::vector<NimbyTrackJunction> junctions;
     std::map<uint64_t,std::vector<uint64_t>> paths;
@@ -53,8 +90,8 @@ struct Registry {
     std::map<uint64_t,std::unique_ptr<Session>> sessions;
     std::map<uint64_t,Snapshot> snapshots;
 };
-SRWLOCK registry_lock=SRWLOCK_INIT;
-struct Guard { Guard(){AcquireSRWLockExclusive(&registry_lock);} ~Guard(){ReleaseSRWLockExclusive(&registry_lock);} };
+std::mutex registry_lock;
+struct Guard : std::lock_guard<std::mutex> { Guard():std::lock_guard<std::mutex>(registry_lock){} };
 Registry& registry() { static Registry value;return value; }
 NimbySignalState signal_render_state(const nimby::engine::Signal& signal,bool table_available,
                                     const std::map<uint64_t,int32_t>& selectors) {
@@ -74,15 +111,19 @@ NimbySignalState signal_render_state(const nimby::engine::Signal& signal,bool ta
     std::snprintf(result.specific_state_utf8,sizeof result.specific_state_utf8,"kind.%d.state.%d",signal.kind,result.texture_state);
     return result;
 }
-std::wstring from_utf8(const std::string& text) {
+std::filesystem::path from_utf8(const std::string& text) {
+#ifdef _WIN32
     const int n=MultiByteToWideChar(CP_UTF8,MB_ERR_INVALID_CHARS,text.data(),static_cast<int>(text.size()),nullptr,0);
     if(!n)return {};
     std::wstring result(n,L'\0');
     MultiByteToWideChar(CP_UTF8,MB_ERR_INVALID_CHARS,text.data(),static_cast<int>(text.size()),result.data(),n);return result;
+#else
+    return std::filesystem::path(std::u8string_view(reinterpret_cast<const char8_t*>(text.data()),text.size()));
+#endif
 }
 bool relative_asset(const std::filesystem::path& path) {
     if(path.empty()||path.has_root_path())return false;
-    for(const auto& part:path)if(part==L".."||part==L"."||part.native().find(L':')!=std::wstring::npos)return false;
+    for(const auto& part:path)if(part==".."||part=="."||part.generic_string().find(':')!=std::string::npos)return false;
     return true;
 }
 void texture_file_path(const Session& session,const nimby::engine::SignalTextureCatalog& catalog,
@@ -96,23 +137,36 @@ void texture_file_path(const Session& session,const nimby::engine::SignalTexture
         if(file.mod.empty()||file.mod.find_first_not_of("0123456789")!=std::string::npos)return;
         base=session.game_directory.parent_path().parent_path()/L"workshop"/L"content"/L"1134710";
     }
-    if(!base.is_absolute()||!base.has_root_name()||base.native().starts_with(L"\\\\"))return;
+    if(!base.is_absolute())return;
+#ifdef _WIN32
+    if(!base.has_root_name()||base.native().starts_with(L"\\\\"))return;
+#endif
     std::error_code ec;const auto root=std::filesystem::weakly_canonical(base,ec);if(ec)return;
     const auto path=std::filesystem::weakly_canonical(root/mod/relative,ec);if(ec)return;
     // Reject traversal through symlinks/junctions as well as textual '..'.
     const auto within=path.lexically_relative(root);
     if(!relative_asset(within)||!std::filesystem::is_regular_file(path,ec)||ec)return;
+#ifdef _WIN32
     const auto text=path.wstring();
     const int n=WideCharToMultiByte(CP_UTF8,WC_ERR_INVALID_CHARS,text.data(),static_cast<int>(text.size()),nullptr,0,nullptr,nullptr);
     if(n<=0||static_cast<size_t>(n)>=sizeof out.file_path_utf8)return;
     WideCharToMultiByte(CP_UTF8,WC_ERR_INVALID_CHARS,text.data(),static_cast<int>(text.size()),out.file_path_utf8,n,nullptr,nullptr);
+#else
+    const auto text=path.u8string();
+    if(text.empty()||text.size()>=sizeof out.file_path_utf8)return;
+    std::memcpy(out.file_path_utf8,text.data(),text.size());
+#endif
     out.flags|=NIMBY_SIGNAL_TEXTURE_FILE_VALID;
 }
 bool read(void* context,uint64_t address,void* out,size_t size) {
     const auto& s=*static_cast<Session*>(context);
+#ifdef _WIN32
     SIZE_T got{};
     return size<=0x7fffffffffffULL&&address>=0x10000&&address<=0x7fffffffffffULL-size&&
         ReadProcessMemory(s.process,reinterpret_cast<void*>(address),out,size,&got)&&got==size;
+#else
+    return s.process->read(address,out,size);
+#endif
 }
 template<class T> uint32_t copy(NimbySnapshot handle,T* records,uint32_t capacity,uint32_t* required,std::vector<T> Snapshot::*member,bool Snapshot::*available=nullptr) noexcept {
     if(!required)return NIMBY_INVALID_ARGUMENT;
@@ -136,7 +190,9 @@ uint32_t __cdecl NimbyInternal_OpenProcess(uint32_t abi,uint32_t pid,NimbySessio
     try {
         Guard guard;auto& r=registry();
         if(r.sessions.size()>=8||!r.next)return NIMBY_RESOURCE_LIMIT;
-        auto s=std::make_unique<Session>();s->pid=pid?pid:GetCurrentProcessId();
+        auto s=std::make_unique<Session>();
+#ifdef _WIN32
+        s->pid=pid?pid:GetCurrentProcessId();
         s->process=OpenProcess(PROCESS_QUERY_INFORMATION|PROCESS_VM_READ|SYNCHRONIZE,FALSE,s->pid);
         if(!s->process)return NIMBY_IO_ERROR;
         std::array<wchar_t,32768> path{};DWORD length=static_cast<DWORD>(path.size());
@@ -153,6 +209,20 @@ uint32_t __cdecl NimbyInternal_OpenProcess(uint32_t abi,uint32_t pid,NimbySessio
         if(!found)return NIMBY_IO_ERROR;
         s->base=reinterpret_cast<uint64_t>(module.modBaseAddr);
         if(WaitForSingleObject(s->process,0)!=WAIT_TIMEOUT)return NIMBY_PROCESS_EXITED;
+#else
+        s->pid=pid?pid:static_cast<uint32_t>(getpid());
+        s->process=std::make_unique<nimby::platform::linux_os::Process>(s->pid);
+        const auto path=s->process->executable();
+        s->game_directory=path.parent_path();
+        const auto identity=nimby::platform::linux_os::identify(path);
+        if(identity.size!=20787376 || identity.sha256!="2581d0e8157f43acb137b2bd9d52e2a7c82bd8af8b62fab5d87f00cc27eefde6")return NIMBY_UNSUPPORTED_GAME;
+        s->binary.struct_size=sizeof s->binary;s->binary.recognized_research_build=1;s->binary.file_size=identity.size;
+        std::memcpy(s->binary.sha256,identity.sha256.c_str(),65);
+        s->base=s->process->image_base();
+        if(!s->alive())return NIMBY_PROCESS_EXITED;
+        std::array<unsigned char,4> header{};
+        if(!s->process->read(s->base,header.data(),header.size()))return NIMBY_IO_ERROR;
+#endif
         const auto id=r.next++;
         r.sessions.emplace(id,std::move(s));*out=id;return NIMBY_OK;
     }catch(...){return NIMBY_INTERNAL_ERROR;}
@@ -180,8 +250,9 @@ uint32_t __cdecl NimbyInternal_SetSimulationDateTime(NimbySession handle,int64_t
     if(found==registry().sessions.end())return NIMBY_INVALID_HANDLE;
     auto& session=*found->second;
     // Never suspend our own process. Normal observation sessions remain read-only.
+#ifdef _WIN32
     if(session.pid==GetCurrentProcessId())return NIMBY_INVALID_ARGUMENT;
-    if(WaitForSingleObject(session.process,0)!=WAIT_TIMEOUT)return NIMBY_PROCESS_EXITED;
+    if(!session.alive())return NIMBY_PROCESS_EXITED;
     using ProcessControl=LONG (NTAPI*)(HANDLE);
     const auto ntdll=GetModuleHandleW(L"ntdll.dll");
     if(!ntdll)return NIMBY_CLOCK_WRITE_FAILED;
@@ -205,7 +276,7 @@ uint32_t __cdecl NimbyInternal_SetSimulationDateTime(NimbySession handle,int64_t
     transaction.suspended=true;
     nimby::engine::LiveState state{};
     nimby::engine::SimulationClock before{},copyBefore{},after{},copyAfter{};
-    if(!nimby::engine::resolve_live_state(read,&session,session.base,true,state) ||
+    if(!nimby::engine::resolve_live_state(read,&session,session.base,true,native_profile,state) ||
        !nimby::engine::read_simulation_clock(read,&session,state.simulation,before) ||
        !nimby::engine::read_simulation_clock(read,&session,state.copy,copyBefore) ||
        before.epoch_seconds!=copyBefore.epoch_seconds)return NIMBY_DATA_UNAVAILABLE;
@@ -235,6 +306,9 @@ uint32_t __cdecl NimbyInternal_SetSimulationDateTime(NimbySession handle,int64_t
     transaction.suspended=false;
     out->epoch_seconds=after.epoch_seconds;out->ticks=after.ticks;
     return NIMBY_OK;
+#else
+    return NIMBY_CLOCK_WRITE_FAILED;
+#endif
 }
 uint32_t __cdecl NimbyInternal_SetSimulationDateTimeAndRecalculateTrains(
     NimbySession handle,int64_t utc,NimbySimulationClock* out,uint32_t* count) noexcept {
@@ -244,28 +318,100 @@ uint32_t __cdecl NimbyInternal_SetSimulationDateTimeAndRecalculateTrains(
     Guard guard;auto found=registry().sessions.find(handle);
     if(found==registry().sessions.end())return NIMBY_INVALID_HANDLE;
     auto& session=*found->second;
+#ifdef _WIN32
     if(session.pid==GetCurrentProcessId())return NIMBY_INVALID_ARGUMENT;
-    if(WaitForSingleObject(session.process,0)!=WAIT_TIMEOUT)return NIMBY_PROCESS_EXITED;
+    if(!session.alive())return NIMBY_PROCESS_EXITED;
     nimby::engine::LiveState state{};
-    if(!nimby::engine::resolve_live_state(read,&session,session.base,true,state))return NIMBY_DATA_UNAVAILABLE;
+    if(!nimby::engine::resolve_live_state(read,&session,session.base,true,native_profile,state))return NIMBY_DATA_UNAVAILABLE;
     return nimby::clock_bridge::change(session.process,session.pid,state.simulation,session.binary,utc,*out,*count);
+#else
+    return NIMBY_CLOCK_WRITE_FAILED;
+#endif
+}
+uint32_t __cdecl NimbyInternal_ReadTrainDriving(NimbySession handle,uint64_t id,NimbyDrivingObservation* out) noexcept {
+    if(!out||out->struct_size!=sizeof *out)return NIMBY_INVALID_ARGUMENT;
+    *out={};out->struct_size=sizeof *out;
+    if((id>>48)!=5)return NIMBY_INVALID_ARGUMENT;
+    try {
+        Guard guard;auto& r=registry();auto found=r.sessions.find(handle);
+        if(found==r.sessions.end())return NIMBY_INVALID_HANDLE;
+        auto& session=*found->second;
+        if(!session.alive())return NIMBY_PROCESS_EXITED;
+        nimby::engine::LiveState state{};
+        if(!nimby::engine::resolve_live_state(read,&session,session.base,true,native_profile,state)) {
+            session.driving_state={};session.driving_last_elapsed=-1;return NIMBY_DATA_UNAVAILABLE;
+        }
+        if(session.driving_state!=state) {
+            session.driving_state=state;
+            if(session.driving_generation==UINT64_MAX)return NIMBY_RESOURCE_LIMIT;
+            ++session.driving_generation;
+            session.driving_last_elapsed=-1;
+        }
+        if(!nimby::engine::read_train_driving(read,&session,state,id,*out))return NIMBY_DATA_UNAVAILABLE;
+        if(out->elapsed_end_ms<session.driving_last_elapsed) {
+            if(session.driving_generation==UINT64_MAX){*out={};out->struct_size=sizeof *out;return NIMBY_RESOURCE_LIMIT;}
+            ++session.driving_generation;
+        }
+        session.driving_last_elapsed=out->elapsed_end_ms;
+        out->session_generation=session.driving_generation;
+        out->captured_unix_ms=static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::milliseconds>(
+            std::chrono::system_clock::now().time_since_epoch()).count());
+        return NIMBY_OK;
+    } catch (...) { *out={};out->struct_size=sizeof *out;return NIMBY_INTERNAL_ERROR; }
 }
 uint32_t __cdecl NimbyInternal_CaptureSnapshot(NimbySession handle,NimbySnapshot* out) noexcept {
+    uint32_t stage{};
+    return NimbyInternal_CaptureSnapshotDiagnostic(handle,out,&stage);
+}
+static uint32_t capture_snapshot(NimbySession handle,NimbySnapshot* out,uint32_t* stage,bool signallingOnly,const char* textureSet=nullptr) noexcept;
+uint32_t __cdecl NimbyInternal_CaptureSnapshotDiagnostic(NimbySession handle,NimbySnapshot* out,uint32_t* stage) noexcept {
+    return capture_snapshot(handle,out,stage,false);
+}
+uint32_t __cdecl NimbyInternal_CaptureSignallingSnapshot(NimbySession handle,NimbySnapshot* out,uint32_t* stage) noexcept {
+    return capture_snapshot(handle,out,stage,true);
+}
+uint32_t __cdecl NimbyInternal_CaptureSignallingFor(NimbySession handle,const char* textureSet,NimbySnapshot* out,uint32_t* stage) noexcept {
+    if(!textureSet||!*textureSet||strnlen(textureSet,257)>256){if(out)*out=0;if(stage)*stage=0;return NIMBY_INVALID_ARGUMENT;}
+    return capture_snapshot(handle,out,stage,true,textureSet);
+}
+static uint32_t capture_snapshot(NimbySession handle,NimbySnapshot* out,uint32_t* stage,bool signallingOnly,const char* textureSet) noexcept {
+    if(stage)*stage=0;
+    if(out)*out=0;
+    if(!stage)return NIMBY_INVALID_ARGUMENT;
     if(!out)return NIMBY_INVALID_ARGUMENT;
     *out=0;
     try {
         Guard guard;auto& r=registry();auto found=r.sessions.find(handle);
         if(found==r.sessions.end())return NIMBY_INVALID_HANDLE;
         auto& session=*found->second;
-        if(WaitForSingleObject(session.process,0)!=WAIT_TIMEOUT)return NIMBY_PROCESS_EXITED;
+        if(!session.alive())return NIMBY_PROCESS_EXITED;
         if(r.snapshots.size()>=16||!r.next)return NIMBY_RESOURCE_LIMIT;
         nimby::engine::LiveState state{},after{};
+        nimby::engine::VersioningObservation versionBefore{},versionAfter{};
+        const bool versionAvailable=nimby::engine::read_versioning_observation(read,&session,session.base,true,versionBefore,native_profile);
+        if(!versionAvailable)session.settings_epoch.unavailable();
         nimby::engine::Network network;
         std::vector<nimby::engine::Train> trains;
-        if(!nimby::engine::resolve_live_state(read,&session,session.base,true,state)||
-           !nimby::engine::read_trains(read,&session,state,true,trains)||
-           !nimby::engine::read_network(read,&session,state,true,network)||
-           !nimby::engine::resolve_live_state(read,&session,session.base,true,after)||state!=after)return NIMBY_DATA_UNAVAILABLE;
+        *stage=1;
+        if(!nimby::engine::resolve_live_state(read,&session,session.base,true,native_profile,state))return NIMBY_DATA_UNAVAILABLE;
+        *stage=3;
+        nimby::engine::SignalTextureCatalog texture_catalog;
+        bool catalog_available=false;
+        if(textureSet){
+            catalog_available=nimby::engine::read_signal_texture_catalog(read,&session,state,true,texture_catalog);
+            if(!catalog_available)return NIMBY_DATA_UNAVAILABLE;
+            const nimby::engine::SignalTextureSet* selected=nullptr;
+            for(const auto& [hash,set]:texture_catalog.sets)if(set.name==textureSet){if(selected)return NIMBY_DATA_UNAVAILABLE;selected=&set;}
+            if(!selected||!nimby::engine::read_signalling_network(read,&session,state,selected->hash,network))return NIMBY_DATA_UNAVAILABLE;
+        }else if(!nimby::engine::read_network(read,&session,state,true,network,signallingOnly))return NIMBY_DATA_UNAVAILABLE;
+        *stage=4;
+        if(!nimby::engine::resolve_live_state(read,&session,session.base,true,native_profile,after)||state!=after)return NIMBY_DATA_UNAVAILABLE;
+        // Topology traversal can be much slower than a simulation tick. Read
+        // presence immediately before occupation, not before topology: otherwise
+        // an entering/leaving train makes unrelated blocks lose coverage.
+        *stage=2;
+        if(!nimby::engine::read_trains(read,&session,state,true,trains,signallingOnly))return NIMBY_DATA_UNAVAILABLE;
+        *stage=4;
         Snapshot snapshot;
         snapshot.clock_available=nimby::engine::read_simulation_clock(read,&session,state.simulation,snapshot.clock);
         std::unordered_set<uint64_t> track_ids;
@@ -278,13 +424,42 @@ uint32_t __cdecl NimbyInternal_CaptureSnapshot(NimbySession handle,NimbySnapshot
         auto usage=[&](auto reader,std::vector<NimbyTrackUsage>& dest){
             std::vector<nimby::engine::TrackUsage> values;
             if(!reader(read,&session,state,true,values))return false;
-            for(const auto& v:values)if(!train_ids.contains(v.train_id)||!track_ids.contains(v.track_id))return false;
+            for(const auto& v:values)if(!train_ids.contains(v.train_id)||(!textureSet&&!track_ids.contains(v.track_id)))return false;
             for(const auto& v:values)dest.push_back({v.train_id,v.track_id,v.begin,v.end});
             return true;
         };
-        snapshot.reservations_available=usage(nimby::engine::read_reservations,snapshot.reservations);
+        if(!signallingOnly)snapshot.reservations_available=usage(nimby::engine::read_reservations,snapshot.reservations);
         snapshot.occupations_available=usage(nimby::engine::read_occupations,snapshot.occupations);
-        if(!nimby::engine::resolve_live_state(read,&session,session.base,true,after)||state!=after)return NIMBY_DATA_UNAVAILABLE;
+        if(signallingOnly) {
+            // Both collections are mutable. Retry the pair, not only occupancy:
+            // retaining earlier presence would repeat the same inconsistency.
+            // Never combine attempts or accept an old clear observation.
+            for(unsigned attempt=0;attempt<3;++attempt) {
+                std::vector<nimby::TrainPresence> presence;
+                std::vector<nimby::TrainFootprint> footprints;
+                for(const auto& t:trains) {
+                    std::optional<bool> present;
+                    if(t.service.flags&(NIMBY_SERVICE_PRESENCE_VALID|NIMBY_SERVICE_STATE_VALID)) {
+                        const auto flags=t.service.motion_flags;
+                        present=(flags&(NIMBY_MOTION_PRESENCE|NIMBY_MOTION_DRIVE|NIMBY_MOTION_HIDDEN)) && !(flags&NIMBY_MOTION_HIDDEN);
+                    }
+                    presence.push_back({t.id,present});
+                }
+                for(const auto& row:snapshot.occupations)
+                    footprints.push_back({row.train_id,row.track_id,row.fraction_begin,row.fraction_end});
+                if(nimby::checkBlockCoverage(presence,footprints,snapshot.occupations_available).verified || attempt==2)break;
+                // Yield past a native update instead of rereading its halfway state.
+                std::this_thread::sleep_for(std::chrono::milliseconds(1));
+                *stage=2;
+                if(!nimby::engine::read_trains(read,&session,state,true,trains,true))return NIMBY_DATA_UNAVAILABLE;
+                train_ids.clear();for(const auto& t:trains)train_ids.insert(t.id);
+                snapshot.occupations.clear();
+                snapshot.occupations_available=usage(nimby::engine::read_occupations,snapshot.occupations);
+            }
+            snapshot.clock_available=nimby::engine::read_simulation_clock(read,&session,state.simulation,snapshot.clock);
+        }
+        *stage=5;
+        if(!nimby::engine::resolve_live_state(read,&session,session.base,true,native_profile,after)||state!=after)return NIMBY_DATA_UNAVAILABLE;
         for(const auto& t:trains) {
             NimbyTrain value{};value.id=t.id;
             std::memcpy(value.name_utf8,t.name.data(),t.name.size());
@@ -294,12 +469,13 @@ uint32_t __cdecl NimbyInternal_CaptureSnapshot(NimbySession handle,NimbySnapshot
                 if(!t.present)value.flags|=NIMBY_TRAIN_SPEED_DEFAULTED;
             }
             if(t.positioned){
-                if(!track_ids.contains(t.position.track_id))return NIMBY_DATA_UNAVAILABLE;
+                if(!track_ids.contains(t.position.track_id)){*stage=6;return NIMBY_DATA_UNAVAILABLE;}
                 value.flags|=NIMBY_TRAIN_POSITION_VALID;value.track_id=t.position.track_id;
                 value.track_fraction=t.position.fraction;value.direction=t.position.direction;
             }
             snapshot.trains.push_back(value);
             auto service=t.service;service.train_id=t.id;
+            if(signallingOnly){snapshot.train_services.push_back(service);continue;}
             if((service.flags&NIMBY_SERVICE_LOCATION_VALID)&&track_stations.contains(service.location_track_id))
                 service.location_station_id=track_stations.at(service.location_track_id);
             else {service.flags&=~NIMBY_SERVICE_LOCATION_VALID;service.location_track_id=0;}
@@ -327,8 +503,7 @@ uint32_t __cdecl NimbyInternal_CaptureSnapshot(NimbySession handle,NimbySnapshot
         for(const auto& s:network.stations){NimbyStation value{};value.id=s.id;std::memcpy(value.name_utf8,s.name.data(),s.name.size());snapshot.stations.push_back(value);}
         std::vector<nimby::engine::SignalTextureState> native_signal_states;
         std::map<uint64_t,int32_t> texture_states;
-        nimby::engine::SignalTextureCatalog texture_catalog;
-        const bool catalog_available=nimby::engine::read_signal_texture_catalog(read,&session,state,true,texture_catalog);
+        if(!textureSet)catalog_available=nimby::engine::read_signal_texture_catalog(read,&session,state,true,texture_catalog);
         const bool states_available=nimby::engine::read_signal_texture_states(read,&session,state,true,native_signal_states);
         if(states_available)
             for(const auto& value:native_signal_states)texture_states.emplace(value.id,value.state);
@@ -336,6 +511,21 @@ uint32_t __cdecl NimbyInternal_CaptureSnapshot(NimbySession handle,NimbySnapshot
         // A subsequent snapshot checks the filesystem again, including missing files.
         std::map<const nimby::engine::SignalTextureFile*,std::string> texture_paths;
         for(const auto& s:network.signals){
+            size_t extension_records=0;
+            for(const auto& extension:s.extensions)extension_records+=1+extension.fields.size();
+            const bool extensions_available=s.extensions_available && extension_records<=65536-snapshot.extension_fields.size();
+            snapshot.extension_states.push_back({s.id,extensions_available?1u:0u,0});
+            if(extensions_available)for(const auto& extension:s.extensions){
+                NimbySignalExtensionField record{};record.signal_id=s.id;record.script_id=extension.script;
+                std::memcpy(record.type_name,extension.typeName.c_str(),extension.typeName.size()+1);
+                snapshot.extension_fields.push_back(record);
+                for(const auto& [name,value]:extension.fields){
+                    std::memset(record.field_name,0,sizeof record.field_name);
+                    std::memcpy(record.field_name,name.c_str(),name.size()+1);
+                    const auto boolean=value.boolean();record.boolean_valid=boolean.has_value();record.boolean_value=boolean.value_or(false);
+                    snapshot.extension_fields.push_back(record);
+                }
+            }
             snapshot.signals.push_back({s.id,s.track_id,s.fraction,s.direction,s.kind});
             const auto signal_state=signal_render_state(s,states_available,texture_states);
             snapshot.signal_states.push_back(signal_state);
@@ -353,7 +543,7 @@ uint32_t __cdecl NimbyInternal_CaptureSnapshot(NimbySession handle,NimbySnapshot
                     std::memcpy(texture.mod_id_utf8,file.mod.c_str(),file.mod.size()+1);
                     std::memcpy(texture.relative_path_utf8,file.relative_path.c_str(),file.relative_path.size()+1);
                     const auto [cached,inserted]=texture_paths.try_emplace(&file);
-                    if(inserted){
+                    if(inserted&&!signallingOnly){
                         texture_file_path(session,texture_catalog,file,texture);
                         if(texture.flags&NIMBY_SIGNAL_TEXTURE_FILE_VALID)cached->second=texture.file_path_utf8;
                     }else if(!cached->second.empty()){
@@ -364,12 +554,13 @@ uint32_t __cdecl NimbyInternal_CaptureSnapshot(NimbySession handle,NimbySnapshot
             }
             snapshot.signal_textures.push_back(texture);
         }
-        if(!nimby::engine::resolve_live_state(read,&session,session.base,true,after)||state!=after)return NIMBY_DATA_UNAVAILABLE;
+        *stage=7;
+        if(!nimby::engine::resolve_live_state(read,&session,session.base,true,native_profile,after)||state!=after)return NIMBY_DATA_UNAVAILABLE;
         std::map<uint64_t,const nimby::engine::Track*> geometry;
         for(const auto& t:network.tracks)if(t.geometry)geometry.emplace(t.id,&t);
         for(const auto& [id,t]:geometry){
             // Branches can point into a main track without the reverse primary link.
-            auto link=[&](uint64_t target){return target!=id&&geometry.contains(target)?target:uint64_t(0);};
+            auto link=[&](uint64_t target){return target!=id&&(textureSet||geometry.contains(target))?target:uint64_t(0);};
             snapshot.nodes.push_back({id,link(t->links[0]),link(t->links[1]),t->x,t->y});
         }
         for(const auto& junction:network.junctions)
@@ -382,8 +573,16 @@ uint32_t __cdecl NimbyInternal_CaptureSnapshot(NimbySession handle,NimbySnapshot
         info.train_count=static_cast<uint32_t>(snapshot.trains.size());info.track_count=static_cast<uint32_t>(snapshot.tracks.size());
         info.station_count=static_cast<uint32_t>(snapshot.stations.size());info.signal_count=static_cast<uint32_t>(snapshot.signals.size());
         std::memcpy(info.game_sha256,session.binary.sha256,sizeof info.game_sha256);
-        if(WaitForSingleObject(session.process,0)!=WAIT_TIMEOUT)return NIMBY_PROCESS_EXITED;
-        auto id=r.next++;r.snapshots.emplace(id,std::move(snapshot));*out=id;return NIMBY_OK;
+        if(versionAvailable&&versionBefore.state==state&&
+           nimby::engine::read_versioning_observation(read,&session,session.base,true,versionAfter,native_profile)&&
+           versionAfter.state==state&&versionBefore.value==versionAfter.value&&versionBefore.history==versionAfter.history){
+            snapshot.game_session.struct_size=sizeof(snapshot.game_session);
+            snapshot.game_session.generation=session.settings_epoch.observe(versionAfter,
+                snapshot.clock_available?std::optional<int64_t>{snapshot.clock.ticks}:std::nullopt);
+            std::memcpy(snapshot.game_session.world_value,versionAfter.value.data(),32);
+        }else session.settings_epoch.unavailable();
+        if(!session.alive())return NIMBY_PROCESS_EXITED;
+        auto id=r.next++;r.snapshots.emplace(id,std::move(snapshot));*out=id;*stage=0;return NIMBY_OK;
     }catch(...){return NIMBY_INTERNAL_ERROR;}
 }
 uint32_t __cdecl NimbyInternal_GetSnapshotInfo(NimbySnapshot handle,NimbySnapshotInfo* out) noexcept {
@@ -392,6 +591,14 @@ uint32_t __cdecl NimbyInternal_GetSnapshotInfo(NimbySnapshot handle,NimbySnapsho
     Guard guard;auto& r=registry();auto found=r.snapshots.find(handle);
     if(found==r.snapshots.end())return NIMBY_INVALID_HANDLE;
     *out=found->second.info;return NIMBY_OK;
+}
+uint32_t __cdecl NimbyInternal_GetGameSession(NimbySnapshot handle,NimbyGameSession* out) noexcept {
+    if(!out||out->struct_size!=sizeof(*out))return NIMBY_INVALID_ARGUMENT;
+    *out={};out->struct_size=sizeof(*out);
+    Guard guard;const auto found=registry().snapshots.find(handle);
+    if(found==registry().snapshots.end())return NIMBY_INVALID_HANDLE;
+    if(!found->second.game_session.generation)return NIMBY_DATA_UNAVAILABLE;
+    *out=found->second.game_session;return NIMBY_OK;
 }
 uint32_t __cdecl NimbyInternal_CopyTrains(NimbySnapshot s,NimbyTrain* out,uint32_t cap,uint32_t* count) noexcept {return copy(s,out,cap,count,&Snapshot::trains);}
 uint32_t __cdecl NimbyInternal_CopyTrainServices(NimbySnapshot s,NimbyTrainService* out,uint32_t cap,uint32_t* count) noexcept {return copy(s,out,cap,count,&Snapshot::train_services);}
@@ -403,6 +610,8 @@ uint32_t __cdecl NimbyInternal_CopyStations(NimbySnapshot s,NimbyStation* out,ui
 uint32_t __cdecl NimbyInternal_CopySignals(NimbySnapshot s,NimbySignal* out,uint32_t cap,uint32_t* count) noexcept {return copy(s,out,cap,count,&Snapshot::signals);}
 uint32_t __cdecl NimbyInternal_CopySignalStates(NimbySnapshot s,NimbySignalState* out,uint32_t cap,uint32_t* count) noexcept {return copy(s,out,cap,count,&Snapshot::signal_states);}
 uint32_t __cdecl NimbyInternal_CopySignalTextures(NimbySnapshot s,NimbySignalTexture* out,uint32_t cap,uint32_t* count) noexcept {return copy(s,out,cap,count,&Snapshot::signal_textures);}
+uint32_t __cdecl NimbyInternal_CopySignalExtensionsStates(NimbySnapshot s,NimbySignalExtensionsState* out,uint32_t cap,uint32_t* count) noexcept {return copy(s,out,cap,count,&Snapshot::extension_states);}
+uint32_t __cdecl NimbyInternal_CopySignalExtensionFields(NimbySnapshot s,NimbySignalExtensionField* out,uint32_t cap,uint32_t* count) noexcept {return copy(s,out,cap,count,&Snapshot::extension_fields);}
 uint32_t __cdecl NimbyInternal_CopyTrackNodes(NimbySnapshot s,NimbyTrackNode* out,uint32_t cap,uint32_t* count) noexcept {return copy(s,out,cap,count,&Snapshot::nodes);}
 uint32_t __cdecl NimbyInternal_CopyTrackJunctions(NimbySnapshot s,NimbyTrackJunction* out,uint32_t cap,uint32_t* count) noexcept {return copy(s,out,cap,count,&Snapshot::junctions);}
 uint32_t __cdecl NimbyInternal_CopyTrainDetails(NimbySnapshot s,NimbyTrainDetails* out,uint32_t cap,uint32_t* count) noexcept {return copy(s,out,cap,count,&Snapshot::train_details);}

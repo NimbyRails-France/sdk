@@ -10,7 +10,10 @@ inline uint32_t execute(Shared& shared,Table& commands,uint64_t now) noexcept {
                             shared.expected_simulation==shared.request_simulation;
             const auto id=shared.request_signal;
             if(shared.operation==1){
-                const nimby::texture_bridge::Command command{id,shared.request_hash,shared.request_expiry,shared.request_index};
+                if(shared.request_half_period_ms && (shared.request_half_period_ms<100 || shared.request_half_period_ms>10000))
+                    return NIMBY_INVALID_ARGUMENT;
+                const nimby::texture_bridge::Command command{id,shared.request_hash,shared.request_expiry,
+                    shared.request_index,shared.request_alternate_index,shared.request_half_period_ms};
                 if(same){commands.prune(now);commands.put(command);}
                 else {nimby::texture_bridge::Table fresh;fresh.put(command);commands.entries.swap(fresh.entries);}
                 shared.expected_database=shared.request_database;
