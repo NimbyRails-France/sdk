@@ -19,6 +19,10 @@ from toolchain import install
 ROOT = pathlib.Path.cwd()
 PLAN = json.loads((ROOT / '.release-plan.json').read_text())
 VERSION = PLAN['version']
+# An explicit release-commit trailer can skip execution tests for one alpha.
+# Packaging/integrity checks remain mandatory, and ordinary builds still test.
+SKIP_TESTS = (PLAN['publish'] and PLAN['channel'] == 'alpha' and
+              'Release-Validation: skip-tests' in os.environ.get('CI_COMMIT_MESSAGE', '').splitlines())
 REPO = os.environ['CI_REPO'].split('/')[-1]
 assert REPO in ('hub', 'tco')
 PRODUCT = 'NRFHub' if REPO == 'hub' else 'NimbyTco'
@@ -66,7 +70,7 @@ def write(name, data):
     (OUT / name).write_text(json.dumps(data, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
 
 
-if REPO == 'hub':
+if REPO == 'hub' and not SKIP_TESTS:
     test_root = ROOT / 'build/ci-windows-tests'
     if not (test_root / 'fr/nimby/hub/SdkPromotionTest.class').exists():
         raise ValueError('Windows transaction tests were not compiled')
@@ -119,8 +123,11 @@ if (ROOT / 'build/ci-dependency-notices').is_dir():
 shutil.copytree(JDK / 'legal', stage / 'licenses/Temurin')
 # Exercises the packaged Windows JVM, classpath, graphics/JNA libraries and
 # resource loading without connecting to the game or opening a window.
-wine(win(stage / 'runtime/bin/java.exe'), '-cp', win(stage / 'app') + r'\*', MAIN, '--package-smoke-test')
-wine(win(stage / (PRODUCT + '.exe')), '--package-smoke-test')
+if not SKIP_TESTS:
+    wine(win(stage / 'runtime/bin/java.exe'), '-cp', win(stage / 'app') + r'\*', MAIN, '--package-smoke-test')
+    wine(win(stage / (PRODUCT + '.exe')), '--package-smoke-test')
+else:
+    print('Execution tests skipped by explicit alpha release request', flush=True)
 if REPO == 'hub':
     wine('/opt/inno/ISCC.exe', '/Qp', '/DStage=' + win(stage), '/DOutput=' + win(OUT),
          '/DVersion=' + VERSION, '/DNativeVersion=' + VERSION.split('-')[0],
