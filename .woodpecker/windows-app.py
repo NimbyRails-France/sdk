@@ -1,7 +1,7 @@
 """Package a Kotlin desktop application for Windows on the Woodpecker VPS.
 
 Gradle compiles JVM code on Linux and resolves Windows Skiko explicitly. The
-pinned Windows JDK creates the launcher/runtime with jpackage under Wine.
+pinned Windows JDK supplies its official jpackage launcher and jlink runtime.
 Only Windows artifacts enter dist/release; host test libraries never enter it.
 The existing publisher owns GitHub credentials and uploads after this succeeds.
 """
@@ -27,9 +27,8 @@ OUT = ROOT / 'dist/release'
 OUT.mkdir(parents=True, exist_ok=True)
 if any(OUT.iterdir()):
     raise ValueError('Release directory must be empty')
-# Wine's Z: mapping traverses the container's bind mount, where Windows volume
-# access queries can report a false read-only state. jpackage must work on its
-# own C: drive, then only the verified artifacts are copied into the workspace.
+# Keep Windows tool outputs within Wine's own C: drive. Only verified artifacts
+# are copied into the workspace consumed by the release publisher.
 WINE_C = pathlib.Path(os.environ.get('WINEPREFIX', str(pathlib.Path.home() / '.wine'))).resolve() / 'drive_c'
 WORK = WINE_C / 'nrf-packaging' / REPO
 WORK.mkdir(parents=True, exist_ok=True)
@@ -89,18 +88,29 @@ runtime = WORK / 'runtime'
 wine(win(JDK / 'bin/jlink.exe'), '--add-modules',
      'java.base,java.desktop,java.logging,java.management,java.naming,java.net.http,java.sql,jdk.unsupported,jdk.crypto.ec',
      '--strip-debug', '--no-header-files', '--no-man-pages', '--output', win(runtime))
-wine(win(JDK / 'bin/jpackage.exe'), '--type', 'app-image', '--name', PRODUCT,
-     '--app-version', VERSION.split('-')[0], '--vendor', 'NimbyRails France',
-     '--input', win(INPUT), '--dest', win(WORK / 'image'), '--runtime-image', win(runtime),
-     '--main-jar', main_jar[0].name, '--main-class', MAIN)
+# jpackage's Files.isWritable preflight is not implemented correctly by the
+# worker's Wine filesystem provider, even though actual writes succeed. Use
+# the unchanged Windows launcher that jpackage itself copies from this pinned
+# JDK. Its relative runtime/app layout and configuration are smoke-tested below.
+# Upstream contract: jdk.jpackage.internal.WindowsAppImageBuilder.
 stage = WORK / 'image' / PRODUCT
+stage.mkdir(parents=True)
+shutil.copytree(runtime, stage / 'runtime')
+shutil.copytree(INPUT, stage / 'app')
+with zipfile.ZipFile(JDK / 'jmods/jdk.jpackage.jmod') as module:
+    launcher = module.read('classes/jdk/jpackage/internal/resources/jpackageapplauncherw.exe')
+    if launcher[:2] != b'MZ':
+        raise ValueError('Pinned JDK does not contain the expected Windows launcher')
+    (stage / (PRODUCT + '.exe')).write_bytes(launcher)
 config = stage / 'app' / (PRODUCT + '.cfg')
-content = config.read_text(encoding='utf-8')
 # Use explicit classpath entries as Compose's own jpackage task does. This also
 # makes missing dependencies reviewable in the installed application.
-content = '\n'.join(line for line in content.splitlines() if not line.startswith('app.classpath='))
-content = content.replace('[Application]', '[Application]\n' + '\n'.join('app.classpath=$APPDIR\\' + p.name for p in jars))
-config.write_text(content + '\n', encoding='utf-8')
+content = '[Application]\napp.mainclass=' + MAIN + '\n'
+content += '\n'.join('app.classpath=$APPDIR\\' + p.name for p in jars)
+content += '\n[JavaOptions]\njava-options=-Djpackage.app-version=' + VERSION + '\n'
+content += 'java-options=-Dcompose.application.resources.dir=$APPDIR\\resources\n'
+content += 'java-options=-Djava.library.path=$APPDIR\n'
+config.write_text(content, encoding='utf-8')
 for name in ('README.md', 'THIRD_PARTY.md', 'LICENSE', 'LICENSE.txt'):
     if (ROOT / name).is_file():
         shutil.copy2(ROOT / name, stage / name)
