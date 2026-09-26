@@ -42,7 +42,7 @@ une simple droite sans valider les opérations de parcours.
 
 ## Première lecture en jeu
 
-Outil `tools/path_probe.cpp` : processus ouvert en lecture seule, empreinte reconnue,
+Outil `tools/windows/path_probe.cpp` : processus ouvert en lecture seule, empreinte reconnue,
 racines résolues à nouveau, en-tête Path relu après copie, IDs comparés aux voies
 actives. Au plus 24 trains présents sont échantillonnés. Aucune injection ni écriture.
 Rapport : `reports/paths/live-candidates.txt` ; PID 69952, réseau de 248418 voies.
@@ -56,7 +56,7 @@ le choix aux embranchements ou une réservation.
 Compilation reproductible avec le MinGW CLion, depuis la racine :
 
 ```powershell
-& "$env:LOCALAPPDATA/Programs/CLion/bin/mingw/bin/g++.exe" -std=c++20 -O2 -DUNICODE -D_UNICODE -Iinclude tools/path_probe.cpp src/engine/binary_identity.cpp src/engine/live_state.cpp src/engine/network.cpp -lbcrypt -lcomctl32 -lgdi32 -o build/Release/path_probe.exe
+& "$env:LOCALAPPDATA/Programs/CLion/bin/mingw/bin/g++.exe" -std=c++20 -O2 -DUNICODE -D_UNICODE -Iinclude tools/windows/path_probe.cpp src/platform/windows/engine/binary_identity.cpp src/engine/live_state.cpp src/engine/network.cpp src/engine/trains.cpp src/engine/signal_texture_states.cpp -lbcrypt -lcomctl32 -lgdi32 -o build/Release/path_probe.exe
 ./build/Release/path_probe.exe <PID>
 ```
 

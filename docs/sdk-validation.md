@@ -13,7 +13,7 @@ Ses imports directs sont `bcrypt.dll`, `KERNEL32.dll`, `msvcrt.dll` et
 `libwinpthread-1.dll`. Les dépendances et notices sont présentes dans le paquet.
 MSVC n'a pas été testé.
 
-`tools/package.ps1` a installé les seuls headers publics `nimby/sdk.h` et
+`tools/windows/package.ps1` a installé les seuls headers publics `nimby/sdk.h` et
 `nimby/observation.h`, exporté `NimbyRailsSDK::SDK`, puis compilé une copie de
 l'exemple installé dans `build/sdk-consumer/source`. Ce projet utilise seulement
 `find_package` et la bibliothèque d'import du paquet. Les fichiers CMake exportés

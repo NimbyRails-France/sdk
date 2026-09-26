@@ -1,14 +1,14 @@
 # Créer un mod Kotlin
 
-Ce guide utilise le kit Kotlin **0.7.3**, Windows x64, Kotlin/Native **2.2.20**
+Ce guide utilise le kit Kotlin **0.8.0**, Windows x64, Kotlin/Native **2.2.20**
 et Gradle **8.14.3**. Prévoir un **JDK 21** pour Gradle ; le joueur n'a pas
 besoin de Java. L'accès aux dépôts Gradle et Maven est nécessaire au premier
 build : le kit n'est pas une distribution entièrement hors ligne.
 
 ## Installer le kit
 
-Extraire `NimbyRailsFranceSDK-kotlin-0.7.3-windows-x64.zip` dans un dossier
-durable, par exemple `C:/SDK/NimbyKotlin-0.7.3`. Ce dossier doit contenir
+Extraire `NimbyRailsFranceSDK-kotlin-0.8.0-windows-x64.zip` dans un dossier
+durable, par exemple `C:/SDK/NimbyKotlin-0.8.0`. Ce dossier doit contenir
 `sdk.json`, `gradle-repository/`, `klib/`, `bridge/` et `bin/`.
 
 Le kit contient le plugin Gradle précompilé, l'API Kotlin et ses sources
@@ -47,7 +47,7 @@ PowerShell de compilation ou d'installation n'est à écrire ou recopier.
 1. Ouvrir `build.gradle.kts` comme projet.
 2. Choisir le JDK 21 comme **Gradle JVM**.
 3. Définir `NRF_KOTLIN_SDK` dans l'environnement, ou ajouter
-   `nrfSdkDir=C:/SDK/NimbyKotlin-0.7.3` à son fichier utilisateur
+   `nrfSdkDir=C:/SDK/NimbyKotlin-0.8.0` à son fichier utilisateur
    `%USERPROFILE%/.gradle/gradle.properties`.
 4. Synchroniser Gradle, puis lancer la tâche `build`.
 
@@ -59,9 +59,9 @@ Le chemin du SDK est une préférence de la machine, pas un chemin personnel
 Dans un terminal Windows avec le JDK 21 sélectionné :
 
 ```text
-gradlew.bat build -PnrfSdkDir=C:/SDK/NimbyKotlin-0.7.3
-gradlew.bat windowsTest -PnrfSdkDir=C:/SDK/NimbyKotlin-0.7.3
-gradlew.bat assembleDebugMod -PnrfSdkDir=C:/SDK/NimbyKotlin-0.7.3
+gradlew.bat build -PnrfSdkDir=C:/SDK/NimbyKotlin-0.8.0
+gradlew.bat windowsTest -PnrfSdkDir=C:/SDK/NimbyKotlin-0.8.0
+gradlew.bat assembleDebugMod -PnrfSdkDir=C:/SDK/NimbyKotlin-0.8.0
 ```
 
 `build` produit les assemblages, lance les tests Kotlin, vérifie le chargement

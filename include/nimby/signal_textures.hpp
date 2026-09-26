@@ -1,5 +1,5 @@
 #pragma once
-#include <nimby/client.hpp>
+#include <nimby/detail/observation_session.hpp>
 
 extern "C" {
 // pid=0 means the current game process. Paths refer to the loaded mod catalogue,

@@ -14,7 +14,24 @@ private val mod: SignallingMod by lazy {
         require(it.diagnosticFile.matches(Regex("[a-zA-Z0-9_.-]+")) && it.diagnosticFile !in setOf(".", ".."))
     }
 }
-private inline fun guarded(block: () -> Int): Int = try { block() } catch (_: Throwable) { -1 }
+@kotlin.native.concurrent.ThreadLocal
+private var lastFailure = ""
+private inline fun guarded(operation: String, block: () -> Int): Int = try {
+    lastFailure = ""; block()
+} catch (error: Throwable) {
+    lastFailure = try { "$operation: ${error.stackTraceToString()}" } catch (_: Throwable) { "Kotlin failure: stack unavailable" }; -1
+}
+/** Private, optional export: the adapter reads the failure on the same thread.
+ * Older adapters can ignore it; no exception or pointer crosses the ABI. */
+@CName("NRFKotlin_LastError") fun lastError(out: CPointer<ByteVar>?, capacity: Int): Int = try {
+    require(out != null && capacity > 0)
+    val bytes = lastFailure.encodeToByteArray()
+    var count = minOf(bytes.size, capacity - 1)
+    if (count < bytes.size) while (count > 0 && (bytes[count].toInt() and 0xc0) == 0x80) count--
+    for (i in 0 until count) out[i] = bytes[i]
+    out[count] = 0
+    count
+} catch (_: Throwable) { -1 }
 private fun text(value: String, out: CPointer<ByteVar>?, capacity: Int): Int {
     val bytes = value.encodeToByteArray()
     require(out != null && capacity > bytes.size && !value.contains('\u0000'))
@@ -22,7 +39,12 @@ private fun text(value: String, out: CPointer<ByteVar>?, capacity: Int): Int {
     return bytes.size
 }
 @CName("NRFKotlin_Version") fun version(): Int = 1
-@CName("NRFKotlin_Metadata") fun metadata(field: Int, index: Int, out: CPointer<ByteVar>?, capacity: Int): Int = guarded {
+@CName("NRFKotlin_Force") fun force(aspect: Int, out: CPointer<IntVar>?): Int = guarded("Force") {
+    require(out != null)
+    val decision = mod.forcedDecision(aspect)
+    if (decision == null) 1 else { out[0] = decision.aspect; out[1] = decision.reason; 0 }
+}
+@CName("NRFKotlin_Metadata") fun metadata(field: Int, index: Int, out: CPointer<ByteVar>?, capacity: Int): Int = guarded("Metadata") {
     text(when (field) {
         0 -> mod.id; 1 -> mod.title; 2 -> mod.textureSet; 3 -> mod.diagnosticFile
         4 -> mod.checkboxes[index].name; 5 -> mod.checkboxes[index].label; 6 -> mod.checkboxes[index].description
@@ -31,19 +53,19 @@ private fun text(value: String, out: CPointer<ByteVar>?, capacity: Int): Int {
         else -> error("Unknown metadata")
     }, out, capacity)
 }
-@CName("NRFKotlin_Info") fun info(out: CPointer<IntVar>?): Int = guarded {
+@CName("NRFKotlin_Info") fun info(out: CPointer<IntVar>?): Int = guarded("Info") {
     require(out != null)
     out[0] = mod.checkboxes.size; out[1] = if (mod.maximumLineSpeed) 1 else 0
     out[2] = mod.unknownDecision.aspect; out[3] = mod.unknownDecision.reason
     out[4] = mod.invalidNetworkDecision.aspect; out[5] = mod.invalidNetworkDecision.reason
     0
 }
-@CName("NRFKotlin_Defaults") fun defaults(out: CPointer<LongVar>?): Int = guarded {
+@CName("NRFKotlin_Defaults") fun defaults(out: CPointer<LongVar>?): Int = guarded("Defaults") {
     require(out != null)
     out[0] = mod.checkboxes.foldIndexed(0L) { i, mask, box -> if (box.defaultValue) mask or (1L shl i) else mask }; 0
 }
 @CName("NRFKotlin_Decide") fun decide(mode: Int, mask: Long, status: Int, id: Long, nextId: Long,
-    observation: CPointer<IntVar>?, nextAspect: Int, nextReason: Int, out: CPointer<IntVar>?): Int = guarded {
+    observation: CPointer<IntVar>?, nextAspect: Int, nextReason: Int, out: CPointer<IntVar>?): Int = guarded("Decide") {
     require(observation != null && out != null && mode in 0..2)
     val settings = mod.checkboxes.mapIndexed { i, box -> box.name to (mask and (1L shl i) != 0L) }.toMap()
     val o = Observation(Occupancy.entries[observation[0]], observation[1] != 0, observation[2] != 0,
@@ -53,14 +75,14 @@ private fun text(value: String, out: CPointer<ByteVar>?, capacity: Int): Int {
     val result = if (mode == 0) mod.evaluate(settings, o) else mod.decide(if (mode == 2) mod.fromLive(signal) else signal, next)
     if (result == null) 1 else { out[0] = result.aspect; out[1] = result.reason; 0 }
 }
-@CName("NRFKotlin_Texture") fun texture(aspect: Int, reason: Int, time: Long, half: Long, out: CPointer<ByteVar>?, capacity: Int): Int = guarded {
+@CName("NRFKotlin_Texture") fun texture(aspect: Int, reason: Int, time: Long, half: Long, out: CPointer<ByteVar>?, capacity: Int): Int = guarded("Texture") {
     text(mod.texture(Decision(aspect, reason), time, half), out, capacity)
 }
-@CName("NRFKotlin_Fault") fun fault(aspect: Int, reason: Int): Int = guarded {
+@CName("NRFKotlin_Fault") fun fault(aspect: Int, reason: Int): Int = guarded("Fault") {
     val decision = Decision(aspect, reason)
     (if (mod.isFault(decision)) 1 else 0) or (if (mod.isActive(decision)) 2 else 0)
 }
-@CName("NRFKotlin_Driving") fun driving(aspect: Int, reason: Int, numbers: CPointer<DoubleVar>?, flags: CPointer<IntVar>?): Int = guarded {
+@CName("NRFKotlin_Driving") fun driving(aspect: Int, reason: Int, numbers: CPointer<DoubleVar>?, flags: CPointer<IntVar>?): Int = guarded("Driving") {
     require(numbers != null && flags != null)
     val rule = mod.drivingRule(Decision(aspect, reason))
     if (rule == null) 1 else {
@@ -69,7 +91,7 @@ private fun text(value: String, out: CPointer<ByteVar>?, capacity: Int): Int {
     }
 }
 @CName("NRFKotlin_Plan") fun plan(values: CPointer<DoubleVar>?, flags: CPointer<IntVar>?, count: Int,
-    sources: CPointer<LongVar>?, restrictions: CPointer<DoubleVar>?, out: CPointer<DoubleVar>?, result: CPointer<LongVar>?): Int = guarded {
+    sources: CPointer<LongVar>?, restrictions: CPointer<DoubleVar>?, out: CPointer<DoubleVar>?, result: CPointer<LongVar>?): Int = guarded("Plan") {
     require(values != null && flags != null && out != null && result != null && count in 0..4096)
     require(count == 0 || (sources != null && restrictions != null))
     val v = Vehicle(values[0], values[1], values[2], values[3], values[4], values[5], values[6], values[7])

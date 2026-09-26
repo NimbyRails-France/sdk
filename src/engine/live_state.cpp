@@ -7,12 +7,8 @@ bool resolve_live_state(ReadMemory read, void* context, uint64_t base, bool reco
                         LiveStateProfile profile, LiveState& out) noexcept {
     out = {};
     if (!recognized || !read || base < 0x10000 || base > 0x7fffff000000ULL) return false;
-    uint64_t root_rva{};
-    switch (profile) {
-        case LiveStateProfile::Windows119: root_rva = 0xb81998; break;
-        case LiveStateProfile::Linux119: root_rva = 0x10ee020; break;
-        default: return false;
-    }
+    const auto root_rva=gameLayout(profile).root_rva;
+    if(!root_rva)return false;
     auto pointer = [&](uint64_t at, uint64_t& value) {
         return read(context, at, &value, sizeof value) && value >= 0x10000 && value < 0x7fffffff0000ULL && value % 8 == 0;
     };

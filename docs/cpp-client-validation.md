@@ -1,5 +1,6 @@
 > Archive technique antérieure à la 0.7 : noms et API C historiques.
-> Pour la version actuelle, utiliser la [référence C++](cpp-api-reference.md) et la [migration](migration-0.7.md).
+> Le client C++ a été retiré en 0.8.0. Pour la version actuelle, utiliser le
+> [client Kotlin](kotlin-client.md). Ces résultats historiques ne valident pas la 0.8.0.
 
 # Validation des helpers C++ — 16 septembre 2026
 

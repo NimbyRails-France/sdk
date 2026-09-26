@@ -25,7 +25,8 @@ struct Rules {
     using Signal=kotlin::Signal;using Vehicle=kotlin::Vehicle;using DrivingSettings=kotlin::DrivingSettings;
     using Constraint=kotlin::Constraint;using DrivingInput=kotlin::DrivingInput;using Plan=kotlin::Plan;
     static constexpr std::size_t maxSignals=512;
-    static inline std::string textureSet;
+    static inline std::string textureSet,controlId;
+    static std::optional<Decision> forcedDecision(int aspect);
     static inline bool maximumLineSpeed=false;
     static constexpr SignallingCommandNames names{"nrf.kotlin.evaluate.v1","nrf.kotlin.plan.v1","nrf.kotlin.read-train-plan.v1",
         "nrf.kotlin.render.v1","nrf.kotlin.network.v1","nrf.kotlin.occupancy.v1","nrf.kotlin.read-occupancy.v1"};

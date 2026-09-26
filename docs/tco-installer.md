@@ -14,7 +14,7 @@ raccourci du menu Démarrer. Le jeu et les mods ne sont pas modifiés.
 
 1. Mettre à jour la version du projet TCO dans `examples/tco/CMakeLists.txt`
    et celle du script `package-installer.ps1` (et le SDK si nécessaire).
-2. Construire le SDK : `powershell -File tools/package.ps1`.
+2. Construire le SDK : `powershell -File tools/windows/package.ps1`.
 3. Construire le paquet avec Inno Setup 6 :
 
 ```powershell

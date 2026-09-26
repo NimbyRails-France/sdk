@@ -19,9 +19,11 @@ struct HeldLimit {double start,speed,end;bool hasEnd=false;};
 struct Memory {std::vector<Target> stops;std::vector<HeldLimit> held;double lastHead=-1;
  std::optional<RestrictedMode> sight;StopProof stopped;};
 inline bool valid(const NimbySignalDrivingRule& r){
- if(!(r.signal>>48==8&&std::isfinite(r.speed_mps)&&r.speed_mps>=-1&&r.speed_mps<=166.667&&
- std::isfinite(r.reopened_speed_mps)&&r.reopened_speed_mps>=0&&r.reopened_speed_mps<=166.667&&r.signals_ahead<=2&&(r.flags&~127u)==0))return false;
- if((r.flags&NIMBY_DRIVING_FOLLOW_TARGET)&&(!r.signals_ahead||r.speed_mps!=0||(r.flags&~(NIMBY_DRIVING_FOLLOW_TARGET|NIMBY_DRIVING_CANCEL_AT_NEXT_CLEAR))))return false;
+ if(!(r.signal>>48==8&&std::isfinite(r.speed_mps)&&(r.speed_mps==-1||r.speed_mps>=0)&&
+ std::isfinite(r.reopened_speed_mps)&&r.reopened_speed_mps>=0&&r.signals_ahead<=2&&(r.flags&~255u)==0))return false;
+ if((r.flags&NIMBY_DRIVING_FOLLOW_TARGET)&&(!r.signals_ahead||r.speed_mps!=0||(r.flags&~(NIMBY_DRIVING_FOLLOW_TARGET|NIMBY_DRIVING_CANCEL_AT_NEXT_CLEAR|NIMBY_DRIVING_APPROACH_PASSABLE))))return false;
+ if((r.flags&NIMBY_DRIVING_APPROACH_PASSABLE)&&
+    ((r.flags&(NIMBY_DRIVING_STOP|NIMBY_DRIVING_ON_SIGHT))||(!r.signals_ahead&&r.speed_mps==0)))return false;
  if((r.flags&NIMBY_DRIVING_CANCEL_AT_NEXT_CLEAR)&&(!(r.flags&NIMBY_DRIVING_FOLLOW_TARGET)||r.signals_ahead<2))return false;
  if((r.flags&NIMBY_DRIVING_ON_SIGHT)&&(r.signals_ahead||r.speed_mps<0||r.reopened_speed_mps<=0||
     (r.flags&(NIMBY_DRIVING_CLEAR|NIMBY_DRIVING_HOLD_TO_CLEAR))))return false;
@@ -186,7 +188,13 @@ inline Plan plan(Memory& memory,std::span<const Ahead> ahead,std::span<const Nim
   // Keep the received stop instruction outside the visibility horizon. A
   // remote reopening must not change the driver's retained approach curve.
   const auto* current=indicationVisible(stop.position,head)?rule(rules,stop.signal):nullptr;
-  const bool open=fresh&&current&&(current->flags&NIMBY_DRIVING_CLEAR);
+  // Passage permission is supplied explicitly by the consumer. Never infer
+  // it from a texture, a downstream target or a particular signalling system.
+  // Permission changes the retained target speed, not its lifetime: measured
+  // head passage still consumes it and can receive another instruction.
+  const bool open=fresh&&current&&
+   !(current->flags&(NIMBY_DRIVING_STOP|NIMBY_DRIVING_ON_SIGHT))&&
+   (current->flags&(NIMBY_DRIVING_CLEAR|NIMBY_DRIVING_APPROACH_PASSABLE));
   result.active=true;
   const double targetSpeed=current&&restrictedEntry(memory,*current,head,clearance,fresh)?
    ((current->flags&NIMBY_DRIVING_STOP_THEN_PROCEED)?current->reopened_speed_mps:current->speed_mps):open?stop.reopenedSpeed:

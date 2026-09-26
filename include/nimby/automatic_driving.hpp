@@ -1,5 +1,5 @@
 #pragma once
-#include <nimby/client.hpp>
+#include <nimby/detail/observation_session.hpp>
 #include <nimby/detail/automatic_driving.h>
 #include <span>
 namespace nimby {

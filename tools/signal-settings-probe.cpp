@@ -6,7 +6,7 @@ int main(int argc,char** argv){try{
     uint32_t pid{};const std::string_view text=argv[1];
     const auto [end,error]=std::from_chars(text.data(),text.data()+text.size(),pid);
     if(error!=std::errc{}||end!=text.data()+text.size()||!pid)return 1;
-    auto client=nimby::Client::connect(pid);auto snapshot=client.capture();
+    auto client=nimby::detail::ObservationSession(pid);auto snapshot=client.capture();
     const auto& game=snapshot->getGameSession();
     if(game)std::printf("world=%s generation=%llu\n",game->worldId.c_str(),static_cast<unsigned long long>(game->generation));
     else std::puts("world=unavailable");

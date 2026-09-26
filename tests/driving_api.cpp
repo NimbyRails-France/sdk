@@ -1,4 +1,4 @@
-#include <nimby/client.hpp>
+#include <nimby/detail/observation_session.hpp>
 #include <cstdio>
 #define CHECK(x) do {if(!(x)){std::fprintf(stderr,"FAIL %d: %s\n",__LINE__,#x);return 1;}}while(false)
 int main() {

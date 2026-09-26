@@ -18,7 +18,14 @@ data class Service(
 data class TrainDetails(val trainId: Long, val passengers: Int?, val scheduleId: Long?, val shiftId: Long?)
 data class Platform(val trackId: Long, val stationId: Long?, val name: String?)
 data class LineStop(val lineId: Long, val trackId: Long, val stationId: Long?, val index: Int, val arrivalOffsetSeconds: Int?, val departureOffsetSeconds: Int?)
-data class SimulationClock(val epochSeconds: Long, val ticks: Long)
+data class SimulationClock(val epochSeconds: Long, val ticks: Long) {
+    /** Native ticks are hundredths of a second; the epoch may precede 1970. */
+    fun toInstant(): java.time.Instant {
+        require(ticks >= 0) { "Negative simulation ticks" }
+        return java.time.Instant.ofEpochSecond(Math.addExact(epochSeconds, ticks / 100), (ticks % 100) * 10_000_000)
+    }
+}
+data class SimulationTimeChange(val clock: SimulationClock, val interventions: Long)
 data class Observation(
     val capturedAtMillis: Long,
     val processId: Int,

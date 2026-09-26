@@ -3,6 +3,7 @@
 #include <nimby/signal_network.hpp>
 #include <nimby/signal_observation.hpp>
 #include <nimby/automatic_driving.hpp>
+#include <nimby/signalling_control.hpp>
 
 namespace nimby {
 // Generic command names supplied by a mod. All strings need static lifetime.
@@ -76,8 +77,14 @@ public:
         return result;
     }
     static NetworkResult network(const NetworkRequest& request) {
+        return evaluateNetwork(request,false);
+    }
+    static NetworkResult evaluateNetwork(const NetworkRequest& request,bool live) {
         checkClock(request.simulationMs,request.halfPeriodMs);
-        const auto decisions=nimby::evaluateSignals(request.signals.values(),Rules::decide,
+        const auto decisions=nimby::evaluateSignals(request.signals.values(),[live](const auto& signal,const auto& next) {
+                if constexpr(controllable)if(live)if(auto forced=controlState().forced(signal.id))return forced;
+                return Rules::decide(signal,next);
+            },
             Rules::invalidNetworkDecision(),Rules::maxSignals);
         NetworkResult result;
         for(const auto& decision:decisions)
@@ -106,9 +113,16 @@ public:
             mod.observationLost = restoreLive;
             mod.stop = stopLive;
         }
+        if constexpr(controllable){mod.controlId=Rules::controlId.c_str();mod.control=handleControl;}
         return mod;
     }
 private:
+    static constexpr bool controllable=requires { Rules::forcedDecision(0);Rules::controlId; };
+    static SignallingControl<Rules>& controlState(){static SignallingControl<Rules> state;return state;}
+    static uint32_t handleControl(const NimbyControlRequest* r,NimbyControlResponse* out) {
+        if(!r||!out||out->size!=sizeof *out)return NIMBY_INVALID_ARGUMENT;
+        return controlState().handle(*r,*out);
+    }
     static std::vector<Id>& liveTextures() {
         // The SDK worker alone accesses this list. No static destructor does
         // game work at DLL detach; the observationLost callback restores it.
@@ -116,6 +130,9 @@ private:
         return signals;
     }
     static void restoreLive() {
+        if constexpr(controllable){std::lock_guard guard(controlState().mutex);controlState().lost();
+            controlState().releaseTrains();
+        }
         rendered().clear();
         auto& owned = liveTextures();
         std::erase_if(owned, [](Id id) {
@@ -123,6 +140,9 @@ private:
         });
     }
     static void stopLive() {
+        if constexpr(controllable){std::lock_guard guard(controlState().mutex);controlState().lost();
+            controlState().releaseTrains();
+        }
         if constexpr(requires(Id id,typename Rules::Decision decision){Rules::drivingRule(id,decision);})
             AutomaticDriving::release();
     }
@@ -138,11 +158,15 @@ private:
         // Read C++ panel values owned by this mod's SDK adapter. Until the
         // native session/UI bridge is ready, this returns Unavailable.
         auto states = observeSignals(snapshot, Rules::textureSet, Rules::maxSignals);
+        std::unique_lock<std::mutex> controlLock;
+        if constexpr(controllable){controlLock=std::unique_lock(controlState().mutex);controlState().observe(snapshot,states);}
         for (auto& state : states) {
             state.settings=readSignalSettings(state.id);
+            if constexpr(controllable)controlState().overlay(state.id,state.settings);
             request.signals.push_back(Rules::fromLive(state));
         }
-        const auto result = network(request);
+        const auto result = evaluateNetwork(request,true);
+        if constexpr(controllable)for(const auto& row:result.signals.values())controlState().decisions[row.signal]=row.result.decision;
         // Optional consumer diagnostics receive precisely the observations used
         // for this decision, including the live panel values (no second capture).
         if constexpr(requires { Rules::diagnoseLive(snapshot,states,result); })
@@ -155,6 +179,7 @@ private:
             AutomaticDriving::publish(drivingRules,Milliseconds{1000},maximumLineSpeed);
         }
         auto& owned = liveTextures();
+        if constexpr(controllable)controlState().publishTrains();
         // Signals deleted or reassigned to another catalogue cease to be owned.
         std::erase_if(owned, [&](Id id) {
             if (std::any_of(states.begin(), states.end(), [id](const auto& state) { return state.id == id; })) return false;

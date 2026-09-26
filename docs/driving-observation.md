@@ -1,108 +1,82 @@
-# Lecture ciblée de conduite — SDK 0.7.3
+# Lecture ciblée de conduite — Kotlin, SDK 0.8.0
 
-Inclure `<nimby/client.hpp>`. `Client::readTrain(id)` lit un seul train, sans
-capturer les voies, signaux, textures, voyageurs ou autres trains du réseau.
-Réutiliser le client pour conserver le handle du processus et la validation
-du binaire. La lecture n'écrit pas dans le jeu et n'installe aucun hook.
+Pour un outil Kotlin/JVM, `NimbyClient.readTrain(id)` lit un seul train sans
+capturer le réseau entier. Réutiliser la connexion pour conserver le handle
+du processus. Cette lecture n'écrit pas dans le jeu et n'installe aucun hook.
 
-```cpp
-auto client = nimby::Client::connect();
-auto sample = client.readTrain(trainId);
-if (sample) {
-    auto speed = sample->getSpeedMps();
-    auto position = sample->getPosition();
-    auto dynamics = sample->getCurrentDynamics();
-    if (dynamics) {
-        const double length = dynamics->lengthM;
-        const double braking = dynamics->serviceBrakingMps2;
-        // Paramètres du matériel : ce n'est pas une commande de freinage.
+```kotlin
+import fr.nimby.sdk.NimbyClient
+import java.nio.file.Path
+
+NimbyClient.open(Path.of(library), pid).use { client ->
+    val sample = client.readTrain(trainId)
+    if (sample != null) {
+        val speed = sample.speedMps
+        val position = sample.position
+        val length = sample.currentDynamics?.lengthM
+        val braking = sample.currentDynamics?.serviceBrakingMps2
+        // Caractéristiques du matériel : aucune commande de freinage ici.
     }
 }
 ```
 
-## Contrat
+`library`, `pid` et `trainId` viennent du choix de DLL, du processus et du train
+fait par l'application. Les identifiants sont opaques ; utiliser ceux du SDK.
+L'exemple complet de connexion est dans `examples/kotlin-observer`.
 
-- `nullopt` : ID absent, partie indisponible ou lecture instable. Ne pas réutiliser
-  la dernière valeur comme une observation fraîche. Un ID de type incorrect lève
-  `InvalidArgument` ; un processus terminé lève `ProcessExited`.
-- `getPurchasedDynamics()` et `getCurrentDynamics()` sont indépendants et optionnels.
-  La première valeur correspond au modèle acheté, la seconde au Motion courant.
-  Aucun remplacement implicite de l'une par l'autre.
-- `TrainDynamics` fournit `maxSpeedMps`, `maxAccelerationMps2`,
-  `serviceBrakingMps2`, `emergencyBrakingMps2`, `tractiveEffortN`, `powerW`,
-  `emptyMassKg` et `lengthM`. Ce sont les caractéristiques déclarées par le jeu,
-  pas des performances physiques mesurées ni la masse avec voyageurs.
-- Vitesse et position sont optionnelles. `isSpeedDefaulted()` distingue le zéro
-  de présentation natif sans Drive d'une vitesse mesurée nulle.
-- `getElapsedBegin()` / `getElapsedEnd()` donnent l'intervalle de temps simulé
-  encadrant la lecture. `getCapturedAt()` est l'heure système de fin de lecture.
-- `getSessionGeneration()` change lors d'une racine remplacée, d'une perte de
-  racine constatée ou d'un retour en arrière du temps simulé constaté. Le compteur
-  appartient au client : une reconnexion invalide les anciennes mémoires même si
-  le nouveau compteur reprend à 1. Ce n'est pas un UUID de sauvegarde.
+## Contrat de lecture
 
-Les records sont copiés et contrôlés deux fois ; l'identité complète des objets
-et des pools est revérifiée. Trois essais immédiats au maximum. Les données
-restent des observations externes optimistes, pas un tick atomique du moteur.
-Un remplacement entre deux contrôles ou un cycle ABA ne peut être exclu.
+- `null` signifie train absent, partie indisponible ou lecture instable. Une
+  ancienne observation ne remplace jamais une nouvelle lecture manquante.
+- Un identifiant d'un autre type est refusé. Les erreurs natives remontent sous
+  forme de `SdkException`, notamment le statut `11` lorsque le jeu est fermé.
+- `speedMps` et `position` sont optionnels. Un zéro mesuré est une vitesse valide ;
+  le zéro de présentation signalé par `speedDefaulted` reste sans vitesse mesurée.
+- `purchasedDynamics` et `currentDynamics` sont indépendants. Aucun modèle acheté
+  ne remplace implicitement une dynamique courante absente. Les valeurs non finies
+  sont refusées comme données de conduite.
+- `TrainDynamics` expose vitesse et accélération maximales, freinages de service
+  et d'urgence, effort de traction, puissance, masse à vide et longueur, en SI.
+  Ce sont les paramètres déclarés du matériel, pas des performances mesurées.
+- `elapsedBeginMillis` et `elapsedEndMillis` encadrent la lecture en temps simulé.
+  `capturedAtMillis` est l'heure système de fin de lecture.
+- `sessionGeneration` appartient à la connexion. Réinitialiser les mémoires
+  dérivées lors d'une reconnexion ou d'un changement de génération ; ce compteur
+  n'est pas un identifiant universel de sauvegarde.
 
-Cette lecture ne prouve ni une autorisation de mouvement, ni le chemin restant,
-ni une distance à un signal. La pente n'est pas exposée. Utiliser les captures
-complètes pour la découverte et les autres tables à une fréquence appropriée.
-Les captures et lectures du même `Client` sont sérialisées ; le registre natif
-partagé sérialise aussi ses opérations. Éviter les captures complètes concurrentes
-si l'on recherche une faible latence. Aucun budget temps réel n'est garanti.
+Le résultat contient uniquement des valeurs JVM copiées. Il reste utilisable
+après une autre lecture ou après `close()`. Les appels sur une connexion sont
+sérialisés. Le client n'installe ni boucle de rafraîchissement ni reconnexion
+automatique : l'application choisit sa cadence et le traitement des erreurs.
 
-## Disponibilité des commandes
+Le moteur natif contrôle les records et leur identité plusieurs fois, avec au
+maximum trois essais immédiats. Cela reste une observation optimiste, pas un
+tick atomique. Cette lecture ne prouve ni une autorisation de mouvement, ni un
+chemin libre, ni une distance à un signal. La pente n'est pas exposée.
 
-`client.getDrivingCapabilities()` décrit les possibilités de cette version :
-lecture ciblée disponible ; commandes de traction, frein de service, frein
-d'urgence, limitation de vitesse et ajout d'interface native indisponibles.
-Les écritures ponctuelles des anciens outils de recherche ne deviennent pas
-des commandes de production. Les fonctions de calendrier et textures restent
-séparées et ne constituent pas des commandes de conduite.
+## Mods Kotlin/Native et commandes
 
-## Accès depuis un mod
+Un mod implémente `SignallingMod` en Kotlin, comme dans
+`examples/kotlin-mod/src/main/kotlin/Entry.kt`. Le SDK lui transmet les
+observations dans `decide(signal, next)` ; le mod fournit ses règles via
+`drivingRule(decision)`. Le client JVM ci-dessus appartient aux outils externes,
+pas aux dépendances d'un mod Kotlin/Native.
 
-`nimby::Mod` possède maintenant un callback optionnel
-`std::optional<DrivingObservation> (*readTrain)(Id)`.
-Le mod peut utiliser directement la fonction haut niveau `nimby::readTrain(id)`
-déclarée dans `<nimby/mod.hpp>` et fournie par `NimbyRailsFranceSDK::Mod` :
+Le [protocole de recette](recipe-commands.md) permet aux outils Kotlin de demander
+les opérations proposées par le mod. `ModControlSession.readTrain()` lit l'état
+d'une contrainte de recette ; `NimbyClient.readTrain()` lit la mesure physique
+ciblée. Ces deux résultats ont des rôles différents.
 
-```cpp
-auto observation = nimby::readTrain(trainId);
-```
+## Implémentation et validation
 
-Pour exposer aussi cette lecture au diagnostic, renseigner simplement
-`.readTrain = nimby::readTrain` dans `createMod()`. Le SDK gère la connexion
-différée, sa réutilisation, la synchronisation et sa libération à l'arrêt de
-l'adaptateur. Si le processus quitte, la connexion est libérée et l'erreur
-remontée ; l'appel suivant tentera une nouvelle connexion. Aucun callback
-`stop` n'est nécessaire pour ce lecteur. Les valeurs manquantes restent
-optionnelles et les erreurs de connexion restent des exceptions.
+Le client public C++ a été retiré en 0.8.0. Le pont précompilé utilise une
+`detail::ObservationSession` privée, sans cache de capture ni worker propre.
+Ses types et le transport C interne ne sont pas des API pour les consommateurs.
+Le noyau natif reste responsable de la lecture du binaire du jeu ; les offsets
+du jeu ne figurent jamais dans le code d'un mod ou d'un outil Kotlin.
 
-L'adaptateur ajoute l'export de
-diagnostic `NRFMod_ReadTrainV1`, valide les arguments, transmet une copie à
-travers le pont C privé et convertit les exceptions. Les anciens loaders peuvent
-ignorer cet export supplémentaire. Les clients créés manuellement restent
-sous la responsabilité du mod.
-
-La DLL SDK **0.7.3 minimum** doit être disponible avant de charger un mod utilisant
-ce nouvel export interne. Les structures ABI précédentes restent inchangées.
-Les paquets et manifestes consommateurs doivent annoncer cette version minimale.
-
-## Vérification
-
-Fixtures : ID périmé, Motion absent, mouvement pendant lecture, position en sens
-inverse, NaN, racine remplacée, distinction des zéros, arguments et callbacks.
-Tests réels : DLL SFR chargée dans l'hôte de diagnostic, observant le jeu ouvert ;
-100/100 lectures du TER B 82506. Premier appel 33,092 ms (connexion comprise),
-puis moyenne 244,6 µs, minimum 66 µs, maximum 1850 µs sur 99 appels Debug.
-Ces chiffres concernent cette session et ne comparent pas des volumes de données
-équivalents à une capture globale. Le chargement de la nouvelle DLL dans le
-processus du jeu exige encore le remplacement des binaires puis un redémarrage.
-
-Sources de disposition : enregistrement des champs du binaire reconnu,
-`tools/InspectDriving.java`, lecture exploratoire `tools/driving_probe.cpp`.
-Le code de production réside dans `src/engine/driving.cpp` ; aucun offset du jeu
-ne doit apparaître dans un mod consommateur.
+Les tests JVM vérifient le décodage contre une DLL de fixture compilée depuis les
+headers C : taille et alignement, données optionnelles, vrai arrêt, zéro par
+défaut, valeurs non finies, erreurs et durée de vie des copies. Les tests natifs
+vérifient les gardes de lecture et la libération des handles. Ces tests autonomes
+ne remplacent pas la recette en jeu du SDK 0.8.0.

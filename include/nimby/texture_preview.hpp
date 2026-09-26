@@ -1,5 +1,5 @@
 #pragma once
-#include <nimby/client.hpp>
+#include <nimby/detail/observation_session.hpp>
 
 // Experimental visual control only. Native aspect, permissions and snapshots
 // are unchanged. Dynamically allocated independent signals; no save data is written.

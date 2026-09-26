@@ -24,10 +24,10 @@ et avertissements de décompilation. Les noms FUN sont automatiques.
 ## Faits vérifiés directement sur le PE
 
 Preuve principale : [pe-inventory.json](reports/pe-inventory.json), généré par
-`../../tools/inspect-pe.mjs` en lecture seule. Reproduction avec Node :
+`../../tools/windows/inspect-pe.mjs` en lecture seule. Reproduction avec Node :
 
 ```text
-node tools/inspect-pe.mjs "chemin/NimbyRails.exe" docs/research/reports/pe-inventory.json
+node tools/windows/inspect-pe.mjs "chemin/NimbyRails.exe" docs/research/reports/pe-inventory.json
 ```
 
 Cet utilitaire est un lecteur d'inventaire pour le binaire étudié, pas un validateur

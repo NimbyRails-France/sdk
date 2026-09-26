@@ -1,62 +1,39 @@
-# Date de simulation (0.7.1)
+# Horloge de simulation — client Kotlin 0.8.0
 
 La date provient de l'horloge native du jeu, même sans train. Elle est exposée
-en UTC, indépendamment du fuseau choisi par le jeu pour son affichage.
-Les dates avant 1970, dont 1940, sont acceptées.
+en UTC, indépendamment du fuseau d'affichage du jeu. Les dates avant 1970
+sont acceptées. Les captures déjà retournées sont des copies indépendantes.
 
-```cpp
-#include <nimby/client.hpp>
-#include <iostream>
+```kotlin
+import fr.nimby.sdk.NimbyClient
+import java.nio.file.Path
+import java.time.Instant
 
-auto client = nimby::Client::connect();
-auto snapshot = client.capture();
-if (auto clock = snapshot->getSimulationClock()) {
-    std::cout << clock->getDateTimeUtcString(); // ISO 8601, millisecondes, Z
-    auto utc = clock->getDateTimeUtc();        // chrono::sys_time<Milliseconds>
-    auto elapsed = clock->getElapsedTime();   // durée depuis l'origine native
+NimbyClient.open(Path.of(library), pid).use { client ->
+    val clock = client.capture().clock
+    println(clock?.toInstant()) // null : horloge indisponible
+    val result = client.setSimulationDateTimeAndRecalculateTrains(
+        Instant.parse("1940-08-14T16:48:00Z"))
+    println("${result.clock.toInstant()} / ${result.interventions}")
 }
-
-using namespace std::chrono;
-auto result = client.setSimulationDateTimeAndRecalculateTrains(
-    sys_days{year{1940}/August/14} + hours{16} + minutes{48});
-std::cout << result.clock.getDateTimeUtcString() << " / " << result.interventions;
-snapshot = client.capture();
 ```
 
-`getSimulationClock()` renvoie `std::optional<SimulationClock>` : l'absence de
-date n'est jamais remplacée par l'heure du PC. `getEpochSeconds()` expose
-l'origine native en secondes Unix signées.
+Cet exemple effectue une mutation explicite. Pour simplement lire l'heure,
+ne conserver que `capture().clock`. `epochSeconds` représente l'origine
+calendaire signée ; `ticks` compte les centièmes de seconde simulée.
 
-`setSimulationDateTime(sys_seconds)` renvoie l'horloge effectivement écrite.
-La phase sous-seconde est conservée : demander 16:48:00 peut donner
-16:48:00.790. Le dernier snapshot du client est invalidé après succès ; les
-snapshots déjà conservés restent immuables. Capturer à nouveau ou attendre
-le prochain rafraîchissement automatique.
+`setSimulationDateTime(Instant)` conserve la phase sous-seconde native : demander
+16:48:00 peut donner 16:48:00.790. Capturer à nouveau pour observer le résultat ;
+les anciennes copies restent inchangées. Le client Kotlin n'entretient pas de
+cache ou de rafraîchissement automatique. Il ne rejoue jamais une mutation.
 
-## Commandes de l'exemple auto-observer
-
-```powershell
-./build/clion-Release/examples/auto-observer/MyNimbyClient.exe --clock
-./build/clion-Release/examples/auto-observer/MyNimbyClient.exe --set-date-utc 1940-08-14T16:48:00Z
-./build/clion-Release/examples/auto-observer/MyNimbyClient.exe --set-date-and-recalculate-utc 1940-08-14T16:48:00Z
-```
-
-Sans argument, l'exemple ouvre une fenêtre graphique : date UTC en direct,
-sélecteurs de date et d'heure, bouton **Appliquer et recaler les trains**, vues **Trains**
-et **Gares / quais**, et recherche. **Date actuelle** remet les champs à la date
-de la partie ; les rafraîchissements ne remplacent pas la saisie en cours.
-Les lectures et modifications passent par un worker pour garder la fenêtre
-réactive. En cas de déconnexion, une reconnexion est tentée automatiquement ;
-une modification échouée n'est jamais rejouée automatiquement.
-
-L'option `--console` conserve l'ancien affichage textuel des snapshots. Le kit
-installé doit être en version 0.7.1 ou ultérieure compatible ; une DLL 0.7.0
-ne contient pas les nouveaux exports internes.
+Le banc propose les essais **Horloge**, **Date UTC** et **Date et recalcul**.
+L'ancien exemple C++ auto-observer et ses commandes ne sont plus distribués.
 
 ## Portée expérimentale
 
 Deux opérations sont disponibles. L'IHM utilise désormais
-`setSimulationDateTimeAndRecalculateTrains(sys_seconds)`, qui renvoie
+`setSimulationDateTimeAndRecalculateTrains(Instant)`, qui renvoie
 `SimulationTimeChange { clock, interventions }`. Le moteur exécute l'équivalent
 du bouton **All trains intervention**, à la nouvelle date : services remis à
 zéro, voyageurs transférés, trains replacés à leur prochaine destination et
@@ -64,7 +41,8 @@ attentes recalculées. Les trains remisés sont exclus comme dans le jeu. Le co�
 normal des interventions est débité par le moteur. La reprise des circulations
 et l'apparition des nouvelles attentes peuvent nécessiter quelques ticks.
 
-Le pont `NimbyRailsFranceClockBridge-0.7.1.dll`, livré à côté de la DLL du SDK,
+Le pont `NimbyRailsFranceClockBridge-0.7.1.dll` conserve son nom de protocole,
+indépendant du numéro de version du SDK. Livré à côté de la DLL du SDK, il
 est chargé seulement lors de cet appel explicite. Il vérifie le binaire et les
 entrées natives, puis traite la demande sur le thread de simulation, après la
 mise à jour et avant la copie destinée à l'interface. Il reste chargé jusqu'à
@@ -79,7 +57,7 @@ sauvegarde après mutation et tous les systèmes économiques ne sont pas valid�
 L'ancien `setSimulationDateTime` effectue uniquement une translation calendaire.
 Un train qui attend deux heures au dépôt avant l'appel attend encore deux heures
 après l'appel ; sa position ne change pas. Passer de 08:00 à 10:00 décale aussi
-son départ calendaire de deux heures. La commande `--set-date-utc` conserve
+son départ calendaire de deux heures. La méthode `setSimulationDateTime(Instant)` conserve
 explicitement ce comportement. Les détails ci-dessous concernent cette translation.
 
 Ce setter décale l'origine calendaire et les dates absolues des services actifs

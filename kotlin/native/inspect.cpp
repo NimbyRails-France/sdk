@@ -9,7 +9,7 @@ int main(int argc,char** argv){try{
  const auto count=std::stoi(argv[1]),interval=std::stoi(argv[2]);
  if(count<1||count>20000||interval<20||interval>10000)return 1;
  const auto mod=nimby::createMod();
- auto client=nimby::Client::connect();
+ auto client=nimby::detail::ObservationSession(nimby::detail::discoverProcess());
  std::vector<nimby::Id> expectedSignals;
  std::string expectedWorld;
  for(int n=0;n<count;++n){try{

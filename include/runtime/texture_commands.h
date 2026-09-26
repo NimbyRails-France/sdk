@@ -1,9 +1,19 @@
 #pragma once
-#include "runtime/texture_bridge.h"
+#include "runtime/texture_table.h"
 #include <nimby/detail/observation.h>
 namespace nimby::texture_bridge {
+// Value-only request/state/result for the common command processor. The OS
+// transport copies this value while holding its mailbox lock. No volatile,
+// process handle, event, mapping name or platform clock leaks into this model.
+struct Mailbox {
+    uint64_t expected_database=0, expected_simulation=0, signal=0, expires=0;
+    uint32_t operation=0, active=0, result_index=0;
+    uint64_t request_signal=0, request_hash=0, request_expiry=0;
+    uint64_t request_database=0, request_simulation=0, active_count=0, result_expiry=0;
+    uint32_t request_index=0, request_alternate_index=0, request_half_period_ms=0;
+};
 // Called with exclusive ownership of the table. No game memory is modified.
-inline uint32_t execute(Shared& shared,Table& commands,uint64_t now) noexcept {
+inline uint32_t execute(Mailbox& shared,Table& commands,uint64_t now) noexcept {
     uint32_t result=NIMBY_OK;
         try {
             const bool same=shared.expected_database==shared.request_database &&

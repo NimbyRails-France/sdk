@@ -1,6 +1,6 @@
 # Plugin Gradle des mods Kotlin
 
-Identifiant : `fr.nimbyrails.mod`, version **0.7.3**.
+Identifiant : `fr.nimbyrails.mod`, version **0.8.0**.
 Le plugin est distribué dans le dépôt Maven `gradle-repository/` du kit SDK.
 Il n'est pas annoncé comme publié sur le Gradle Plugin Portal.
 
@@ -10,7 +10,7 @@ Il n'est pas annoncé comme publié sur le Gradle Plugin Portal.
 
 ```kotlin
 plugins {
-    id("fr.nimbyrails.mod") version "0.7.3"
+    id("fr.nimbyrails.mod") version "0.8.0"
 }
 ```
 
@@ -58,8 +58,8 @@ contre les sources reste disponible dans `verification/kotlin-mod`.
   "module": "MonModCore",
   "version": "0.1.0",
   "language": "kotlin-native",
-  "sdkMin": "0.7.3",
-  "sdkMaxExclusive": "0.8.0",
+  "sdkMin": "0.8.0",
+  "sdkMaxExclusive": "0.9.0",
   "gameSha256": ["fff49ac21720abfc824c2b4f68b862727630eb0db71cfe1f9ea8f685d0db10ae"]
 }
 ```

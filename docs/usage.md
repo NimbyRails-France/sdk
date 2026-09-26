@@ -1,5 +1,5 @@
 > Archive technique antérieure à la 0.7 : noms et API C historiques.
-> Pour la version actuelle, utiliser la [référence C++](cpp-api-reference.md) et la [migration](migration-0.7.md).
+> Pour la version actuelle, utiliser la [référence Kotlin](kotlin-client.md).
 
 # Diagnostics, proxy et ancien chargeur
 
@@ -9,7 +9,7 @@ Pour développer un outil externe avec le SDK 0.6.x, commencer par le
 diagnostics et du chargement dans le jeu ; elles ne sont pas nécessaires au tutoriel.
 
 SDK natif C++20, DLL Windows AMD64. MinHook 1.3.4 est compilé et lié statiquement
-(sources x64 et licence dans `third_party/minhook/`). Le socle de diagnostic fonctionne dans un
+(sources x64 et licence dans `third_party/windows/minhook/`). Le socle de diagnostic fonctionne dans un
 programme autonome et peut maintenant être chargé au démarrage par le proxy SDL3.
 Aucun hook du jeu n'est validé ou installé. Depuis la version 0.2, une API publique
 de lecture est disponible : voir le [guide développeur](developing.md) pour
@@ -21,7 +21,7 @@ Les commandes de simulation et setters restent à concevoir après validation.
 Dans PowerShell, depuis ce dossier :
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File ./tools/build.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File ./tools/windows/build.ps1
 ```
 
 Les commandes ci-dessus se lancent depuis la racine du projet. Le script utilise les outils livrés avec CLion et vérifie chaque code de sortie.
@@ -47,7 +47,7 @@ jalon. Aucune bibliothèque STL, exception ou allocation ne traverse l'ABI publi
 
 ## Cycle de vie explicite
 
-`tests/host.cpp` charge uniquement notre DLL dans son propre processus et résout
+`tests/windows/host.cpp` charge uniquement notre DLL dans son propre processus et résout
 les quatre exports de `include/nimby/sdk.h` avec `GetProcAddress`.
 
 1. Après le retour de `LoadLibrary`, appeler `NimbySdk_Initialize(1, 0)`.
@@ -93,10 +93,10 @@ Le jeu possède déjà sa propre SDL3.dll : elle doit être conservée sous le n
 cette opération et vérifie les empreintes. Depuis la racine, jeu fermé :
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File tools/install-proxy.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File tools/windows/install-proxy.ps1
 # Pour une autre bibliothèque Steam : ajouter -GameDirectory 'D:/SteamLibrary/steamapps/common/NIMBY Rails'
 # Pour restaurer les fichiers d'origine :
-powershell -NoProfile -ExecutionPolicy Bypass -File tools/install-proxy.ps1 -Action Remove
+powershell -NoProfile -ExecutionPolicy Bypass -File tools/windows/install-proxy.ps1 -Action Remove
 ```
 
 Les copies sont préparées et vérifiées avant le remplacement. Le fichier
@@ -113,7 +113,7 @@ Il n'y a ni injection distante ni superviseur externe dans ce mode.
 
 L'empreinte de l'exécutable et celle de SDL sont contrôlées avant activation du SDK.
 Un binaire inconnu ou un SDK absent est journalisé ; les appels SDL continuent.
-Journal : `%LOCALAPPDATA%/NimbyRailsSDK/proxy.log`. Les modules sont conservés jusqu'à
+Journal : `%LOCALAPPDATA%/NimbyRailsFrance/logs/loader/SDL3_dll.log`. Les modules sont conservés jusqu'à
 la fermeture du processus, sans déchargement à chaud. Les hooks du jeu restent refusés.
 
 Après une mise à jour du jeu, ne pas forcer l'installation : il faut réexaminer

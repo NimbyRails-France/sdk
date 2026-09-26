@@ -1,4 +1,4 @@
-#include <nimby/client.hpp>
+#include <nimby/detail/observation_session.hpp>
 #include <iostream>
 #include <limits>
 #define CHECK(x) do { if(!(x)) throw std::runtime_error("line " + std::to_string(__LINE__) + ": " #x); } while(false)

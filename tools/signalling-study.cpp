@@ -4,6 +4,8 @@
 #include <nimby/signal_observation.hpp>
 #include <nimby/detail/signal_settings_catalog.hpp>
 #include <nimby/texture_preview.hpp>
+#include <nimby/detail/native_library.hpp>
+#include <nimby/detail/platform/mod_abi.hpp>
 #include <charconv>
 #include <cstdlib>
 #include <bit>
@@ -13,6 +15,7 @@
 #include <string_view>
 
 namespace {
+namespace native=nimby::detail::native;
 const std::string& textureSet() {
     static const std::string value=[] {
         const char* name=std::getenv("NRF_TEXTURE_SET");
@@ -38,7 +41,7 @@ std::string_view blockDiagnostic(const nimby::SignalBlock& block,
 }
 // Read-only audit of actual block boundaries. No native aspect is guessed and
 // no texture is written; unresolved topology/coverage remains visible in output.
-void auditBlocks(nimby::Client& client,std::optional<nimby::Id> requested={},bool signalling=false) {
+void auditBlocks(nimby::detail::ObservationSession& client,std::optional<nimby::Id> requested={},bool signalling=false) {
     const auto snapshot = signalling?client.captureSignalling(textureSet()):client.capture();
     const auto deliveredAge=snapshot->getAge().count();
     const auto topologyStart=std::chrono::steady_clock::now();
@@ -90,7 +93,8 @@ void auditBlocks(nimby::Client& client,std::optional<nimby::Id> requested={},boo
                 << ",\"train_list_complete\":" << (observation.complete?"true":"false") << ",\"trains\":[";
             bool first=true;
             for(const auto trainId:observation.trains){
-                if(!first)std::cout<<',';first=false;
+                if(!first)std::cout<<',';
+                first=false;
                 const auto train=snapshot->getTrainById(trainId);
                 std::cout<<"{\"id\":\""<<trainId<<"\",\"name\":"<<(train?json(train->getName()):"null")<<'}';
             }
@@ -129,7 +133,7 @@ std::string json(std::string_view s) {
 }
 // Cross-check the native occupation collection against positioned trains. This
 // diagnoses coverage; matching reference points alone does NOT prove every tail.
-void auditCoverage(nimby::Client& client) {
+void auditCoverage(nimby::detail::ObservationSession& client) {
     const auto snapshot=client.capture();
     const auto occupations=snapshot->getAllOccupations();
     if(!occupations) throw std::runtime_error("Occupation table unavailable");
@@ -198,27 +202,27 @@ std::uint64_t number(std::string_view text) {
 }
 // Diagnostic host only; the loader ABI is shared by native and Kotlin mods.
 class ModObserver {
-    HMODULE module_{};
-    using Lifecycle=DWORD(WINAPI*)(void*);
-    using Read=DWORD(WINAPI*)(uint64_t,NimbyDrivingObservation*);
+    native::Module module_{};
+    using Lifecycle=uint32_t(NRF_CALL*)(void*);
+    using Read=uint32_t(NRF_CALL*)(uint64_t,NimbyDrivingObservation*);
     Lifecycle stop_{};
     Read read_{};
 public:
     ModObserver() {
         const char* library=std::getenv("NRF_MOD_LIBRARY");
-        if(!library||!*library)throw std::invalid_argument("Set NRF_MOD_LIBRARY to the mod DLL path");
+        if(!library||!*library)throw std::invalid_argument("Set NRF_MOD_LIBRARY to the mod library path");
         const auto path=std::filesystem::absolute(library);
-        module_=LoadLibraryExW(path.c_str(),nullptr,LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR|LOAD_LIBRARY_SEARCH_SYSTEM32);
+        module_=native::loadIsolated(path);
         if(!module_)throw std::runtime_error("Cannot load NRF_MOD_LIBRARY");
-        auto start=std::bit_cast<Lifecycle>(GetProcAddress(module_,"NRFMod_StartV1"));
-        stop_=std::bit_cast<Lifecycle>(GetProcAddress(module_,"NRFMod_StopV1"));
-        read_=std::bit_cast<Read>(GetProcAddress(module_,"NRFMod_ReadTrainV1"));
+        auto start=std::bit_cast<Lifecycle>(native::symbol(module_,"NRFMod_StartV1"));
+        stop_=std::bit_cast<Lifecycle>(native::symbol(module_,"NRFMod_StopV1"));
+        read_=std::bit_cast<Read>(native::symbol(module_,"NRFMod_ReadTrainV1"));
         try {
             if(!start||!stop_||!read_)throw std::runtime_error("Mod observation adapter unavailable");
             nimby::detail::check(start(nullptr),"StartStudyMod");
-        } catch(...) { FreeLibrary(module_);module_=nullptr;throw; }
+        } catch(...) { native::unload(module_);module_=nullptr;throw; }
     }
-    ~ModObserver(){if(module_&&stop_(nullptr)==NIMBY_OK)FreeLibrary(module_);}
+    ~ModObserver(){if(module_&&stop_(nullptr)==NIMBY_OK)native::unload(module_);}
     ModObserver(const ModObserver&)=delete;
     ModObserver& operator=(const ModObserver&)=delete;
     std::optional<nimby::DrivingObservation> readTrain(nimby::Id id) {
@@ -256,7 +260,7 @@ void printDriving(const std::optional<nimby::DrivingObservation>& sample, long l
     emit("purchased",v.getPurchasedDynamics());emit("current",v.getCurrentDynamics());
     std::cout << "}\n";std::cout.flush();
 }
-void capture(nimby::Client& client, std::optional<nimby::Id> selected) {
+void capture(nimby::detail::ObservationSession& client, std::optional<nimby::Id> selected) {
     const auto started = std::chrono::steady_clock::now();
     const auto snapshot = client.capture();
     const auto captureMs = std::chrono::duration_cast<nimby::Milliseconds>(
@@ -358,7 +362,7 @@ int main(int argc, char** argv) {
                       << "Available: snapshot, simulation clock, train position/speed/service/passengers, "
                          "track limits, topology, path membership, occupation/reservation intervals, textures.\n"
                          "Commands available: texture-show, texture-restore (visual only).\n"
-                         "SDK 0.7.3: read-train/watch-train provide targeted motion and train dynamics.\n"
+                         "SDK 0.8.0: read-train/watch-train provide targeted motion and train dynamics.\n"
                          "Not exposed: route distances, traction/brake commands, "
                          "speed target, native UI extension fields.\n"
                          "Native script capabilities are separate; see docs/sdk-conduite-etude.md.\n";
@@ -405,7 +409,7 @@ int main(int argc, char** argv) {
             if(!observed)throw std::runtime_error("No successful mod observation");
             return 0;
         }
-        auto client = nimby::Client::connect();
+        auto client = nimby::detail::ObservationSession(nimby::detail::discoverProcess());
         if(command=="benchmark-signals"||command=="benchmark-signalling") {
             // Lecture seule : separer le cout de capture du traitement du meme snapshot.
             const auto start=std::chrono::steady_clock::now();

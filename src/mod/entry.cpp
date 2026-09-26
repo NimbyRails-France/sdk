@@ -1,24 +1,22 @@
+#include <nimby/detail/diagnostics.hpp>
 // Compiled into each consumer DLL via NimbyRailsFranceSDK::Mod.
 #include <nimby/mod.hpp>
+#include <nimby/detail/platform/control_pipe.hpp>
 #include <nimby/detail/signal_settings_runtime.hpp>
 #include <nimby/detail/signal_settings_client.hpp>
 #include <cwchar>
 #include <shared_mutex>
-#ifndef _WIN32
-#include <unistd.h>
-#endif
-#ifdef _WIN32
-#define NRF_MOD_EXPORT extern "C" __declspec(dllexport) uint32_t WINAPI
-#else
-#define NRF_MOD_EXPORT extern "C" __attribute__((visibility("default"))) uint32_t
-#endif
+#include <nimby/detail/platform/host.hpp>
+#include <nimby/detail/platform/mod_abi.hpp>
+#include <nimby/detail/platform/mod_entry.hpp>
 
 namespace {
 std::shared_mutex lock;
 nimby::Mod callbacks{};
 bool initialized = false;
+nimby::detail::control::Server& controls(){static auto* server=new nimby::detail::control::Server;return *server;}
 std::mutex readerMutex;
-std::unique_ptr<nimby::Client> reader;
+std::unique_ptr<nimby::detail::ObservationSession> reader;
 nimby::detail::SignalSettingsClient& settingsBridge() {
     // Explicit close in Stop; no DLL release during static process-detach.
     static auto* bridge=new nimby::detail::SignalSettingsClient;
@@ -31,35 +29,18 @@ nimby::ObservationLoop& observations() {
     return *loop;
 }
 
-bool hostedByGame() {
-#ifdef _WIN32
-    wchar_t path[32768]{};
-    const auto length = GetModuleFileNameW(nullptr, path, 32768);
-    if (!length || length >= 32768) return false;
-    const auto name = std::wcsrchr(path, L'\\');
-    return _wcsicmp(name ? name+1 : path, L"NIMBYRails.exe") == 0;
-#else
-    try{return nimby::detail::native::modulePath(nullptr).filename()=="nimbyrails";}
-    catch(...){return false;}
-#endif
-}
-uint32_t currentProcessId(){
-#ifdef _WIN32
-    return GetCurrentProcessId();
-#else
-    return static_cast<uint32_t>(getpid());
-#endif
-}
+using nimby::detail::platform::hostedByGame;
+using nimby::detail::platform::currentProcessId;
 
 void startObservations(const nimby::Mod& mod) {
     if (!mod.observe || !hostedByGame()) return;
     // This client is worker-owned. Opening the current PID performs the SDK's
     // binary identity checks; never discover/attach another game from a DLL host.
-    auto connection = std::make_shared<std::unique_ptr<nimby::Client>>();
+    auto connection = std::make_shared<std::unique_ptr<nimby::detail::ObservationSession>>();
     observations().start([connection, observe=mod.observe, panel=mod.signalSettings, scope=mod.observationScope, textureSet=mod.observationTextureSet] {
         if(!panel.id.empty()&&!settingsBridge().connected()&&NimbyInternal_EnsureSignalUiBridge()==NIMBY_OK)
             settingsBridge().connectExisting(panel);
-        if (!*connection) connection->reset(new nimby::Client(nimby::Client::connect(currentProcessId())));
+        if (!*connection) connection->reset(new nimby::detail::ObservationSession(currentProcessId()));
         auto snapshot = textureSet.empty()?(*connection)->capture(scope):(*connection)->captureSignalling(textureSet);
         // Presence and occupation are separate native tables. A train entering
         // or leaving the network between their reads can invalidate coverage.
@@ -91,9 +72,9 @@ struct Guard {
 };
 template<class Function> uint32_t boundary(Function operation) noexcept {
     try { return operation(); }
-    catch (const nimby::Exception& error) { return static_cast<uint32_t>(error.code()); }
-    catch (const std::invalid_argument&) { return NIMBY_INVALID_ARGUMENT; }
-    catch (...) { return NIMBY_INTERNAL_ERROR; }
+    catch (const nimby::Exception& error) { nimby::detail::diagnostics::exception("mods", "mod callback"); return static_cast<uint32_t>(error.code()); }
+    catch (const std::invalid_argument&) { nimby::detail::diagnostics::exception("mods", "mod callback"); return NIMBY_INVALID_ARGUMENT; }
+    catch (...) { nimby::detail::diagnostics::exception("mods", "mod callback"); return NIMBY_INTERNAL_ERROR; }
 }
 }
 
@@ -111,7 +92,7 @@ std::optional<nimby::DrivingObservation> nimby::readTrain(Id train) {
     if ((train >> 48) != 5)
         detail::check(NIMBY_INVALID_ARGUMENT, "readTrain requires a train ID");
     std::lock_guard guard(readerMutex);
-    if (!reader) reader.reset(new Client(Client::connect()));
+    if (!reader) reader.reset(new detail::ObservationSession(hostedByGame() ? currentProcessId() : detail::discoverProcess()));
     try { return reader->readTrain(train); }
     catch (const Exception& error) {
         if (error.code() == ErrorCode::ProcessExited) reader.reset();
@@ -121,7 +102,7 @@ std::optional<nimby::DrivingObservation> nimby::readTrain(Id train) {
 
 nimby::BlockReader nimby::readBlocks() {
     std::lock_guard guard(readerMutex);
-    if (!reader) reader.reset(new Client(Client::connect()));
+    if (!reader) reader.reset(new detail::ObservationSession(hostedByGame() ? currentProcessId() : detail::discoverProcess()));
     try { return observeBlocks(*reader->captureSignalling()); }
     catch (const Exception& error) {
         if (error.code()==ErrorCode::ProcessExited) reader.reset();
@@ -133,6 +114,7 @@ NRF_MOD_EXPORT NRFMod_StartV1(void* reserved) noexcept {
     if (reserved) return NIMBY_INVALID_ARGUMENT;
     Guard guard(true);
     if (initialized) return NIMBY_ALREADY_INITIALIZED;
+    nimby::detail::diagnostics::write("mods", "INFO", "Starting mod adapter / SDK 0.8.0-alpha.1 / ABI 2");
     return boundary([]() -> uint32_t {
         auto candidate = nimby::createMod();
         if (candidate.observe && (candidate.observationIntervalMs < 10 || candidate.observationIntervalMs > 3600000))
@@ -153,8 +135,11 @@ NRF_MOD_EXPORT NRFMod_StartV1(void* reserved) noexcept {
             if (candidate.start) candidate.start();
             started=true;
             startObservations(candidate);
+            if(candidate.control&&hostedByGame())controls().start(candidate.controlId,candidate.control);
         }
         catch (...) {
+            controls().stop();
+            observations().stop();
             settingsBridge().close();
             nimby::detail::signalSettingsStore().configure({});
             if (started && candidate.stop) candidate.stop();
@@ -166,9 +151,11 @@ NRF_MOD_EXPORT NRFMod_StartV1(void* reserved) noexcept {
     });
 }
 NRF_MOD_EXPORT NRFMod_StopV1(void* reserved) noexcept {
+    nimby::detail::diagnostics::write("mods", "INFO", "Stopping mod adapter");
     if (reserved) return NIMBY_INVALID_ARGUMENT;
     Guard guard(true);
     return boundary([]() -> uint32_t {
+        controls().stop();
         observations().stop();
         settingsBridge().close();
         nimby::detail::signalSettingsStore().configure({});
@@ -226,6 +213,3 @@ NRF_MOD_EXPORT NRFMod_InvokeV1(const char* name,
     }
     return NIMBY_HOOKS_UNAVAILABLE;
 }
-#ifdef _WIN32
-BOOL WINAPI DllMain(HINSTANCE, DWORD, LPVOID) { return TRUE; }
-#endif

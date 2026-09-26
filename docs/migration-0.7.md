@@ -1,3 +1,7 @@
+> Archive de migration vers la série 0.7. Le client C++ décrit ci-dessous a
+> ensuite été retiré en 0.8.0. Pour le SDK actuel, utiliser le [client Kotlin](kotlin-client.md)
+> ou le [kit de mods Kotlin/Native](kotlin-mods.md).
+
 # Migration vers NimbyRailsFranceSDK 0.7.0
 
 Cette version retire l'API C publique de NimbyRailsSDK 0.6. Les fonctionnalités

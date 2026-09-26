@@ -2,17 +2,21 @@ plugins {
     id 'groovy'
     id 'java-gradle-plugin'
     id 'maven-publish'
+    id 'org.jetbrains.kotlin.jvm' version '2.2.20'
 }
 
 group = 'fr.nimbyrails'
-version = '0.7.3'
+version = '0.8.0-alpha.1'
 repositories { mavenCentral(); gradlePluginPortal() }
 dependencies {
     implementation 'org.jetbrains.kotlin:kotlin-gradle-plugin:2.2.20'
     testImplementation gradleTestKit()
     testImplementation 'junit:junit:4.13.2'
+    testImplementation 'org.jetbrains.kotlin:kotlin-test:2.2.20'
 }
-java { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }
+java { sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_17 }
+kotlin { compilerOptions { jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17 } }
 gradlePlugin {
     plugins {
         nrfMod {

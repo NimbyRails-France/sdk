@@ -65,7 +65,7 @@ were written and no game save command was issued.
 This supports investigating Versioning as a lineage key, but does not prove
 which events change it or whether Save As should inherit settings. Next trace
 Versioning generation/mutation and its transfer from live state into Game.
-`tools/read-save-versioning.ps1` reproduces bounded header extraction and
+`tools/windows/read-save-versioning.ps1` reproduces bounded header extraction and
 rejects unsupported/truncated/changing headers. It is a research utility,
 not the SDK's production persistence reader.
 

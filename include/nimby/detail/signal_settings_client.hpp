@@ -1,10 +1,12 @@
 #pragma once
+#include <nimby/detail/diagnostics.hpp>
 #include <nimby/detail/signal_ui_bridge.h>
 #include <nimby/detail/observation.h>
 #include <nimby/signal_settings_store.hpp>
 #include <nimby/detail/signal_settings_catalog.hpp>
 #include <nimby/detail/signal_settings_file.hpp>
 #include <nimby/detail/native_library.hpp>
+#include <nimby/detail/platform/host.hpp>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -22,7 +24,7 @@ public:
     SignalSettingsClient& operator=(const SignalSettingsClient&)=delete;
     ~SignalSettingsClient(){close();}
     void close() noexcept {
-        try { checkpoint(true); } catch(...) { std::fputs("NIMBY SDK: cannot save signal settings on close\n",stderr); }
+        try { checkpoint(true); } catch(...) { nimby::detail::diagnostics::exception("mods", __func__);  std::fputs("NIMBY SDK: cannot save signal settings on close\n",stderr); }
         std::lock_guard lock(mutex_);
         closeLocked();
     }
@@ -41,11 +43,7 @@ public:
             copy(target.name,box.name);copy(target.label,box.label);copy(target.description,box.description);
             target.default_value=box.defaultValue?1u:0u;
         }
-#ifdef _WIN32
-        auto module=native::existing("NimbySignalUiBridge-experimental-v1.dll");
-#else
-        auto module=native::existing("libNimbySignalUiBridge-experimental-v1.so");
-#endif
+        auto module=native::existing(platform::signalUiLibrary);
         if(!module)return false;
         auto add=resolve<NimbyUiRegisterV1>(module,"NimbyUi_RegisterV1");
         auto remove=resolve<NimbyUiRemoveV1>(module,"NimbyUi_RemoveV1");
@@ -162,18 +160,7 @@ public:
     static std::filesystem::path profilePath(std::string_view world,std::string_view panel) {
         if(world.size()!=64||world.find_first_not_of("0123456789abcdef")!=std::string_view::npos||panel.empty()||panel.size()>128)
             throw std::invalid_argument("Invalid settings profile identity");
-#ifdef _WIN32
-        wchar_t root[32768]{};
-        const auto n=GetEnvironmentVariableW(L"LOCALAPPDATA",root,32768);
-        if(!n||n>=32768)throw std::runtime_error("LOCALAPPDATA unavailable for settings");
-#else
-        std::filesystem::path root;
-        const auto xdg=std::getenv("XDG_STATE_HOME");
-        const auto home=std::getenv("HOME");
-        if(xdg&&*xdg&&std::filesystem::path(xdg).is_absolute())root=xdg;
-        else if(home&&*home&&std::filesystem::path(home).is_absolute())root=std::filesystem::path(home)/".local/state";
-        else throw std::runtime_error("User state directory unavailable for settings");
-#endif
+        const auto root=platform::stateDirectory();
         std::string encoded;constexpr char hex[]="0123456789abcdef";
         for(unsigned char c:panel){encoded+=hex[c>>4];encoded+=hex[c&15];}
         return std::filesystem::path(root)/L"NimbyRailsFrance"/L"signal-settings"/std::string(world)/(encoded+".settings");

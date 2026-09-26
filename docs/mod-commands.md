@@ -1,4 +1,4 @@
-# Commandes de mod de haut niveau (kit 0.7.3 en développement)
+# Commandes de mod de haut niveau (kit 0.8.0 en développement)
 
 Le mod fournit des fonctions C++ métier et des messages composés de valeurs.
 Le SDK compile son adaptateur dans la DLL : exports Windows, vérification des

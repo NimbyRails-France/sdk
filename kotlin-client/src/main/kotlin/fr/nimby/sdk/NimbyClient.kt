@@ -9,33 +9,62 @@ import fr.nimby.sdk.internal.*
 import java.nio.file.Path
 
 /** Owns one session. All returned observations are immutable JVM copies. */
-class NimbyClient private constructor(private val lease: LibraryLease, private var session: Long) : ObservationClient {
+class NimbyClient private constructor(private val lease: LibraryLease, private var session: Long, private val processId: Int) : ObservationClient {
     private val library get() = lease.library
     companion object {
         fun open(libraryPath: Path, processId: Int): NimbyClient {
+            DiagnosticLog.forComponent("sdk-client").write("Open SDK 0.8.x ABI 2: library=$libraryPath gamePid=$processId")
             require(processId > 0) { "Un PID de jeu explicite est nécessaire" }
             val lease = Libraries.acquire(libraryPath)
-            val client = NimbyClient(lease, 0)
+            val client = NimbyClient(lease, 0, processId)
             try {
                 Memory(NimbySdkVersion.SIZE.toLong()).use { memory ->
                     memory.clear(); memory.setInt(0, NimbySdkVersion.SIZE)
                     client.call("GetVersion", memory)
                     val version = NimbySdkVersion(memory)
-                    require(version.abiVersion == 2 && version.major == 0 && version.minor == 7 && version.patch >= 1) { "SDK 0.7.1+ (0.7.x), ABI 2 requis" }
+                    DiagnosticLog.forComponent("sdk-client").write("Loaded SDK version=${version.major}.${version.minor}.${version.patch} ABI=${version.abiVersion} library=${libraryPath.toAbsolutePath()}")
+                    require(version.abiVersion == 2 && version.major == 0 && version.minor == 8) { "SDK 0.8.x, ABI 2 requis" }
                 }
                 val result = LongByReference()
                 client.call("OpenProcess", 2, processId, result)
                 client.session = result.value
                 check(client.session != 0L) { "Le SDK a renvoyé une session vide" }
+                DiagnosticLog.forComponent("sdk-client").write("Connected gamePid=$processId session=${client.session}")
                 return client
-            } catch (failure: Throwable) { lease.close(); throw failure }
+            } catch (failure: Throwable) { DiagnosticLog.forComponent("sdk-client").write("Open SDK failed", failure); lease.close(); throw failure }
         }
     }
 
-    private fun status(name: String, vararg args: Any?): Int = library.getFunction("NimbyInternal_$name").invokeInt(args)
+    private fun status(name: String, vararg args: Any?): Int = try {
+        library.getFunction("NimbyInternal_$name").invokeInt(args).also { result ->
+            if (result != 0 && result != 8) DiagnosticLog.forComponent("sdk-client").write("$name failed: status=$result gamePid=$processId", level = "ERROR")
+        }
+    } catch (failure: Throwable) {
+        DiagnosticLog.forComponent("sdk-client").write("Native call $name gamePid=$processId", failure)
+        throw failure
+    }
     private fun call(name: String, vararg args: Any?) {
         val result = status(name, *args)
         if (result != 0) throw SdkException(result, name)
+    }
+
+    /**
+     * Reads only this train. No network capture, hook installation or game write.
+     * Null means absent/unstable data; other native failures throw SdkException.
+     * Serialized with capture(), commands and close() on this connection.
+     * A result owns JVM values and remains usable after the client is closed.
+     */
+    @Synchronized fun readTrain(trainId: Long): DrivingObservation? {
+        check(session != 0L) { "Session fermée" }
+        require(trainId ushr 48 == 5L) { "Identifiant de train requis" }
+        return Memory(NativeDriving.SIZE.toLong()).use { memory ->
+            memory.clear(); memory.setInt(0, NativeDriving.SIZE)
+            when (val result = status("ReadTrainDriving", session, trainId, memory)) {
+                0 -> NativeDriving.decode(memory, trainId)
+                8 -> null
+                else -> throw SdkException(result, "ReadTrainDriving")
+            }
+        }
     }
 
     private fun <T> records(name: String, snapshot: Long, size: Int, extra: Long? = null, decode: (Pointer) -> T): List<T>? {
@@ -129,7 +158,77 @@ class NimbyClient private constructor(private val lease: LibraryLease, private v
         }
     }
 
+    /**
+     * Explicit mutation, never retried. A failure can follow partial native work;
+     * capture again before deciding on another action. Input uses whole UTC seconds;
+     * the native subsecond timer phase is preserved in the returned clock.
+     */
+    @Synchronized fun setSimulationDateTime(utc: java.time.Instant, recalculateTrains: Boolean = false): SimulationTimeChange {
+        check(session != 0L) { "Session fermée" }
+        require(utc.nano == 0) { "La date doit être exprimée en secondes UTC entières" }
+        return Memory(NimbySimulationClock.SIZE.toLong()).use { memory ->
+            memory.clear(); memory.setInt(0, NimbySimulationClock.SIZE)
+            val interventions = IntByReference()
+            if (recalculateTrains) call("SetSimulationDateTimeAndRecalculateTrains", session, utc.epochSecond, memory, interventions)
+            else call("SetSimulationDateTime", session, utc.epochSecond, memory)
+            val clock = NimbySimulationClock(memory).let { SimulationClock(it.epochSeconds, it.ticks) }
+            SimulationTimeChange(clock, Integer.toUnsignedLong(interventions.value))
+        }
+    }
+
+    /** Visual override only. Does not change signalling permissions or mod decisions. */
+    @Synchronized fun showSignalTextureFor(signal: Long, catalogue: String, path: String, durationMillis: Int) {
+        check(session != 0L) { "Session fermée" }
+        require(signal ushr 48 == 8L && catalogue.isNotBlank() && path.isNotBlank())
+        require('\u0000' !in catalogue && '\u0000' !in path && durationMillis in 1000..60000)
+        call("ShowSignalTextureFor", processId, signal, catalogue, path, durationMillis)
+    }
+
+    @Synchronized fun restoreSignalTexture(signal: Long) {
+        check(session != 0L) { "Session fermée" }
+        require(signal ushr 48 == 8L)
+        call("RestoreSignalTexture", processId, signal)
+    }
+
+    /** Sends exactly once to the mod already hosted in this explicit game PID. */
+    @Synchronized fun modControl(modId: String, request: ControlRequest): ControlResponse {
+        check(session != 0L) { "Session fermee" }
+        require(modId.matches(Regex("[a-zA-Z0-9_.-]{1,95}")))
+        require(request.speedMps.isFinite() && request.speedMps >= 0)
+        if (request.operation in setOf(ControlOperation.Acquire, ControlOperation.Renew))
+            require(request.owner != 0L && request.leaseMillis in 1000..60000)
+        if (request.operation == ControlOperation.Train) {
+            require(request.objectId ushr 48 == 5L && (request.exitSignal == 0L || request.exitSignal ushr 48 == 8L))
+            require(if (request.mode == TrainControlMode.Stop) request.speedMps == 0.0 else request.speedMps > 0.0)
+        }
+        return Memory(72).use { input -> Memory(328).use { output ->
+            input.clear(); output.clear(); input.setInt(0, 72); input.setInt(4, 1)
+            input.setInt(8, request.operation.code); input.setInt(12, request.leaseMillis)
+            input.setLong(16, request.owner); input.setLong(24, request.generation)
+            input.setLong(32, request.objectId); input.setLong(40, request.exitSignal)
+            input.setDouble(48, request.speedMps); input.setInt(56, request.mode.code)
+            input.setInt(60, if (request.releaseByRear) 1 else 0)
+            input.setInt(64, request.value); input.setInt(68, request.settingIndex); output.setInt(0, 328)
+            call("ModControl", processId, modId, input, output)
+            check(output.getInt(0) == 328 && output.getInt(4) == 1)
+            ControlResponse(output.getInt(12), output.getLong(16), output.getLong(24),
+                output.getInt(32), output.getInt(36), output.getInt(40), output.getInt(44),
+                output.getInt(48), output.getInt(52), output.getDouble(56), output.getLong(64),
+                output.getByteArray(72, 256).takeWhile { it != 0.toByte() }.toByteArray().toString(Charsets.UTF_8))
+        } }
+    }
+
+    @Synchronized fun acquireModControl(modId: String, leaseMillis: Int = 5000): ModControlSession {
+        val observed = modControl(modId, ControlRequest(ControlOperation.Status))
+        check(observed.generation != 0L) { "Aucun monde observe par le mod" }
+        var owner: Long
+        do { owner = java.util.concurrent.ThreadLocalRandom.current().nextLong() } while (owner == 0L)
+        modControl(modId, ControlRequest(ControlOperation.Acquire, owner, observed.generation, leaseMillis))
+        return ModControlSession(this, modId, owner, observed.generation)
+    }
+
     @Synchronized override fun close() {
+        DiagnosticLog.forComponent("sdk-client").write("Close session gamePid=$processId")
         if (session != 0L) { try { call("CloseSession", session) } finally { session = 0; lease.close() } }
     }
 }
@@ -143,8 +242,8 @@ private object Libraries {
     private data class Entry(val library: NativeLibrary, var users: Int)
     private val entries = mutableMapOf<Path, Entry>()
     @Synchronized fun acquire(path: Path): LibraryLease {
-        val canonical = path.toRealPath()
-        val entry = entries.getOrPut(canonical) { Entry(NativeLibrary.getInstance(canonical.toString()), 0) }
+        val canonical = try { path.toRealPath() } catch (failure: Exception) { DiagnosticLog.forComponent("sdk-client").write("SDK path unavailable: $path", failure); throw failure }
+        val entry = entries.getOrPut(canonical) { Entry(try { NativeLibrary.getInstance(canonical.toString()) } catch (failure: Throwable) { DiagnosticLog.forComponent("sdk-client").write("Cannot load SDK: $canonical", failure); throw failure }, 0) }
         entry.users++
         return LibraryLease(entry.library) { release(canonical) }
     }

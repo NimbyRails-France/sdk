@@ -1,5 +1,5 @@
 #pragma once
-// Included by client.hpp after Train/Position; implementation of the public value types.
+// Included by observation_values.hpp after Train/Position; private native value types.
 #include <nimby/detail/driving.h>
 
 namespace nimby {
@@ -28,7 +28,7 @@ class DrivingObservation {
 public:
     explicit DrivingObservation(const NimbyDrivingObservation& data) : data_(data) {}
     Id getTrainId() const { return data_.train_id; }
-    // Token is local to this Client. Reset state on reconnect as well as token changes.
+    // Token is local to this native session. Reset state on reconnect as well as token changes.
     std::uint64_t getSessionGeneration() const { return data_.session_generation; }
     std::optional<TrainDynamics> getPurchasedDynamics() const {
         return data_.flags&NIMBY_DRIVING_PURCHASED_VALID?std::optional{convert(data_.purchased)}:std::nullopt;

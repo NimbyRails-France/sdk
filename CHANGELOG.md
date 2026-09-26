@@ -2,6 +2,24 @@
 
 ## [Unreleased]
 
+## [0.8.0-alpha.1] - 2026-09-27
+
+### Windows alpha
+- API consommatrice Kotlin, client JVM et kit Kotlin/Native 0.8 ; ancien client C++ retiré.
+- Noyau partagé et implémentations Windows/Linux séparées. Développement et distribution Linux suspendus.
+- Conduite générique, commandes de recette, horloge et observations ciblées ; règles et vitesses définies par le mod.
+- Journaux persistants du SDK, du chargeur et des mods, erreurs Kotlin détaillées et bilans périodiques.
+- Tests logiciels Windows Release/Debug validés ; la validation en jeu de cet ensemble alpha reste à effectuer.
+- Utiliser les consommateurs alpha compatibles : SFR 0.2.0-alpha.1 et TCO 0.6.0-alpha.1.
+
+- Noyau C++ partagé et implémentations Windows/Linux séparées ; lecteurs réseau,
+  conduite, textures, calendrier et manifestes mutualisés.
+- Documentation d'architecture, propriété mémoire, audit Windows et validation Linux.
+- Parseur de manifestes commun : doublons refusés, UTF-8/ASCII et anciens
+  manifestes UTF-16 avec BOM pris en charge.
+- Réservations de capacité bornées et transferts de buffers dans les captures.
+  Les gains en jeu ne sont pas encore mesurés.
+
 ## [0.7.2] - 2026-09-18
 
 ### Nouveautés
@@ -177,8 +195,21 @@ Le test optionnel de proxy avec la SDL du jeu ne fait pas partie de ces 9 tests.
 Empreinte du ZIP dans **SHA256SUMS.txt**.
 
 Pour l'application graphique prête à lancer : [Nimby TCO](https://github.com/NimbyRails-France/tco/releases/tag/v0.1.0).
-## [0.7.3] - En préparation
+## [0.8.0] - En préparation
 
-Migration Kotlin et premiers outils Linux natifs. Lecture du jeu Linux par le
-TCO validée ; intégration des hooks et kit de mods Linux encore incomplets.
+- Retrait du client C++ public, de son cache et de son worker de rafraîchissement.
+  Le pont Kotlin utilise une session native privée synchrone.
+- Lecture ciblée d'un train disponible dans `NimbyClient.readTrain()` en Kotlin/JVM,
+  avec données optionnelles, copies possédées et tests de l'ABI natif.
+- Documentation de conduite et d'horloge actualisée pour les consommateurs Kotlin.
+
+SDK, kit Kotlin, plugin Gradle et client d'observation alignés sur 0.8.0.
+Les consommateurs de cette branche déclarent la plage [0.8.0, 0.9.0).
+L'ABI d'observation reste à 2 ; les clients vérifient la série 0.8.x.
+
+Cette évolution regroupe la séparation du code commun et des plateformes,
+la conduite automatique générique pilotée par le mod, les commandes de test
+et le banc de validation. Les compilations et paquets locaux ciblent Windows.
+Le développement et les publications Linux sont suspendus ; les dossiers de
+plateforme sont conservés pour organiser le code.
 Ce point de reprise n'est pas une publication.

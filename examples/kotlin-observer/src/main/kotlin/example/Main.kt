@@ -5,7 +5,7 @@ import java.nio.file.Path
 
 fun main(args: Array<String>) {
     if (args.contentEquals(arrayOf("--help"))) {
-        println("Usage: kotlin-observer <SDK .dll/.so> <game PID>")
+        println("Usage: kotlin-observer <NimbyRailsFranceSDK.dll> <game PID>")
         return
     }
     require(args.size == 2) { "Provide the SDK library path and the game PID; use --help." }
@@ -15,5 +15,11 @@ fun main(args: Array<String>) {
         val snapshot = client.capture()
         println("PID=${snapshot.processId} trains=${snapshot.trains.size} tracks=${snapshot.tracks.size} signals=${snapshot.signals.size}")
         snapshot.trains.take(10).forEach { train -> println("${train.id}: ${train.name}") }
+        // This second read queries one train only. It can disappear between
+        // reads; null remains unavailable data, never an assumed stopped train.
+        snapshot.trains.firstOrNull()?.let { train ->
+            val driving = client.readTrain(train.id)
+            println("Targeted speed (m/s)=${driving?.speedMps}, length (m)=${driving?.currentDynamics?.lengthM}")
+        }
     }
 }

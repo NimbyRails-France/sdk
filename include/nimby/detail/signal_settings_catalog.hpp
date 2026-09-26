@@ -1,5 +1,5 @@
 #pragma once
-#include <nimby/client.hpp>
+#include <nimby/detail/observation_session.hpp>
 #include <unordered_map>
 #include <nimby/signal_settings_store.hpp>
 

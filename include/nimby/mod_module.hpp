@@ -1,8 +1,9 @@
 #pragma once
-#include <nimby/client.hpp>
+#include <nimby/detail/observation_session.hpp>
 #include <nimby/mod_commands.hpp>
 #include <filesystem>
 #include <bit>
+#include <nimby/detail/platform/mod_abi.hpp>
 #include <nimby/detail/native_library.hpp>
 
 namespace nimby {
@@ -10,13 +11,8 @@ namespace nimby {
 // Loading here does not install/inject a mod in the game. Do not share one host
 // concurrently or create multiple hosts for the same DLL.
 class ModModule {
-#ifdef _WIN32
-    using Lifecycle = DWORD (WINAPI*)(void*);
-    using Invoke = DWORD (WINAPI*)(const char*, const void*, uint32_t, void*, uint32_t);
-#else
-    using Lifecycle = uint32_t (*)(void*);
-    using Invoke = uint32_t (*)(const char*, const void*, uint32_t, void*, uint32_t);
-#endif
+    using Lifecycle = uint32_t (NRF_CALL*)(void*);
+    using Invoke = uint32_t (NRF_CALL*)(const char*, const void*, uint32_t, void*, uint32_t);
     detail::native::Module module_ = nullptr;
     Lifecycle stop_ = nullptr;
     Invoke invoke_ = nullptr;

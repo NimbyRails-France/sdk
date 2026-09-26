@@ -10,7 +10,7 @@ SDL3.dll expose les mêmes noms et ordinaux et transmet les appels à l'original
 - Jeu : SHA-256 `FFF49AC21720ABFC824C2B4F68B862727630EB0DB71CFE1F9EA8F685D0DB10AE`.
 - SDL originale : SHA-256 `2A2704678BF6C9C6A944270AB35079DF76F5AFE92B780394ED72D9C8218B98D8`, 2 840 576 octets, AMD64.
 - Inventaire complet : `reports/sdl3-inventory.json` (fichier fourni avec le jeu).
-- `tools/generate-sdl-proxy.mjs` produit `src/proxy/SDL3.def` à partir de cet inventaire PE.
+- `tools/windows/generate-sdl-proxy.mjs` produit `src/platform/windows/proxy/SDL3.def` à partir de cet inventaire PE.
 - 1 271 exports nommés et leurs ordinaux comparés exactement, en respectant la casse.
   1 269 sont des forwarders PE ; SDL_Init et SDL_Quit sont les deux wrappers.
   Le proxy ne dépend que de bcrypt, KERNEL32 et msvcrt avec MinGW.

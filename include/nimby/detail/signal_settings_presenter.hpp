@@ -1,4 +1,5 @@
 #pragma once
+#include <nimby/detail/diagnostics.hpp>
 #include <nimby/signal_settings_store.hpp>
 
 namespace nimby::detail {
@@ -19,7 +20,7 @@ size_t drawSignalSettings(SignalSettingsStore& store,
             // Session/selection validation happens again when accepting a click.
             // A discarded click must not interrupt the remaining layout items.
             try {store.setBoolean(frame.editor,control.checkbox.name,value!=0);}
-            catch(...) {++failedWrites;} // Still consume the remaining native layout slots.
+            catch(...) { nimby::detail::diagnostics::exception("mods", __func__); ++failedWrites;} // Still consume the remaining native layout slots.
         }
     }
     return failedWrites;

@@ -56,7 +56,7 @@ avec réservations disponibles, environ 13 200 portions pour environ 330 trains 
 1 200 portions d'occupation. Le comparateur observe 607 ajouts et 445 retraits
 d'intervalles, y compris les variations de bornes : ce ne sont pas 607 itinéraires
 complets nouvellement établis. Capture complète mesurée autour de 304–363 ms.
-`tools/usage_observer.cpp` permet de reproduire cette lecture avec le PID du jeu.
+`tools/windows/usage_observer.cpp` permet de reproduire cette lecture avec le PID du jeu.
 
 Les fixtures de `tests/track_usage.cpp` sont **synthétiques**, indépendantes du jeu :
 vecteurs vides, bornes inversées, données instables, pointeurs invalides, NaN, cycles,

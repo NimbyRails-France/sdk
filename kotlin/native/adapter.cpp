@@ -1,16 +1,30 @@
+#include <nimby/detail/diagnostics.hpp>
+#include <atomic>
 #include <nimby/kotlin_mod.hpp>
 #include <nimby/detail/native_library.hpp>
 #include <filesystem>
 #include <fstream>
 #include <iomanip>
 #include <set>
+#include <sstream>
 
 #ifndef NIMBY_KOTLIN_LIBRARY
 #error The SDK build tool must specify the Kotlin library name.
 #endif
 namespace nimby::kotlin {
 namespace {
-void check(int status) { if(status<0)throw std::runtime_error("Kotlin mod rejected an invalid request or raised an exception"); }
+using LastError=int(*)(char*,int);
+std::atomic<LastError> lastError{nullptr};
+void check(int status) {
+    if(status>=0)return;
+    std::array<char,32768> message{};
+    const auto read=lastError.load();
+    if(read && read(message.data(),int(message.size()))>0) {
+        nimby::detail::diagnostics::write("mods","ERROR",message.data());
+        throw std::runtime_error(message.data());
+    }
+    throw std::runtime_error("Kotlin mod rejected a request; no detailed exception export available");
+}
 struct Api {
     detail::native::Module module=nullptr;
     int (*metadata)(int,int,char*,int)=nullptr;
@@ -18,6 +32,7 @@ struct Api {
     int (*defaults)(std::int64_t*)=nullptr;
     int (*decide)(int,std::int64_t,int,std::int64_t,std::int64_t,const int*,int,int,int*)=nullptr;
     int (*texture)(int,int,std::int64_t,std::int64_t,char*,int)=nullptr;
+    int (*force)(int,int*)=nullptr;
     int (*fault)(int,int)=nullptr;
     int (*driving)(int,int,double*,int*)=nullptr;
     int (*plan)(const double*,const int*,int,const std::int64_t*,const double*,double*,std::int64_t*)=nullptr;
@@ -42,19 +57,26 @@ struct Api {
             ? ownPath.stem().string()+"Kotlin"+ownPath.extension().string() : std::string(NIMBY_KOTLIN_LIBRARY));
         // Kotlin/Native owns GC threads. Keep its code mapped until process exit,
         // including after a loader stop/restart. No work is performed in DllMain.
+        const auto libraryUtf8=library.u8string();
+        detail::diagnostics::write("mods","INFO",("Loading Kotlin library: "+std::string(libraryUtf8.begin(),libraryUtf8.end())).c_str());
         module=detail::native::load(library,true);
+        lastError.store(reinterpret_cast<LastError>(detail::native::symbol(module,"NRFKotlin_LastError")));
         const auto version=symbol<int(*)()>("NRFKotlin_Version");if(version()!=1)throw std::runtime_error("Unsupported Kotlin ABI");
 #define LOAD(member, name) member=symbol<decltype(member)>(name)
         LOAD(metadata,"NRFKotlin_Metadata");LOAD(info,"NRFKotlin_Info");LOAD(defaults,"NRFKotlin_Defaults");
         LOAD(decide,"NRFKotlin_Decide");LOAD(texture,"NRFKotlin_Texture");LOAD(fault,"NRFKotlin_Fault");
         LOAD(driving,"NRFKotlin_Driving");LOAD(plan,"NRFKotlin_Plan");
+        force=reinterpret_cast<decltype(force)>(detail::native::symbol(module,"NRFKotlin_Force"));
 #undef LOAD
         check(info(properties.data()));if(properties[0]<0||properties[0]>64)throw std::runtime_error("Invalid checkbox count");
         id=text(0);title=text(1);catalogue=text(2);diagnostic=text(3);
+        detail::diagnostics::write("mods","INFO",("Kotlin mod loaded: "+id+" / SDK 0.8.0-alpha.1 / adapter ABI 1").c_str());
         std::int64_t values=0;check(defaults(&values));
         labels.reserve(properties[0]);boxes.reserve(properties[0]);
         for(int i=0;i<properties[0];++i)labels.push_back({text(4,i),text(5,i),text(6,i)});
         for(int i=0;i<properties[0];++i)boxes.push_back({labels[i][0],labels[i][1],labels[i][2],(std::uint64_t(values)&(std::uint64_t{1}<<i))!=0});
+        detail::diagnostics::write("mods","INFO",("Mod ready: id="+id+" title="+title+" textures="+catalogue+" checkboxes="+std::to_string(boxes.size())+" defaultMask="+std::to_string(values)+" force="+(force?"yes":"no")+" detailedErrors="+(lastError.load()?"yes":"no")).c_str());
+        for(const auto& label:labels)detail::diagnostics::write("mods","INFO",("Registered setting: "+label[0]+" / "+label[1]).c_str());
     }
 };
 Api& api() { static Api value;return value; }
@@ -109,13 +131,23 @@ Plan Rules::plan(const Vehicle& v,const DrivingSettings& s,const DrivingInput& i
     return {result[0]!=0,out[0],out[1],out[2],result[1]!=0,Id(result[2])};
 }
 void Rules::diagnose(const Snapshot& snapshot,const std::vector<LiveSignalState>& states,std::span<const Decision> decisions) {
-    static unsigned recorded=0;static bool created=false;bool fault=false;
-    for(const auto& d:decisions)fault|=isFault(d);
+    static unsigned recorded=0;
+    static auto nextSummary=std::chrono::steady_clock::time_point{};
+    unsigned faults=0;
+    for(const auto& d:decisions)if(isFault(d))++faults;
+    const bool fault=faults!=0;
+    const auto now=std::chrono::steady_clock::now();
+    if(now>=nextSummary) {
+        nextSummary=now+std::chrono::seconds{30};
+        detail::diagnostics::write("mods","INFO",("Mod signal heartbeat: id="+api().id+
+            " signals="+std::to_string(states.size())+" faults="+std::to_string(faults)+
+            " snapshotAgeMs="+std::to_string(snapshot.getAge().count())+
+            " occupationsAvailable="+(snapshot.getAllOccupations().has_value()?"yes":"no")).c_str());
+    }
     if(!fault){recorded=0;return;}if(recorded>=128)return;
     try {
         const auto coverage=observeBlockCoverage(snapshot);
-        std::ofstream out(std::filesystem::temp_directory_path()/api().diagnostic,created?std::ios::app:std::ios::trunc);
-        if(!out)return;created=true;
+        std::ostringstream out;
         out<<"{\"fault\":"<<recorded++<<",\"age_ms\":"<<snapshot.getAge().count()
            <<",\"occupations_available\":"<<snapshot.getAllOccupations().has_value()<<",\"coverage_verified\":"<<coverage.verified
            <<",\"unknown_presence\":"<<coverage.unknownPresence<<",\"missing_footprints\":"<<coverage.missingFootprints
@@ -124,10 +156,15 @@ void Rules::diagnose(const Snapshot& snapshot,const std::vector<LiveSignalState>
             out<<"{\"id\":\""<<s.id<<"\",\"fresh\":"<<s.fresh<<",\"boundary_known\":"<<s.boundaryKnown
                <<",\"settings_status\":"<<int(s.settings.status)<<",\"occupation\":"<<int(s.occupation)
                <<",\"reason_code\":"<<decisions[i].reason<<'}';}
-        out<<"]}\n";
-    }catch(...){} // A diagnostic I/O failure must not stop signalling.
+        out<<"]}";
+        detail::diagnostics::write("mods","WARN",out.str().c_str());
+    }catch(...){detail::diagnostics::exception("mods","signal fault diagnostic");}
 }
 std::span<const SignalCheckbox> Rules::checkboxes(){return api().boxes;}
+std::optional<Decision> Rules::forcedDecision(int aspect){
+    if(!api().force)return {};std::array<int,2> out{};const auto status=api().force(aspect,out.data());
+    check(status);if(status!=0)return {};return Decision{out[0],out[1]};
+}
 std::string Rules::settingsId(){return api().id;}
 std::string Rules::diagnosticFile(){return api().diagnostic;}
 std::string Rules::aspectName(int aspect){return api().text(8,aspect);}
@@ -136,6 +173,6 @@ bool Rules::isFault(const Decision& d){const int status=api().fault(d.aspect,d.r
 bool Rules::isActive(const Decision& d){const int status=api().fault(d.aspect,d.reason);check(status);return (status&2)!=0;}
 }
 nimby::Mod nimby::createMod() {
-    auto& api=kotlin::api();kotlin::Rules::textureSet=api.catalogue;kotlin::Rules::maximumLineSpeed=api.properties[1]!=0;
+    auto& api=kotlin::api();kotlin::Rules::controlId=api.id;kotlin::Rules::textureSet=api.catalogue;kotlin::Rules::maximumLineSpeed=api.properties[1]!=0;
     auto mod=kotlin::Runtime::createMod();mod.signalSettings={api.id,api.title,api.catalogue,api.boxes};return mod;
 }

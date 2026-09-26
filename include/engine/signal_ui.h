@@ -14,20 +14,11 @@ public:
     static std::optional<SignalUi> bind(ReadMemory read,void* context,
                                         uint64_t module,uint64_t object,
                                         LiveStateProfile profile=LiveStateProfile::Windows119) noexcept {
-        uint64_t layoutTable{},interactiveTable{},layoutCheckbox{},interactiveCheckbox{},slot{};
-        switch(profile){
-        case LiveStateProfile::Windows119:
-            layoutTable=0xa83818;interactiveTable=0xa83470;
-            layoutCheckbox=0x55cd20;interactiveCheckbox=0x560870;slot=0xf0;
-            break;
-        case LiveStateProfile::Linux119:
-            // ELF 1.19.10.5bfaea3: address points (after the Itanium ABI header),
-            // verified against both live vtables. This does not qualify a hook.
-            layoutTable=0x1088938;interactiveTable=0x1088b00;
-            layoutCheckbox=0x7a1280;interactiveCheckbox=0x7a2490;slot=0xf8;
-            break;
-        default:return std::nullopt;
-        }
+        const auto& layout=gameLayout(profile);
+        if(!layout.root_rva)return std::nullopt;
+        const auto layoutTable=layout.ui_layout_table,interactiveTable=layout.ui_interactive_table;
+        const auto layoutCheckbox=layout.ui_layout_checkbox,interactiveCheckbox=layout.ui_interactive_checkbox;
+        const auto slot=layout.ui_checkbox_slot;
         constexpr uint64_t addressLimit=0x7fffffff0000ULL;
         const uint64_t lastTable=layoutTable>interactiveTable?layoutTable:interactiveTable;
         if(!read || module<0x10000 || module>addressLimit-lastTable-slot-sizeof(uint64_t) ||
@@ -49,14 +40,14 @@ public:
     // Signal*. Copy only its full identity; never retain that native pointer.
     static std::optional<uint64_t> editorSignal(ReadMemory read,void* context,uint64_t capture,
             LiveStateProfile profile=LiveStateProfile::Windows119) noexcept {
-        // The Linux editor's capture layout still needs runtime qualification.
-        if(profile!=LiveStateProfile::Windows119)return std::nullopt;
+        const auto captureOffset=gameLayout(profile).editor_signal_capture;
+        if(!captureOffset)return std::nullopt;
         constexpr uint64_t limit=0x7fffffff0000ULL;
         uint64_t signal{},id{},again{};
         if(!read||capture<0x10000||capture>limit-0x40||
-           !read(context,capture+0x38,&signal,sizeof signal)||signal<0x10000||signal>limit-8||
+           !read(context,capture+captureOffset,&signal,sizeof signal)||signal<0x10000||signal>limit-8||
            !read(context,signal,&id,sizeof id)||id>>48!=8||
-           !read(context,capture+0x38,&again,sizeof again)||again!=signal)return std::nullopt;
+           !read(context,capture+captureOffset,&again,sizeof again)||again!=signal)return std::nullopt;
         return id;
     }
 

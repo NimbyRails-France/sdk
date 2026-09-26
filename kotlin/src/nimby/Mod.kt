@@ -33,10 +33,12 @@ data class DrivingPlan(
     val brakingRequired: Boolean = false, val limitingSource: Long = 0
 )
 enum class DrivingFlag(val bit: Int) {
-    Clear(1), HoldToClear(2), Stop(4), FollowTarget(8), OnSight(16), StopThenProceed(32), CancelAtNextClear(64)
+    Clear(1), HoldToClear(2), Stop(4), FollowTarget(8), OnSight(16), StopThenProceed(32), CancelAtNextClear(64),
+    /** Passage permis selon la vitesse memorisee ; ne libere aucune autre restriction. */
+    ApproachPassable(128)
 }
 data class DrivingRule(
-    val speedMps: Double = -1.0, val reopenedSpeedMps: Double = 30.0 / 3.6,
+    val speedMps: Double = -1.0, val reopenedSpeedMps: Double = 0.0,
     val signalsAhead: Int = 0, val flags: Set<DrivingFlag> = emptySet()
 )
 
@@ -54,6 +56,10 @@ abstract class SignallingMod {
     abstract fun decide(signal: Signal, next: Decision?): Decision?
     open fun fromLive(signal: Signal): Signal = signal
     abstract fun texture(decision: Decision, simulationMs: Long, halfPeriodMs: Long): String
+    /** Indication de recette autorisee par le mod. Null refuse le code.
+     * Le motif determine aussi la conduite : arret absolu ou permissif.
+     * Aucun aspect, motif ni vitesse ne sont interpretes par le SDK. */
+    open fun forcedDecision(aspect: Int): Decision? = null
     abstract fun drivingRule(decision: Decision): DrivingRule?
     abstract fun isFault(decision: Decision): Boolean
     open fun isActive(decision: Decision): Boolean = true

@@ -1,5 +1,5 @@
 // Read-only JSON export using the installed public SDK. IDs stay strings for JS.
-#include <nimby/client.hpp>
+#include <nimby/detail/observation_session.hpp>
 #include <fstream>
 #include <iomanip>
 #include <iostream>
@@ -14,7 +14,7 @@ static std::string quote(const std::string& s){
 static std::string id(nimby::Id n){std::ostringstream o;o<<"\"0x"<<std::hex<<n<<'"';return o.str();}
 int main(int argc,char** argv){try{
     if(argc!=2&&argc!=6){std::cerr<<"Usage: export_network_graph output.json [xmin ymin xmax ymax]\n";return 1;}
-    auto client=nimby::Client::connect();nimby::Snapshot::Ptr s;
+    auto client=nimby::detail::ObservationSession(nimby::detail::discoverProcess());nimby::Snapshot::Ptr s;
     for(int attempt=0;attempt<5&&!s;++attempt){
         try{s=client.capture();}catch(const nimby::Exception&){if(attempt==4)throw;std::this_thread::sleep_for(std::chrono::milliseconds(300));}
     }

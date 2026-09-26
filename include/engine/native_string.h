@@ -12,17 +12,13 @@ inline bool read_native_string(ReadMemory read, void* context, uint64_t address,
     out.clear();
     auto word = [&](size_t offset) { uint64_t value; std::memcpy(&value,
         static_cast<const unsigned char*>(object) + offset, 8); return value; };
-    uint64_t size{}, capacity{}, data{}; size_t local_offset{};
-    bool local{};
-    switch (profile) {
-        case LiveStateProfile::Windows119:
-            size = word(16); capacity = word(24); local = capacity == 15;
-            local_offset = 0; data = word(0); break;
-        case LiveStateProfile::Linux119:
-            size = word(8); data = word(0); local = data == address + 16;
-            local_offset = 16; capacity = local ? 15 : word(16); break;
-        default: return false;
-    }
+    const auto& layout=gameLayout(profile);
+    if(!layout.root_rva)return false;
+    const auto size=word(layout.string_size), data=word(0);
+    const auto local_offset=layout.string_inline;
+    const bool local=layout.string_inline_by_pointer
+        ? data==address+local_offset : word(layout.string_capacity)==15;
+    const auto capacity=local?uint64_t(15):word(layout.string_capacity);
     if (limit > 4096 || size > limit || capacity < 15 || capacity < size || capacity > 1048576) return false;
     std::string text(size+1, '\0'), again(size+1, '\0');
     if (local) std::memcpy(text.data(), static_cast<const unsigned char*>(object) + local_offset, size + 1);

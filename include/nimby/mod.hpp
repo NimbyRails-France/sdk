@@ -3,6 +3,7 @@
 #include <nimby/mod_commands.hpp>
 #include <nimby/block_observation.hpp>
 #include <nimby/observation_loop.hpp>
+#include <nimby/detail/control.h>
 
 namespace nimby {
 // High-level reader for mods linked with NimbyRailsFranceSDK::Mod.
@@ -40,6 +41,9 @@ struct Mod {
     SignalSettingsPanel signalSettings{};
     SnapshotScope observationScope = SnapshotScope::Complete;
     std::string_view observationTextureSet{};
+    // Local recipe endpoint, explicitly stopped by the adapter before unload.
+    const char* controlId=nullptr;
+    NimbyControlHandler control=nullptr;
 };
 
 // Implement once in mod.cpp. Called explicitly by NRF Loader, never in DllMain.

@@ -2,6 +2,8 @@ package nimby.mod
 
 import nimby.*
 
+// Public entry point discovered by the Gradle plugin. The SDK supplies the
+// precompiled native adapter; this project does not create a C++ client or DLL glue.
 fun createMod(): SignallingMod = ExampleSignals()
 
 /** Minimal API example, not a national signalling or train-driving system. */
@@ -15,6 +17,8 @@ internal class ExampleSignals : SignallingMod() {
     override fun evaluate(settings: Map<String, Boolean>, observation: Observation): Decision =
         if (settings["active"] != true || !observation.fresh || !observation.routeKnown)
             unknownDecision else Decision(if (observation.block == Occupancy.Clear) 1 else 0, 0)
+    // The SDK delivers fresh observations here. Keep decisions in Kotlin and
+    // treat missing/uncertain observations explicitly in evaluate().
     override fun decide(signal: Signal, next: Decision?): Decision = evaluate(signal.settings, signal.observation)
     override fun texture(decision: Decision, simulationMs: Long, halfPeriodMs: Long) = "signal.svg"
     override fun drivingRule(decision: Decision): DrivingRule? = null

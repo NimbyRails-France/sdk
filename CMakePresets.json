@@ -15,11 +15,10 @@
         "CMAKE_BUILD_TYPE": "${presetName}",
         "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
         "BUILD_TESTING": "ON",
-        "NimbyRailsFranceSDK_DIR": "${sourceDir}/install/0.7.3/Release/lib/cmake/NimbyRailsFranceSDK",
         "CMAKE_CXX_COMPILER": "$penv{LOCALAPPDATA}/Programs/CLion/bin/mingw/bin/g++.exe",
         "CMAKE_MAKE_PROGRAM": "$penv{LOCALAPPDATA}/Programs/CLion/bin/ninja/win/x64/ninja.exe",
         "CMAKE_C_COMPILER": "$penv{LOCALAPPDATA}/Programs/CLion/bin/mingw/bin/gcc.exe",
-        "CMAKE_INSTALL_PREFIX": "${sourceDir}/install/0.7.3/${presetName}"
+        "CMAKE_INSTALL_PREFIX": "${sourceDir}/install/0.8.0-alpha.1/${presetName}"
       },
       "environment": {
         "PATH": "$penv{LOCALAPPDATA}/Programs/CLion/bin/mingw/bin;$penv{PATH}"

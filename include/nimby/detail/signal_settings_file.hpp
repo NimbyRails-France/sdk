@@ -1,14 +1,6 @@
 #pragma once
 #include <nimby/signal_settings_store.hpp>
-#ifdef _WIN32
-#include <windows.h>
-#else
-#include <unistd.h>
-#include <fcntl.h>
-#include <cerrno>
-#include <cstdio>
-#include <cstdlib>
-#endif
+#include <nimby/detail/platform/host.hpp>
 #include <filesystem>
 #include <fstream>
 #include <iomanip>
@@ -70,6 +62,7 @@ public:
         SignalSettingsStore::SavedSettings data;size_t count{};
         if(!(input>>std::quoted(data.sessionId)>>std::quoted(data.panelId)>>count)||count>16384)
             throw std::invalid_argument("Invalid settings header");
+        data.signals.reserve(count); // Count is validated before allocating.
         for(size_t i=0;i<count;++i){
             SignalSettingsStore::SavedSignal signal;size_t fields{};
             if(!(input>>signal.id>>fields)||fields>64)throw std::invalid_argument("Invalid saved signal");
@@ -95,52 +88,7 @@ public:
     }
     static void save(const std::filesystem::path& path,const SignalSettingsStore::SavedSettings& data) {
         const auto bytes=encode(data); // Validate before touching the existing file.
-        const auto folder=path.has_parent_path()?path.parent_path():std::filesystem::path(L".");
-        std::filesystem::create_directories(folder);
-#ifdef _WIN32
-        wchar_t temporary[MAX_PATH]{};
-        if(!GetTempFileNameW(folder.c_str(),L"nss",0,temporary))throw std::runtime_error("Cannot create settings temporary file");
-        HANDLE file=INVALID_HANDLE_VALUE;
-        try {
-            file=CreateFileW(temporary,GENERIC_WRITE,0,nullptr,TRUNCATE_EXISTING,FILE_ATTRIBUTE_NORMAL,nullptr);
-            DWORD written{};
-            if(file==INVALID_HANDLE_VALUE||!WriteFile(file,bytes.data(),static_cast<DWORD>(bytes.size()),&written,nullptr)||
-               written!=bytes.size()||!FlushFileBuffers(file))throw std::runtime_error("Cannot write settings file");
-            CloseHandle(file);file=INVALID_HANDLE_VALUE;
-            if(!MoveFileExW(temporary,path.c_str(),MOVEFILE_REPLACE_EXISTING|MOVEFILE_WRITE_THROUGH))
-                throw std::runtime_error("Cannot replace settings file");
-        } catch(...) {
-            if(file!=INVALID_HANDLE_VALUE)CloseHandle(file);
-            DeleteFileW(temporary);throw;
-        }
-#else
-        auto temporary=(folder/".nrf-settings-XXXXXX").string();
-        int file=mkstemp(temporary.data());
-        if(file<0)throw std::runtime_error("Cannot create settings temporary file");
-        int directory=-1;
-        try {
-            size_t offset=0;
-            while(offset<bytes.size()) {
-                const auto written=::write(file,bytes.data()+offset,bytes.size()-offset);
-                if(written<0&&errno==EINTR)continue;
-                if(written<=0)throw std::runtime_error("Cannot write settings file");
-                offset+=static_cast<size_t>(written);
-            }
-            if(::fsync(file)!=0)throw std::runtime_error("Cannot flush settings file");
-            const auto closed=::close(file);file=-1;
-            if(closed!=0)throw std::runtime_error("Cannot close settings file");
-            directory=::open(folder.c_str(),O_RDONLY|O_DIRECTORY|O_CLOEXEC);
-            if(directory<0)throw std::runtime_error("Cannot open settings directory");
-            if(::rename(temporary.c_str(),path.c_str())!=0)throw std::runtime_error("Cannot replace settings file");
-            // Persist the directory entry as well as the file contents.
-            if(::fsync(directory)!=0)throw std::runtime_error("Cannot flush settings directory");
-            ::close(directory);directory=-1;
-        } catch(...) {
-            if(file>=0)::close(file);
-            if(directory>=0)::close(directory);
-            ::unlink(temporary.c_str());throw;
-        }
-#endif
+        platform::atomicWrite(path,bytes);
     }
 };
 }

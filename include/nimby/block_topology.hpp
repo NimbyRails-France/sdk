@@ -1,6 +1,6 @@
 #pragma once
 #include <nimby/blocks.hpp>
-#include <nimby/client.hpp>
+#include <nimby/detail/observation_session.hpp>
 
 namespace nimby {
 

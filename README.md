@@ -1,12 +1,16 @@
 # NimbyRails France SDK
 
 SDK pour développer des mods Kotlin/Native et des clients Kotlin pour NIMBY Rails.
-Windows x64 est pris en charge et Linux x64 reste en migration. Le SDK fournit les observations du jeu, l'intégration native et
+Windows x64 est pris en charge. Le développement et la publication Linux sont
+suspendus ; les dossiers de plateforme sont conservés. Le SDK fournit les observations du jeu, l'intégration native et
 le contrat de chargement. Les règles de signalisation et les ressources restent
 dans les mods.
 
-Cette branche développe la version **0.7.3**. Un paquet construit localement
+Cette branche développe la version **0.8.0**. Un paquet construit localement
 n'est pas une release publiée.
+
+Pour contribuer au noyau : [architecture](docs/architecture.md) et
+[audit de la séparation Windows/commun](docs/windows-audit.md).
 
 ## Créer un mod Kotlin
 
@@ -20,7 +24,7 @@ Le fichier de compilation du mod contient uniquement :
 
 ```kotlin
 plugins {
-    id("fr.nimbyrails.mod") version "0.7.3"
+    id("fr.nimbyrails.mod") version "0.8.0"
 }
 ```
 

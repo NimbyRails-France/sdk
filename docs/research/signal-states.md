@@ -23,7 +23,7 @@ de circulation, ni la garantie qu'une texture particulière soit visible.
 ## Observation vivante
 
 Processus 3824 : 27 signaux dans une table de taille 27, masque 31.
-Le probe en lecture seule `tools/signal_state_probe.cpp` a observé sur 100
+Le probe en lecture seule `tools/windows/signal_state_probe.cpp` a observé sur 100
 lectures le signal `0x8000000110003` alternant entre 9 et 10 (49 valeurs
 initiales/changements au total). D'autres sélecteurs observés : 0, 2, 3, 4.
 Trace locale : `build/signal-state-live.txt`.

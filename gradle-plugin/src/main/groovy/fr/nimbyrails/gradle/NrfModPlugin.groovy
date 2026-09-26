@@ -23,8 +23,8 @@ class NrfModPlugin implements Plugin<Project> {
         platform.requiredFiles().each {
             if (!new File(sdk, it).isFile()) throw new GradleException("Incomplete Kotlin SDK: missing ${it} in ${sdk}")
         }
-        if (metadata.format != 1 || metadata.kotlinVersion != '2.2.20' || metadata.gradlePluginVersion != '0.7.3')
-            throw new GradleException('Incompatible Kotlin SDK: expected format 1, Kotlin 2.2.20, Gradle plugin 0.7.3.')
+        if (metadata.format != 1 || metadata.kotlinVersion != '2.2.20' || metadata.gradlePluginVersion != '0.8.0-alpha.1')
+            throw new GradleException('Incompatible Kotlin SDK: expected format 1, Kotlin 2.2.20, Gradle plugin 0.8.0-alpha.1.')
         ModManifest.check(metadata.sdkVersion, ModManifest.VERSION, 'SDK sdkVersion')
         if (ModManifest.compareVersions(metadata.sdkVersion, mod.sdkMin) < 0 || ModManifest.compareVersions(metadata.sdkVersion, mod.sdkMaxExclusive) >= 0)
             throw new GradleException("SDK ${metadata.sdkVersion} is outside [${mod.sdkMin}, ${mod.sdkMaxExclusive}).")
@@ -35,7 +35,7 @@ class NrfModPlugin implements Plugin<Project> {
         p.layout.buildDirectory.set(p.layout.projectDirectory.dir(platform.buildDirectory))
         p.pluginManager.apply('org.jetbrains.kotlin.multiplatform')
         def kotlin = p.extensions.getByType(KotlinMultiplatformExtension)
-        def target = platform.sourceSet == 'windows' ? kotlin.mingwX64('windows') : kotlin.linuxX64('linux')
+        def target = platform.createTarget(kotlin)
         target.binaries.sharedLib { baseName = "${mod.module}Kotlin" }
         def mainSources = kotlin.sourceSets.getByName("${platform.sourceSet}Main")
         mainSources.kotlin.srcDirs('src/main/kotlin', new File(sdk, 'bridge'))
@@ -102,13 +102,10 @@ class NrfModPlugin implements Plugin<Project> {
             File directory = p.layout.buildDirectory.dir('verification').get().asFile
             workingDir(directory)
             commandLine(new File(directory, platform.loaderTest), new File(directory, "${mod.module}${platform.extension}"), '--smoke')
-            if (platform.sourceSet == 'linux') {
-                environment('LD_LIBRARY_PATH', directory.absolutePath + (System.getenv('LD_LIBRARY_PATH') ? ':' + System.getenv('LD_LIBRARY_PATH') : ''))
-            }
+            platform.configureVerification(delegate, directory)
             doFirst {
                 if (!platform.executableOnHost()) throw new GradleException("Native verification requires a ${platform.id} host")
-                if (platform.sourceSet == 'linux' && !new File(directory, platform.loaderTest).canExecute())
-                    throw new GradleException('The SDK loader test is not executable; extract the Linux SDK with executable permissions preserved.')
+                platform.validateVerification(directory)
             }
         }
         String root = "${mod.modId}-${mod.version}"

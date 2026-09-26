@@ -1,5 +1,5 @@
 // Mesures ciblees de plusieurs trains : aucune commande ni pointeur natif.
-#include <nimby/client.hpp>
+#include <nimby/detail/observation_session.hpp>
 #include <algorithm>
 #include <charconv>
 #include <iomanip>
@@ -29,7 +29,7 @@ int main(int argc, char** argv) {
             (trackArguments?tracks:ids).push_back(id);
         }
         if (ids.empty() || ids.size()>32 || tracks.size()>32 || (trackArguments&&tracks.empty())) throw std::invalid_argument("Invalid capture scope");
-        auto client = nimby::Client::connect();
+        auto client = nimby::detail::ObservationSession(nimby::detail::discoverProcess());
         std::cout << std::setprecision(17);
         for (uint64_t i = 0; i < count; ++i) {
             for (const auto id : ids) {

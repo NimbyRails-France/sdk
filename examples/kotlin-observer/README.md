@@ -1,14 +1,18 @@
 # Observateur Kotlin
 
 Exemple JVM sans C++, avec JDK 21. Le client SDK se trouve par défaut dans
-`../../kotlin-client` ; utiliser `-PnrfSdkClientDir=/chemin/kotlin-client` pour
+`../../kotlin-client` ; utiliser `-PnrfSdkClientDir=C:/dev/nrf/sdk/kotlin-client` pour
 un autre emplacement.
 
-```sh
-./gradlew run --args="--help"
-./gradlew run --args="/chemin/NimbyRailsFranceSDK.so 12345"
+```powershell
+.\gradlew.bat run --args="--help"
+.\gradlew.bat run --args="C:/dev/nrf/sdk/build/clion-Release/NimbyRailsFranceSDK.dll 12345"
 ```
 
-Sous Windows, utiliser `gradlew.bat` et la DLL du SDK. Le PID désigne le jeu
-local en cours d'exécution. Linux nécessite le serveur de lecture du SDK
-chargé dans le jeu. Cet exemple lit une capture et ferme toujours sa session.
+Remplacer `12345` par le PID du jeu local choisi. L'exemple lit une capture,
+puis une observation ciblée du premier train s'il existe, et ferme sa session.
+Une observation manquante ou une vitesse inconnue reste `null`.
+
+La version 0.8.0 est préparée pour Windows x64. Le développement et la publication
+Linux sont suspendus. Le client public C++ est retiré ; aucun compilateur C++
+n'est nécessaire pour cet exemple Kotlin.

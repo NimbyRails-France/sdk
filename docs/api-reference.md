@@ -1,13 +1,14 @@
 # API publiques
 
-Le SDK propose deux interfaces, avec des périmètres distincts :
+Le SDK propose deux API Kotlin, avec des périmètres distincts :
 
 - [API Kotlin](kotlin-api.md) : profils de signalisation via `SignallingMod`,
   intégration native et construction prises en charge par le SDK.
-- [API C++20](cpp-api-reference.md) : client d'observation, types du réseau
-  et fonctions d'intégration natives, via `<nimby/client.hpp>`.
+- [Client Kotlin/JVM](kotlin-client.md) : captures, lecture ciblée d'un train,
+  horloge, textures et commandes de recette pour les outils externes.
 
-Les API C++, Kotlin et leurs versions de transport ne sont pas interchangeables.
+Le client public C++ est retiré en 0.8.0. Kotlin/JVM et Kotlin/Native ne sont
+pas interchangeables : un mod utilise le kit natif, un outil utilise le client JVM.
 Les interfaces sous `nimby/detail/`, `nimby.internal` et les exports internes
 servent au SDK ; ils ne constituent pas une API consommateur.
 

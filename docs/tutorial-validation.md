@@ -11,7 +11,7 @@ Les exemples ont été compilés depuis leur copie dans le kit installé.
 ## Contrôles sans jeu
 
 - 13/13 tests CTest Release réussis, dont le test optionnel du proxy.
-- Les deux consommateurs autonomes compilent via `tools/package.ps1`.
+- Les deux consommateurs autonomes compilent via `tools/windows/package.ps1`.
 - `MyFirstNimbyTool --check-sdk` renvoie 0 et affiche `SDK 0.6.0 | ABI 1`.
 - Le premier exemple compile aussi avec `CMAKE_PREFIX_PATH` vers un kit déplacé
   dans un chemin contenant des espaces ; son contrôle de version fonctionne

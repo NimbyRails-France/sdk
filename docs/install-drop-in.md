@@ -27,7 +27,7 @@ avec son ancien script et `-Action Remove`, puis installer ce paquet. Conserver 
 
 Lancer ensuite le jeu normalement depuis Steam : le SDK est chargé après SDL_Init
 à chaque démarrage. Aucun chargeur externe à lancer. Ne pas lancer NimbyRailsFranceLoader en parallèle.
-Journal : `%LOCALAPPDATA%/NimbyRailsFranceSDK/proxy.log`.
+Journal : `%LOCALAPPDATA%/NimbyRailsFrance/logs/loader/SDL3_dll.log`.
 Message attendu : `OK: SDK initialized after SDL_Init; game hooks disabled`.
 Le loader démarre aussi les mods enregistrés dans `NRFMods`. Le pont de textures
 est activé à la demande lors d'une commande visuelle, pas par le simple chargement

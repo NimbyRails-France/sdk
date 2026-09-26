@@ -3,12 +3,17 @@
 Ce guide s'adresse aux contributeurs du SDK. Les auteurs de mods suivent
 le [démarrage Kotlin](kotlin-mods.md) et n'ont pas à construire le pont natif.
 
+La [description de l'architecture](architecture.md) précise les frontières du noyau.
+Voir aussi [l'audit Windows](windows-audit.md), la [gestion mémoire](memory-and-performance.md)
+et la [validation Linux dans VMware](linux-validation.md).
+
 ## Organisation du dépôt
 
 | Dossier | Responsabilité |
 | --- | --- |
 | `include/nimby/` | Contrats natifs internes et adaptateurs |
-| `src/` | Observations, ponts natifs et runtime |
+| `src/engine/`, `src/runtime/`, `src/loader/` | Algorithmes, captures et orchestration communs |
+| `src/platform/windows/`, `src/platform/linux/` | Implémentations système et adaptations au binaire cible |
 | `kotlin/src/nimby/` | API Kotlin publique |
 | `kotlin/native/` | Transport Kotlin/natif, adaptateur et vérifications |
 | `gradle-plugin/` | Plugin Gradle commun aux mods |
@@ -65,7 +70,7 @@ adapter les options CMake ou employer des presets utilisateur non versionnés.
 Pour produire le kit Kotlin :
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File tools/package-kotlin-sdk.ps1 -KotlinHome C:/Toolchains/kotlin-native-prebuilt-windows-x86_64-2.2.20
+powershell -NoProfile -ExecutionPolicy Bypass -File tools/windows/package-kotlin-sdk.ps1 -KotlinHome C:/Toolchains/kotlin-native-prebuilt-windows-x86_64-2.2.20
 ```
 
 Le script consomme par défaut `install/development`, compile l'API et l'adaptateur,
@@ -75,9 +80,9 @@ la documentation et les licences. Il prépare `install/kotlin` et le ZIP sous
 
 Les autres distributions restent distinctes :
 
-- `tools/package.ps1` : composants natifs internes et vérification de l'exemple client Kotlin installé.
-- `tools/package-drop-in.ps1` : runtime et loader pour le jeu.
-- `tools/package-hub-sdk.ps1` : paquet SDK et métadonnées du Hub.
+- `tools/windows/package.ps1` : composants natifs internes et vérification de l'exemple client Kotlin installé.
+- `tools/windows/package-drop-in.ps1` : runtime et loader pour le jeu.
+- `tools/windows/package-hub-sdk.ps1` : paquet SDK et métadonnées du Hub.
 
 Ces commandes préparent des fichiers locaux. La publication d'une release
 est une opération distincte.
@@ -104,7 +109,7 @@ Lors d'une évolution, maintenir ensemble le plugin, `sdk.json`, le manifeste
 source, l'exemple autonome et le lecteur de projets du Hub. Une modification des
 noms de tâches ou des chemins de sortie est une modification du contrat d'outillage.
 
-Pour la version 0.7.3, le Hub appelle `packageMod` et attend
+Pour la version 0.8.0, le Hub appelle `packageMod` et attend
 `build/gradle/distributions/<modId>-<version>-windows-x64.zip`.
 Les contraintes du jeu et du SDK doivent rester explicites ; ne pas les déduire
 du poste du mainteneur.

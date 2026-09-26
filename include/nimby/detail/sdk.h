@@ -2,16 +2,7 @@
 #include <stdint.h>
 #include <wchar.h>
 
-#if !defined(_WIN32)
-#define NIMBY_API __attribute__((visibility("default")))
-#ifndef __cdecl
-#define __cdecl
-#endif
-#elif defined(NIMBY_SDK_BUILD)
-#define NIMBY_API __declspec(dllexport)
-#else
-#define NIMBY_API __declspec(dllimport)
-#endif
+#include "platform/export.h"
 #ifdef __cplusplus
 #define NIMBY_NOEXCEPT noexcept
 extern "C" {

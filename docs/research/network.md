@@ -154,6 +154,6 @@ Reproduire la lecture intégrée, après chargement d'une partie :
 build/Release/NimbyTrainMonitor.exe <PID> --sample
 ```
 
-Le probe brut `tools/network_probe.cpp` est uniquement un outil de recherche,
+Le probe brut `tools/windows/network_probe.cpp` est uniquement un outil de recherche,
 compilé avec les sources du moniteur via inclusion et les adaptateurs engine.
 Il ouvre seulement `PROCESS_QUERY_INFORMATION | PROCESS_VM_READ` et vérifie le SHA.

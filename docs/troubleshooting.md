@@ -17,45 +17,40 @@
 
 Consulter le [démarrage Kotlin](kotlin-mods.md) et le [contrat Gradle](gradle-plugin.md).
 
-## Helpers C++
+## Clients Kotlin
 
-- `nimby/client.hpp` introuvable : utiliser le header de cette révision ou un
-  kit reconstruit depuis les sources ; les anciens ZIP 0.6.0 ne l'incluent pas.
-- `latest()` renvoie un pointeur nul : aucune capture n'a encore réussi.
-  Démarrer `startAutoRefresh()`, attendre `waitForSnapshot(timeout)` et lire
-  `getLastError()` en cas de timeout.
-- Plusieurs processus détectés : appeler `Client::connect(pid)` avec le PID choisi.
-- Données anciennes malgré `waitForSnapshot()` : cette méthode attend une
-  première disponibilité, pas forcément une nouvelle capture ; vérifier `getAge()`.
-- Vue `span` invalide après rafraîchissement : garder le `Snapshot::Ptr` qui la
-  possède, ou copier les objets nécessaires avant de le relâcher.
-- Fermeture du jeu : créer un nouveau client pour le nouveau processus ; il n'y
-  a pas de reconnexion automatique.
+- Plusieurs jeux détectés : choisir un PID dans `GameProcesses.discover()` et
+  le passer à `NimbyClient.open(library, pid)`.
+- Données indisponibles : conserver leur état inconnu. Une vitesse `null` ne
+  signifie pas arrêt ; une liste de réservations absente ne signifie pas voie libre.
+- Jeu fermé : fermer la connexion et en ouvrir une nouvelle sur le processus
+  choisi. Le client ne reconnecte pas automatiquement une ancienne session.
+- Ancien include `nimby/client.hpp` : le client C++ est retiré en 0.8.0 ;
+  suivre le [guide Kotlin](kotlin-client.md).
 
-Voir [le tutoriel C++](tutorial-cpp-client.md) et [les contrats complets](cpp-api-reference.md).
+La configuration **NRF - Banc - Tests** vérifie le logiciel sans ouvrir le jeu.
+Pour les DLL, utiliser le même kit Windows 0.8.x que les dépendances du projet.
 
-[Documentation](README.md) · [Tutoriel](tutorial-first-tool.md) · [Référence](api-reference.md)
+## Compilation du noyau et chargement des DLL
 
-Commencer par `MyFirstNimbyTool.exe --check-sdk`. Si ce contrôle fonctionne,
-la DLL et ses dépendances se chargent ; passer ensuite à l'ouverture du jeu.
-
-## Compilation et DLL
+Les réglages CMake concernent la fabrication du SDK et de son pont. Un projet
+consommateur Kotlin utilise Gradle et le kit précompilé.
 
 | Symptôme | Vérification et correction |
 |---|---|
 | `cmake` ou `ninja` introuvable | Ajouter les outils à `PATH` pour ce terminal, ou compiler depuis CLion ; voir le tutoriel |
 | `NimbyRailsFranceSDKConfig.cmake` introuvable | `CMAKE_PREFIX_PATH` doit viser la racine du kit, contenant `lib/cmake/NimbyRailsFranceSDK` ; extraire tout le ZIP |
-| CMake refuse la version | Utiliser headers, bibliothèque d'import et DLL du même kit 0.7.x ; la compatibilité CMake 0.x est limitée à la même version mineure |
+| CMake refuse la version | Utiliser headers, bibliothèque d'import et DLL du même kit 0.8.x ; la compatibilité CMake 0.x est limitée à la même version mineure |
 | Erreur de générateur ou de compilateur dans le cache | Reconfigurer dans un nouveau dossier de build après un changement de toolchain |
-| Références à `NimbySdk_*` | Ancienne API retirée : migrer vers `<nimby/client.hpp>` ; voir la migration 0.7 |
+| Références à `NimbySdk_*` | Ancienne API retirée : utiliser `NimbyClient` en Kotlin ; voir le guide Kotlin |
 | Bibliothèque `.lib` absente sous MSVC | Reconstruire le SDK avec MSVC x64 ; renommer une bibliothèque MinGW ne la convertit pas |
 | `NimbyRailsFranceSDK.dll` ou `libwinpthread-1.dll` absente | Garder toutes les DLL de `bin/` près de l'exécutable ; conserver la commande CMake de copie des runtimes |
-| Point d'entrée manquant | Recompiler contre le même kit 0.7 que les DLL distribuées ; les anciens exports sont retirés |
+| Point d'entrée manquant | Recompiler contre le même kit 0.8 que les DLL distribuées ; les anciens exports sont retirés |
 | Windows refuse l'image / erreur `0xc000007b` | Vérifier l'architecture x64 et les runtimes correspondants ; éviter les mélanges 32/64 bits |
 
-Avec la liaison normale de l'exemple, Windows résout les imports **avant** `main`.
-Une DLL trop ancienne peut donc déclencher une erreur Windows avant que
-`--check-sdk` ait l'occasion d'afficher un diagnostic.
+Une dépendance native manquante peut empêcher le chargement de la DLL avant
+la vérification de version par `NimbyClient.open()`. Conserver les dépendances
+du même paquet et vérifier le chemin de bibliothèque choisi dans l'application.
 
 ## Ouverture du jeu
 

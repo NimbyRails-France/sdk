@@ -23,12 +23,12 @@ template<class Char>bool string(ReadMemory r,void* c,const void* data,size_t lim
 }
 bool capture(ReadMemory r,void* c,const LiveState& s,SignalTextureCatalog& out){
     const auto text = [&](uint64_t address,const void* data,size_t limit,std::string& value) {
-        return s.profile==LiveStateProfile::Linux119
+        return gameLayout(s.profile).local_path_utf8
             ? read_native_string(r,c,address,data,s.profile,value,limit)
             : string(r,c,data,limit,value);
     };
     // Rules live within Database at +0xa80; SignalTextures map at Rules+0x138.
-    const auto rules=s.database+(s.profile==LiveStateProfile::Linux119?0xa78:0xa80),table=rules+0x138;
+    const auto rules=s.database+gameLayout(s.profile).rules,table=rules+0x138;
     std::array<uint64_t,4> h{};std::array<uint64_t,3> defaults{};
     if(!r(c,table,h.data(),sizeof h)||!r(c,rules+0x540,defaults.data(),sizeof defaults))return false;
     const auto buckets=h[1],count=h[2],size=h[3];
@@ -63,9 +63,9 @@ bool capture(ReadMemory r,void* c,const LiveState& s,SignalTextureCatalog& out){
        !stable(r,c,rules+0x540,defaults.data(),sizeof defaults)||!stable(r,c,defaults[0],out.defaults.data(),out.defaults.size()*8))return false;
     // Native local-mod directory, UTF-16 std::wstring. Optional independently.
     std::array<unsigned char,32> root{};
-    const auto address=s.module_base+(s.profile==LiveStateProfile::Linux119?0x10e6678:0xb77d50);
+    const auto address=s.module_base+gameLayout(s.profile).local_mod_root;
     if(r(c,address,root.data(),root.size())) {
-        if(s.profile==LiveStateProfile::Linux119) {
+        if(gameLayout(s.profile).local_path_utf8) {
             std::string path;
             if(text(address,root.data(),1023,path))out.local_mod_root=std::filesystem::path(std::u8string_view(reinterpret_cast<const char8_t*>(path.data()),path.size()));
         } else {

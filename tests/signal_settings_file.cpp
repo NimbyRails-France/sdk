@@ -1,22 +1,7 @@
 #include <nimby/detail/signal_settings_file.hpp>
 #include <iostream>
 #define CHECK(x) do{if(!(x))throw std::runtime_error("Failed line "+std::to_string(__LINE__));}while(false)
-struct Temporary {
-    std::filesystem::path path;
-    Temporary(){
-#ifdef _WIN32
-        wchar_t folder[MAX_PATH]{},file[MAX_PATH]{};
-        if(!GetTempPathW(MAX_PATH,folder)||!GetTempFileNameW(folder,L"nst",0,file))throw std::runtime_error("Temporary path failed");
-        path=file;
-#else
-        auto pattern=(std::filesystem::temp_directory_path()/"nrf-settings-test-XXXXXX").string();
-        int file=mkstemp(pattern.data());
-        if(file<0)throw std::runtime_error("Temporary path failed");
-        ::close(file);path=pattern;
-#endif
-    }
-    ~Temporary(){std::error_code ignored;std::filesystem::remove(path,ignored);}
-};
+#include "settings_file_platform.hpp"
 template<class Action> void rejects(Action action){bool rejected=false;try{action();}catch(const std::exception&){rejected=true;}CHECK(rejected);}
 int main(){try{
     using File=nimby::detail::SignalSettingsFile;
@@ -37,26 +22,7 @@ int main(){try{
     rejects([&]{File::save(target.path,invalid);});
     CHECK(File::load(target.path)->signals.size()==1);
     auto changed=data;changed.signals[0].values["active"]=false;
-#ifdef _WIN32
-    // A failed replacement must preserve the previously durable values.
-    HANDLE held=CreateFileW(target.path.c_str(),GENERIC_READ,FILE_SHARE_READ,nullptr,OPEN_EXISTING,FILE_ATTRIBUTE_NORMAL,nullptr);
-    CHECK(held!=INVALID_HANDLE_VALUE);
-    bool failed=false;try{File::save(target.path,changed);}catch(const std::exception&){failed=true;}
-    CloseHandle(held);CHECK(failed);
-    CHECK(File::load(target.path)->signals[0].values.at("active"));
-#else
-    // POSIX replacement keeps an already open reader on the old complete inode.
-    std::ifstream held(target.path,std::ios::binary);
-    File::save(target.path,changed);
-    std::string oldBytes((std::istreambuf_iterator<char>(held)),{});
-    CHECK(File::decode(oldBytes).signals[0].values.at("active"));
-    CHECK(!File::load(target.path)->signals[0].values.at("active"));
-    const auto directory=target.path.string()+"-directory";
-    std::filesystem::create_directory(directory);
-    rejects([&]{File::save(directory,data);});
-    CHECK(std::filesystem::is_directory(directory));
-    std::filesystem::remove(directory);
-#endif
+    verifyReplacement(target,data,changed);
     File::save(target.path,changed);CHECK(!File::load(target.path)->signals[0].values.at("active"));
     CHECK(std::filesystem::remove(target.path));CHECK(!File::load(target.path));
     std::cout<<"PASS settings file roundtrip, corruption and failed replacement\n";

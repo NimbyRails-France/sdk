@@ -3,11 +3,7 @@
 #include <filesystem>
 #include <iostream>
 #include <stdexcept>
-#ifdef _WIN32
-#define NRF_CALL WINAPI
-#else
-#define NRF_CALL
-#endif
+#include <nimby/detail/platform/mod_abi.hpp>
 namespace native=nimby::detail::native;
 #define CHECK(x) do{if(!(x))throw std::runtime_error("Check failed: " #x);}while(false)
 // Output buffers need a local placeholder, not a second in-process mod adapter.
@@ -26,6 +22,18 @@ int main(int argc,char** argv) {
     CHECK(start(nullptr)==0);CHECK(state(nullptr)==1);CHECK(start(nullptr)==4);
     using Invoke=uint32_t(NRF_CALL*)(const char*,const void*,uint32_t,void*,uint32_t);
     auto invoke=reinterpret_cast<Invoke>(native::symbol(handle,"NRFMod_InvokeV1"));CHECK(invoke);
+    // An intentionally invalid Kotlin call must retain its operation and stack
+    // without aborting the native host. It is diagnostic-only, no game needed.
+    {
+        auto core=native::load(dll.parent_path()/(dll.stem().string()+"Kotlin"+dll.extension().string()));CHECK(core);
+        auto info=reinterpret_cast<int(*)(int*)>(native::symbol(core,"NRFKotlin_Info"));CHECK(info);
+        auto error=reinterpret_cast<int(*)(char*,int)>(native::symbol(core,"NRFKotlin_LastError"));CHECK(error);
+        CHECK(info(nullptr)<0);
+        std::array<char,32768> text{};CHECK(error(text.data(),int(text.size()))>0);
+        CHECK(std::string(text.data()).find("Info:")!=std::string::npos);
+        CHECK(std::string(text.data()).find("IllegalArgumentException")!=std::string::npos);
+        native::unload(core);
+    }
     // Consumer verification exercises the loader contract, without assumptions
     // about national aspects, texture choices or driving plans of a mod.
     if(argc==3) {

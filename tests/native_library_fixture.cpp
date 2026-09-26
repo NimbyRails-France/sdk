@@ -1,7 +1,3 @@
-#include <cstdint>
-#ifdef _WIN32
-#define EXPORT extern "C" __declspec(dllexport)
-#else
-#define EXPORT extern "C" __attribute__((visibility("default")))
-#endif
-EXPORT std::uint32_t Fixture_Value(){return 73;}
+#define NIMBY_SDK_BUILD
+#include <nimby/detail/sdk.h>
+extern "C" NIMBY_API uint32_t Fixture_Value(){return 73;}

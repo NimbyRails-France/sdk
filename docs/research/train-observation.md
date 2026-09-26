@@ -46,7 +46,7 @@ Les sections suivantes décrivent la phase initiale d'observation en lecture seu
 
 ## Résultat et statut
 
-Un moniteur externe expérimental (`src/train_monitor.cpp`) retrouve les cinq
+Un moniteur externe expérimental (`src/platform/windows/train_monitor.cpp`) retrouve les cinq
 trains de la partie ouverte et affiche leurs vitesses à 4 Hz. Il ouvre le
 processus uniquement avec `PROCESS_QUERY_INFORMATION | PROCESS_VM_READ`.
 Aucune écriture mémoire distante, aucun appel interne, aucune suspension de

@@ -6,7 +6,7 @@ du jeu n'est validé ou activé.
 
 ## Mécanisme et vérifications
 
-`src/loader/main.cpp` est le programme autonome ; `src/loader/loader.cpp` contient
+`src/platform/windows/loader/main.cpp` est le programme autonome ; `src/platform/windows/loader/loader.cpp` contient
 la surveillance et le chargement. Les headers internes sont sous `include/loader/`.
 Les sources MinHook restent statiques. La DLL du SDK n'utilise ni exceptions ni
 RTTI dans le build MinGW ; ses imports vérifiés sont bcrypt, KERNEL32 et msvcrt.

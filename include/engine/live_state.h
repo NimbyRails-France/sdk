@@ -1,9 +1,9 @@
 #pragma once
 #include <cstddef>
 #include <cstdint>
+#include "engine/game_layout.h"
 namespace nimby::engine {
 using ReadMemory = bool (*)(void*, uint64_t, void*, size_t);
-enum class LiveStateProfile { Windows119, Linux119 };
 struct LiveState {
     uint64_t module_base{}, root{}, database{}, copy{}, simulation{};
     LiveStateProfile profile = LiveStateProfile::Windows119;

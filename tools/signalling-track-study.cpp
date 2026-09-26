@@ -1,5 +1,5 @@
 // Diagnostic en lecture seule : distinguer une limite de voie d'une consigne BAL.
-#include <nimby/client.hpp>
+#include <nimby/detail/observation_session.hpp>
 #include <charconv>
 #include <iomanip>
 #include <iostream>
@@ -16,7 +16,7 @@ int main(int argc, char** argv) {
                 throw std::invalid_argument("Invalid track ID");
             ids.push_back(id);
         }
-        auto client = nimby::Client::connect();
+        auto client = nimby::detail::ObservationSession(nimby::detail::discoverProcess());
         const auto snapshot = client.capture();
         std::cout << std::setprecision(17);
         for (const auto id : ids) {

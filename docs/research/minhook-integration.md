@@ -8,12 +8,12 @@ Ce document complète le premier jalon, dont la mention « backend MinHook non
 intégré » décrit l'état précédent. Les cibles du jeu restent toutes non validées.
 
 La dépendance est compilée en C et liée statiquement dans le SDK.
-Le dossier `third_party/minhook/` contient seulement quatre fichiers `.c`, six `.h`
+Le dossier `third_party/windows/minhook/` contient seulement quatre fichiers `.c`, six `.h`
 et la licence nécessaires à AMD64. Aucun binaire MinHook externe n'est requis.
 Seul le chemin d'inclusion de MinHook.h dans hook.c a été adapté au rangement local.
 Nos propres headers sont regroupés dans `include/`.
 Son API ne traverse pas `include/nimby/sdk.h` ni l'ABI destinée aux mods.
-`src/hooks/backend.cpp` et `include/hooks/backend.h` en
+`src/platform/windows/hooks/backend.cpp` et `include/hooks/backend.h` en
 possède explicitement le cycle de vie ; l'état est sérialisé par le verrou runtime.
 Une initialisation MinHook déjà possédée par un autre utilisateur n'est pas
 considérée comme notre succès. Les erreurs sont journalisées avec leur nom MinHook.

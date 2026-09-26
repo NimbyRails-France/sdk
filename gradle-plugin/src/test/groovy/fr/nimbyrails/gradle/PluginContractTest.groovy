@@ -16,13 +16,13 @@ class PluginContractTest {
         new File(root, 'settings.gradle').text = "rootProject.name = 'independent'"
         new File(root, 'build.gradle').text = "plugins { id 'fr.nimbyrails.mod' }"
         new File(root, 'mod.json').text = JsonOutput.toJson([id: 'independent', name: 'Independent', modId: 'Independent',
-            module: 'IndependentMod', version: '1.0.0', language: 'kotlin-native', sdkMin: '0.7.3', sdkMaxExclusive: '0.8.0', gameSha256: ['a' * 64]])
+            module: 'IndependentMod', version: '1.0.0', language: 'kotlin-native', sdkMin: '0.8.0', sdkMaxExclusive: '0.9.0', gameSha256: ['a' * 64]])
         File sdk = new File(root, 'sdk with spaces')
         NativePlatform.forTarget(target).requiredFiles().each {
             File file = new File(sdk, it); file.parentFile.mkdirs(); file.text = 'fixture'
         }
         new File(sdk, 'sdk.json').text = JsonOutput.toJson([format: 1, target: target, kotlinVersion: '2.2.20',
-            sdkVersion: '0.7.3', gradlePluginVersion: '0.7.3', gameSha256: ['a' * 64]])
+            sdkVersion: '0.8.0', gradlePluginVersion: '0.8.0-alpha.1', gameSha256: ['a' * 64]])
         root
     }
     private GradleRunner runner(File root, String... tasks) {
@@ -38,8 +38,8 @@ class PluginContractTest {
     @Test void failsEarlyOnIncompatibleSdk() {
         File root = project()
         File metadata = new File(root, 'sdk with spaces/sdk.json')
-        metadata.text = metadata.text.replace('"sdkVersion":"0.7.3"', '"sdkVersion":"0.8.0"')
-        assertTrue(runner(root, 'tasks').buildAndFail().output.contains('outside [0.7.3, 0.8.0)'))
+        metadata.text = metadata.text.replace('"sdkVersion":"0.8.0"', '"sdkVersion":"0.9.0"')
+        assertTrue(runner(root, 'tasks').buildAndFail().output.contains('outside [0.8.0, 0.9.0)'))
     }
     @Test void packageDependsOnTestsAndNativeVerification() {
         def output = runner(project(), 'packageMod', '--dry-run').build().output

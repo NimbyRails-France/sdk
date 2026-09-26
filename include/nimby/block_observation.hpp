@@ -1,7 +1,7 @@
 #pragma once
 #include <nimby/blocks.hpp>
 #include <nimby/block_coverage.hpp>
-#include <nimby/client.hpp>
+#include <nimby/detail/observation_session.hpp>
 
 namespace nimby {
 // The provider copies the whole native CarOccupancy table (primary entries and

@@ -20,7 +20,7 @@ inline bool read_versioning_observation(ReadMemory read,void* context,uint64_t m
     out={};
     LiveState before{},after{};
     if(!resolve_live_state(read,context,module,recognized,profile,before))return false;
-    const auto offset=profile==LiveStateProfile::Linux119?0xa40:0xa48;
+    const auto offset=gameLayout(profile).versioning;
     constexpr uint64_t limit=0x7fffffff0000ULL,maxEntries=4096;
     if(before.database>limit-0xa80)return false;
     std::array<unsigned char,0x38> first{},second{};

@@ -14,9 +14,15 @@ NimbyClient.open(Path.of(library), pid).use { client ->
 Fournir la bibliothèque native du SDK adaptée au système et le PID du jeu.
 Les captures sont des copies immuables. Les données indisponibles restent
 optionnelles ; une absence ne signifie pas une voie libre ou une vitesse nulle.
-Sous Linux, le SDK doit être préchargé dans le jeu pour autoriser la lecture
-par le même utilisateur. Les hooks Linux complets restent en migration.
+Cette branche est validée et distribuée pour Windows x64. Le développement
+et la publication Linux sont suspendus ; la séparation des plateformes reste en place.
 
-Les exemples C++ externes ont été retirés. Les en-têtes et tests C/C++ encore
+Le client public C++ et ses exemples ont été retirés. Les en-têtes et tests C/C++ encore
 présents servent aux composants natifs internes ; leur présence ne constitue
 pas un parcours de développement client à maintenir.
+
+`client.readTrain(trainId)` fournit une [lecture ciblée de conduite](driving-observation.md)
+sans capture du réseau complet. `null` signifie indisponible, pas un train arrêté.
+`capture()`, `readTrain()`, les commandes et `close()` sont sérialisés sur la
+connexion. L'application possède sa cadence ; il n'y a pas de worker caché,
+de dernière capture mise en cache ni de relance automatique d'une commande.

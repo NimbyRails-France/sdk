@@ -72,9 +72,49 @@ métriques, la vitesse et la condition de libération par la queue.
 
 `DrivingRule` associe des vitesses, un nombre de panneaux en aval et des
 `DrivingFlag` : `Clear`, `HoldToClear`, `Stop`, `FollowTarget`,
-`OnSight`, `StopThenProceed`, `CancelAtNextClear`. Ces valeurs doivent être
+`OnSight`, `StopThenProceed`, `CancelAtNextClear`, `ApproachPassable`. Ces valeurs doivent être
 combinées selon les règles du mod ; le SDK ne déduit pas une permission d'une couleur.
 Les plans acceptent au plus 4 096 contraintes.
+
+### Consignes de conduite choisies par le mod
+
+Utiliser les fonctions de `AutomaticDriving` pour construire la valeur renvoyée
+par `drivingRule`. Elles n'effectuent aucun appel natif direct depuis Kotlin ; le
+worker publie les consignes et le moteur les applique au mouvement mesuré.
+
+| Fonction | Politique explicitement demandée par le mod |
+| --- | --- |
+| `stop()` | Arrêt au panneau courant |
+| `clear()` | Libération des consignes qui attendent un Clear |
+| `announceStop(...)` | Objectif au panneau suivant ou au second ; vitesse de passage après réouverture fournie par le mod |
+| `limitAtSignal(...)` | Plafond ponctuel au panneau courant |
+| `limitUntilClearThenRear(...)` | Plafond conservé jusqu'au dégagement par la queue d'un Clear franchi |
+| `restrictedUntilNextSignal(...)` | Vitesse d'entrée et plafond sous contrôle de l'espace libre, jusqu'au passage de la tête au panneau suivant ; arrêt préalable optionnel |
+
+Toutes les vitesses de circulation sont des arguments en m/s, finis et positifs
+ou nuls. Zéro signifie arrêt. `DrivingRule.reopenedSpeedMps` vaut désormais zéro
+par défaut : les consommateurs qui utilisaient l'ancienne valeur implicite
+doivent fournir leur propre vitesse. Les données de test peuvent évidemment
+contenir des vitesses ; elles ne définissent pas une règle du moteur.
+
+`passableHere`/`ApproachPassable` autorise explicitement la vitesse mémorisée
+par une annonce antérieure au panneau courant. Ce drapeau ne signifie pas
+`Clear` : il ne supprime ni la mémoire avant passage ni une autre restriction.
+Le SDK ne déduit pas cette permission d'une couleur ou d'une cible en aval.
+La nouvelle annonce du panneau courant peut ainsi coexister avec l'ancienne
+approche jusqu'à son franchissement par la tête. Le point du signal représente
+ici le point de mise à jour ; une position d'antenne KVB distincte n'est pas simulée.
+
+Les vitesses BAL et l'association des aspects à ces fonctions sont définies
+dans le mod SFR (`DrivingLimits.kt`, `DrivingInstructions.kt`). Changer la
+signalisation d'un mod ne doit pas nécessiter de modifier le moteur Windows.
+Les fonctions exposent les mécanismes actuellement supportés, pas un interpréteur
+arbitraire de règlements. Le SDK conserve géométrie, physique, mémoire et
+validation ; les permissions natives du jeu restent applicables.
+
+Le nouveau drapeau utilise un bit libre du transport existant, sans modifier sa
+taille. Il faut reconstruire le SDK natif avec le mod : un ancien runtime refuse
+ce bit inconnu, il ne doit pas être considéré compatible avec cette politique.
 
 ## Cycle de vie et erreurs
 

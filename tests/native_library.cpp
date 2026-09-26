@@ -6,7 +6,7 @@ int main(int argc,char** argv){
     using namespace nimby::detail::native;
     assert(argc==2);
     const auto path=std::filesystem::absolute(argv[1]);
-    auto first=load(path);
+    auto first=loadIsolated(path);
     auto second=load(path);
     const auto value=std::bit_cast<std::uint32_t(*)()>(symbol(second,"Fixture_Value"));
     assert(value&&value()==73);
