@@ -27,14 +27,21 @@ OUT = ROOT / 'dist/release'
 OUT.mkdir(parents=True, exist_ok=True)
 if any(OUT.iterdir()):
     raise ValueError('Release directory must be empty')
-WORK = ROOT / 'build/ci-windows-app'
+# Wine's Z: mapping traverses the container's bind mount, where Windows volume
+# access queries can report a false read-only state. jpackage must work on its
+# own C: drive, then only the verified artifacts are copied into the workspace.
+WINE_C = pathlib.Path(os.environ.get('WINEPREFIX', str(pathlib.Path.home() / '.wine'))).resolve() / 'drive_c'
+WORK = WINE_C / 'nrf-packaging' / REPO
 WORK.mkdir(parents=True, exist_ok=True)
 INPUT = ROOT / 'build/ci-windows-runtime'
 JDK = install('java-windows')
 
 
 def win(path):
-    return 'Z:' + str(pathlib.Path(path).resolve()).replace('/', '\\')
+    path = pathlib.Path(path).resolve()
+    if path.is_relative_to(WINE_C):
+        return 'C:\\' + str(path.relative_to(WINE_C)).replace('/', '\\')
+    return 'Z:' + str(path).replace('/', '\\')
 
 
 def run(*args, **kwargs):
@@ -117,7 +124,7 @@ if REPO == 'hub':
 else:
     root_folder = PRODUCT + '-' + VERSION
     archive = OUT / (root_folder + '-windows-x64.zip')
-    with zipfile.ZipFile(archive, 'w', zipfile.ZIP_DEFLATED, compresslevel=9) as output:
+    with zipfile.ZipFile(archive, 'w', zipfile.ZIP_DEFLATED, compresslevel=9, strict_timestamps=False) as output:
         for path in sorted(stage.rglob('*')):
             if path.is_file():
                 output.write(path, root_folder + '/' + path.relative_to(stage).as_posix())

@@ -44,7 +44,7 @@ def metadata(path):
 
 def archive(stage, name):
     target = OUT / name
-    with zipfile.ZipFile(target, 'w', zipfile.ZIP_DEFLATED, compresslevel=9) as archive:
+    with zipfile.ZipFile(target, 'w', zipfile.ZIP_DEFLATED, compresslevel=9, strict_timestamps=False) as archive:
         for item in sorted(stage.rglob('*')):
             if item.is_file():
                 if item.is_symlink():
@@ -91,7 +91,9 @@ if REPO == 'sdk':
     runtime_licenses(kit)
     # Kotlin consumers expect sdk.json at the ZIP root (NRF_KOTLIN_SDK).
     target = OUT / ('NimbyRailsFranceSDK-kotlin-' + VERSION + '-windows-x64.zip')
-    with zipfile.ZipFile(target, 'w', zipfile.ZIP_DEFLATED, compresslevel=9) as content:
+    # Upstream Kotlin license files use the Unix epoch. ZIP's earliest date
+    # is 1980; clamp the metadata instead of dropping required license files.
+    with zipfile.ZipFile(target, 'w', zipfile.ZIP_DEFLATED, compresslevel=9, strict_timestamps=False) as content:
         for item in sorted(kit.rglob('*')):
             if item.is_file():
                 relative = item.relative_to(kit)
