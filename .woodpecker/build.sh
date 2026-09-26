@@ -1,6 +1,10 @@
 #!/bin/sh
 set -eu
 python3 .woodpecker/check-release.py
+# The release image has MinGW, but the JVM client's isolated JNA test fixture
+# also needs the host C compiler. This never builds a distributable Linux SDK.
+apt-get update
+apt-get install -y --no-install-recommends gcc libc6-dev
 export JAVA_HOME="$(python3 .woodpecker/toolchain.py java-linux)"
 export PATH="$JAVA_HOME/bin:$PATH"
 export NRF_KOTLIN_HOME="$(python3 .woodpecker/toolchain.py kotlin-linux)"
