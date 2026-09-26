@@ -85,7 +85,22 @@ if REPO == 'sdk':
     copy(drop, stage / 'loader')
     asset = archive(stage, folder + '-hub.zip')
     write('project.json', dict(id='sdk', name='NimbyRailsFranceSDK + NRF Loader', kind='sdk', loaderApi=1,
-        rootFolder=folder, gameSha256=GAME, **metadata(asset)))
+        platform='windows-x64', channel=PLAN['channel'], rootFolder=folder, gameSha256=GAME, **metadata(asset)))
+    copy(OUT / 'project.json', OUT / 'project-windows-x64.json')
+    kit = ROOT / 'build/kotlin-kit'
+    runtime_licenses(kit)
+    # Kotlin consumers expect sdk.json at the ZIP root (NRF_KOTLIN_SDK).
+    target = OUT / ('NimbyRailsFranceSDK-kotlin-' + VERSION + '-windows-x64.zip')
+    with zipfile.ZipFile(target, 'w', zipfile.ZIP_DEFLATED, compresslevel=9) as content:
+        for item in sorted(kit.rglob('*')):
+            if item.is_file():
+                relative = item.relative_to(kit)
+                if any(p in ('.gradle', '.kotlin', 'build', '.git') for p in relative.parts):
+                    raise ValueError('Generated build files leaked into the SDK kit')
+                content.write(item, relative.as_posix())
+    with zipfile.ZipFile(target) as content:
+        if content.testzip():
+            raise ValueError('Invalid Kotlin SDK archive')
 elif REPO == 'signalisationfrancaiserealiste':
     stage = WORK / ('SignalisationFrancaiseRealiste-' + VERSION)
     run('cmake', '--install', 'build/ci', '--prefix', stage)

@@ -4,8 +4,6 @@ labels:
 concurrency: 1
 when:
   - event: [push, manual]
-    branch:
-      exclude: [alpha]
 steps:
   - name: windows-build-and-tests
     image: univenanne-ci-nimby-release:20260918

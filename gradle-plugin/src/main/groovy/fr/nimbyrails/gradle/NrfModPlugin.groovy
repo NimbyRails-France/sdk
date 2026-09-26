@@ -20,6 +20,13 @@ class NrfModPlugin implements Plugin<Project> {
         if (!new File(sdk, 'sdk.json').isFile()) throw new GradleException("Incomplete Kotlin SDK: missing sdk.json in ${sdk}")
         Map metadata = new JsonSlurper().parseText(new File(sdk, 'sdk.json').getText('UTF-8').replaceFirst('^\uFEFF', '')) as Map
         NativePlatform platform = NativePlatform.forTarget(metadata.target)
+        // The VPS cross-compiles Windows binaries. Wine is an explicit CI
+        // runner, never an implicit replacement for tests on a Windows host.
+        String wineRunner = p.providers.gradleProperty('nrfWineRunner').orNull
+        if (wineRunner && (platform.id != 'windows-x64' || !System.getProperty('os.name').startsWith('Linux')))
+            throw new GradleException('nrfWineRunner is only for Windows tests on a Linux CI worker.')
+        File runner = wineRunner ? p.file(wineRunner) : null
+        if (runner && !runner.isFile()) throw new GradleException('nrfWineRunner does not exist.')
         platform.requiredFiles().each {
             if (!new File(sdk, it).isFile()) throw new GradleException("Incomplete Kotlin SDK: missing ${it} in ${sdk}")
         }
@@ -56,6 +63,18 @@ class NrfModPlugin implements Plugin<Project> {
             dependsOn(testAssets)
             workingDir = p.layout.buildDirectory.dir('test-assets').get().asFile.absolutePath
             testLogging { events('passed', 'skipped', 'failed') }
+        }
+
+        def wineTests = null
+        if (runner) {
+            def testBinary = target.binaries.getTest(NativeBuildType.DEBUG)
+            wineTests = p.tasks.register('windowsTestsWithWine', Exec) {
+                group = 'verification'
+                description = 'Run cross-compiled Windows tests under Wine on CI.'
+                dependsOn(testAssets, testBinary.linkTaskProvider)
+                workingDir(p.layout.buildDirectory.dir('test-assets'))
+                commandLine('python3', runner, testBinary.outputFile)
+            }
         }
 
         def generated = p.layout.buildDirectory.dir('generated/mod')
@@ -101,10 +120,11 @@ class NrfModPlugin implements Plugin<Project> {
             dependsOn(verifyStage)
             File directory = p.layout.buildDirectory.dir('verification').get().asFile
             workingDir(directory)
-            commandLine(new File(directory, platform.loaderTest), new File(directory, "${mod.module}${platform.extension}"), '--smoke')
+            def arguments = [new File(directory, platform.loaderTest), new File(directory, "${mod.module}${platform.extension}"), '--smoke']
+            commandLine(runner ? ['python3', runner] + arguments : arguments)
             platform.configureVerification(delegate, directory)
             doFirst {
-                if (!platform.executableOnHost()) throw new GradleException("Native verification requires a ${platform.id} host")
+                if (!runner && !platform.executableOnHost()) throw new GradleException("Native verification requires a ${platform.id} host")
                 platform.validateVerification(directory)
             }
         }
@@ -113,6 +133,7 @@ class NrfModPlugin implements Plugin<Project> {
             group = 'distribution'
             description = 'Build and verify a mod archive; no installation or publication.'
             dependsOn(stages.Release, p.tasks.named('allTests'), verify)
+            if (wineTests) dependsOn(wineTests)
             archiveFileName.set("${root}-${platform.id}.zip")
             destinationDirectory.set(p.layout.buildDirectory.dir('distributions'))
             preserveFileTimestamps = false
@@ -154,7 +175,10 @@ class NrfModPlugin implements Plugin<Project> {
             dependsOn(descriptor)
         }
         p.tasks.named('assemble').configure { dependsOn(stages.Debug, stages.Release) }
-        p.tasks.named('check').configure { dependsOn(verify) }
+        p.tasks.named('check').configure {
+            dependsOn(verify)
+            if (wineTests) dependsOn(wineTests)
+        }
         p.tasks.named('build').configure { dependsOn(descriptor) }
     }
 }
