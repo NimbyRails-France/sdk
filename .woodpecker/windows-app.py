@@ -60,6 +60,14 @@ def write(name, data):
     (OUT / name).write_text(json.dumps(data, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
 
 
+if REPO == 'hub':
+    test_root = ROOT / 'build/ci-windows-tests'
+    if not (test_root / 'fr/nimby/hub/SdkPromotionTest.class').exists():
+        raise ValueError('Windows transaction tests were not compiled')
+    test_classpath = ';'.join((win(test_root), win(test_root) + r'\*', win(INPUT) + r'\*'))
+    wine(win(JDK / 'bin/java.exe'), '-cp', test_classpath, 'org.junit.runner.JUnitCore',
+         'fr.nimby.hub.SdkPromotionTest')
+
 jars = sorted(INPUT.glob('*.jar'))
 if not any('skiko-awt-runtime-windows-x64' in p.name for p in jars):
     raise ValueError('Windows Skiko runtime missing')
