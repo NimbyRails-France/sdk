@@ -9,13 +9,18 @@ dans les mods.
 Cette branche développe la version **0.8.0**. Un paquet construit localement
 n'est pas une release publiée.
 
+La documentation des créateurs de mods est désormais maintenue dans le
+[wiki officiel](https://wiki.nimbyrails-france.fr) : parcours débutant, exemples compilables,
+référence des types et fonctions Kotlin. `docs/` conserve les notes techniques
+de maintenance et les liens de transition des anciens guides.
+
 Pour contribuer au noyau : [architecture](docs/architecture.md) et
 [audit de la séparation Windows/commun](docs/windows-audit.md).
 
 ## Créer un mod Kotlin
 
 1. Installer un JDK 21 et extraire le kit Kotlin du SDK.
-2. Copier `examples/kotlin-mod` depuis ce kit dans son propre espace de travail.
+2. Créer son propre projet avec le [guide pas à pas](https://wiki.nimbyrails-france.fr/commencer/installation).
 3. Configurer `NRF_KOTLIN_SDK` ou la propriété Gradle `nrfSdkDir`.
 4. Ouvrir le projet dans IntelliJ IDEA et exécuter `build`.
 5. Ajouter le projet dans le profil développeur du Hub pour l'essayer en jeu.
@@ -24,7 +29,7 @@ Le fichier de compilation du mod contient uniquement :
 
 ```kotlin
 plugins {
-    id("fr.nimbyrails.mod") version "0.8.0"
+    id("fr.nimbyrails.mod") version "0.8.0-alpha.1"
 }
 ```
 
@@ -40,7 +45,7 @@ requiert aucun script PowerShell, CMake, compilateur C++ ou dossier `tools`.
 
 | Besoin | Kit et documentation |
 | --- | --- |
-| Écrire un mod Kotlin | Kit Kotlin : API `.klib`, plugin Gradle, pont précompilé, exemple autonome |
+| Écrire un mod Kotlin | Kit Kotlin : API `.klib`, plugin Gradle, pont précompilé |
 | Écrire un outil Kotlin | Client JVM, bibliothèque native et [exemple d'observation](docs/kotlin-client.md) |
 | Jouer avec des mods | SDK d'exécution et NRF Loader, installés par le Hub ; aucun JDK requis |
 | Contribuer au SDK | [Guide de contribution et de construction](docs/sdk-maintainers.md) |

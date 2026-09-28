@@ -18,7 +18,7 @@ OUT.mkdir(parents=True, exist_ok=True)
 if any(OUT.iterdir()):
     raise ValueError('Release output must be empty before packaging')
 WORK = pathlib.Path(tempfile.mkdtemp(prefix='nrf-package-', dir=ROOT / 'build' if (ROOT / 'build').exists() else ROOT))
-URL = 'https://github.com/NimbyRails-France/' + REPO + '/releases/download/v' + VERSION + '/'
+URL = 'https://releases.nimbyrails-france.fr/releases/' + REPO + '/v' + VERSION + '/'
 GAME = ['fff49ac21720abfc824c2b4f68b862727630eb0db71cfe1f9ea8f685d0db10ae']
 RUNTIME = pathlib.Path('/opt/mingw/bin')
 
@@ -76,6 +76,8 @@ if REPO == 'sdk':
         source = ROOT / 'build/ci' / ('drop-in/' + name if name == 'SDL3.dll' else name)
         copy(source, drop / name)
     runtimes(drop)
+    if PLAN['channel'] == 'alpha':
+        copy(ROOT / 'build/ci/NimbyConstructionBridge-experimental-v1.dll', drop / 'NimbyConstructionBridge-experimental-v1.dll')
     runtime_licenses(drop)
     copy(ROOT / 'third_party/windows/minhook/LICENSE.txt', drop / 'licenses/MinHook.txt')
     copy(ROOT / 'docs/install-drop-in.md', drop / 'README.md')

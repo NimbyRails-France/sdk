@@ -1,5 +1,6 @@
 #pragma once
 #include <nimby/detail/observation.h>
+#include <nimby/detail/construction.h>
 #include "engine/live_state.h"
 #include <cstddef>
 #include <cstdint>
@@ -28,6 +29,7 @@ public:
     uint32_t setClock(int64_t utc, NimbySimulationClock& output) noexcept;
     uint32_t setClockAndRecalculate(int64_t utc, NimbySimulationClock& output,
                                     uint32_t& count) noexcept;
+    uint32_t construction(const NimbyConstructionRequest*,uint64_t pollToken,NimbyConstructionResult&) noexcept;
 
     // Initialized by open(); thereafter borrowed, immutable session metadata.
     uint32_t pid{};

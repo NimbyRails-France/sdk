@@ -23,6 +23,9 @@ $ui = Join-Path $gameRoot $uiName
 $driving = Join-Path $gameRoot $drivingName
 $uiStage = Join-Path $gameRoot 'NimbySignalUiBridge.NimbySDK.tmp'
 $drivingStage = Join-Path $gameRoot 'NimbyAutomaticDrivingBridge.NimbySDK.tmp'
+$constructionName = 'NimbyConstructionBridge-experimental-v1.dll'
+$construction = Join-Path $gameRoot $constructionName
+$constructionStage = Join-Path $gameRoot 'NimbyConstructionBridge.NimbySDK.tmp'
 $manifestStage = Join-Path $gameRoot 'NimbyRailsFranceSDK-install.tmp'
 $originalExeHash = 'FFF49AC21720ABFC824C2B4F68B862727630EB0DB71CFE1F9EA8F685D0DB10AE'
 $originalSdlHash = '2A2704678BF6C9C6A944270AB35079DF76F5AFE92B780394ED72D9C8218B98D8'
@@ -30,7 +33,7 @@ function Hash([string]$path) { (Get-FileHash -LiteralPath $path -Algorithm SHA25
 function RequireHash([string]$path, [string]$expected) {
     if (!(Test-Path -LiteralPath $path) -or (Hash $path) -ne $expected) { throw "Unexpected file contents: $path. Nothing will be overwritten." }
 }
-foreach($target in @($exe,$sdl,$backup,$sdk,$manifestPath,$proxyStage,$sdkStage,$manifestStage,$pthread,$pthreadStage,$texture,$textureStage,$ui,$uiStage,$driving,$drivingStage)) {
+foreach($target in @($exe,$sdl,$backup,$sdk,$manifestPath,$proxyStage,$sdkStage,$manifestStage,$pthread,$pthreadStage,$texture,$textureStage,$ui,$uiStage,$driving,$drivingStage,$construction,$constructionStage)) {
     if([IO.Path]::GetDirectoryName([IO.Path]::GetFullPath($target)) -ne $gameRoot) { throw 'Path outside selected game directory' }
 }
 $running = Get-Process -Name NimbyRails -ErrorAction SilentlyContinue | Where-Object { !$_.Path -or $_.Path -ieq $exe }
@@ -68,6 +71,10 @@ if($Action -eq 'Remove') {
         if($manifest.automaticDrivingBridgeFile -ne $drivingName) { throw 'Invalid automatic driving bridge filename in manifest' }
         RequireHash $driving $manifest.automaticDrivingBridgeSha256
     }
+    if($manifest.constructionBridgeSha256) {
+        if($manifest.constructionBridgeFile -ne $constructionName) { throw 'Invalid construction bridge filename in manifest' }
+        RequireHash $construction $manifest.constructionBridgeSha256
+    }
     # Fixed filenames and verified contents only; no recursive deletion.
     Remove-Item -LiteralPath $sdl
     Move-Item -LiteralPath $backup -Destination $sdl
@@ -76,6 +83,7 @@ if($Action -eq 'Remove') {
     if($manifest.textureBridgeSha256) { Remove-Item -LiteralPath $texture }
     if($manifest.signalUiBridgeSha256) { Remove-Item -LiteralPath $ui }
     if($manifest.automaticDrivingBridgeSha256) { Remove-Item -LiteralPath $driving }
+    if($manifest.constructionBridgeSha256) { Remove-Item -LiteralPath $construction }
     Remove-Item -LiteralPath $manifestPath
     RequireHash $sdl $originalSdlHash
     Write-Output 'Original SDL3.dll restored. Proxy and SDK removed.'
@@ -84,7 +92,7 @@ if($Action -eq 'Remove') {
 
 RequireHash $exe $originalExeHash
 RequireHash $sdl $originalSdlHash
-foreach($target in @($backup,$sdk,$manifestPath,$proxyStage,$sdkStage,$manifestStage,$pthreadStage,$texture,$textureStage,$ui,$uiStage,$driving,$drivingStage)) {
+foreach($target in @($backup,$sdk,$manifestPath,$proxyStage,$sdkStage,$manifestStage,$pthreadStage,$texture,$textureStage,$ui,$uiStage,$driving,$drivingStage,$construction,$constructionStage)) {
     if(Test-Path -LiteralPath $target) { throw "File already exists; refusing to overwrite: $target" }
 }
 $sourceRoot = (Resolve-Path -LiteralPath $SourceDirectory).Path
@@ -98,6 +106,9 @@ $uiSource = Join-Path $sourceRoot $uiName
 $drivingSource = Join-Path $sourceRoot $drivingName
 $uiHash = Hash $uiSource
 $drivingHash = Hash $drivingSource
+$constructionSource = Join-Path $sourceRoot $constructionName
+$constructionHash = $null
+if(Test-Path -LiteralPath $constructionSource) { $constructionHash = Hash $constructionSource }
 $pthreadSource = Join-Path $sourceRoot 'libwinpthread-1.dll'
 $pthreadHash = $null
 if(Test-Path -LiteralPath $pthreadSource) {
@@ -111,6 +122,7 @@ $pthreadCopied = $false
 $textureCopied = $false
 $uiCopied = $false
 $drivingCopied = $false
+$constructionCopied = $false
 try {
     # Validate staged copies before changing any game dependency.
     Copy-Item -LiteralPath $sdkSource -Destination $sdkStage
@@ -128,6 +140,12 @@ try {
     $uiCopied = $true
     Move-Item -LiteralPath $drivingStage -Destination $driving
     $drivingCopied = $true
+    if($constructionHash) {
+        Copy-Item -LiteralPath $constructionSource -Destination $constructionStage
+        RequireHash $constructionStage $constructionHash
+        Move-Item -LiteralPath $constructionStage -Destination $construction
+        $constructionCopied = $true
+    }
     RequireHash $proxyStage $proxyHash
     if($pthreadHash) {
         Copy-Item -LiteralPath $pthreadSource -Destination $pthreadStage
@@ -139,7 +157,8 @@ try {
         originalSdlSha256=$originalSdlHash; proxySha256=$proxyHash; sdkSha256=$sdkHash; pthreadSha256=$pthreadHash;
         textureBridgeFile=$textureName; textureBridgeSha256=$textureHash;
         signalUiBridgeFile=$uiName; signalUiBridgeSha256=$uiHash;
-        automaticDrivingBridgeFile=$drivingName; automaticDrivingBridgeSha256=$drivingHash} |
+        automaticDrivingBridgeFile=$drivingName; automaticDrivingBridgeSha256=$drivingHash;
+        constructionBridgeFile=$(if($constructionHash){$constructionName}else{$null}); constructionBridgeSha256=$constructionHash} |
         ConvertTo-Json | Set-Content -LiteralPath $manifestStage -Encoding UTF8
     Move-Item -LiteralPath $sdkStage -Destination $sdk
     $sdkCopied = $true
@@ -161,7 +180,8 @@ try {
     if($textureCopied -and (Test-Path -LiteralPath $texture) -and (Hash $texture) -eq $textureHash) { Remove-Item -LiteralPath $texture }
     if($uiCopied -and (Test-Path -LiteralPath $ui) -and (Hash $ui) -eq $uiHash) { Remove-Item -LiteralPath $ui }
     if($drivingCopied -and (Test-Path -LiteralPath $driving) -and (Hash $driving) -eq $drivingHash) { Remove-Item -LiteralPath $driving }
-    foreach($stage in @($proxyStage,$sdkStage,$manifestStage,$pthreadStage,$textureStage,$uiStage,$drivingStage)) {
+    if($constructionCopied -and (Test-Path -LiteralPath $construction) -and (Hash $construction) -eq $constructionHash) { Remove-Item -LiteralPath $construction }
+    foreach($stage in @($proxyStage,$sdkStage,$manifestStage,$pthreadStage,$textureStage,$uiStage,$drivingStage,$constructionStage)) {
         if(Test-Path -LiteralPath $stage) { Remove-Item -LiteralPath $stage }
     }
     throw

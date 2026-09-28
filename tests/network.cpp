@@ -11,6 +11,8 @@ using namespace nimby::engine;
 struct Memory {
     std::map<uint64_t,std::vector<unsigned char>> regions;
     uint64_t fail{},replace_header{},changing_slots{},changing_motion{},changing_station{},changing_service{},changing_presence{},changing_identity{};unsigned header_reads{},reads{},slot_reads{};
+    uint64_t changing_metric{},changing_metric_identity{};
+    uint64_t changing_retired_motion{},changing_retired_model{};size_t retired_flag_offset{};unsigned retired_model_reads{};
     template<class T> void put(uint64_t base,size_t off,T value) {
         auto& b=regions[base];if(b.size()<off+sizeof value)b.resize(off+sizeof value);
         std::memcpy(b.data()+off,&value,sizeof value);
@@ -22,11 +24,15 @@ bool read(void* ctx,uint64_t address,void* out,size_t size) {
     auto i=m.regions.upper_bound(address);if(i==m.regions.begin())return false;--i;
     if(address-i->first>i->second.size()||size>i->second.size()-(address-i->first))return false;
     std::memcpy(out,i->second.data()+address-i->first,size);
+    if(address==m.changing_metric&&size==0x90)static_cast<unsigned char*>(out)[0x88]^=1;
+    if(address==m.changing_metric_identity&&size==0x90)static_cast<unsigned char*>(out)[0]^=1;
     if(address==m.changing_motion && size==0x638)static_cast<unsigned char*>(out)[0x4b0]=1;
     if(address==m.changing_station && size==0x28)static_cast<unsigned char*>(out)[0]^=1;
     if(address==m.changing_service && size==0x638)static_cast<unsigned char*>(out)[0x4d0]^=1;
     if(address==m.changing_presence && size==0x638)static_cast<unsigned char*>(out)[0x1d0]^=1;
     if(address==m.changing_identity && size==0x638)static_cast<unsigned char*>(out)[0]^=1;
+    if(address==m.changing_retired_motion && size==0x638)static_cast<unsigned char*>(out)[m.retired_flag_offset]=1;
+    if(address==m.changing_retired_model && size==8 && ++m.retired_model_reads==2)static_cast<unsigned char*>(out)[7]=5;
     if(address==m.replace_header && ++m.header_reads==2)static_cast<unsigned char*>(out)[0]^=1;
     if(address==m.changing_slots && (++m.slot_reads%2)==0 && size>8)static_cast<unsigned char*>(out)[8]^=1;
     return true;
@@ -73,6 +79,23 @@ int main() {
     m.put(sb,0x40,uint8_t(1)); // Automatic name intentionally unavailable.
     m.put(gb,0x30,int32_t(3));m.put(gb,0x40,track);m.put(gb,0x48,0.5);m.put(gb,0x50,int8_t(-1));
     Network out;
+    {
+        // Optional native length must survive independently from map coordinates.
+        auto metric=m;metric.put(tb,0x88,1234.5);Network measured;
+        if(!read_network(read,&metric,state,true,measured)||measured.tracks[0].native_length_m!=1234.5)return 230;
+        for(double invalid:{0.,-1.,std::nan(""),double(INFINITY)}){
+            metric=m;metric.put(tb,0x88,invalid);
+            if(!read_network(read,&metric,state,true,measured)||measured.tracks[0].native_length_m!=0)return 231;
+        }
+        metric=m;metric.put(tb,0x88,1234.5);metric.changing_metric=tb;
+        if(!read_network(read,&metric,state,true,measured)||measured.tracks[0].native_length_m!=0)return 232;
+        metric.changing_metric=0;metric.changing_metric_identity=tb;
+        if(!read_network(read,&metric,state,true,measured)||measured.tracks[0].native_length_m!=0)return 233;
+        // The existing scoped signalling reader does not pay for a metric scan.
+        metric.changing_metric_identity=0;
+        if(!read_network(read,&metric,state,true,measured,true)||measured.tracks[0].native_length_m!=0)return 234;
+        static_assert(gameLayout(LiveStateProfile::Linux119).track_metric_offset==0);
+    }
     {
         auto scoped=m;scoped.put(gb,0x30,int32_t(4));scoped.put(gb,0x38,uint64_t(77));
         Network local;
@@ -291,12 +314,49 @@ int main() {
     m.put(motionBlock,0x3c8,20.0);m.put(motionBlock,0x4b0,uint8_t(1));
     std::vector<Train> trains;
     if(!read_trains(read,&m,state,true,trains)||trains.size()!=1||trains[0].name!="T"||trains[0].speed_mps!=20||!trains[0].positioned||!trains[0].speed_available)return 14;
+    {
+        // Live regression: deleted trains kept inactive Motion records forever,
+        // rejecting every capture and hiding all signal-extension checkboxes.
+        const uint64_t retired=train+0x10000,modelSlot=trainBlock+0x178,motionSlot=motionBlock+0x638;
+        for(bool signallingOnly:{false,true}){
+            auto deleted=m;
+            deleted.put(trainBlock,0x178,retired|0xffff000000000000ULL);
+            deleted.put(motionBlock,0x638,retired);
+            if(!read_trains(read,&deleted,state,true,trains,signallingOnly)||trains.size()!=1||trains[0].id!=train)return 240;
+            // All three optionals matter, including a hidden train without Drive.
+            for(size_t offset:{size_t(0x1d0),size_t(0x218),size_t(0x4b0)}){
+                for(uint8_t value:{uint8_t(1),uint8_t(2)}){
+                    auto active=deleted;active.put(motionBlock,0x638+offset,value);
+                    if(read_trains(read,&active,state,true,trains,signallingOnly)||!trains.empty())return 241;
+                }
+                auto entering=deleted;entering.changing_retired_motion=motionSlot;entering.retired_flag_offset=offset;
+                if(read_trains(read,&entering,state,true,trains,signallingOnly)||!trains.empty())return 242;
+            }
+            // Unknown/reused slots and other generations are never a deletion proof.
+            for(uint64_t replacement:{uint64_t(0),retired+1,(retired+1)|0xffff000000000000ULL}){
+                auto reused=deleted;reused.put(trainBlock,0x178,replacement);
+                // A live replacement needs a valid name for the full capture.
+                reused.put(trainBlock,0x178+0x28,uint64_t(15));
+                if(read_trains(read,&reused,state,true,trains,signallingOnly)||!trains.empty())return 243;
+            }
+            auto unstable=deleted;unstable.changing_retired_model=modelSlot;
+            if(read_trains(read,&unstable,state,true,trains,signallingOnly)||!trains.empty())return 244;
+            unstable=deleted;unstable.changing_identity=motionSlot;
+            if(read_trains(read,&unstable,state,true,trains,signallingOnly)||!trains.empty())return 245;
+            unstable=deleted;unstable.fail=modelSlot;
+            if(read_trains(read,&unstable,state,true,trains,signallingOnly)||!trains.empty())return 246;
+            unstable=deleted;unstable.fail=motionSlot;
+            if(read_trains(read,&unstable,state,true,trains,signallingOnly)||!trains.empty())return 247;
+            unstable=deleted;unstable.replace_header=state.database+0x200;unstable.header_reads=0;
+            if(read_trains(read,&unstable,state,true,trains,signallingOnly)||!trains.empty())return 248;
+        }
+    }
     m.put(motionBlock,0,train+1);if(read_trains(read,&m,state,true,trains)||!trains.empty())return 15;
     m.put(motionBlock,0,train);m.put(trainBlock,0x20,uint64_t(257));if(read_trains(read,&m,state,true,trains))return 16;
     // Un nom corrompu n'empeche pas de verifier la presence pour le BAL.
     if(!read_trains(read,&m,state,true,trains,true)||trains.size()!=1||
        trains[0].service.flags!=NIMBY_SERVICE_PRESENCE_VALID||trains[0].speed_available||
-       !trains[0].name.empty()||trains[0].path_available)return 210;
+       !trains[0].name.empty()||trains[0].path_available||!trains[0].positioned||trains[0].position.fraction!=.25)return 210;
     m.put(motionBlock,0,train+1);
     if(read_trains(read,&m,state,true,trains,true))return 211;
     m.put(motionBlock,0,train);

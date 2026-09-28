@@ -7,13 +7,23 @@ import nimby.*
 import nimby.mod.createMod
 
 // ABI privée v1 du SDK. Aucun pointeur ni annotation native dans le code du mod.
-private val mod: SignallingMod by lazy {
+private val gameMod: GameMod by lazy {
     createMod().also {
-        require(it.checkboxes.size <= 64 && it.checkboxes.map { box -> box.name }.toSet().size == it.checkboxes.size)
-        require(it.id.isNotBlank() && it.textureSet.isNotBlank())
-        require(it.diagnosticFile.matches(Regex("[a-zA-Z0-9_.-]+")) && it.diagnosticFile !in setOf(".", ".."))
+        require(it.id.isNotBlank())
+        if(it is SignallingMod) require(it.diagnosticFile.matches(Regex("[a-zA-Z0-9_.-]+")) && it.diagnosticFile !in setOf(".", ".."))
     }
 }
+private val mod: SignallingMod get() = gameMod as SignallingMod
+// Copy the declarations once. A mod cannot change the mask layout after the
+// native adapter has copied its panels. No mutable current-type global exists.
+private val types by lazy {
+    if(gameMod is SignallingMod) mod.signalTypes.map { it.copy(checkboxes = it.checkboxes.toList(), actions = it.actions.toList()) }.also(::validateSignalTypes)
+    else emptyList()
+}
+private val services by lazy { gameMod.services.toList().also { entries ->
+    require(entries.size <= 32 && entries.distinct().size == entries.size)
+    entries.forEach { require(it.matches(Regex("[a-zA-Z0-9_.-]{1,128}"))) }
+} }
 @kotlin.native.concurrent.ThreadLocal
 private var lastFailure = ""
 private inline fun guarded(operation: String, block: () -> Int): Int = try {
@@ -38,16 +48,128 @@ private fun text(value: String, out: CPointer<ByteVar>?, capacity: Int): Int {
     bytes.forEachIndexed { i, byte -> out[i] = byte }; out[bytes.size] = 0
     return bytes.size
 }
-@CName("NRFKotlin_Version") fun version(): Int = 1
+// An older adapter must reject schemas it cannot represent, rather than
+// silently operate only the first model or persist under a different ID.
+@CName("NRFKotlin_Version") fun version(): Int = guarded("Version") {
+    if(gameMod is SignallingMod && types.any { it.observeApproach && it.approachBlocks > 1 }) 5
+    else if(gameMod is SignallingMod && mod.modelLocalIndications) 4
+    else if(gameMod is ToolMod || services.isNotEmpty() || types.any { it.actions.isNotEmpty() }) 3
+    else if (types.size > 1 || types.first().id != mod.id || types.first().checkboxes.isEmpty() ||
+        types.any { type -> type.observeApproach || type.checkboxes.any { it.onlyWhenEnabled } }) 2 else 1
+}
+// Called before version()/createMod(). Tests using the Kotlin API directly
+// keep the default; the actual loader checks the file next to the mod DLL.
+@CName("NRFKotlin_TranslationsAvailable") fun translationsAvailable(available: Int): Int = guarded("TranslationsAvailable") {
+    require(available == 0 || available == 1)
+    TranslationEnvironment.catalogAvailable = available == 1
+    0
+}
+@CName("NRFKotlin_ModKind") fun modKind(): Int = guarded("ModKind") { if(gameMod is ToolMod) 1 else 0 }
+@CName("NRFKotlin_ServiceCount") fun serviceCount(): Int = guarded("ServiceCount") { services.size }
+@CName("NRFKotlin_ServiceName") fun serviceName(index: Int, out: CPointer<ByteVar>?, capacity: Int): Int = guarded("ServiceName") { text(services[index],out,capacity) }
+typealias ToolCall = CPointer<CFunction<(Int, CPointer<LongVar>?, Int, CPointer<DoubleVar>?, Int, CPointer<ByteVar>?, Int) -> Int>>
+private fun inTool(world: String, generation: Long, call: ToolCall?, block: (ToolContext) -> Unit) {
+    require(call != null && world.isNotBlank() && generation != 0L)
+    ToolAccess.withContext(world, generation, { op, integers, numbers, bytes ->
+        integers.usePinned { a -> numbers.usePinned { b -> bytes.usePinned { c ->
+            call(op, if(integers.isEmpty()) null else a.addressOf(0), integers.size,
+                if(numbers.isEmpty()) null else b.addressOf(0), numbers.size,
+                if(bytes.isEmpty()) null else c.addressOf(0), bytes.size)
+        } } }
+    }, block)
+}
+@CName("NRFKotlin_ServiceEvent") fun serviceEvent(index: Int, sequence: Long, signal: Long, generation: Long,
+    panel: Long, action: CPointer<ByteVar>?, world: CPointer<ByteVar>?, origin: CPointer<ByteVar>?, call: ToolCall?): Int = guarded("ServiceEvent") {
+    require(sequence != 0L && signal ushr 48 == 8L && panel != 0L && action != null && world != null && origin != null)
+    val request=SignalActionRequest(sequence,signal,action.toKString(),services[index],world.toKString(),generation,panel,origin.toKString())
+    inTool(request.worldId,generation,call) { gameMod.onSignalAction(request,it) }; 0
+}
+@CName("NRFKotlin_ToolTick") fun toolTick(world: CPointer<ByteVar>?, generation: Long, call: ToolCall?): Int = guarded("ToolTick") {
+    require(world != null); inTool(world.toKString(),generation,call) { gameMod.onTick(it) }; 0
+}
+@CName("NRFKotlin_ServiceEventV2") fun serviceEventV2(index: Int, sequence: Long, signal: Long, generation: Long,
+    panel: Long, action: CPointer<ByteVar>?, world: CPointer<ByteVar>?, origin: CPointer<ByteVar>?, call: ToolCall?,
+    hasValue: Int, value: Int): Int = guarded("ServiceEventV2") {
+    require(sequence!=0L&&signal ushr 48==8L&&panel!=0L&&action!=null&&world!=null&&origin!=null&&hasValue in 0..1)
+    val request=SignalActionRequest(sequence,signal,action.toKString(),services[index],world.toKString(),generation,panel,origin.toKString(),value.takeIf { hasValue==1 })
+    inTool(request.worldId,generation,call) { gameMod.onSignalAction(request,it) };0
+}
+@CName("NRFKotlin_ToolStop") fun toolStop(): Int = guarded("ToolStop") { gameMod.onStop(); 0 }
+@CName("NRFKotlin_ActionCount") fun actionCount(type: Int): Int = guarded("ActionCount") { types[type].actions.size }
+@CName("NRFKotlin_ActionMetadata") fun actionMetadata(type: Int,index: Int,field: Int,out: CPointer<ByteVar>?,capacity: Int): Int = guarded("ActionMetadata") {
+    val action=types[type].actions[index]
+    text(when(field){0->action.id;1->action.label;2->action.whenMod;3->action.service;else->error("Unknown action field")},out,capacity)
+}
+// Optional extension of ABI 1. Old single-type DLLs remain supported. New
+// adapters use these exports together, never mix layouts from two versions.
+@CName("NRFKotlin_TypeCount") fun typeCount(): Int = guarded("TypeCount") { types.size }
+/** ABI 4 : un échec réseau garde le modèle du signal concerné. */
+@CName("NRFKotlin_FallbackType") fun fallbackType(type: Int, invalid: Int, out: CPointer<IntVar>?): Int = guarded("FallbackType") {
+    require(out != null && invalid in 0..1)
+    val decision = if (invalid == 1) mod.invalidNetworkDecision(types[type].id) else mod.unknownDecision(types[type].id)
+    out[0] = decision.aspect; out[1] = decision.reason; 0
+}
+/** Diagnostic d'un signal déjà identifié : exposer ses ordinaux locaux au banc,
+ * jamais les tags privés utilisés entre les callbacks du pont. */
+@CName("NRFKotlin_LocalDecision") fun localDecision(aspect: Int, reason: Int, out: CPointer<IntVar>?): Int = guarded("LocalDecision") {
+    require(out != null)
+    if (mod.modelLocalIndications) {
+        val value = requireNotNull(mod.indication(Decision(aspect, reason)))
+        out[0] = value.aspect.ordinal; out[1] = value.reason.ordinal
+    } else { out[0] = aspect; out[1] = reason }
+    0
+}
+@CName("NRFKotlin_TypeMetadata") fun typeMetadata(type: Int, field: Int, index: Int, out: CPointer<ByteVar>?, capacity: Int): Int = guarded("TypeMetadata") {
+    val declaration = types[type]
+    text(when (field) {
+        0 -> declaration.id; 1 -> declaration.title; 2 -> declaration.textureSet
+        4 -> declaration.checkboxes[index].name; 5 -> declaration.checkboxes[index].label
+        6 -> declaration.checkboxes[index].description
+        else -> error("Unknown type metadata")
+    }, out, capacity)
+}
+@CName("NRFKotlin_TypeInfo") fun typeInfo(type: Int, out: CPointer<LongVar>?): Int = guarded("TypeInfo") {
+    require(out != null)
+    val boxes = types[type].checkboxes
+    out[0] = boxes.size.toLong()
+    out[1] = boxes.foldIndexed(0L) { i, mask, box -> if (box.defaultValue) mask or (1L shl i) else mask }
+    out[2] = boxes.foldIndexed(0L) { i, mask, box -> if (box.onlyWhenEnabled) mask or (1L shl i) else mask }
+    out[3] = if (types[type].observeApproach) types[type].approachBlocks.toLong() else 0
+    0
+}
+@CName("NRFKotlin_MigrateSettings") fun migrateSettings(type: Int, names: CPointer<ByteVar>?, values: CPointer<IntVar>?, count: Int,
+    out: CPointer<LongVar>?): Int = guarded("MigrateSettings") {
+    require(count in 0..64 && out != null && (count == 0 || (names != null && values != null)))
+    val declaration = types[type]
+    val saved = mutableMapOf<String, Boolean>()
+    for (i in 0 until count) {
+        val bytes = ByteArray(129) { names!![i * 129 + it] }
+        val length = bytes.indexOf(0)
+        require(length in 1..128 && values!![i] in 0..1)
+        val key = bytes.copyOf(length).decodeToString(throwOnInvalidSequence = true)
+        require(key !in saved)
+        saved[key] = values!![i] != 0
+    }
+    val migrated = mod.migrateSettings(declaration.id, saved.toMap())
+    out[0] = declaration.checkboxes.foldIndexed(0L) { i, mask, box ->
+        if (migrated[box.name] ?: box.defaultValue) mask or (1L shl i) else mask
+    }
+    0
+}
 @CName("NRFKotlin_Force") fun force(aspect: Int, out: CPointer<IntVar>?): Int = guarded("Force") {
     require(out != null)
     val decision = mod.forcedDecision(aspect)
     if (decision == null) 1 else { out[0] = decision.aspect; out[1] = decision.reason; 0 }
 }
+@CName("NRFKotlin_ForceType") fun forceType(type: Int, aspect: Int, out: CPointer<IntVar>?): Int = guarded("ForceType") {
+    require(out != null)
+    val decision = mod.forcedDecision(types[type].id, aspect)
+    if (decision == null) 1 else { out[0] = decision.aspect; out[1] = decision.reason; 0 }
+}
 @CName("NRFKotlin_Metadata") fun metadata(field: Int, index: Int, out: CPointer<ByteVar>?, capacity: Int): Int = guarded("Metadata") {
     text(when (field) {
-        0 -> mod.id; 1 -> mod.title; 2 -> mod.textureSet; 3 -> mod.diagnosticFile
-        4 -> mod.checkboxes[index].name; 5 -> mod.checkboxes[index].label; 6 -> mod.checkboxes[index].description
+        0 -> gameMod.id; 1 -> gameMod.title; 2 -> types.firstOrNull()?.textureSet ?: ""; 3 -> if(gameMod is SignallingMod) mod.diagnosticFile else "nimby-tool-faults.jsonl"
+        4 -> types.first().checkboxes[index].name; 5 -> types.first().checkboxes[index].label; 6 -> types.first().checkboxes[index].description
         7 -> mod.reasonName(index)
         8 -> mod.aspectName(index)
         else -> error("Unknown metadata")
@@ -55,24 +177,29 @@ private fun text(value: String, out: CPointer<ByteVar>?, capacity: Int): Int {
 }
 @CName("NRFKotlin_Info") fun info(out: CPointer<IntVar>?): Int = guarded("Info") {
     require(out != null)
-    out[0] = mod.checkboxes.size; out[1] = if (mod.maximumLineSpeed) 1 else 0
+    out[0] = types.first().checkboxes.size; out[1] = if (mod.maximumLineSpeed) 1 else 0
     out[2] = mod.unknownDecision.aspect; out[3] = mod.unknownDecision.reason
     out[4] = mod.invalidNetworkDecision.aspect; out[5] = mod.invalidNetworkDecision.reason
     0
 }
 @CName("NRFKotlin_Defaults") fun defaults(out: CPointer<LongVar>?): Int = guarded("Defaults") {
     require(out != null)
-    out[0] = mod.checkboxes.foldIndexed(0L) { i, mask, box -> if (box.defaultValue) mask or (1L shl i) else mask }; 0
+    out[0] = types.first().checkboxes.foldIndexed(0L) { i, mask, box -> if (box.defaultValue) mask or (1L shl i) else mask }; 0
 }
 @CName("NRFKotlin_Decide") fun decide(mode: Int, mask: Long, status: Int, id: Long, nextId: Long,
+    observation: CPointer<IntVar>?, nextAspect: Int, nextReason: Int, out: CPointer<IntVar>?): Int =
+    decideType(0, mode, mask, status, id, nextId, 0, observation, nextAspect, nextReason, out)
+
+@CName("NRFKotlin_DecideType") fun decideType(type: Int, mode: Int, mask: Long, status: Int, id: Long, nextId: Long, approachingTrain: Long,
     observation: CPointer<IntVar>?, nextAspect: Int, nextReason: Int, out: CPointer<IntVar>?): Int = guarded("Decide") {
     require(observation != null && out != null && mode in 0..2)
-    val settings = mod.checkboxes.mapIndexed { i, box -> box.name to (mask and (1L shl i) != 0L) }.toMap()
+    val declaration = types[type]
+    val settings = declaration.checkboxes.mapIndexed { i, box -> box.name to (mask and (1L shl i) != 0L) }.toMap()
     val o = Observation(Occupancy.entries[observation[0]], observation[1] != 0, observation[2] != 0,
-        observation[3] != 0, observation[4] != 0, observation[5] != 0, observation[6])
+        observation[3] != 0, observation[4] != 0, observation[5] != 0, observation[6], approachingTrain.takeIf { it != 0L })
     val next = if (nextAspect < 0) null else Decision(nextAspect, nextReason)
-    val signal = Signal(id, nextId, settings, o, SettingsStatus.entries[status])
-    val result = if (mode == 0) mod.evaluate(settings, o) else mod.decide(if (mode == 2) mod.fromLive(signal) else signal, next)
+    val signal = Signal(id, nextId, settings, o, SettingsStatus.entries[status], declaration.id)
+    val result = if (mode == 0) mod.evaluate(declaration.id, settings, o) else mod.decide(if (mode == 2) mod.fromLive(signal) else signal, next)
     if (result == null) 1 else { out[0] = result.aspect; out[1] = result.reason; 0 }
 }
 @CName("NRFKotlin_Texture") fun texture(aspect: Int, reason: Int, time: Long, half: Long, out: CPointer<ByteVar>?, capacity: Int): Int = guarded("Texture") {

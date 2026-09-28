@@ -11,7 +11,7 @@ namespace nimby {
 // Session identity must come from the game/save integration, never just a PID.
 class SignalSettingsStore {
 public:
-    struct Checkbox { std::string name,label,description;bool defaultValue=false; };
+    struct Checkbox { std::string name,label,description;bool defaultValue=false,onlyWhenEnabled=false; };
     struct Panel { std::string id,title,textureSet;std::vector<Checkbox> checkboxes; };
     struct Signal { uint64_t id;std::string textureSet; };
     struct Editor {
@@ -23,19 +23,19 @@ public:
     // Owned frame data: native layout and interactive drawing must use the same
     // fields, even if the observation worker invalidates the session meanwhile.
     struct Control { Checkbox checkbox;bool value=false; };
-    struct Frame { Editor editor;std::string panelId,title;std::vector<Control> controls; };
+    struct Frame { Editor editor;std::string panelId,title;std::vector<Control> controls;bool available=true; };
 
     void configure(const SignalSettingsPanel& source) {
         Panel candidate;
         if(!source.id.empty()) {
             checkText(source.id,128);checkText(source.title,256);checkText(source.textureSet,256);
-            if(source.checkboxes.empty()||source.checkboxes.size()>64)throw std::invalid_argument("Invalid checkbox count");
+            if(source.checkboxes.size()>64)throw std::invalid_argument("Invalid checkbox count");
             candidate={std::string(source.id),std::string(source.title),std::string(source.textureSet),{}};
             std::set<std::string_view> names;
             for(const auto& box:source.checkboxes){
                 checkText(box.name,128);checkText(box.label,256);checkText(box.description,1024,true);
                 if(!names.insert(box.name).second)throw std::invalid_argument("Duplicate checkbox name");
-                candidate.checkboxes.push_back({std::string(box.name),std::string(box.label),std::string(box.description),box.defaultValue});
+                candidate.checkboxes.push_back({std::string(box.name),std::string(box.label),std::string(box.description),box.defaultValue,box.onlyWhenEnabled});
             }
         }else if(!source.title.empty()||!source.textureSet.empty()||!source.checkboxes.empty())
             throw std::invalid_argument("Missing settings panel ID");
@@ -43,6 +43,19 @@ public:
         panel_=std::move(candidate);invalidate();
     }
     Panel panel() const {std::lock_guard lock(mutex_);return panel_;}
+    // Runtime context only; this does not serialize a profile or copy all values.
+    std::optional<std::string> sessionIdentity(uint64_t expected)const {
+        std::lock_guard lock(mutex_);if(!current(expected))return {};
+        return sessionId_;
+    }
+    // Only before opening a session: changing layout rules in an active editor
+    // would invalidate the correspondence between layout and interactive passes.
+    bool conditionalVisibility(uint64_t mask) {
+        std::lock_guard lock(mutex_);
+        if(!sessionId_.empty()||(panel_.checkboxes.size()<64&&(mask>>panel_.checkboxes.size())))return false;
+        for(size_t i=0;i<panel_.checkboxes.size();++i)panel_.checkboxes[i].onlyWhenEnabled=(mask&(uint64_t{1}<<i))!=0;
+        return true;
+    }
 
     // Explicit transitions invalidate all outstanding UI events, even reopening
     // the same save. Import is transactional and matched to save + panel IDs.
@@ -96,19 +109,25 @@ public:
         std::lock_guard lock(mutex_);
         return frameLocked(editor);
     }
+    bool accepts(Editor editor)const {
+        std::lock_guard lock(mutex_);
+        return current(editor.session)&&observed_&&editor.signal&&editor==editor_&&signals_.contains(editor.signal);
+    }
     // UI host selects and snapshots under one lock; it never guesses the
     // current session token or keeps a reference into mod-owned declarations.
     std::optional<Frame> selectFrame(uint64_t signal) {
         std::lock_guard lock(mutex_);
-        if(sessionId_.empty()||!observed_||!signals_.contains(signal)){editor_={};return std::nullopt;}
+        if(sessionId_.empty()||!signals_.contains(signal)){editor_={};return std::nullopt;}
         if(editor_.session!=session_||editor_.signal!=signal)editor_={session_,++selection_,signal};
-        return frameLocked(editor_);
+        // Last known controls remain visible during a transient read failure.
+        // This presentation is not an observation and cannot authorize writes.
+        return frameLocked(editor_,true);
     }
 private:
-    std::optional<Frame> frameLocked(Editor editor) const {
-        if(!current(editor.session)||!observed_||!editor.signal||editor!=editor_||!signals_.contains(editor.signal))
+    std::optional<Frame> frameLocked(Editor editor,bool presentationOnly=false) const {
+        if(!current(editor.session)||(!observed_&&!presentationOnly)||!editor.signal||editor!=editor_||!signals_.contains(editor.signal))
             return std::nullopt;
-        Frame result{editor,panel_.id,panel_.title,{}};
+        Frame result{editor,panel_.id,panel_.title,{},observed_};
         const auto saved=values_.find(editor.signal);
         for(const auto& box:panel_.checkboxes){
             bool value=box.defaultValue;
@@ -116,14 +135,14 @@ private:
                 const auto field=saved->second.find(box.name);
                 if(field!=saved->second.end())value=field->second;
             }
-            result.controls.push_back({box,value});
+            if(!box.onlyWhenEnabled||value)result.controls.push_back({box,value});
         }
         return result;
     }
 public:
     bool setBoolean(Editor editor,std::string_view name,bool value) {
         std::lock_guard lock(mutex_);
-        if(!current(editor.session)||!editor.signal||editor!=editor_||!signals_.contains(editor.signal))return false;
+        if(!current(editor.session)||!observed_||!editor.signal||editor!=editor_||!signals_.contains(editor.signal))return false;
         for(const auto& box:panel_.checkboxes)if(box.name==name){
             if(!values_.contains(editor.signal)&&values_.size()>=16384)throw std::length_error("Settings capacity exceeded");
             values_[editor.signal][box.name]=value;return true;

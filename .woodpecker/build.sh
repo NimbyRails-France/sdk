@@ -13,7 +13,10 @@ export NRF_KOTLIN_HOME="$(python3 .woodpecker/toolchain.py kotlin-linux)"
 chmod +x .woodpecker/wine-run.py
 java -version
 wine --version
-cmake -S . -B build/ci -G Ninja -DCMAKE_TOOLCHAIN_FILE=/opt/nimby-ci/nimby-mingw.cmake -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON -DCMAKE_INSTALL_PREFIX="$PWD/build/install"
+# The alpha ships Signal Placement's verified single-player construction bridge.
+construction=OFF
+case "$(cat VERSION)" in *-alpha.*) construction=ON ;; esac
+cmake -S . -B build/ci -G Ninja -DCMAKE_TOOLCHAIN_FILE=/opt/nimby-ci/nimby-mingw.cmake -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON -DNIMBY_DEVELOPMENT_CONSTRUCTION="$construction" -DCMAKE_INSTALL_PREFIX="$PWD/build/install"
 cmake --build build/ci --parallel 2
 xvfb-run -a ctest --test-dir build/ci --output-on-failure --timeout 90
 cmake --install build/ci

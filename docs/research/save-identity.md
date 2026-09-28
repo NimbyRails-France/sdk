@@ -136,8 +136,12 @@ semantics remain unproven. The game was left running the test copy.
 Snapshots now expose `GameSession { generation, worldId }`. Versioning is read
 before and after the native capture, with matching roots/value/history required
 for this optional metadata. An observed metadata loss, different roots or world,
-history change, or backwards simulation ticks changes the connection-local
-generation. Missing clock observations preserve the previous tick guard.
+history change, or backwards simulation ticks changes the generation shared by
+simultaneously open readers of the same live process in this SDK registry.
+A later reader joins that detector, so cooperating mods compare the same epoch.
+Closing every reader discards it; reconnections must invalidate old state.
+The targeted driving observation counter remains connection-local.
+Missing clock observations preserve the previous tick guard.
 Pointers are not exposed or used as persistent keys.
 
 The mod adapter uses this generation to begin the resident panel session and

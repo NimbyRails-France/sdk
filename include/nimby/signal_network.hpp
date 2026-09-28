@@ -63,9 +63,9 @@ template<class Decision> struct SignalEvaluation {
 // the mod. rule(node, optional downstream) returns a decision, or nullopt when
 // downstream information is required. No indices or traversal callbacks in mods.
 // Missing links/cycles use unresolved. The input is read only and must stay stable.
-template<class Nodes,class Rule,class Decision>
-std::vector<SignalEvaluation<Decision>> evaluateSignals(const Nodes& nodes,Rule rule,
-    const Decision& unresolved,std::size_t limit=4096) {
+template<class Decision,class Nodes,class Rule,class Invalid>
+std::vector<SignalEvaluation<Decision>> evaluateSignalsWithFallback(const Nodes& nodes,Rule rule,
+    Invalid unresolved,std::size_t limit=4096) {
     if(nodes.size()>limit || nodes.size()>4096) throw std::invalid_argument("Signal evaluation limit exceeded");
     std::vector<SignalLink> links;
     links.reserve(nodes.size());
@@ -73,12 +73,19 @@ std::vector<SignalEvaluation<Decision>> evaluateSignals(const Nodes& nodes,Rule 
     const auto decisions=SignalNetwork(links).template resolve<Decision>(
         [&](std::size_t i) { return rule(nodes[i],std::optional<Decision>{}); },
         [&](std::size_t i,const Decision& next) {
-            return rule(nodes[i],std::optional<Decision>{next}).value_or(unresolved);
+            const auto value=rule(nodes[i],std::optional<Decision>{next});
+            return value?*value:unresolved(nodes[i]);
         },
-        [&](std::size_t,SignalLinkIssue) { return unresolved; });
+        [&](std::size_t i,SignalLinkIssue) { return unresolved(nodes[i]); });
     std::vector<SignalEvaluation<Decision>> result;
     result.reserve(nodes.size());
     for(std::size_t i=0;i<nodes.size();++i) result.push_back({nodes[i].id,decisions[i]});
     return result;
+}
+// Compatibility for callers whose nodes share a single fallback vocabulary.
+template<class Nodes,class Rule,class Decision>
+std::vector<SignalEvaluation<Decision>> evaluateSignals(const Nodes& nodes,Rule rule,
+    const Decision& unresolved,std::size_t limit=4096) {
+    return evaluateSignalsWithFallback<Decision>(nodes,rule,[&](const auto&){return unresolved;},limit);
 }
 }

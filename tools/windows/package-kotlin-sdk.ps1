@@ -2,6 +2,8 @@ param(
     [Parameter(Mandatory=$true)][string]$KotlinHome,
     [string]$SdkInstall,
     [string]$Destination,
+    [string]$BuildDirectory,
+    [string]$ArchiveDirectory,
     [string]$ClionHome = "$env:LOCALAPPDATA/Programs/CLion"
 )
 $ErrorActionPreference='Stop'
@@ -20,7 +22,7 @@ if($LASTEXITCODE){throw 'Kotlin SDK API compilation failed'}
 Copy-Item -LiteralPath "$sdkRoot/kotlin/native/Exports.kt" -Destination "$Destination/bridge/Exports.kt" -Force
 $clion=Join-Path $ClionHome 'bin'
 $cmake=Join-Path $clion 'cmake/win/x64/bin/cmake.exe'
-$nativeBuild=Join-Path $sdkRoot 'build/kotlin-devkit-adapter'
+$nativeBuild=if($BuildDirectory){$BuildDirectory}else{Join-Path $sdkRoot 'build/kotlin-devkit-adapter'}
 & $cmake -S "$sdkRoot/kotlin/native" -B $nativeBuild -G Ninja '-DCMAKE_BUILD_TYPE=Release' `
     "-DCMAKE_CXX_COMPILER=$clion/mingw/bin/g++.exe" "-DCMAKE_MAKE_PROGRAM=$clion/ninja/win/x64/ninja.exe" `
     "-DNimbyRailsFranceSDK_DIR=$SdkInstall/lib/cmake/NimbyRailsFranceSDK" `
@@ -30,6 +32,7 @@ if($LASTEXITCODE){throw 'Kotlin SDK adapter configuration failed'}
 if($LASTEXITCODE){throw 'Kotlin SDK adapter compilation failed'}
 New-Item -ItemType Directory -Force -Path "$Destination/licenses/Kotlin-Native" | Out-Null
 Copy-Item -Path "$KotlinHome/licenses/*" -Destination "$Destination/licenses/Kotlin-Native" -Recurse -Force
+Copy-Item -LiteralPath "$SdkInstall/share/licenses/nlohmann-json" -Destination "$Destination/licenses" -Recurse -Force
 if(Test-Path -LiteralPath "$SdkInstall/share/licenses/MinGW"){
     Copy-Item -LiteralPath "$SdkInstall/share/licenses/MinGW" -Destination "$Destination/licenses" -Recurse -Force
 }
@@ -37,29 +40,29 @@ Add-Type -AssemblyName System.IO.Compression.FileSystem
 $sourceArchive=Join-Path $Destination 'sources/nimby-mod-api-sources.jar'
 if(Test-Path -LiteralPath $sourceArchive){Remove-Item -LiteralPath $sourceArchive}
 [IO.Compression.ZipFile]::CreateFromDirectory("$sdkRoot/kotlin/src",$sourceArchive)
-& "$sdkRoot/gradle-plugin/gradlew.bat" --project-dir "$sdkRoot/gradle-plugin" build publish "-PsdkRepository=$Destination/gradle-repository" --console=plain
+& "$sdkRoot/gradle-plugin/gradlew.bat" --project-dir "$sdkRoot/gradle-plugin" build publish "-PsdkRepository=$Destination/gradle-repository" --console=plain --no-daemon
 if($LASTEXITCODE){throw 'Gradle plugin build or SDK repository publication failed'}
 [ordered]@{format=1;sdkVersion=$sdkVersion;kotlinVersion='2.2.20';gradlePluginVersion=$sdkVersion;gradleVersion='8.14.3';target='mingw_x64';api='klib/nimby-mod-api.klib';gameSha256=@('fff49ac21720abfc824c2b4f68b862727630eb0db71cfe1f9ea8f685d0db10ae')} |
     ConvertTo-Json | Set-Content -LiteralPath "$Destination/sdk.json" -Encoding UTF8
-New-Item -ItemType Directory -Path "$Destination/docs","$Destination/examples/kotlin-mod" -Force | Out-Null
+# Reusing an old kit must not silently republish retired sample projects.
+if(Test-Path -LiteralPath "$Destination/examples") { throw 'Old examples directory in kit. Choose a fresh Destination.' }
+New-Item -ItemType Directory -Path "$Destination/docs" -Force | Out-Null
 Get-ChildItem -LiteralPath "$sdkRoot/docs" -Recurse -File -Filter *.md | ForEach-Object {
     $relative=$_.FullName.Substring((Join-Path $sdkRoot 'docs').Length+1)
     $target=Join-Path "$Destination/docs" $relative
     New-Item -ItemType Directory -Path (Split-Path $target) -Force | Out-Null
     Copy-Item -LiteralPath $_.FullName -Destination $target -Force
 }
-foreach($item in @('build.gradle.kts','settings.gradle.kts','gradle.properties','mod.json','README.md','.gitignore','gradlew','gradlew.bat','src','assets','gradle')){
-    Copy-Item -LiteralPath "$sdkRoot/examples/kotlin-mod/$item" -Destination "$Destination/examples/kotlin-mod" -Recurse -Force
-}
 @'
 # NRF Kotlin SDK
 
-Start with [the Kotlin quickstart](docs/kotlin-mods.md).
-Copy `examples/kotlin-mod` to a new directory and configure `NRF_KOTLIN_SDK`.
+Create your own project with [the official Kotlin guide](https://wiki.nimbyrails-france.fr/commencer/installation).
+Configure `NRF_KOTLIN_SDK` or `nrfSdkDir` to point at this kit.
 The kit includes the Gradle plugin, Kotlin API, native adapter and diagnostics.
-See [the documentation index](docs/README.md) for the complete developer guides.
+All tutorials and Kotlin API documentation live on [the wiki](https://wiki.nimbyrails-france.fr/).
 '@ | Set-Content -LiteralPath "$Destination/README.md" -Encoding UTF8
-$archive=Join-Path $sdkRoot "dist/NimbyRailsFranceSDK-kotlin-$sdkVersion-windows-x64.zip"
+if(!$ArchiveDirectory){$ArchiveDirectory=Join-Path $sdkRoot 'dist'}
+$archive=Join-Path $ArchiveDirectory "NimbyRailsFranceSDK-kotlin-$sdkVersion-windows-x64.zip"
 New-Item -ItemType Directory -Path (Split-Path $archive) -Force | Out-Null
 Compress-Archive -Path "$Destination/*" -DestinationPath $archive -Force
 Write-Output "Kotlin developer SDK: $Destination"

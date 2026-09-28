@@ -22,7 +22,7 @@ class PluginContractTest {
             File file = new File(sdk, it); file.parentFile.mkdirs(); file.text = 'fixture'
         }
         new File(sdk, 'sdk.json').text = JsonOutput.toJson([format: 1, target: target, kotlinVersion: '2.2.20',
-            sdkVersion: '0.8.0', gradlePluginVersion: '0.8.0-alpha.1', gameSha256: ['a' * 64]])
+            sdkVersion: '0.8.0', gradlePluginVersion: NrfModPlugin.pluginVersion(), gameSha256: ['a' * 64]])
         root
     }
     private GradleRunner runner(File root, String... tasks) {
@@ -40,6 +40,15 @@ class PluginContractTest {
         File metadata = new File(root, 'sdk with spaces/sdk.json')
         metadata.text = metadata.text.replace('"sdkVersion":"0.8.0"', '"sdkVersion":"0.9.0"')
         assertTrue(runner(root, 'tasks').buildAndFail().output.contains('outside [0.8.0, 0.9.0)'))
+    }
+
+    @Test void rejectsPluginFromAnotherKit() {
+        File root = project()
+        File metadata = new File(root, 'sdk with spaces/sdk.json')
+        def data = new JsonSlurper().parse(metadata)
+        data.gradlePluginVersion = '0.0.1'
+        metadata.text = JsonOutput.toJson(data)
+        assertTrue(runner(root, 'tasks').buildAndFail().output.contains('Select the plugin supplied by sdk.json'))
     }
     @Test void packageDependsOnTestsAndNativeVerification() {
         def output = runner(project(), 'packageMod', '--dry-run').build().output

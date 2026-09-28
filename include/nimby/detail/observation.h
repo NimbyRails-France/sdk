@@ -193,6 +193,15 @@ typedef struct NimbyTrackJunction {
     int32_t main_direction, branch_direction;
 } NimbyTrackJunction;
 
+// Optional native metric, observed twice for the qualified binary profile.
+// Distance between native fractions u/v is abs(v-u)*length_m, as in the
+// runtime route scanner. Omitted rows are unavailable, not zero-length tracks.
+// This is not a geometry polyline or a guarantee of complete/stable topology.
+typedef struct NimbyTrackMetric {
+    uint64_t track_id;
+    double length_m;
+} NimbyTrackMetric;
+
 // Experimental native query interval on one track, normalized low <= high.
 // Not an ordered route, switch position, signal permission or proof of a free block.
 // Multiple entries may overlap (including multiple cars of the same train).
@@ -280,6 +289,7 @@ NIMBY_API uint32_t __cdecl NimbyInternal_CopySignalExtensionsStates(NimbySnapsho
 NIMBY_API uint32_t __cdecl NimbyInternal_CopySignalExtensionFields(NimbySnapshot snapshot, NimbySignalExtensionField* records, uint32_t capacity, uint32_t* required) NIMBY_NOEXCEPT;
 NIMBY_API uint32_t __cdecl NimbyInternal_CopyTrackNodes(NimbySnapshot snapshot, NimbyTrackNode* records, uint32_t capacity, uint32_t* required) NIMBY_NOEXCEPT;
 NIMBY_API uint32_t __cdecl NimbyInternal_CopyTrackJunctions(NimbySnapshot snapshot, NimbyTrackJunction* records, uint32_t capacity, uint32_t* required) NIMBY_NOEXCEPT;
+NIMBY_API uint32_t __cdecl NimbyInternal_CopyTrackMetrics(NimbySnapshot snapshot, NimbyTrackMetric* records, uint32_t capacity, uint32_t* required) NIMBY_NOEXCEPT;
 // These components are captured independently. DATA_UNAVAILABLE means unknown,
 // not zero reservations/occupations. NIMBY_OK with count=0 means observed empty.
 // Read-only native reservations; does not invoke script-defined virtual reservations.

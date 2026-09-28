@@ -12,6 +12,11 @@ import java.security.MessageDigest
 
 /** Shared build contract. It never installs into the game or publishes a release. */
 class NrfModPlugin implements Plugin<Project> {
+    static String pluginVersion() {
+        Properties metadata = new Properties()
+        NrfModPlugin.getResourceAsStream('/nrf-plugin.properties').withCloseable { metadata.load(it) }
+        metadata.getProperty('version')
+    }
     void apply(Project p) {
         Map mod = ModManifest.read(p.file('mod.json'))
         String sdkPath = p.providers.gradleProperty('nrfSdkDir').orElse(p.providers.environmentVariable('NRF_KOTLIN_SDK')).orNull
@@ -30,8 +35,8 @@ class NrfModPlugin implements Plugin<Project> {
         platform.requiredFiles().each {
             if (!new File(sdk, it).isFile()) throw new GradleException("Incomplete Kotlin SDK: missing ${it} in ${sdk}")
         }
-        if (metadata.format != 1 || metadata.kotlinVersion != '2.2.20' || metadata.gradlePluginVersion != '0.8.0-alpha.1')
-            throw new GradleException('Incompatible Kotlin SDK: expected format 1, Kotlin 2.2.20, Gradle plugin 0.8.0-alpha.1.')
+        if (metadata.format != 1 || metadata.kotlinVersion != '2.2.20' || metadata.gradlePluginVersion != pluginVersion())
+            throw new GradleException("Incompatible Kotlin SDK: expected format 1, Kotlin 2.2.20, Gradle plugin ${pluginVersion()}. Select the plugin supplied by sdk.json in pluginManagement.")
         ModManifest.check(metadata.sdkVersion, ModManifest.VERSION, 'SDK sdkVersion')
         if (ModManifest.compareVersions(metadata.sdkVersion, mod.sdkMin) < 0 || ModManifest.compareVersions(metadata.sdkVersion, mod.sdkMaxExclusive) >= 0)
             throw new GradleException("SDK ${metadata.sdkVersion} is outside [${mod.sdkMin}, ${mod.sdkMaxExclusive}).")

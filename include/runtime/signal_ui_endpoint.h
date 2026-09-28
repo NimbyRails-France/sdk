@@ -16,7 +16,7 @@ public:
         if(token)*token=0;
         return boundary([&]() -> uint32_t {
             if(!source||!token||source->size!=sizeof(*source)||source->version!=NIMBY_SIGNAL_UI_ABI||
-               source->reserved||!source->count||source->count>64)return NIMBY_INVALID_ARGUMENT;
+               source->reserved||source->count>64)return NIMBY_INVALID_ARGUMENT;
             std::vector<SignalCheckbox> fields;
             for(uint32_t i=0;i<source->count;++i){const auto& box=source->checkboxes[i];
                 if(box.default_value>1)return NIMBY_INVALID_ARGUMENT;
@@ -29,12 +29,120 @@ public:
     uint32_t remove(uint64_t token) noexcept {
         return boundary([&]{return host.remove(token)?NIMBY_OK:NIMBY_INVALID_HANDLE;});
     }
+    uint32_t translations(uint32_t kind,uint64_t token,const char* bytes,uint32_t length)noexcept {
+        return boundary([&]() -> uint32_t {
+            if(kind>1||!bytes||!length||length>detail::Translations::maximumBytes)return NIMBY_INVALID_ARGUMENT;
+            auto catalog=std::make_shared<const detail::Translations>(std::string_view(bytes,length));
+            return host.translations(kind==1,token,std::move(catalog))?NIMBY_OK:NIMBY_INVALID_HANDLE;
+        });
+    }
+    uint32_t actions(uint64_t owner,const NimbyUiActionV1* source,uint32_t count)noexcept {
+        return boundary([&]() -> uint32_t {
+            if(count>16||(!source&&count))return NIMBY_INVALID_ARGUMENT;
+            std::vector<SignalActions::Action> actions;
+            for(uint32_t i=0;i<count;++i)actions.push_back({std::string(text(source[i].id)),std::string(text(source[i].label)),
+                std::string(text(source[i].provider)),std::string(text(source[i].service))});
+            return host.actions->configure(owner,std::move(actions))?NIMBY_OK:NIMBY_INVALID_HANDLE;
+        });
+    }
+    uint32_t panelContext(uint64_t owner,uint64_t session,uint64_t generation)noexcept {
+        return boundary([&]() -> uint32_t {
+            if(!generation)return NIMBY_INVALID_ARGUMENT;
+            const auto store=host.store(owner);if(!store)return NIMBY_INVALID_HANDLE;
+            const auto world=store->sessionIdentity(session);if(!world)return NIMBY_INVALID_HANDLE;
+            return host.actions->panelContext(owner,{*world,generation})?NIMBY_OK:NIMBY_INVALID_HANDLE;
+        });
+    }
+    uint32_t addProvider(const NimbyUiProviderV1* source,uint64_t* token)noexcept {
+        if(token)*token=0;
+        return boundary([&]() -> uint32_t {
+            if(!source||!token||source->size!=sizeof(*source)||source->version!=1||source->reserved||source->count>32)return NIMBY_INVALID_ARGUMENT;
+            std::vector<std::string> services;
+            for(uint32_t i=0;i<source->count;++i)services.emplace_back(text(source->services[i]));
+            *token=host.actions->addProvider(std::string(text(source->id)),std::move(services));return NIMBY_OK;
+        });
+    }
+    uint32_t removeProvider(uint64_t token)noexcept {return boundary([&]{return host.removeProvider(token)?NIMBY_OK:NIMBY_INVALID_HANDLE;});}
+    uint32_t observeProvider(uint64_t token,const char* world,uint32_t length,uint64_t generation)noexcept {
+        return boundary([&]() -> uint32_t {
+            if(!world||!length||length>512||!generation)return NIMBY_INVALID_ARGUMENT;
+            return host.actions->observeProvider(token,{std::string(world,length),generation})?NIMBY_OK:NIMBY_INVALID_HANDLE;
+        });
+    }
+    uint32_t suspendProvider(uint64_t token)noexcept {return boundary([&]{return host.actions->suspendProvider(token)?NIMBY_OK:NIMBY_INVALID_HANDLE;});}
+    uint32_t pollProvider(uint64_t token,NimbyUiActionEventV1* out)noexcept {
+        return boundary([&]() -> uint32_t {
+            if(!out||out->size!=sizeof(*out)||out->version!=1)return NIMBY_INVALID_ARGUMENT;
+            *out={};out->size=sizeof(*out);out->version=1;
+            const auto event=host.actions->poll(token);if(!event)return NIMBY_DATA_UNAVAILABLE;
+            out->sequence=event->sequence;out->signal=event->selection.editor.signal;
+            out->generation=event->selection.context.generation;out->panel=event->selection.panel;
+            copy(out->origin,event->selection.origin);
+            copy(out->action,event->selection.action.id);copy(out->service,event->selection.action.service);copy(out->world,event->selection.context.world);
+            return NIMBY_OK;
+        });
+    }
+    uint32_t pollProviderV2(uint64_t token,NimbyUiActionEventV2* out)noexcept {
+        return boundary([&]() -> uint32_t {
+            if(!out||out->base.size!=sizeof(*out)||out->base.version!=2)return NIMBY_INVALID_ARGUMENT;
+            *out={};out->base.size=sizeof(*out);out->base.version=2;
+            const auto event=host.actions->poll(token);if(!event)return NIMBY_DATA_UNAVAILABLE;
+            auto& base=out->base;const auto& s=event->selection;
+            base.sequence=event->sequence;base.signal=s.editor.signal;base.generation=s.context.generation;base.panel=s.panel;
+            copy(base.origin,s.origin);copy(base.action,s.action.id);copy(base.service,s.action.service);copy(base.world,s.context.world);
+            out->has_value=s.value.has_value();out->value=s.value.value_or(0);return NIMBY_OK;
+        });
+    }
+    uint32_t present(const char* id,uint32_t length,uint32_t* out)noexcept {
+        if(out)*out=0;
+        return boundary([&]() -> uint32_t {
+            if(!out||!id||!length||length>128||std::memchr(id,0,length))return NIMBY_INVALID_ARGUMENT;
+            *out=host.actions->present({id,length})?1:0;return NIMBY_OK;
+        });
+    }
+    uint32_t publishToolPanel(uint64_t provider,const NimbyUiToolPanelV1* panel)noexcept {
+        return boundary([&]() -> uint32_t {
+            if(!panel||panel->size!=sizeof(*panel)||panel->version!=1||panel->reserved||panel->count>12||panel->signal>>48!=8)return NIMBY_INVALID_ARGUMENT;
+            std::vector<SignalActions::Button> buttons;
+            for(uint32_t i=0;i<panel->count;++i){const auto& b=panel->buttons[i];if(b.enabled>1)return NIMBY_INVALID_ARGUMENT;
+                buttons.push_back({std::string(text(b.id)),std::string(text(b.label)),b.enabled!=0});}
+            return host.actions->publish(provider,panel->panel,panel->signal,std::string(text(panel->origin)),std::string(text(panel->service)),std::string(text(panel->message)),std::move(buttons))?NIMBY_OK:NIMBY_INVALID_HANDLE;
+        });
+    }
+    uint32_t publishToolPanelV2(uint64_t provider,const NimbyUiToolPanelV2* source)noexcept {
+        return boundary([&]() -> uint32_t {
+            if(!source)return NIMBY_INVALID_ARGUMENT;
+            const auto& p=source->base;
+            if(p.size!=sizeof(*source)||p.version!=2||p.reserved||p.count>12||p.signal>>48!=8||source->reserved||source->input_count>4)return NIMBY_INVALID_ARGUMENT;
+            std::vector<SignalActions::Button> buttons;std::vector<SignalActions::NumberInput> inputs;
+            for(uint32_t i=0;i<p.count;++i){const auto& b=p.buttons[i];if(b.enabled>1)return NIMBY_INVALID_ARGUMENT;
+                buttons.push_back({std::string(text(b.id)),std::string(text(b.label)),b.enabled!=0});}
+            for(uint32_t i=0;i<source->input_count;++i){const auto& n=source->inputs[i];if(n.enabled>1)return NIMBY_INVALID_ARGUMENT;
+                inputs.push_back({std::string(text(n.id)),std::string(text(n.label)),n.value,n.minimum,n.maximum,n.enabled!=0});}
+            return host.actions->publish(provider,p.panel,p.signal,std::string(text(p.origin)),std::string(text(p.service)),std::string(text(p.message)),std::move(buttons),std::move(inputs))?NIMBY_OK:NIMBY_INVALID_HANDLE;
+        });
+    }
+    uint32_t publishPreview(uint64_t provider,const NimbyUiSignalPreviewV1* source)noexcept {
+        return boundary([&]() -> uint32_t {
+            if(!source||source->size!=sizeof(*source)||source->version!=1||source->reserved||source->count>64)return NIMBY_INVALID_ARGUMENT;
+            if(!source->count)return host.actions->publishPreview(provider,0,0,{},{},{})?NIMBY_OK:NIMBY_INVALID_HANDLE;
+            if(source->signal>>48!=8)return NIMBY_INVALID_ARGUMENT;
+            return host.actions->publishPreview(provider,source->panel,source->signal,std::string(text(source->origin)),
+                std::string(text(source->service)),{source->positions,source->positions+source->count})?NIMBY_OK:NIMBY_INVALID_HANDLE;
+        });
+    }
+    uint32_t conditionalVisibility(uint64_t token,uint64_t mask) noexcept {
+        return boundary([&]() -> uint32_t {
+            const auto store=host.store(token);if(!store)return NIMBY_INVALID_HANDLE;
+            return store->conditionalVisibility(mask)?NIMBY_OK:NIMBY_INVALID_ARGUMENT;
+        });
+    }
     uint32_t begin(uint64_t token,const char* identity,uint32_t length,uint64_t* session) noexcept {
         if(session)*session=0;
         return boundary([&]() -> uint32_t {
             if(!identity||!session||!length||length>512)return NIMBY_INVALID_ARGUMENT;
             const auto store=host.store(token);if(!store)return NIMBY_INVALID_HANDLE;
-            *session=store->beginSession({identity,length});return NIMBY_OK;
+            *session=store->beginSession({identity,length});host.actions->panelContext(token,{});return NIMBY_OK;
         });
     }
     uint32_t observe(uint64_t token,uint64_t session,const NimbyUiSignalV1* source,uint32_t count) noexcept {
@@ -70,13 +178,13 @@ public:
                 return NIMBY_INVALID_ARGUMENT;
             const auto store=host.store(token);if(!store)return NIMBY_INVALID_HANDLE;
             const auto saved=detail::SignalSettingsFile::decode({bytes,length});
-            *session=store->beginSession({identity,identityLength},&saved);return NIMBY_OK;
+            *session=store->beginSession({identity,identityLength},&saved);host.actions->panelContext(token,{});return NIMBY_OK;
         });
     }
     uint32_t suspend(uint64_t token) noexcept {
         return boundary([&]() -> uint32_t {
             const auto store=host.store(token);if(!store)return NIMBY_INVALID_HANDLE;
-            store->suspendObservations();return NIMBY_OK;
+            store->suspendObservations();host.actions->panelContext(token,{});return NIMBY_OK;
         });
     }
     uint32_t read(uint64_t token,uint64_t signal,NimbyUiValuesV1* out) noexcept {
@@ -94,6 +202,10 @@ public:
         });
     }
 private:
+    template<size_t N> static void copy(char (&out)[N],std::string_view value){
+        if(value.size()>=N)throw std::length_error("Signal action text too long");
+        std::memcpy(out,value.data(),value.size());out[value.size()]=0;
+    }
     template<size_t N> static std::string_view text(const char (&value)[N]) {
         const auto end=static_cast<const char*>(std::memchr(value,0,N));
         if(!end)throw std::invalid_argument("Unterminated UI text");

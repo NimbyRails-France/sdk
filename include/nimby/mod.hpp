@@ -4,6 +4,7 @@
 #include <nimby/block_observation.hpp>
 #include <nimby/observation_loop.hpp>
 #include <nimby/detail/control.h>
+#include <nimby/detail/signal_ui_bridge.h>
 
 namespace nimby {
 // High-level reader for mods linked with NimbyRailsFranceSDK::Mod.
@@ -18,6 +19,10 @@ ObservationLoopStatus modObservationStatus();
 // Current C++ panel values. Unavailable until the SDK has established the save
 // identity and observed its signals; never falls back to NimbyScript.
 SignalSettings readSignalSettings(Id signal);
+// SDK-private tool adapter transport. Only valid on this mod's worker.
+uint32_t publishToolPanel(const NimbyUiToolPanelV1& panel);
+uint32_t publishToolPanel(const NimbyUiToolPanelV2& panel);
+uint32_t publishSignalPreview(const NimbyUiSignalPreviewV1& preview);
 
 // Callbacks are compiled into the same mod DLL as the SDK adapter.
 // They may throw: the adapter converts exceptions to loader status codes.
@@ -44,6 +49,16 @@ struct Mod {
     // Local recipe endpoint, explicitly stopped by the adapter before unload.
     const char* controlId=nullptr;
     NimbyControlHandler control=nullptr;
+    // Additional model panels of the SAME mod. All declarations must outlive
+    // the adapter. Each panel has its own catalogue, defaults and persistence.
+    std::span<const SignalSettingsPanel> additionalSignalSettings{};
+    std::string_view id{};
+    std::span<const std::string> services{};
+    // SDK-private UTF-8 JSON, owned by the adapter for its lifetime.
+    std::string_view translationsJson{};
+    // Invoked on this mod's observation worker, never on the native UI thread.
+    void (*signalAction)(const NimbyUiActionEventV1&,const Snapshot&)=nullptr;
+    void (*signalActionV2)(const NimbyUiActionEventV2&,const Snapshot&)=nullptr;
 };
 
 // Implement once in mod.cpp. Called explicitly by NRF Loader, never in DllMain.

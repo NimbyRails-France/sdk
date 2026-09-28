@@ -141,6 +141,11 @@ internal class NimbyTrackJunction(private val p: Pointer) {
     val mainDirection: Int get() = p.getInt(24L)
     val branchDirection: Int get() = p.getInt(28L)
 }
+internal class NimbyTrackMetric(private val p: Pointer) {
+    companion object { const val SIZE = 16 }
+    val trackId: Long get() = p.getLong(0L)
+    val lengthM: Double get() = p.getDouble(8L)
+}
 internal class NimbyTrackUsage(private val p: Pointer) {
     companion object { const val SIZE = 32 }
     val trainId: Long get() = p.getLong(0L)

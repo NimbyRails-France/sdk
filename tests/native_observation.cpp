@@ -91,6 +91,9 @@ uint32_t __cdecl NimbyInternal_GetSnapshotInfo(NimbySnapshot, NimbySnapshotInfo*
     std::strcpy(out->game_sha256, "fixture");
     return NIMBY_OK;
 }
+uint32_t __cdecl NimbyInternal_CopyTrackMetrics(NimbySnapshot, NimbyTrackMetric*, uint32_t, uint32_t* count) noexcept {
+    *count=0;return NIMBY_DATA_UNAVAILABLE;
+}
 uint32_t __cdecl NimbyInternal_CopyTrains(NimbySnapshot s, NimbyTrain* out, uint32_t cap, uint32_t* n) noexcept {
     NimbyTrain train{}; train.id = 0x10000000001ULL; train.track_id = 20;
     train.flags = NIMBY_TRAIN_ACTIVE_DRIVE | NIMBY_TRAIN_SPEED_VALID | NIMBY_TRAIN_POSITION_VALID;

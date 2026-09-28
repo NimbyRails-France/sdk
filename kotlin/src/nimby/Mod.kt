@@ -1,18 +1,46 @@
 package nimby
 
 /** API de mod Kotlin. Les unités sont mètres, secondes, m/s, kg, N et W. */
-data class Checkbox(val name: String, val label: String, val description: String, val defaultValue: Boolean = false)
+data class Checkbox(val name: String, val label: String, val description: String, val defaultValue: Boolean = false,
+    /** Pour un avertissement importé : visible tant qu'il reste à acquitter. */
+    val onlyWhenEnabled: Boolean = false)
+
+/** Un modèle constructible du mod. Les identifiants restent stables entre versions
+ * pour retrouver les textures et les réglages des parties existantes.
+ * Les noms de cases sont locaux au type : deux types peuvent avoir une case
+ * « active » avec des valeurs par défaut différentes. */
+data class SignalType(
+    val id: String,
+    val title: String,
+    val textureSet: String,
+    val checkboxes: List<Checkbox> = emptyList(),
+    /** Demande l'observation d'un train orienté vers ce signal, dans [approachBlocks] cantons en amont.
+     * Ne constitue pas une réservation ni une autorisation de mouvement. */
+    val observeApproach: Boolean = false,
+    val actions: List<SignalAction> = emptyList(),
+    /** Portée lorsque [observeApproach] est activé : 1 = canton immédiatement
+     * derrière le signal ; 2 = les deux cantons précédents. De 1 à 16.
+     * Le parcours suit la tête du train, sans choisir de branche à une aiguille.
+     * Le SDK fournit une observation ; le mod décide si elle autorise l'ouverture. */
+    val approachBlocks: Int = 1
+)
 enum class Occupancy { Unknown, Clear, Occupied }
 enum class SettingsStatus { Unavailable, Absent, Present }
 data class Observation(
     val block: Occupancy = Occupancy.Unknown, val fresh: Boolean = false,
     val routeKnown: Boolean = false, val forcedStop: Boolean = false,
-    val lampFailed: Boolean = false, val redFlashCondition: Boolean = false, val next: Int = 0
+    val lampFailed: Boolean = false, val redFlashCondition: Boolean = false, val next: Int = 0,
+    val approachingTrain: Long? = null
 )
+/** Transport opaque, propre à la déclaration du mod. Ne pas persister ces codes
+ * ni les utiliser comme indices d'enum : SignallingMod.indication les décode.
+ * Les recettes du banc utilisent séparément les ordinaux locaux du modèle. */
 data class Decision(val aspect: Int, val reason: Int)
 data class Signal(
     val id: Long = 0, val nextSignal: Long = 0, val settings: Map<String, Boolean> = emptyMap(),
-    val observation: Observation = Observation(), val settingsStatus: SettingsStatus = SettingsStatus.Present
+    val observation: Observation = Observation(), val settingsStatus: SettingsStatus = SettingsStatus.Present,
+    /** Identifiant de SignalType, fourni par le SDK à partir du catalogue observé. */
+    val type: String = ""
 )
 data class Vehicle(
     val maxSpeedMps: Double = 0.0, val maxAccelerationMps2: Double = 0.0,
@@ -43,16 +71,30 @@ data class DrivingRule(
 )
 
 /** Une seule implémentation Kotlin suffit. Le SDK fournit DLL, exports et boucle de lecture. */
-abstract class SignallingMod {
-    abstract val id: String
-    abstract val title: String
-    abstract val textureSet: String
-    abstract val checkboxes: List<Checkbox>
+abstract class SignallingMod : GameMod() {
+    // Compatibilité des mods à un type. Les nouveaux mods déclarent signalTypes.
+    open val textureSet: String = ""
+    open val checkboxes: List<Checkbox> = emptyList()
+    open val signalTypes: List<SignalType> get() = listOf(SignalType(id, title, textureSet, checkboxes))
+    /** Convertit les anciennes cases lors du chargement d'un profil sauvegardé.
+     * Ne reçoit que les valeurs enregistrées, sans inventer de valeurs absentes.
+     * Retourner les nouvelles clés ; le SDK complète leurs valeurs par défaut. */
+    open fun migrateSettings(type: String, saved: Map<String, Boolean>): Map<String, Boolean> = saved
     open val maximumLineSpeed = false
     open val diagnosticFile: String = "nimby-kotlin-faults.jsonl"
     abstract val unknownDecision: Decision
     abstract val invalidNetworkDecision: Decision
+    /** Le pont natif conserve alors le propriétaire de chaque indication. */
+    open val modelLocalIndications: Boolean = false
+    open fun unknownDecision(type: String): Decision = unknownDecision
+    open fun invalidNetworkDecision(type: String): Decision = invalidNetworkDecision
+    /** Lecture typée des décisions produites par signalModel ; null pour un code inconnu. */
+    open fun indication(decision: Decision): SignalIndication? = null
     abstract fun evaluate(settings: Map<String, Boolean>, observation: Observation): Decision
+    /** Calcul isolé d'un type. Le réseau utilise decide et Signal.type.
+     * Les décisions brutes sont opaques ; indication permet leur lecture typée. */
+    open fun evaluate(type: String, settings: Map<String, Boolean>, observation: Observation): Decision =
+        evaluate(settings, observation)
     abstract fun decide(signal: Signal, next: Decision?): Decision?
     open fun fromLive(signal: Signal): Signal = signal
     abstract fun texture(decision: Decision, simulationMs: Long, halfPeriodMs: Long): String
@@ -60,6 +102,7 @@ abstract class SignallingMod {
      * Le motif determine aussi la conduite : arret absolu ou permissif.
      * Aucun aspect, motif ni vitesse ne sont interpretes par le SDK. */
     open fun forcedDecision(aspect: Int): Decision? = null
+    open fun forcedDecision(type: String, aspect: Int): Decision? = forcedDecision(aspect)
     abstract fun drivingRule(decision: Decision): DrivingRule?
     abstract fun isFault(decision: Decision): Boolean
     open fun isActive(decision: Decision): Boolean = true
@@ -69,8 +112,15 @@ abstract class SignallingMod {
 }
 
 /** Résolution des liens, commune aux mods et aux tests, sans récursion profonde. */
-fun SignallingMod.evaluateNetwork(signals: List<Signal>): List<Decision> {
-    require(signals.size <= 512)
+fun SignallingMod.evaluateNetwork(input: List<Signal>): List<Decision> {
+    require(input.size <= 512)
+    val types = signalTypes
+    validateSignalTypes(types)
+    val knownTypes = types.map { it.id }.toSet()
+    val signals = input.map { signal ->
+        if (signal.type.isEmpty()) signal.copy(type = types.first().id)
+        else signal.also { require(it.type in knownTypes) { "Type de signal inconnu : ${it.type}" } }
+    }
     val index = signals.mapIndexed { i, signal -> signal.id to i }.toMap()
     require(index.size == signals.size && signals.none { it.id == 0L })
     val results = arrayOfNulls<Decision>(signals.size)
@@ -81,18 +131,18 @@ fun SignallingMod.evaluateNetwork(signals: List<Signal>): List<Decision> {
         var current = start
         while (state[current] != 2) {
             if (state[current] == 1) {
-                pending.forEach { results[it] = invalidNetworkDecision; state[it] = 2 }
+                pending.forEach { results[it] = invalidNetworkDecision(signals[it].type); state[it] = 2 }
                 break
             }
             val local = decide(signals[current], null)
             if (local != null) { results[current] = local; state[current] = 2; break }
             val next = index[signals[current].nextSignal]
-            if (next == null) { results[current] = invalidNetworkDecision; state[current] = 2; break }
+            if (next == null) { results[current] = invalidNetworkDecision(signals[current].type); state[current] = 2; break }
             state[current] = 1; pending.add(current); current = next
         }
         for (i in pending.asReversed()) {
             if (state[i] == 2) continue
-            results[i] = decide(signals[i], results[index.getValue(signals[i].nextSignal)]) ?: invalidNetworkDecision
+            results[i] = decide(signals[i], results[index.getValue(signals[i].nextSignal)]) ?: invalidNetworkDecision(signals[i].type)
             state[i] = 2
         }
     }

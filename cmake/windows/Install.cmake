@@ -19,10 +19,10 @@ install(DIRECTORY include/nimby DESTINATION include)
 install(CODE "file(REMOVE \"\${CMAKE_INSTALL_PREFIX}/include/nimby/client.hpp\")")
 install(FILES src/mod/entry.cpp DESTINATION share/NimbyRailsFranceSDK/mod)
 install(DIRECTORY kotlin/ DESTINATION share/NimbyRailsFranceSDK/kotlin)
+install(FILES third_party/nlohmann-json-LICENSE.MIT DESTINATION share/licenses/nlohmann-json)
 install(FILES third_party/windows/minhook/LICENSE.txt DESTINATION share/licenses/MinHook)
 install(FILES docs/developing.md DESTINATION share/doc/NimbyRailsFranceSDK)
-install(DIRECTORY examples/kotlin-mod examples/kotlin-observer DESTINATION share/NimbyRailsFranceSDK/examples
-    PATTERN ".idea" EXCLUDE PATTERN ".gradle" EXCLUDE PATTERN ".kotlin" EXCLUDE PATTERN "build" EXCLUDE)
+# Tutorials live on the wiki; installed packages contain no starter projects.
 install(DIRECTORY kotlin-client DESTINATION share/NimbyRailsFranceSDK
     PATTERN ".idea" EXCLUDE PATTERN ".gradle" EXCLUDE PATTERN ".kotlin" EXCLUDE PATTERN "build" EXCLUDE)
 install(DIRECTORY docs/ DESTINATION share/doc/NimbyRailsFranceSDK

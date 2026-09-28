@@ -81,11 +81,14 @@ public:
     }
     static NetworkResult evaluateNetwork(const NetworkRequest& request,bool live) {
         checkClock(request.simulationMs,request.halfPeriodMs);
-        const auto decisions=nimby::evaluateSignals(request.signals.values(),[live](const auto& signal,const auto& next) {
+        const auto decisions=nimby::evaluateSignalsWithFallback<typename Rules::Decision>(request.signals.values(),[live](const auto& signal,const auto& next) {
                 if constexpr(controllable)if(live)if(auto forced=controlState().forced(signal.id))return forced;
                 return Rules::decide(signal,next);
             },
-            Rules::invalidNetworkDecision(),Rules::maxSignals);
+            [](const auto& signal) {
+                if constexpr(requires { Rules::invalidNetworkDecision(signal); }) return Rules::invalidNetworkDecision(signal);
+                else return Rules::invalidNetworkDecision();
+            },Rules::maxSignals);
         NetworkResult result;
         for(const auto& decision:decisions)
             result.signals.push_back({decision.id,image(decision.decision,request.simulationMs,request.halfPeriodMs)});
@@ -109,6 +112,8 @@ public:
             mod.observe = observeLive;
             mod.observationScope = SnapshotScope::Signalling;
             mod.observationTextureSet = Rules::textureSet;
+            if constexpr(requires { Rules::multipleTypes(); })
+                if(Rules::multipleTypes())mod.observationTextureSet={};
             mod.observationIntervalMs = 20;
             mod.observationLost = restoreLive;
             mod.stop = stopLive;
@@ -146,7 +151,7 @@ private:
         if constexpr(requires(Id id,typename Rules::Decision decision){Rules::drivingRule(id,decision);})
             AutomaticDriving::release();
     }
-    struct Rendered { std::string first,alternate; std::chrono::steady_clock::time_point renewed; };
+    struct Rendered { std::string first,alternate,catalogue; std::chrono::steady_clock::time_point renewed; };
     static std::unordered_map<Id,Rendered>& rendered() {
         static std::unordered_map<Id,Rendered> values;return values;
     }
@@ -157,7 +162,10 @@ private:
         request.simulationMs = clock->getElapsedTime().count();
         // Read C++ panel values owned by this mod's SDK adapter. Until the
         // native session/UI bridge is ready, this returns Unavailable.
-        auto states = observeSignals(snapshot, Rules::textureSet, Rules::maxSignals);
+        auto states = [&] {
+            if constexpr(requires { Rules::observe(snapshot); })return Rules::observe(snapshot);
+            else return observeSignals(snapshot, Rules::textureSet, Rules::maxSignals);
+        }();
         std::unique_lock<std::mutex> controlLock;
         if constexpr(controllable){controlLock=std::unique_lock(controlState().mutex);controlState().observe(snapshot,states);}
         for (auto& state : states) {
@@ -191,17 +199,20 @@ private:
             if (std::find(owned.begin(), owned.end(), row.signal) == owned.end()) owned.push_back(row.signal);
             const auto first=Rules::texture(row.result.decision,0,request.halfPeriodMs);
             const auto alternate=Rules::texture(row.result.decision,request.halfPeriodMs,request.halfPeriodMs);
+            const auto source=std::find_if(states.begin(),states.end(),[&](const auto& s){return s.id==row.signal;});
+            if(source==states.end())throw std::logic_error("Missing rendered signal type");
             // React immediately to changes; renew identical leases less often.
             // Reading occupancy must not repeatedly reload the same texture.
             const auto now=std::chrono::steady_clock::now();
             const auto previous=rendered().find(row.signal);
             if(previous!=rendered().end()&&previous->second.first==first&&previous->second.alternate==alternate&&
+               previous->second.catalogue==source->textureSet&&
                now-previous->second.renewed<Milliseconds{500})continue;
-            const TextureImage image{Rules::textureSet,std::string(first)};
+            const TextureImage image{source->textureSet,std::string(first)};
             const auto textures=SignalTextures::inGame();
             if(first==alternate) textures.showFor(row.signal,image,Milliseconds{2500});
             else textures.animateFor(row.signal,image,alternate,Milliseconds{request.halfPeriodMs},Milliseconds{2500});
-            rendered()[row.signal]={std::string(first),std::string(alternate),now};
+            rendered()[row.signal]={std::string(first),std::string(alternate),source->textureSet,now};
         }
     }
     static void checkClock(std::int64_t time,std::int64_t halfPeriod) {

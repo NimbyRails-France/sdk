@@ -43,6 +43,10 @@ int main(int argc,char** argv) {
     CHECK(NimbyInternal_CopySignalTextures(0,nullptr,0,nullptr)==NIMBY_INVALID_ARGUMENT);
     CHECK(NimbyInternal_CopyTrackNodes(0,nullptr,0,&count)==NIMBY_INVALID_HANDLE&&count==0);
     CHECK(NimbyInternal_CopyTrackJunctions(0,nullptr,0,&count)==NIMBY_INVALID_HANDLE&&count==0);
+    static_assert(sizeof(NimbyTrackMetric)==16);
+    CHECK(NimbyInternal_CopyTrackMetrics(0,nullptr,0,&count)==NIMBY_INVALID_HANDLE&&count==0);
+    CHECK(NimbyInternal_CopyTrackMetrics(0,nullptr,1,&count)==NIMBY_INVALID_ARGUMENT&&count==0);
+    CHECK(NimbyInternal_CopyTrackMetrics(0,nullptr,0,nullptr)==NIMBY_INVALID_ARGUMENT);
     CHECK(NimbyInternal_CopyTrackReservations(0,nullptr,0,&count)==NIMBY_INVALID_HANDLE&&count==0);
     CHECK(NimbyInternal_CopyTrackOccupations(0,nullptr,0,&count)==NIMBY_INVALID_HANDLE&&count==0);
     CHECK(NimbyInternal_CopyTrackReservations(0,nullptr,1,&count)==NIMBY_INVALID_ARGUMENT&&count==0);

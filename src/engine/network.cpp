@@ -18,6 +18,20 @@ using memory::pointer;
 using memory::collect;
 using memory::position;
 namespace {
+double stable_track_metric(ReadMemory read,void* context,const LiveState& state,
+                           uint64_t address,const unsigned char* record) {
+    const auto offset=gameLayout(state.profile).track_metric_offset;
+    if(!offset||offset+sizeof(double)>0x90)return 0;
+    const auto metric=field<double>(record,offset);
+    if(!std::isfinite(metric)||metric<=0)return 0;
+    // Recheck identity, primary links and geometry header together. The outer
+    // pool reader also verifies its descriptors. A failed optional read must
+    // not discard trains/stations or fabricate a substitute length.
+    std::array<unsigned char,0x90> again{};
+    if(!read(context,address,again.data(),again.size())||
+       std::memcmp(record,again.data(),again.size())!=0)return 0;
+    return metric;
+}
 void resolve_station_names(ReadMemory read,void* context,const LiveState& state,
                            const std::map<uint64_t,size_t>& automatic,std::vector<Station>& stations) {
     if(automatic.empty())return;
@@ -61,6 +75,7 @@ bool read_network(ReadMemory read,void* context,const LiveState& state,bool reco
             t.links[0]=field<uint64_t>(p,8);t.links[1]=field<uint64_t>(p,16);
             t.x=field<double>(p,0x30);t.y=field<double>(p,0x38);
             t.geometry=std::isfinite(t.x)&&std::isfinite(t.y)&&std::abs(t.x)<1e9&&std::abs(t.y)<1e9;
+            if(!signallingOnly)t.native_length_m=stable_track_metric(read,context,state,address,p);
             Attachment attachment;attachment.address=address;
             std::memcpy(attachment.identity.data(),p,0x30);
             std::memcpy(attachment.data.data(),p+0x3f0,0x30);

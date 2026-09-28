@@ -55,6 +55,10 @@ struct Rules {
     static Vehicle withDynamics(const Vehicle& v,const nimby::TrainDynamics& d) { return {v.marker+d.maxSpeedMps}; }
 };
 using Runtime=nimby::SignallingRuntime<Rules>;
+// A different model's fallback must never be substituted on a broken link.
+struct TypedRules : Rules {
+    static Decision invalidNetworkDecision(const Signal& signal) { return -int(signal.id); }
+};
 }
 int main() {
     try {
@@ -66,6 +70,14 @@ int main() {
         network.signals.push_back({1,2,0}); network.signals.push_back({2,0,7});
         const auto evaluated=Runtime::network(network);
         CHECK(evaluated.signals.items[0].result.decision==7 && evaluated.signals.items[0].signal==1);
+        using TypedRuntime=nimby::SignallingRuntime<TypedRules>;
+        TypedRuntime::NetworkRequest mixed;
+        mixed.signals.push_back({3,4,0});mixed.signals.push_back({4,3,0});
+        const auto cycle=TypedRuntime::network(mixed);
+        CHECK(cycle.signals.items[0].result.decision==-3 && cycle.signals.items[1].result.decision==-4);
+        mixed.signals.items[0].nextSignal=99;
+        const auto missing=TypedRuntime::network(mixed);
+        CHECK(missing.signals.items[0].result.decision==-3 && missing.signals.items[1].result.decision==-3);
         Runtime::DrivingRequest driving;
         driving.vehicle.marker=4; driving.speedMps=1; driving.fresh=true;
         driving.visibleClearKnown=true; driving.visibleClearM=3;

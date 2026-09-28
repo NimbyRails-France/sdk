@@ -14,6 +14,13 @@ public:
     control::Lease lease;
     std::map<Id,typename Rules::Decision> decisions;
     std::map<Id,SignalSettings> settings;
+    std::map<Id,std::string> signalTypes;
+    std::span<const SignalCheckbox> checkboxes(Id signal) const {
+        if constexpr(requires(std::string_view catalogue){Rules::checkboxes(catalogue);}) {
+            const auto type=signalTypes.find(signal);
+            return type==signalTypes.end()?std::span<const SignalCheckbox>{}:Rules::checkboxes(type->second);
+        } else return Rules::checkboxes();
+    }
     std::optional<GameSession> game;
     uint64_t observedAt=0;
     const uint64_t publisher=static_cast<uint64_t>(std::chrono::steady_clock::now().time_since_epoch().count())|1u;
@@ -22,7 +29,7 @@ public:
         if(publishedTrains){detail::check(NimbyInternal_PublishTrainConstraints(nullptr,0,1000,publisher),"ReleaseTrainConstraints");publishedTrains=false;}
     }
     static uint64_t now(){return std::chrono::duration_cast<Milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();}
-    void lost(){lease.observe(0,{},{});game.reset();decisions.clear();settings.clear();observedAt=0;}
+    void lost(){lease.observe(0,{},{});game.reset();decisions.clear();settings.clear();signalTypes.clear();observedAt=0;}
     void observe(const Snapshot& snapshot,const std::vector<LiveSignalState>& states) {
         if(!snapshot.getGameSession())throw std::runtime_error("Control requires an observed world identity");
         if(game!=snapshot.getGameSession()){
@@ -31,14 +38,23 @@ public:
             lease.observe(static_cast<uint64_t>(std::chrono::steady_clock::now().time_since_epoch().count()),{},{});
         }
         std::set<uint64_t> signals,trains;
-        for(const auto& s:states)signals.insert(s.id);
+        std::map<Id,std::string> types;
+        for(const auto& s:states){signals.insert(s.id);types.emplace(s.id,s.textureSet);}
+        // Replacing a catalogue on an existing signal invalidates its recipe
+        // indices and forced aspect. Never apply a former type's checkbox.
+        for(const auto& [id,type]:types)if(const auto old=signalTypes.find(id);old!=signalTypes.end()&&old->second!=type) {
+            lease.signals.erase(id);
+            std::erase_if(lease.settings,[&](const auto& entry){return entry.first.first==id;});
+        }
+        signalTypes=std::move(types);
         for(const auto& t:snapshot.getAllTrains())trains.insert(t.getId());
         lease.observe(lease.generation(),std::move(signals),std::move(trains));
         observedAt=now();lease.active(observedAt);settings.clear();decisions.clear();
     }
     void overlay(Id signal,SignalSettings& value) {
         for(const auto& [key,on]:lease.settings)if(key.first==signal){
-            const auto boxes=Rules::checkboxes();
+            const auto boxes=checkboxes(signal);
+            if(key.second<0||static_cast<size_t>(key.second)>=boxes.size())continue;
             if(value.status!=SettingsStatus::Present) {
                 value.status=SettingsStatus::Present;
                 for(const auto& box:boxes)value.booleans[std::string(box.name)]=box.defaultValue;
@@ -66,13 +82,17 @@ public:
         if(result==NIMBY_OK)switch(request.operation){
         case NIMBY_CONTROL_FORCE_SIGNAL:
             if(!lease.knownSignals.contains(request.object)){result=NIMBY_DATA_UNAVAILABLE;break;}
-            if(const auto decision=Rules::forcedDecision(request.value)){
+            if(const auto decision=[&]() {
+                if constexpr(requires(std::string_view type){Rules::forcedDecision(type,request.value);})
+                    return Rules::forcedDecision(signalTypes.at(request.object),request.value);
+                else return Rules::forcedDecision(request.value);
+            }()){
                 lease.signals[request.object]={decision->aspect,decision->reason};
             }else result=NIMBY_INVALID_ARGUMENT;
             break;
         case NIMBY_CONTROL_SETTING:
             if(!lease.knownSignals.contains(request.object)){result=NIMBY_DATA_UNAVAILABLE;break;}
-            if(request.index<0||static_cast<size_t>(request.index)>=Rules::checkboxes().size()||
+            if(request.index<0||static_cast<size_t>(request.index)>=checkboxes(request.object).size()||
                (request.value!=0&&request.value!=1)){result=NIMBY_INVALID_ARGUMENT;break;}
             lease.settings[{request.object,request.index}]=request.value!=0;break;
         case NIMBY_CONTROL_READ_SIGNAL:
@@ -82,6 +102,10 @@ public:
                 const auto forced=lease.signals.find(request.object);
                 out.active=forced==lease.signals.end()?0u:
                     (forced->second.aspect==out.aspect&&forced->second.reason==out.reason?2u:1u);
+                if constexpr(requires { Rules::diagnosticDecision(at->second); }) {
+                    const auto local=Rules::diagnosticDecision(at->second);
+                    out.aspect=local.aspect;out.reason=local.reason;
+                }
             }else result=NIMBY_DATA_UNAVAILABLE;
             break;
         case NIMBY_CONTROL_READ_TRAIN: {

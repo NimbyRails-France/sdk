@@ -9,25 +9,29 @@ int main(int argc,char** argv){try{
  const auto count=std::stoi(argv[1]),interval=std::stoi(argv[2]);
  if(count<1||count>20000||interval<20||interval>10000)return 1;
  const auto mod=nimby::createMod();
+ std::vector<nimby::SignalSettingsPanel> panels{mod.signalSettings};
+ panels.insert(panels.end(),mod.additionalSignalSettings.begin(),mod.additionalSignalSettings.end());
  auto client=nimby::detail::ObservationSession(nimby::detail::discoverProcess());
  std::vector<nimby::Id> expectedSignals;
  std::string expectedWorld;
  for(int n=0;n<count;++n){try{
-  const auto snapshot=client.captureSignalling(nimby::kotlin::Rules::textureSet);
+  const auto snapshot=nimby::kotlin::Rules::multipleTypes()?client.captureSignalling():client.captureSignalling(nimby::kotlin::Rules::textureSet);
   const auto game=snapshot->getGameSession();if(!game)throw std::runtime_error("No world");
   if(n==0)expectedWorld=game->worldId;
   if(expectedWorld!=game->worldId)throw std::runtime_error("World changed during validation");
-  const auto saved=nimby::detail::SignalSettingsFile::load(nimby::detail::SignalSettingsClient::profilePath(game->worldId,nimby::kotlin::Rules::settingsId()));
-  if(!saved)throw std::runtime_error("BAL settings unavailable");
-  auto states=nimby::observeSignals(*snapshot,nimby::kotlin::Rules::textureSet);
+  std::map<std::string,std::optional<nimby::SignalSettingsStore::SavedSettings>> savedByCatalogue;
+  for(const auto& panel:panels)savedByCatalogue.emplace(std::string(panel.textureSet),
+      nimby::detail::SignalSettingsFile::load(nimby::detail::SignalSettingsClient::profilePath(game->worldId,panel.id)));
+  auto states=nimby::kotlin::Rules::observe(*snapshot);
   std::vector<nimby::Id> observedSignals;
   for(const auto& state:states)observedSignals.push_back(state.id);
   if(n==0)expectedSignals=observedSignals;
-  if(states.empty()||expectedSignals!=observedSignals)throw std::runtime_error("BAL signal set missing or changed");
+  if(states.empty()||expectedSignals!=observedSignals)throw std::runtime_error("Mod signal set missing or changed");
   nimby::kotlin::Runtime::NetworkRequest request;
   for(auto& state:states){
    state.settings.status=nimby::SettingsStatus::Present;
-   for(const auto& field:nimby::kotlin::Rules::checkboxes())state.settings.booleans[std::string(field.name)]=field.defaultValue;
+   for(const auto& field:nimby::kotlin::Rules::checkboxes(state.textureSet))state.settings.booleans[std::string(field.name)]=field.defaultValue;
+   const auto& saved=savedByCatalogue.at(state.textureSet);
    if(saved)for(const auto& row:saved->signals)if(row.id==state.id)
     for(const auto& [name,value]:row.values)state.settings.booleans[name]=value;
    request.signals.push_back(nimby::kotlin::Rules::fromLive(state));
@@ -54,6 +58,7 @@ int main(int argc,char** argv){try{
    if(i)std::cout<<',';const auto& state=states[i];const auto& decision=result.signals.values()[i].result.decision;
    std::cout<<"{\"id\":\""<<state.id<<"\",\"name\":\""<<((state.id>>16)&0xffffffff)<<'.'<<(state.id&65535)
     <<"\",\"next\":\""<<state.nextSignal<<"\",\"occupation\":"<<static_cast<int>(state.occupation)
+    <<",\"textures\":"<<std::quoted(state.textureSet)
     <<",\"aspect\":"<<std::quoted(std::string(nimby::kotlin::Rules::aspectName(decision.aspect)))
     <<",\"reason\":"<<std::quoted(std::string(nimby::kotlin::Rules::reasonName(decision.reason)))<<",\"trains\":[";
    for(size_t j=0;j<state.trains.size();++j){if(j)std::cout<<',';std::cout<<'"'<<state.trains[j]<<'"';}

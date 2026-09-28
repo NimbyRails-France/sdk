@@ -2,6 +2,7 @@
 #include <nimby/detail/observation.h>
 #include <nimby/block_coverage.hpp>
 #include "engine/binary_identity.h"
+#include "engine/construction.h"
 #include "engine/network.h"
 #include "engine/driving.h"
 #include "engine/track_usage.h"
@@ -28,7 +29,9 @@ namespace {
 // The registry owns sessions; a session owns its platform process connection.
 // Captures own their records independently and remain valid after session close.
 struct Session : nimby::platform::ObservationProcess {
-    nimby::runtime::ObservationEpoch settings_epoch;
+    // Concurrent readers of one live process coordinate mod events using the
+    // same epoch. The separate targeted-driving counter remains client-local.
+    std::shared_ptr<nimby::runtime::ObservationEpoch> settings_epoch=std::make_shared<nimby::runtime::ObservationEpoch>();
     nimby::engine::LiveState driving_state{};
     uint64_t driving_generation{};
     int64_t driving_last_elapsed=-1;
@@ -52,6 +55,8 @@ struct Snapshot {
     std::vector<NimbySignalExtensionField> extension_fields;
     std::vector<NimbyTrackNode> nodes;
     std::vector<NimbyTrackJunction> junctions;
+    std::vector<NimbyTrackMetric> metrics;
+    bool metrics_available=false;
     std::map<uint64_t,std::vector<uint64_t>> paths;
     std::vector<NimbyTrackUsage> reservations,occupations;
     bool reservations_available=false,occupations_available=false;
@@ -141,6 +146,8 @@ uint32_t __cdecl NimbyInternal_OpenProcess(uint32_t abi,uint32_t pid,NimbySessio
         auto s=std::make_unique<Session>();
         const auto result=s->open(pid);
         if(result!=NIMBY_OK)return result;
+        for(const auto& [handle,existing]:r.sessions)
+            if(existing->pid==s->pid&&existing->alive()){s->settings_epoch=existing->settings_epoch;break;}
         const auto id=r.next++;
         r.sessions.emplace(id,std::move(s));*out=id;return NIMBY_OK;
     }catch(...){ nimby::detail::diagnostics::exception("sdk", __func__); return NIMBY_INTERNAL_ERROR;}
@@ -241,7 +248,7 @@ static uint32_t capture_snapshot(NimbySession handle,NimbySnapshot* out,uint32_t
         nimby::engine::LiveState state{},after{};
         nimby::engine::VersioningObservation versionBefore{},versionAfter{};
         const bool versionAvailable=nimby::engine::read_versioning_observation(read,&session,session.base,true,versionBefore,session.profile());
-        if(!versionAvailable)session.settings_epoch.unavailable();
+        if(!versionAvailable)session.settings_epoch->unavailable();
         nimby::engine::Network network;
         std::vector<nimby::engine::Train> trains;
         *stage=1;
@@ -340,9 +347,14 @@ static uint32_t capture_snapshot(NimbySession handle,NimbySnapshot* out,uint32_t
                 if(!t.present)value.flags|=NIMBY_TRAIN_SPEED_DEFAULTED;
             }
             if(t.positioned){
-                if(!track_ids.contains(t.position.track_id)){*stage=6;return NIMBY_DATA_UNAVAILABLE;}
-                value.flags|=NIMBY_TRAIN_POSITION_VALID;value.track_id=t.position.track_id;
-                value.track_fraction=t.position.fraction;value.direction=t.position.direction;
+                if(!track_ids.contains(t.position.track_id)){
+                    // A scoped signalling capture may deliberately omit the
+                    // track of a train outside the selected signal network.
+                    if(!signallingOnly){*stage=6;return NIMBY_DATA_UNAVAILABLE;}
+                }else{
+                    value.flags|=NIMBY_TRAIN_POSITION_VALID;value.track_id=t.position.track_id;
+                    value.track_fraction=t.position.fraction;value.direction=t.position.direction;
+                }
             }
             snapshot.trains.push_back(value);
             auto service=t.service;service.train_id=t.id;
@@ -433,6 +445,9 @@ static uint32_t capture_snapshot(NimbySession handle,NimbySnapshot* out,uint32_t
         for(const auto& t:network.tracks)if(t.geometry)geometry.emplace(t.id,&t);
         snapshot.nodes.reserve(geometry.size());
         snapshot.junctions.reserve(network.junctions.size());
+        snapshot.metrics_available=!signallingOnly&&nimby::engine::gameLayout(state.profile).track_metric_offset!=0;
+        if(snapshot.metrics_available)for(const auto& t:network.tracks)
+            if(t.native_length_m>0)snapshot.metrics.push_back({t.id,t.native_length_m});
         for(const auto& [id,t]:geometry){
             // Branches can point into a main track without the reverse primary link.
             auto link=[&](uint64_t target){return target!=id&&(textureSet||geometry.contains(target))?target:uint64_t(0);};
@@ -452,10 +467,10 @@ static uint32_t capture_snapshot(NimbySession handle,NimbySnapshot* out,uint32_t
            nimby::engine::read_versioning_observation(read,&session,session.base,true,versionAfter,session.profile())&&
            versionAfter.state==state&&versionBefore.value==versionAfter.value&&versionBefore.history==versionAfter.history){
             snapshot.game_session.struct_size=sizeof(snapshot.game_session);
-            snapshot.game_session.generation=session.settings_epoch.observe(versionAfter,
+            snapshot.game_session.generation=session.settings_epoch->observe(versionAfter,
                 snapshot.clock_available?std::optional<int64_t>{snapshot.clock.ticks}:std::nullopt);
             std::memcpy(snapshot.game_session.world_value,versionAfter.value.data(),32);
-        }else session.settings_epoch.unavailable();
+        }else session.settings_epoch->unavailable();
         if(!session.alive())return NIMBY_PROCESS_EXITED;
         auto id=r.next++;r.snapshots.emplace(id,std::move(snapshot));*out=id;*stage=0;return NIMBY_OK;
     }catch(...){ nimby::detail::diagnostics::exception("sdk", __func__); return NIMBY_INTERNAL_ERROR;}
@@ -489,6 +504,7 @@ uint32_t __cdecl NimbyInternal_CopySignalExtensionsStates(NimbySnapshot s,NimbyS
 uint32_t __cdecl NimbyInternal_CopySignalExtensionFields(NimbySnapshot s,NimbySignalExtensionField* out,uint32_t cap,uint32_t* count) noexcept {return copy(s,out,cap,count,&Snapshot::extension_fields);}
 uint32_t __cdecl NimbyInternal_CopyTrackNodes(NimbySnapshot s,NimbyTrackNode* out,uint32_t cap,uint32_t* count) noexcept {return copy(s,out,cap,count,&Snapshot::nodes);}
 uint32_t __cdecl NimbyInternal_CopyTrackJunctions(NimbySnapshot s,NimbyTrackJunction* out,uint32_t cap,uint32_t* count) noexcept {return copy(s,out,cap,count,&Snapshot::junctions);}
+uint32_t __cdecl NimbyInternal_CopyTrackMetrics(NimbySnapshot s,NimbyTrackMetric* out,uint32_t cap,uint32_t* count) noexcept {return copy(s,out,cap,count,&Snapshot::metrics,&Snapshot::metrics_available);}
 uint32_t __cdecl NimbyInternal_CopyTrainDetails(NimbySnapshot s,NimbyTrainDetails* out,uint32_t cap,uint32_t* count) noexcept {return copy(s,out,cap,count,&Snapshot::train_details);}
 uint32_t __cdecl NimbyInternal_CopyTrainLineStops(NimbySnapshot handle,uint64_t train,NimbyLineStop* out,uint32_t cap,uint32_t* count) noexcept {
     if(!count)return NIMBY_INVALID_ARGUMENT;
@@ -523,4 +539,16 @@ const char* __cdecl NimbyInternal_StatusString(uint32_t status) noexcept {
     case NIMBY_PROCESS_EXITED:return "Process exited; open a new session";case NIMBY_RESOURCE_LIMIT:return "Resource limit; release handles";
     case NIMBY_CLOCK_WRITE_FAILED:return "Calendar write or verification failed; re-read the simulation clock";
     default:return "Unknown status";}
+}
+uint32_t __cdecl NimbyInternal_Construction(uint64_t session,const NimbyConstructionRequest* request,NimbyConstructionResult* out) noexcept {
+    if(!request||!out||out->size!=sizeof(*out)||!nimby::engine::construction::valid(*request))return NIMBY_INVALID_ARGUMENT;
+    Guard guard;auto found=registry().sessions.find(session);
+    if(found==registry().sessions.end())return NIMBY_INVALID_HANDLE;
+    return found->second->construction(request,0,*out);
+}
+uint32_t __cdecl NimbyInternal_ConstructionPoll(uint64_t session,uint64_t token,NimbyConstructionResult* out) noexcept {
+    if(!out||out->size!=sizeof(*out)||!token)return NIMBY_INVALID_ARGUMENT;
+    Guard guard;auto found=registry().sessions.find(session);
+    if(found==registry().sessions.end())return NIMBY_INVALID_HANDLE;
+    return found->second->construction(nullptr,token,*out);
 }

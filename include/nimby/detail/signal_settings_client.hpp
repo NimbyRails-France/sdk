@@ -28,7 +28,7 @@ public:
         std::lock_guard lock(mutex_);
         closeLocked();
     }
-    bool connectExisting(const SignalSettingsPanel& panel) {
+    bool connectExisting(const SignalSettingsPanel& panel,std::string_view translations={}) {
         std::lock_guard lock(mutex_);
         if(module_)return true;
         if(panel.id.empty())return false;
@@ -43,6 +43,13 @@ public:
             copy(target.name,box.name);copy(target.label,box.label);copy(target.description,box.description);
             target.default_value=box.defaultValue?1u:0u;
         }
+        // Allocate/validate before acquiring the resident registration. A bad
+        // declaration must not leave an owner behind if copying throws.
+        if(panel.actions.size()>16)throw std::invalid_argument("Too many signal actions");
+        std::vector<NimbyUiActionV1> declarations(panel.actions.size());
+        for(size_t i=0;i<panel.actions.size();++i){const auto& a=panel.actions[i];auto& target=declarations[i];
+            copy(target.id,a.id);copy(target.label,a.label);copy(target.provider,a.provider);copy(target.service,a.service);}
+        std::string panelId(panel.id);
         auto module=native::existing(platform::signalUiLibrary);
         if(!module)return false;
         auto add=resolve<NimbyUiRegisterV1>(module,"NimbyUi_RegisterV1");
@@ -55,11 +62,29 @@ public:
         if(!add||!remove||!read||!suspend||!begin||!observe){native::unload(module);return false;}
         const auto result=add(wire.get(),&owner);
         if(result!=NIMBY_OK||!owner){native::unload(module);return false;}
-        panelId_=std::string(panel.id);
+        if(!translations.empty()){
+            const auto set=resolve<NimbyUiTranslationsV1>(module,"NimbyUi_TranslationsV1");
+            if(!set||set(0,owner,translations.data(),static_cast<uint32_t>(translations.size()))!=NIMBY_OK){
+                remove(owner);native::unload(module);throw std::runtime_error("SDK UI bridge lacks compatible mod translations; update the SDK");
+            }
+        }
+        uint64_t conditional=0;
+        for(size_t i=0;i<panel.checkboxes.size();++i)if(panel.checkboxes[i].onlyWhenEnabled)conditional|=uint64_t{1}<<i;
+        if(conditional){
+            const auto visibility=resolve<NimbyUiConditionalVisibilityV1>(module,"NimbyUi_ConditionalVisibilityV1");
+            if(!visibility||visibility(owner,conditional)!=NIMBY_OK){remove(owner);native::unload(module);return false;}
+        }
+        const auto actions=resolve<NimbyUiActionsV1>(module,"NimbyUi_ActionsV1");
+        if(actions&&!panel.actions.empty()){
+            if(actions(owner,declarations.data(),static_cast<uint32_t>(declarations.size()))!=NIMBY_OK){remove(owner);native::unload(module);return false;}
+        }
+        panelId_=std::move(panelId);
+        migrate_=panel.migrate;
         module_=module;owner_=owner;remove_=remove;read_=read;suspend_=suspend;
         begin_=begin;observe_=observe;
         export_=resolve<NimbyUiExportV1>(module,"NimbyUi_ExportV1");
         beginSaved_=resolve<NimbyUiBeginSavedV1>(module,"NimbyUi_BeginSavedV1");
+        context_=resolve<NimbyUiPanelContextV1>(module,"NimbyUi_PanelContextV1");
         return true;
     }
     // Only the SDK session coordinator may supply this identity and catalog.
@@ -125,14 +150,20 @@ public:
         if(!observedGame_||*observedGame_!=game){
             checkpoint(true);
             const auto path=profilePath(game.worldId,panelId_);
-            const auto saved=SignalSettingsFile::load(path);
+            auto saved=SignalSettingsFile::load(path);
+            const auto original=saved?SignalSettingsFile::encode(*saved):std::string{};
+            // Migration works on an owned copy and completes before the new
+            // session is visible. Exceptions preserve the original file and
+            // leave reads unavailable rather than accepting partial settings.
+            if(saved&&migrate_)for(auto& signal:saved->signals)migrate_(panelId_,signal.values);
             const auto session=saved?beginSession(game.worldId,*saved):beginSession(game.worldId);
             if(!session){suspend();return false;}
             observedGame_=game;observedSession_=session;
-            profilePath_=path;lastSaved_=saved?SignalSettingsFile::encode(*saved):std::string{};
+            profilePath_=path;lastSaved_=original;
             nextSave_={};
         }
         if(!observe(observedSession_,catalog))return false;
+        if(context_&&context_(owner_,observedSession_,game.generation)!=NIMBY_OK){suspend();return false;}
         checkpoint(false);
         return true;
     }
@@ -182,8 +213,9 @@ private:
         if(module_){remove_(owner_);native::unload(module_);}
         module_=nullptr;owner_=0;remove_=nullptr;read_=nullptr;suspend_=nullptr;
         begin_=nullptr;observe_=nullptr;
-        export_=nullptr;beginSaved_=nullptr;
+        export_=nullptr;beginSaved_=nullptr;context_=nullptr;
         observedGame_.reset();observedSession_=0;profilePath_.clear();lastSaved_.clear();panelId_.clear();
+        migrate_=nullptr;
     }
     template<class F> static F resolve(native::Module module,const char* name) {
         auto address=native::symbol(module,name);F result{};
@@ -203,10 +235,12 @@ private:
     NimbyUiObserveV1 observe_{};
     NimbyUiExportV1 export_{};
     NimbyUiBeginSavedV1 beginSaved_{};
+    NimbyUiPanelContextV1 context_{};
     // Accessed only by the serialized worker, or close after joining it.
     std::optional<GameSession> observedGame_;
     uint64_t observedSession_=0;
     std::string panelId_,lastSaved_;
+    void (*migrate_)(std::string_view,std::map<std::string,bool,std::less<>>&)=nullptr;
     std::filesystem::path profilePath_;
     std::chrono::steady_clock::time_point nextSave_{};
 };

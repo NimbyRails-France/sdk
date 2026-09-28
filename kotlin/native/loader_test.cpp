@@ -77,6 +77,26 @@ int main(int argc,char** argv) {
     nimby::kotlin::Signal signal;signal.id=UINT64_C(0xf000000000000001);network->signals.push_back(signal);
     CHECK(invoke("nrf.kotlin.network.v1",network.get(),sizeof *network,result.get(),sizeof *result)==0);
     CHECK(result->signals.count==1&&result->signals.items[0].signal==signal.id);
+    // Exercise each model through the actual C++ -> Kotlin native boundary.
+    // Masks are local to the selected model, never a concatenation of panels.
+    auto countTypes=reinterpret_cast<int(*)()>(native::symbol(core,"NRFKotlin_TypeCount"));
+    if(countTypes) {
+        using Typed=int(*)(int,int,int64_t,int,int64_t,int64_t,int64_t,const int*,int,int,int*);
+        auto typed=reinterpret_cast<Typed>(native::symbol(core,"NRFKotlin_DecideType"));CHECK(typed);
+        const int count=countTypes();CHECK(count>=1&&count<=16);
+        for(int type=0;type<count;++type)for(int mask=0;mask<4;++mask) {
+            network->signals.count=0;signal.typeIndex=type;signal.settings.mask=mask;
+            network->signals.push_back(signal);
+            const int observation[]{0,0,0,0,0,0,0};int expected[2]{};
+            const int directStatus=typed(type,1,mask,2,signal.id,0,0,observation,-1,0,expected);
+            CHECK(directStatus==0||directStatus==1);
+            CHECK(invoke("nrf.kotlin.network.v1",network.get(),sizeof *network,result.get(),sizeof *result)==0);
+            if(directStatus==0)CHECK(result->signals.items[0].result.decision.aspect==expected[0]&&
+                result->signals.items[0].result.decision.reason==expected[1]);
+        }
+        network->signals.items[0].typeIndex=count;
+        CHECK(invoke("nrf.kotlin.network.v1",network.get(),sizeof *network,result.get(),sizeof *result)==NIMBY_INVALID_ARGUMENT);
+    }
     network->signals.count=513;
     CHECK(invoke("nrf.kotlin.network.v1",network.get(),sizeof *network,result.get(),sizeof *result)!=0);
     auto plan=std::make_unique<Runtime::DrivingRequest>();Runtime::DrivingResult planned;

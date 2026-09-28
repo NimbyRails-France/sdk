@@ -44,6 +44,8 @@ data class Observation(
     val selectedPath: List<Long>?,
     val lineStops: List<LineStop>?,
     val clock: SimulationClock?,
+    /** Null: old DLL or unsupported capture/profile. Missing rows remain unknown. */
+    val trackMetrics: List<TrackMetric>? = null,
 )
 
 interface ObservationClient : AutoCloseable {

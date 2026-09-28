@@ -8,12 +8,12 @@ namespace nimby::runtime {
 // so drawing never calls back into a mod that may already have stopped.
 inline bool draw_signal_settings_panels(engine::ReadMemory read,void* context,
         uint64_t module,uint64_t capture,uint64_t declaration,
-        const SignalUiHost& host,SignalUiPresentation& presentation) {
-    auto ui=engine::SignalUi::bind(read,context,module,declaration);
+        const SignalUiHost& host,SignalUiPresentation& presentation,engine::SignalUi::TextInputClock textClock=nullptr,std::string_view language={}) {
+    auto ui=engine::SignalUi::bind(read,context,module,declaration,engine::LiveStateProfile::Windows119,textClock);
     if(!ui)return false;
     const auto signal=engine::SignalUi::editorSignal(read,context,capture);
     if(ui->pass()==engine::SignalUi::Pass::Layout)
-        return presentation.layout(host,capture,signal.value_or(0),*ui);
+        return presentation.layout(host,capture,signal.value_or(0),*ui,language);
     return presentation.interactive(capture,signal.value_or(0),*ui);
 }
 

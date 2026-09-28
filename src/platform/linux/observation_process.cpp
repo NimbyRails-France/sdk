@@ -42,4 +42,7 @@ uint32_t ObservationProcess::setClockAndRecalculate(int64_t utc,NimbySimulationC
     (void)utc; (void)output; (void)countValue;
     return NIMBY_CLOCK_WRITE_FAILED;
 }
+uint32_t ObservationProcess::construction(const NimbyConstructionRequest*,uint64_t,NimbyConstructionResult&) noexcept {
+    return NIMBY_HOOKS_UNAVAILABLE;
+}
 }

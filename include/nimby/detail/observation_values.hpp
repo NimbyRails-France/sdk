@@ -628,6 +628,7 @@ public:
     std::optional<Signal> getSignalById(Id id) const { return signals_.find(id); }
     std::span<const TrackJunction> getAllTrackJunctions() const noexcept { return junctions_.rows; }
     std::span<const TrackNode> getAllTrackNodes() const noexcept { return nodes_.rows; }
+    const std::optional<std::vector<NimbyTrackMetric>>& getTrackMetrics()const noexcept{return trackMetrics_;}
     std::optional<TrackNode> getTrackNodeById(Id id) const { return nodes_.find(id); }
     std::span<const SignalState> getAllSignalStates() const noexcept { return states_.rows; }
     std::optional<SignalState> getSignalStateById(Id id) const { return states_.find(id); }
@@ -772,6 +773,7 @@ private:
     detail::Table<Station> stations_;
     detail::Table<Signal> signals_;
     detail::Table<TrackNode> nodes_;
+    std::optional<std::vector<NimbyTrackMetric>> trackMetrics_;
     detail::Table<TrackJunction> junctions_;
     detail::Table<SignalState> states_;
     detail::Table<SignalTexture> textures_;
@@ -839,6 +841,14 @@ private:
         result->nodes_ = detail::table<TrackNode, NimbyTrackNode>(
             [&](auto* out, auto capacity, auto* count) { return NimbyInternal_CopyTrackNodes(native.value, out, capacity, count); },
             [](const NimbyTrackNode& row) { return row.id; }, "CopyTrackNodes");
+        if(scope==SnapshotScope::Complete){
+            uint32_t count{};
+            const auto status=NimbyInternal_CopyTrackMetrics(native.value,nullptr,0,&count);
+            if(status==NIMBY_OK){
+                result->trackMetrics_=detail::copyRecords<NimbyTrackMetric>(
+                    [&](auto* out,auto capacity,auto* copied){return NimbyInternal_CopyTrackMetrics(native.value,out,capacity,copied);},"CopyTrackMetrics");
+            }else if(status!=NIMBY_DATA_UNAVAILABLE)detail::check(status,"CopyTrackMetrics");
+        }
         result->junctions_ = detail::table<TrackJunction, NimbyTrackJunction>(
             [&](auto* out, auto capacity, auto* count) { return NimbyInternal_CopyTrackJunctions(native.value, out, capacity, count); },
             [](const NimbyTrackJunction& row) { return row.branch_track_id; }, "CopyTrackJunctions");

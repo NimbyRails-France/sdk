@@ -46,6 +46,13 @@ EMPTY(NimbyInternal_CopySignalStates,NimbySignalState)
 EMPTY(NimbyInternal_CopySignalTextures,NimbySignalTexture)
 EMPTY(NimbyInternal_CopyTrackNodes,NimbyTrackNode)
 EMPTY(NimbyInternal_CopyTrackJunctions,NimbyTrackJunction)
+#ifndef NRF_FIXTURE_LEGACY_METRICS
+_Static_assert(sizeof(NimbyTrackMetric)==16,"Kotlin track metric ABI size");
+uint32_t NimbyInternal_CopyTrackMetrics(NimbySnapshot s,NimbyTrackMetric* out,uint32_t cap,uint32_t* count){
+    (void)s;*count=1;if(!out&&!cap)return 0;if(cap<1)return 10;
+    *out=(NimbyTrackMetric){9,1234.5};return 0;
+}
+#endif
 uint32_t NimbyInternal_CopyTrainServices(NimbySnapshot s,NimbyTrainService* out,uint32_t cap,uint32_t* n){
     (void)s;*n=2;if(!out&&!cap)return 0;if(cap<2)return 10;
     memset(out,0,2*sizeof *out);

@@ -14,6 +14,8 @@ struct Decision { std::int32_t aspect=0,reason=0; };
 struct Signal {
     Id id=0,nextSignal=0; Settings settings; Observation observation;
     SettingsStatus settingsStatus=SettingsStatus::Present; bool live=false;
+    std::uint32_t typeIndex=0;
+    Id approachingTrain=0;
 };
 struct Vehicle { double maxSpeedMps=0,maxAccelerationMps2=0,serviceBrakingMps2=0,tractiveEffortN=0,powerW=0,emptyMassKg=0,extraMassKg=0,lengthM=0; };
 struct DrivingSettings { double brakeUse=0.8,responseSeconds=2,marginM=10; };
@@ -27,18 +29,24 @@ struct Rules {
     static constexpr std::size_t maxSignals=512;
     static inline std::string textureSet,controlId;
     static std::optional<Decision> forcedDecision(int aspect);
+    static std::optional<Decision> forcedDecision(std::string_view catalogue,int aspect);
     static inline bool maximumLineSpeed=false;
     static constexpr SignallingCommandNames names{"nrf.kotlin.evaluate.v1","nrf.kotlin.plan.v1","nrf.kotlin.read-train-plan.v1",
         "nrf.kotlin.render.v1","nrf.kotlin.network.v1","nrf.kotlin.occupancy.v1","nrf.kotlin.read-occupancy.v1"};
     static Decision evaluate(const Settings&,const Observation&);
     static std::optional<Decision> decide(const Signal&,const std::optional<Decision>&);
     static Signal fromLive(const LiveSignalState&);
+    static std::vector<LiveSignalState> observe(const Snapshot&);
+    static bool multipleTypes();
     static Decision unknownDecision();
     static Decision invalidNetworkDecision();
+    static Decision invalidNetworkDecision(const Signal&);
+    static Decision diagnosticDecision(const Decision&);
     static std::string texture(const Decision&,std::int64_t,std::int64_t);
     static std::optional<SignalDrivingRule> drivingRule(Id,const Decision&);
     static Plan plan(const Vehicle&,const DrivingSettings&,const DrivingInput&,std::span<const Constraint>);
     static std::span<const SignalCheckbox> checkboxes();
+    static std::span<const SignalCheckbox> checkboxes(std::string_view catalogue);
     static std::string settingsId();
     static std::string diagnosticFile();
     static std::string aspectName(int);

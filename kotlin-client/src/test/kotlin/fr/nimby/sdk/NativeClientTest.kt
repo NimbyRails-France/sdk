@@ -4,6 +4,27 @@ import java.nio.file.Path
 import kotlin.test.*
 
 class NativeClientTest {
+    @Test fun nativeTrackMetricsRemainOwnedAfterSessionClose() {
+        val metric = NimbyClient.open(fixture(),42).use { it.capture().trackMetrics!!.single() }
+        assertEquals(TrackMetric(9,1234.5),metric)
+        assertEquals(617.25,metric.distanceM(.75,.25))
+        assertEquals(.5,metric.fraction(metric.offsetM(.5)))
+    }
+    @Test fun oldDllWithoutMetricExportStillCapturesOtherTables() {
+        val legacy = Path.of(requireNotNull(System.getProperty("nrf.fixture.legacy")))
+        val observation = NimbyClient.open(legacy,42).use { it.capture() }
+        assertNull(observation.trackMetrics)
+        assertEquals("Train test",observation.trains.single().name)
+    }
+    @Test fun trackMetricRejectsInvalidValuesAndOutOfTrackPositions() {
+        for (value in listOf(0.0,-1.0,Double.NaN,Double.POSITIVE_INFINITY))
+            assertFailsWith<IllegalArgumentException> { TrackMetric(9,value) }
+        val metric = TrackMetric(9,1234.5)
+        assertFailsWith<IllegalArgumentException> { metric.offsetM(1.01) }
+        assertFailsWith<IllegalArgumentException> { metric.offsetM(Double.NaN) }
+        assertFailsWith<IllegalArgumentException> { metric.fraction(-1.0) }
+        assertFailsWith<IllegalArgumentException> { metric.fraction(1235.0) }
+    }
     private fun fixture() = Path.of(requireNotNull(System.getProperty("nrf.fixture")) { "Native fixture was not built" })
     @Test fun targetedDrivingOwnsValuesAndKeepsIndependentValidity() {
         val observed = NimbyClient.open(fixture(), 42).use { client ->

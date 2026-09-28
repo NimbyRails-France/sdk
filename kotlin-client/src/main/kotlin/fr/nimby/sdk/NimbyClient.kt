@@ -67,6 +67,38 @@ class NimbyClient private constructor(private val lease: LibraryLease, private v
         }
     }
 
+    /** Explicitly loads the experimental construction bridge. Capture alone never does. */
+    @Synchronized fun prepareConstruction(sourceSignal: Long): ConstructionResult =
+        construction(1,0,sourceSignal,emptyList())
+
+    @Synchronized fun createSignals(token: Long, sourceSignal: Long, positions: List<Position>): ConstructionResult =
+        construction(2,token,sourceSignal,positions)
+
+    /** Refuses if another command replaced the series at the top of native undo history. */
+    @Synchronized fun undoConstruction(token: Long): ConstructionResult = construction(3,token,0,emptyList())
+
+    @Synchronized fun pollConstruction(token: Long): ConstructionResult {
+        check(session!=0L);require(token!=0L)
+        return Memory(ConstructionCodec.RESULT_SIZE.toLong()).use { result ->
+            result.clear();result.setInt(0,ConstructionCodec.RESULT_SIZE)
+            call("ConstructionPoll",session,token,result)
+            ConstructionCodec.decode(result)
+        }
+    }
+
+    private fun construction(action: Int, token: Long, source: Long, positions: List<Position>): ConstructionResult {
+        check(session!=0L) { "Session fermée" }
+        return ConstructionCodec.encode(action,token,source,positions).use { request ->
+            Memory(ConstructionCodec.RESULT_SIZE.toLong()).use { result ->
+                result.clear();result.setInt(0,ConstructionCodec.RESULT_SIZE)
+                call("Construction",session,request,result)
+                ConstructionCodec.decode(result).also {
+                    DiagnosticLog.forComponent("sdk-client").write("Construction action=$action gamePid=$processId token=${it.token} state=${it.state} reason=${it.reason} ids=${it.createdIds} canUndo=${it.canUndo}")
+                }
+            }
+        }
+    }
+
     private fun <T> records(name: String, snapshot: Long, size: Int, extra: Long? = null, decode: (Pointer) -> T): List<T>? {
         val count = IntByReference()
         fun arguments(pointer: Pointer?, capacity: Int): Array<Any?> = if (extra == null)
@@ -105,6 +137,12 @@ class NimbyClient private constructor(private val lease: LibraryLease, private v
             val stations = records("CopyStations", snapshot, NimbyStation.SIZE) { p -> NimbyStation(p).let { Station(it.id, it.nameUtf8) } } ?: error("Gares indisponibles")
             val nodes = records("CopyTrackNodes", snapshot, NimbyTrackNode.SIZE) { p -> NimbyTrackNode(p).let { TrackNode(it.id, it.linkA.nonzero(), it.linkB.nonzero(), it.x, it.y) } }.orEmpty()
             val junctions = records("CopyTrackJunctions", snapshot, NimbyTrackJunction.SIZE) { p -> NimbyTrackJunction(p).let { TrackJunction(it.branchTrackId, it.mainTrackId, it.mainFraction, it.mainDirection, it.branchDirection) } }.orEmpty()
+            // Additive private ABI: older 0.8.x DLLs remain usable. Catch only
+            // symbol lookup failure, never a failure while invoking/decoding it.
+            val metricFunction = try { library.getFunction("NimbyInternal_CopyTrackMetrics") } catch (_: UnsatisfiedLinkError) { null }
+            val metrics = if (metricFunction == null) null else records("CopyTrackMetrics", snapshot, NimbyTrackMetric.SIZE) { p ->
+                NimbyTrackMetric(p).let { TrackMetric(it.trackId, it.lengthM) }
+            }
             val states = records("CopySignalStates", snapshot, NimbySignalState.SIZE) { p -> NimbySignalState(p).let {
                 it.signalId to Pair(if (it.flags and 4 != 0) it.textureState else null,
                     if (it.flags and 2 != 0) "${it.systemUtf8}:${it.specificStateUtf8}" else null)
@@ -146,7 +184,7 @@ class NimbyClient private constructor(private val lease: LibraryLease, private v
                 when (result) { 0 -> NimbySimulationClock(memory).let { SimulationClock(it.epochSeconds, it.ticks) }; 8 -> null; else -> throw SdkException(result, "GetSimulationClock") }
             }
             return Observation(info.first, info.second, info.third, trains, tracks, stations, nodes, junctions, signals, services, details, platforms,
-                usage("CopyTrackReservations"), usage("CopyTrackOccupations"), path, stops, clock)
+                usage("CopyTrackReservations"), usage("CopyTrackOccupations"), path, stops, clock, metrics)
         } catch (failure: Throwable) {
             captureFailure = failure
             throw failure

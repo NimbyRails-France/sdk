@@ -1,4 +1,10 @@
-# Documentation du SDK
+# Notes techniques du SDK
+
+Les guides destinés aux créateurs de mods et d'outils sont maintenant développés
+dans le [dépôt wiki](https://github.com/NimbyRails-France/wiki), pour le site
+**https://wiki.nimbyrails-france.fr**. Ils couvrent la nouvelle API `signalMod`,
+le client `Nimby.connect`, les exemples et la référence Kotlin synchronisée.
+Ce dossier conserve les contrats internes, rapports et notes de maintenance.
 
 Documentation de la branche **0.8.0**, pour Windows x64. Les guides décrivent
 les contrats du code de cette branche ; ils ne constituent pas une annonce
@@ -8,7 +14,8 @@ de publication.
 
 | Étape | Guide |
 | --- | --- |
-| Installer le kit, ouvrir l'exemple et compiler | [Démarrage Kotlin](kotlin-mods.md) |
+| Installer le kit, créer son projet et compiler | [Démarrage Kotlin](kotlin-mods.md) |
+| Réunir plusieurs modèles dans un même mod | [Types de signaux](signal-types.md) |
 | Comprendre les tâches, fichiers et sorties | [Plugin Gradle](gradle-plugin.md) |
 | Déclarer les réglages, décisions et consignes | [Référence de l'API Kotlin](kotlin-api.md) |
 | Comprendre la séparation mod/moteur et sa validation | [Conduite fournie par les mods](automatic-driving-validation.md) |
@@ -18,15 +25,17 @@ de publication.
 
 ## Développer un outil Kotlin
 
-Utiliser le [client Kotlin/JVM](kotlin-client.md) et l'exemple
-`examples/kotlin-observer`. Le client public C++ et ses exemples ont été retirés.
+Suivre le [parcours Kotlin/JVM du wiki](https://wiki.nimbyrails-france.fr/lire/connexion). Le client public C++ et ses exemples ont été retirés.
 Les références C++ restantes documentent les composants internes du SDK.
+
+La [construction expérimentale](construction.md) est disponible uniquement dans
+un kit de qualification séparé ; elle n’est pas distribuée par le Hub.
 
 ## Références par domaine
 
 | Domaine | Références |
 | --- | --- |
-| Réseau et cantons | [Topologie des signaux](signal-topology.md), [cantons](blocks.md), [quais et occupations](platform-occupations.md) |
+| Réseau et cantons | [Topologie des signaux](signal-topology.md), [longueurs natives](track-metrics.md), [cantons](blocks.md), [quais et occupations](platform-occupations.md) |
 | Indications et rendu | [États](signal-states.md), [commandes de textures](texture-commands.md) |
 | Signalisation et conduite | [Runtime générique C++](signalling-runtime.md), [observations de conduite](driving-observation.md), [commandes de mod](mod-commands.md) |
 | Horloge et installation | [Horloge de simulation](simulation-clock.md), [installation native avancée](install-drop-in.md) |
@@ -49,6 +58,10 @@ concerne le développement du SDK natif.
 Les dossiers `research/` et les fichiers `*validation.md` sont des archives
 techniques : observations, investigations et résultats datés. Ils ne définissent
 pas le contrat public, et leurs résultats ne valident pas une nouvelle version.
+
+La [recherche sur la construction des signaux](research/signal-construction.md)
+suit les commandes natives, leur résultat et l'annulation pour le projet de
+pose Kotlin. Cette capacité n'est pas encore disponible dans l'API.
 
 - [Commandes de recette SDK + mod](recipe-commands.md) : controle temporaire, contraintes par train, horloge et contrats de validation.
 

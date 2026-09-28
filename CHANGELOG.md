@@ -2,6 +2,31 @@
 
 ## [Unreleased]
 
+## [0.8.0-alpha.2] - 2026-09-28
+
+- Traductions JSON par mod, français/anglais selon la langue du jeu, avec langue de repli et paramètres nommés.
+- Panneaux conservés pendant les lectures lentes ; commandes désactivées en cas de perte d’observation sans effacer les saisies ni rouvrir les menus fermés.
+- Observation d’approche configurable de 1 à 16 cantons par modèle (`approachBlocks`), sans règle nationale dans le SDK.
+- Aperçu de tous les emplacements sur la carte et pont de construction inclus dans cette distribution alpha Windows.
+- Kit Kotlin, adaptateur et SDK du jeu à mettre à jour ensemble. Tests logiciels ; une recette complète en jeu reste nécessaire.
+
+- Champs numériques `ToolNumberInput` dans les panneaux d'outils, événements Kotlin avec valeur et invalidation immédiate des commandes après édition ; défilement horizontal des libellés longs avec mesure de la police native.
+- Correction du cadre d'extensions vide : racine de mise en page explicite, contrôles à la largeur du panneau et recalcul après redimensionnement. Régression couverte sur l'adaptateur natif Windows.
+- Panneau des extensions défilant avec barre verticale native et séparation entre réglages des signaux et commandes des outils.
+- Pose depuis les callbacks Kotlin : chargement local du pont de construction, journalisation des refus et inclusion du pont dans les kits de développement locaux ; distribution publique toujours désactivée.
+- Correction des captures bloquées et des cases de réglage des signaux absentes lorsqu'un train supprimé conserve un ancien Motion inactif. Exclusion uniquement après vérification du marqueur de suppression, de la génération et de l'absence stable de présence physique ; les incohérences actives restent refusées.
+- Services optionnels entre mods, actions natives conditionnées à leur présence et `toolMod` pour les outils sans catalogue de signaux.
+- `ToolContext` : captures copiées, commandes de construction par ticket, panneaux temporaires et journal des mods. Validation logicielle Windows ; qualification du nouveau panneau en jeu encore nécessaire.
+- Génération de partie partagée entre les lecteurs simultanés du même processus pour coordonner les mods ; compteurs des lectures ciblées de conduite inchangés.
+- Projets exemples retirés des distributions ; tutoriels du wiki pour créer son propre projet. Fixture de compilation des paquets conservée côté mainteneurs uniquement.
+- Déclaration de mods avec `signalMod`, indications Kotlin typées et règles par modèle.
+- `signalModel` : enums, replis, rendu et consignes indépendants pour chaque modèle ; voisin SDK avec identité, indication typée et consigne déclarée. ABI Kotlin 4, refusée par les adaptateurs trop anciens.
+- Contexte de règles commun : défauts des réglages absents et observations non fraîches en cas de profil indisponible. Les décisions nationales restent exclusivement dans les mods.
+- Plusieurs catalogues et panneaux dans un même mod, migration des réglages et observation d'approche.
+- Client organisé par usage avec `Nimby.connect`, `Game` et positions de voie en mètres.
+- Wiki Nuxt dédié : parcours débutant, exemples et référence Kotlin synchronisée.
+- Vérifications locales Windows du noyau, du pont Kotlin, du client et des exemples ; cette entrée ne constitue pas une publication ni une recette complète en jeu.
+
 ## [0.8.0-alpha.1] - 2026-09-27
 
 ### Windows alpha

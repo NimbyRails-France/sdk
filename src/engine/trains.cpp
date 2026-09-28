@@ -17,6 +17,39 @@ using memory::pointer;
 using memory::collect;
 using memory::position;
 namespace {
+// The native simulation can retain a Motion after its train was deleted. This
+// is not an unknown active train: the model slot carries the matching tombstone
+// (same index AND generation), and all physical-presence optionals are empty.
+// Confirm both facts again before ignoring it. A live/reused/missing model slot,
+// an active optional, or a concurrent change still invalidates the capture.
+bool retired_motion(ReadMemory read,void* context,const LiveState& state,
+                    const unsigned char* motion,uint64_t motionAddress) {
+    constexpr std::array<size_t,3> presenceOffsets{0x1d0,0x218,0x4b0};
+    for(auto offset:presenceOffsets)if(motion[offset]!=0)return false;
+    const auto id=field<uint64_t>(motion,0);
+    const auto tombstone=id|0xffff000000000000ULL;
+    const auto pool=state.database+0x200;
+    std::array<unsigned char,48> header{},headerAfter{};
+    if(!read(context,pool,header.data(),header.size()))return false;
+    const auto shift=field<uint32_t>(header.data(),4),size=field<uint32_t>(header.data(),8),mask=field<uint32_t>(header.data(),16);
+    const auto begin=field<uint64_t>(header.data(),24),end=field<uint64_t>(header.data(),32),cap=field<uint64_t>(header.data(),40);
+    if(shift<1||shift>16||size!=(1u<<shift)||mask!=size-1||!pointer(begin)||
+       end<begin||cap<end||cap-begin>8192||(end-begin)%8)return false;
+    const auto index=(id>>16)&0xffffffffULL,blockIndex=index>>shift;
+    if(blockIndex>=(end-begin)/8)return false;
+    uint64_t block{},blockAfter{},modelId{},modelAfter{};
+    if(!read(context,begin+blockIndex*8,&block,8)||!pointer(block)||
+       block>0x7fffffff0000ULL-size*0x178ULL)return false;
+    const auto modelAddress=block+(index&mask)*0x178;
+    if(!read(context,modelAddress,&modelId,8)||modelId!=tombstone)return false;
+    std::array<unsigned char,0x638> after{};
+    if(!read(context,motionAddress,after.data(),after.size())||field<uint64_t>(after.data(),0)!=id)return false;
+    for(auto offset:presenceOffsets)if(after[offset]!=0)return false;
+    return read(context,modelAddress,&modelAfter,8)&&modelAfter==modelId&&
+        read(context,begin+blockIndex*8,&blockAfter,8)&&blockAfter==block&&
+        read(context,pool,headerAfter.data(),headerAfter.size())&&headerAfter==header;
+}
+
 // Native Basics UI: RVA 0x7fd860 -> local_480 -> param15 of 0x7f3600.
 // Sim+0x2208 passenger query, map +0x90: node {full train ID, int count,
 // float passenger mass, next pointer}. Motion+0x48 is capacity, NOT occupancy.
@@ -136,7 +169,9 @@ bool read_trains(ReadMemory read,void* context,const LiveState& state,bool recog
             model_addresses.emplace(t.id,address);trains.emplace(t.id,std::move(t));return true;
         }))return false;
         if(!collect(read,context,state.simulation+0xa0,5,0x638,[&](const unsigned char* p,uint64_t address){
-            auto it=trains.find(field<uint64_t>(p,0));if(it==trains.end()||p[0x4b0]>1)return false;
+            auto it=trains.find(field<uint64_t>(p,0));
+            if(it==trains.end())return retired_motion(read,context,state,p,address);
+            if(p[0x4b0]>1)return false;
             auto& t=it->second;t.present=p[0x4b0]==1;
             // Service validity is independent of speed/network availability.
             NimbyTrainService first{},second{};
@@ -157,7 +192,19 @@ bool read_trains(ReadMemory read,void* context,const LiveState& state,bool recog
                     (presenceFlags&NIMBY_MOTION_HIDDEN)==(afterFlags&NIMBY_MOTION_HIDDEN);
                 if(stable){t.service.flags=NIMBY_SERVICE_PRESENCE_VALID;t.service.motion_flags=presenceFlags;}
             }
-            if(presenceOnly)return true;
+            if(presenceOnly){
+                // Lightweight signalling also exposes a stable Drive head for
+                // approach observations. Reuse the two Motion copies already
+                // read for presence: no model, path, timetable or speed reads.
+                TrainPosition firstHead{},secondHead{};
+                if(motionRechecked&&(t.service.flags&NIMBY_SERVICE_PRESENCE_VALID)&&
+                   decode_train_position(p,0x638,firstHead)&&
+                   decode_train_position(service_after.data(),service_after.size(),secondHead)&&
+                   firstHead.track_id==secondHead.track_id&&firstHead.fraction==secondHead.fraction&&firstHead.direction==secondHead.direction){
+                    t.position=secondHead;t.positioned=true;
+                }
+                return true;
+            }
             int64_t ticks{},epoch{};
             const bool clock_read=read(context,state.simulation+0x28,&ticks,sizeof ticks);
             std::array<unsigned char,0xbc> model_after{};

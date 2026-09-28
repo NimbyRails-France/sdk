@@ -39,6 +39,10 @@ int main(){try{
     CHECK(store.setBoolean(editorB,"green",false));
     store.suspendObservations();
     CHECK(store.read(a).status==nimby::SettingsStatus::Unavailable && !store.setBoolean(editorB,"active",true));
+    const auto suspended=store.selectFrame(b);
+    CHECK(suspended&&!suspended->available&&suspended->controls.size()==2);
+    CHECK(!store.accepts(suspended->editor)&&!store.setBoolean(suspended->editor,"green",true));
+    CHECK(!store.frame(suspended->editor)); // Read-only presentation never becomes fresh data.
     CHECK(store.observeSignals(session,signals) && store.read(a).getBoolean("active")==true);
     auto saved=store.save();
     auto wrong=saved;wrong.sessionId="save-B";

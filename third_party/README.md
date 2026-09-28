@@ -21,3 +21,9 @@ Seule adaptation : dans `hook.c`, `../include/MinHook.h` devient `MinHook.h`
 pour conserver une arborescence compacte. Aucun changement de comportement.
 Les licences MinHook et HDE ainsi que les notices des sources sont conservées.
 La compilation ne dépend ni du réseau ni des archives locales sous `build/`.
+
+## nlohmann/json 3.12.0
+
+Private catalogue parser: `include/nimby/detail/vendor/json.hpp`, unchanged single header from https://github.com/nlohmann/json/releases/tag/v3.12.0.
+SHA-256: `aaf127c04cb31c406e5b04a63f1ae89369fccde6d8fa7cdda1ed4f32dfc5de63`.
+MIT licence: `nlohmann-json-LICENSE.MIT`, included in SDK and mod packages.

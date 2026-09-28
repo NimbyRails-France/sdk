@@ -1,7 +1,8 @@
-# Développement client en Kotlin
+# Premier mod
 
-Les exemples C++ externes ont été retirés. Pour un outil, suivre le
-[guide du client Kotlin](kotlin-client.md) et utiliser `examples/kotlin-observer`.
-Pour un mod, suivre le [démarrage Kotlin/Native](kotlin-mods.md).
+Ce guide est désormais maintenu dans le [dépôt du wiki officiel](https://github.com/NimbyRails-France/wiki),
+page `commencer/premier-mod`, destinée à **https://wiki.nimbyrails-france.fr/commencer/premier-mod**.
 
-Le [guide mainteneur](sdk-maintainers.md) décrit les composants C/C++ internes.
+Le wiki contient les explications, exemples Kotlin et signatures synchronisées
+avec les sources du SDK. Ce fichier reste uniquement pour les anciens liens
+et les kits hors ligne. Il ne constitue pas une seconde documentation à maintenir.

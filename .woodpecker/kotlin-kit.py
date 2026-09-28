@@ -38,8 +38,8 @@ run('cmake', '-S', 'kotlin/native', '-B', 'build/ci-kotlin', '-G', 'Ninja',
     '-DNRF_OUTPUT_DIRECTORY=' + str(KIT / 'bin'))
 run('cmake', '--build', 'build/ci-kotlin', '--parallel', '2')
 copy(KOTLIN / 'licenses', KIT / 'licenses/Kotlin-Native')
+copy(ROOT / 'third_party/nlohmann-json-LICENSE.MIT', KIT / 'licenses/nlohmann-json/LICENSE.MIT')
 copy(ROOT / 'docs', KIT / 'docs')
-copy(ROOT / 'examples/kotlin-mod', KIT / 'examples/kotlin-mod')
 copy(ROOT / 'README.md', KIT / 'README.md')
 with zipfile.ZipFile(KIT / 'sources/nimby-mod-api-sources.jar', 'w', zipfile.ZIP_DEFLATED) as archive:
     for path in sorted((ROOT / 'kotlin/src').rglob('*.kt')):
@@ -50,7 +50,10 @@ with zipfile.ZipFile(KIT / 'sources/nimby-mod-api-sources.jar', 'w', zipfile.ZIP
     gameSha256=['fff49ac21720abfc824c2b4f68b862727630eb0db71cfe1f9ea8f685d0db10ae']), indent=2) + '\n')
 # A separate consumer directory keeps caches and build outputs out of the SDK ZIP.
 consumer = ROOT / 'build/ci-consumer'
-copy(KIT / 'examples/kotlin-mod', consumer)
-run('sh', consumer / 'gradlew', '-p', consumer, 'packageMod',
+copy(ROOT / 'verification/packaged-mod', consumer)
+(consumer / 'mod.json').write_text(json.dumps(dict(id='sdk-contract', name='SDK contract', modId='SdkContract',
+    module='SdkContractMod', language='kotlin-native', version='1.0.0', sdkMin=VERSION,
+    sdkMaxExclusive='0.9.0', gameSha256=['fff49ac21720abfc824c2b4f68b862727630eb0db71cfe1f9ea8f685d0db10ae'])))
+run('sh', ROOT / 'gradle-plugin/gradlew', '-p', consumer, 'packageMod',
     '-PnrfSdkDir=' + str(KIT), '-PnrfWineRunner=' + str(ROOT / '.woodpecker/wine-run.py'),
     '-Pkotlin.native.home=' + str(KOTLIN), '--no-daemon', '--max-workers=2', '--console=plain')

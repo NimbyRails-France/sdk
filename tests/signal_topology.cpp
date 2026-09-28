@@ -1,4 +1,5 @@
 #include <nimby/detail/observation_session.hpp>
+#include <nimby/signal_approach.hpp>
 #include <iostream>
 #include <limits>
 #define CHECK(x) do { if(!(x)) throw std::runtime_error("line " + std::to_string(__LINE__) + ": " #x); } while(false)
@@ -70,5 +71,28 @@ int main(){try{
  // Invalid native direction / stale branch generation is never used as an edge.
  junctions={TrackJunction{{3,1,.4,0,1}},TrackJunction{{999,1,.4,1,1}}};
  CHECK(SignalTopology(signals,nodes,junctions).findNextSignals(Position{1,.2,1},100,false,90).nextSignals.size()==1);
+ // An approach is the first facing boundary, not any signal further down a
+ // line or a train's tail still occupying a block behind its head.
+ {
+  const std::vector<TrackNode> straight{TrackNode{{1,0,2,0,0}},TrackNode{{2,1,0,1,0}}};
+  std::vector<Signal> panels{Signal{{80,1,.5,-1,NIMBY_SIGNAL_PATH}},Signal{{81,2,.7,-1,NIMBY_SIGNAL_PATH}}};
+  SignalTopology route(panels,straight,{},SignalDirectionConvention::Forward);
+  CHECK(firstApproachedSignal(route,{1,.2,1})==80);
+  CHECK(firstApproachedSignal(route,{1,.5,1})==80);
+  CHECK(firstApproachedSignal(route,{1,.6,1})==81);
+  CHECK(approachedSignals(route,{1,.2,1},2)==std::vector<Id>({80,81}));
+  CHECK(approachedSignals(route,{1,.6,1},2)==std::vector<Id>({81}));
+  CHECK(approachedSignals(route,{2,.8,1},2).empty());
+  CHECK(approachedSignals(route,{1,.2,-1},2).empty());
+  for(size_t invalid:{size_t(0),size_t(17)}){bool rejected=false;
+   try{approachedSignals(route,{1,.2,1},invalid);}catch(const std::invalid_argument&){rejected=true;}CHECK(rejected);}
+  panels.push_back(Signal{{83,2,.9,-1,NIMBY_SIGNAL_PATH}});
+  CHECK(approachedSignals(SignalTopology(panels,straight,{},SignalDirectionConvention::Forward),{1,.2,1},2)==std::vector<Id>({80,81}));
+  CHECK(approachedSignals(SignalTopology(panels,straight,{},SignalDirectionConvention::Forward),{1,.6,1},2)==std::vector<Id>({81,83}));
+  CHECK(!firstApproachedSignal(route,{1,.2,-1}));
+  CHECK(!firstApproachedSignal(route,{2,.8,1}));
+  panels.push_back(Signal{{82,1,.5,-1,NIMBY_SIGNAL_PATH}});
+  CHECK(!firstApproachedSignal(SignalTopology(panels,straight,{},SignalDirectionConvention::Forward),{1,.2,1}));
+ }
  std::cout<<"Signal order, direction changes, cycles, missing and ambiguous connections: OK\n";
 }catch(const std::exception& e){std::cerr<<e.what()<<'\n';return 1;}}

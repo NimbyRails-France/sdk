@@ -6,7 +6,7 @@ plugins {
 }
 
 group = 'fr.nimbyrails'
-version = '0.8.0-alpha.1'
+version = file('../VERSION').getText('UTF-8').trim()
 repositories { mavenCentral(); gradlePluginPortal() }
 dependencies {
     implementation 'org.jetbrains.kotlin:kotlin-gradle-plugin:2.2.20'
@@ -36,3 +36,9 @@ publishing {
     }
 }
 tasks.withType(Test).configureEach { testLogging { events 'failed', 'skipped' } }
+
+// Embed the actual build version; changing VERSION must not require editing code.
+tasks.named('processResources') {
+    inputs.property('sdkPluginVersion', project.version)
+    filesMatching('nrf-plugin.properties') { expand(sdkPluginVersion: project.version) }
+}

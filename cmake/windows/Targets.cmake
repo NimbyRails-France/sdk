@@ -25,6 +25,7 @@ add_library(NimbyRailsFranceSDK SHARED
     src/runtime/runtime.cpp
     src/runtime/observation.cpp
     src/platform/windows/runtime/clock_bridge_client.cpp
+    src/platform/windows/runtime/construction_bridge_client.cpp
     src/platform/windows/runtime/automatic_driving_client.cpp src/platform/windows/runtime/control_client.cpp
     src/runtime/texture_client.cpp
     src/platform/windows/runtime/texture_bridge_client.cpp
@@ -185,6 +186,38 @@ target_link_libraries(nimby_signal_ui_probe_bridge PRIVATE nimby_build nimby_min
 set_target_properties(nimby_signal_ui_probe_bridge PROPERTIES PREFIX "" OUTPUT_NAME "NimbySignalUiProbe-v1")
 add_executable(nimby_signal_ui_probe tools/windows/signal_ui_probe.cpp)
 target_link_libraries(nimby_signal_ui_probe PRIVATE nimby_loader_core)
+add_library(nimby_construction_probe_bridge SHARED tools/windows/construction-probe-bridge.cpp src/platform/windows/engine/binary_identity.cpp)
+add_library(nimby_construction_bridge SHARED EXCLUDE_FROM_ALL
+    src/platform/windows/runtime/construction_bridge.cpp src/platform/windows/engine/binary_identity.cpp)
+target_include_directories(nimby_construction_bridge PRIVATE include)
+target_link_libraries(nimby_construction_bridge PRIVATE nimby_build nimby_minhook bcrypt)
+set_target_properties(nimby_construction_bridge PROPERTIES PREFIX "" OUTPUT_NAME "NimbyConstructionBridge-experimental-v1")
+# Qualification artifact only: deliberately absent from install/drop-in targets.
+option(NIMBY_DEVELOPMENT_CONSTRUCTION "Include the single-player construction qualification bridge in local developer kits" OFF)
+if(NIMBY_DEVELOPMENT_CONSTRUCTION)
+    add_dependencies(NimbyRailsFranceSDK nimby_construction_bridge)
+    install(TARGETS nimby_construction_bridge RUNTIME DESTINATION bin)
+endif()
+if(MINGW)
+    target_link_options(nimby_construction_bridge PRIVATE -static-libgcc -static-libstdc++)
+endif()
+target_include_directories(nimby_construction_probe_bridge PRIVATE include)
+target_link_libraries(nimby_construction_probe_bridge PRIVATE nimby_build nimby_minhook bcrypt)
+set_target_properties(nimby_construction_probe_bridge PROPERTIES PREFIX "" OUTPUT_NAME "NimbyConstructionProbe-v1")
+add_executable(nimby_construction_probe tools/windows/construction-probe.cpp)
+target_link_libraries(nimby_construction_probe PRIVATE nimby_loader_core)
+add_library(nimby_construction_batch_probe_bridge SHARED tools/windows/construction-batch-probe-bridge.cpp src/platform/windows/engine/binary_identity.cpp)
+target_include_directories(nimby_construction_batch_probe_bridge PRIVATE include)
+target_link_libraries(nimby_construction_batch_probe_bridge PRIVATE nimby_build nimby_minhook bcrypt)
+set_target_properties(nimby_construction_batch_probe_bridge PROPERTIES PREFIX "" OUTPUT_NAME "NimbyConstructionBatchProbe-v1")
+add_executable(nimby_construction_batch_probe tools/windows/construction-batch-probe.cpp)
+target_link_libraries(nimby_construction_batch_probe PRIVATE nimby_loader_core)
+if(MINGW)
+    target_link_options(nimby_construction_batch_probe_bridge PRIVATE -static-libgcc -static-libstdc++)
+    target_link_options(nimby_construction_batch_probe PRIVATE -municode)
+    target_link_options(nimby_construction_probe_bridge PRIVATE -static-libgcc -static-libstdc++)
+    target_link_options(nimby_construction_probe PRIVATE -municode)
+endif()
 if(MINGW)
     target_link_options(nimby_signal_ui_probe_bridge PRIVATE -static-libgcc -static-libstdc++)
     target_link_options(nimby_signal_ui_probe PRIVATE -municode)

@@ -6,7 +6,11 @@
 #include "engine/named_signal_extensions.h"
 namespace nimby::engine {
 // Experimental, read-only layout profile. Evidence: docs/research/network.md.
-struct Track { uint64_t id{}, station_id{}; float physical_mps{}, manual_mps{}, limit_mps{}; uint64_t links[2]{}; double x{},y{}; bool geometry{}; };
+struct Track { uint64_t id{}, station_id{}; float physical_mps{}, manual_mps{}, limit_mps{}; uint64_t links[2]{}; double x{},y{}; bool geometry{};
+    // Zero means unavailable, never a zero-length rail. This metric is used by
+    // the native route scanner; it is not a chord reconstructed from x/y.
+    double native_length_m{};
+};
 struct Station { uint64_t id{}; std::string name; }; // Selected manual/automatic name; empty if unresolved.
 struct Signal { uint64_t id{}, track_id{}; double fraction{}; int direction{}, kind{}; uint64_t textures_hash{}; bool filter_available{}, filter_default_ignored{}; uint32_t exception_count{};
     bool extensions_available{};

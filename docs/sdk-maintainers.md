@@ -17,8 +17,7 @@ et la [validation Linux dans VMware](linux-validation.md).
 | `kotlin/src/nimby/` | API Kotlin publique |
 | `kotlin/native/` | Transport Kotlin/natif, adaptateur et vérifications |
 | `gradle-plugin/` | Plugin Gradle commun aux mods |
-| `examples/kotlin-mod/` | Projet Kotlin autonome distribué dans le kit |
-| `examples/kotlin-observer/` | Exemple client Kotlin/JVM |
+| `verification/kotlin-consumer/` | Fixture de compilation du client installé, non distribuée |
 | `tests/` | Tests natifs du SDK |
 | `tools/` | Construction des kits et diagnostics du SDK |
 | `docs/` | Guides et références ; recherches historiques identifiées séparément |
@@ -113,3 +112,21 @@ Pour la version 0.8.0, le Hub appelle `packageMod` et attend
 `build/gradle/distributions/<modId>-<version>-windows-x64.zip`.
 Les contraintes du jeu et du SDK doivent rester explicites ; ne pas les déduire
 du poste du mainteneur.
+# Construction locale depuis le Hub
+
+Le profil Développer du Hub sait construire ce dépôt Windows via `hub-local.json`.
+Choisir la racine du dépôt dans la page SDK, puis **Construire et préparer le SDK**.
+`VERSION` est l'unique version du kit et de son plugin Gradle. Le script
+`tools/windows/build-for-hub.ps1` enchaîne CMake Release, CTest, installation dans
+un dossier neuf, kit Kotlin et archive Hub. Il n'installe rien dans le jeu et ne
+publie rien. Le Hub vérifie les sorties puis sélectionne le kit correspondant ;
+les mods doivent ensuite être recompilés avant l'activation du profil.
+
+Le cache natif est `build/hub-native`, protégé par un verrou pendant la construction.
+Chaque kit validé reste sous `install/hub/sdk-…` ; ne pas supprimer le kit indiqué
+dans les paramètres du Hub. Un reçu `hub-result.json` décrit le manifeste, l'archive
+et le kit, avec des chemins relatifs au dossier de sortie. Il est écrit en dernier.
+Un build interrompu ne produit pas de résultat importable et ne remplace pas le kit
+précédent. Les variables `NRF_CLION_HOME`, `NRF_KOTLIN_HOME` et `NRF_JAVA_HOME`
+permettent de choisir les outils Windows ; par défaut CLion dans LocalAppData,
+Kotlin/Native 2.2.20 dans `.konan` et le JDK configuré ou Adoptium 21 sont utilisés.

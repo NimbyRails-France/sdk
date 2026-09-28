@@ -24,6 +24,11 @@ file(GLOB_RECURSE sources RELATIVE "${SDK_ROOT}"
     "${SDK_ROOT}/tests/*.cpp" "${SDK_ROOT}/tests/*.hpp" "${SDK_ROOT}/tests/*.c"
     "${SDK_ROOT}/tools/*.cpp" "${SDK_ROOT}/tools/*.hpp" "${SDK_ROOT}/kotlin/native/*.cpp")
 foreach(source IN LISTS sources)
+    # Pinned, unmodified upstream parser; its compiler portability macros are
+    # not SDK platform operations. Keep this exception limited to that file.
+    if(source STREQUAL "include/nimby/detail/vendor/json.hpp")
+        continue()
+    endif()
     file(READ "${SDK_ROOT}/${source}" contents)
     if(contents MATCHES "nimby::Client|#[ \t]*include[^\n]*nimby/client\\.hpp")
         message(FATAL_ERROR "Retired public C++ client reference in ${source}")

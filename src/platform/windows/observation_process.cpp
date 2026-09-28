@@ -2,6 +2,7 @@
 #include "engine/binary_identity.h"
 #include "platform/windows/unique_handle.h"
 #include "platform/windows/runtime/clock_bridge.h"
+#include "platform/windows/runtime/construction_bridge.h"
 #include "engine/calendar_update.h"
 #include <tlhelp32.h>
 #include <bit>
@@ -102,5 +103,11 @@ uint32_t ObservationProcess::setClockAndRecalculate(int64_t utc,NimbySimulationC
     nimby::engine::LiveState state{};
     if(!nimby::engine::resolve_live_state(readProcess,&session,session.base,true,profile(),state))return NIMBY_DATA_UNAVAILABLE;
     return nimby::clock_bridge::change(session.impl_->process.get(),session.pid,state.simulation,session.binary,utc,*out,*count);
+}
+uint32_t ObservationProcess::construction(const NimbyConstructionRequest* request,uint64_t token,NimbyConstructionResult& result) noexcept {
+    // A Kotlin tool runs on its mod observation worker inside the game. The
+    // transport bootstraps locally there; only external tools need injection.
+    if(!alive())return NIMBY_PROCESS_EXITED;
+    return construction_bridge::exchange(impl_->process.get(),pid,binary,request,token,result);
 }
 }

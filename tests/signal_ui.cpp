@@ -20,12 +20,22 @@ int main(){try{
     constexpr uint64_t base=0x140000000,object=0x20000000;
     Memory memory;
     CHECK(!Ui::bind(Memory::read,&memory,base,object));
-    memory.words={{object,base+0xa83818},{base+0xa83818+0xf0,base+0x55cd20}};
+    memory.words={{object,base+0xa83818},{base+0xa83818+0xf0,base+0x55cd20},{base+0xa83818+0x90,base+0x55c9c0},
+        {base+0xa83818+0x30,base+0x55c950},{base+0xa83818+0x38,base+0x55c980},
+        {base+0xa83818+0x08,base+0x55c6f0},{base+0xa83818+0x18,base+0x55c770},{base+0xa83818+0x138,base+0x55ce50},
+        {base+0xa83818+0xa8,base+0x55ca70},{base+0xa83818+0xb8,base+0x55cb30},{base+0xa83818+0xd0,base+0x55cc10}};
     auto layout=Ui::bind(Memory::read,&memory,base,object);
     CHECK(layout && layout->pass()==Ui::Pass::Layout);
-    memory.words={{object,base+0xa83470},{base+0xa83470+0xf0,base+0x560870}};
+    memory.words={{object,base+0xa83470},{base+0xa83470+0xf0,base+0x560870},{base+0xa83470+0x90,base+0x55ef00},
+        {base+0xa83470+0x30,base+0x55d620},{base+0xa83470+0x38,base+0x55dc40},
+        {base+0xa83470+0x08,base+0x55d2c0},{base+0xa83470+0x18,base+0x55d430},{base+0xa83470+0x138,base+0x562a10},
+        {base+0xa83470+0xa8,base+0x55f570},{base+0xa83470+0xb8,base+0x55f640},{base+0xa83470+0xd0,base+0x55f930}};
     auto interactive=Ui::bind(Memory::read,&memory,base,object);
     CHECK(interactive && interactive->pass()==Ui::Pass::Interactive);
+    for(uint64_t slot:{uint64_t(0x08),uint64_t(0x18),uint64_t(0x30),uint64_t(0x38),uint64_t(0x138),uint64_t(0xa8),uint64_t(0xb8),uint64_t(0xd0)}){
+        auto changed=memory;changed.words[base+0xa83470+slot]^=1;
+        CHECK(!Ui::bind(Memory::read,&changed,base,object));
+    }
     // Recognizing an object is insufficient if its function table was changed.
     memory.words[base+0xa83470+0xf0]=base+0x55cd20;
     CHECK(!Ui::bind(Memory::read,&memory,base,object));

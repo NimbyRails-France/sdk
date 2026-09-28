@@ -152,7 +152,7 @@ compatibilité des manifestes.
 - Aucune entrée métier, aucun thread, aucune attente sous le verrou de chargement Windows.
 - Démarrage/arrêt explicites ; code encore utilisé par un hook ou un runtime conservé chargé.
 
-`examples/kotlin-mod/settings.gradle.kts` localise le kit et son plugin. Il ne
+Le `settings.gradle.kts` du mod localise le kit et son plugin. Il ne
 sélectionne pas des sources natives et ne doit pas accumuler des règles Windows/Linux.
 
 ## Construction et vérification

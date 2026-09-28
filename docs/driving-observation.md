@@ -22,7 +22,7 @@ NimbyClient.open(Path.of(library), pid).use { client ->
 
 `library`, `pid` et `trainId` viennent du choix de DLL, du processus et du train
 fait par l'application. Les identifiants sont opaques ; utiliser ceux du SDK.
-L'exemple complet de connexion est dans `examples/kotlin-observer`.
+Le parcours de connexion est sur le [wiki](https://wiki.nimbyrails-france.fr/lire/connexion).
 
 ## Contrat de lecture
 
@@ -56,8 +56,8 @@ chemin libre, ni une distance à un signal. La pente n'est pas exposée.
 
 ## Mods Kotlin/Native et commandes
 
-Un mod implémente `SignallingMod` en Kotlin, comme dans
-`examples/kotlin-mod/src/main/kotlin/Entry.kt`. Le SDK lui transmet les
+Un mod déclare ses règles en Kotlin avec `signalMod`, décrit dans le
+[guide officiel](https://wiki.nimbyrails-france.fr/commencer/premier-mod). Le SDK lui transmet les
 observations dans `decide(signal, next)` ; le mod fournit ses règles via
 `drivingRule(decision)`. Le client JVM ci-dessus appartient aux outils externes,
 pas aux dépendances d'un mod Kotlin/Native.

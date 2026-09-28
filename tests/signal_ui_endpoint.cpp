@@ -1,4 +1,5 @@
 #include "runtime/signal_ui_endpoint.h"
+#include <array>
 #include <iostream>
 #include <stdexcept>
 #define CHECK(x) do{if(!(x))throw std::runtime_error("Failed line "+std::to_string(__LINE__));}while(false)
@@ -34,6 +35,38 @@ int main(){try{
     struct Click {void checkbox(const char*,const char*,uint32_t& value){value=1;}} click;
     nimby::runtime::SignalUiHost::interactive(frame,id,click);
     CHECK(endpoint.read(owner,id,&values)==NIMBY_OK&&values.fields[0].value==1);
+    // Two models in one mod: same setting name, separate catalogues/defaults,
+    // no checkbox/persistence leakage when the editor changes selection.
+    auto secondPanel=panel;std::strcpy(secondPanel.id,"test.second");
+    std::strcpy(secondPanel.texture_set,"second.atlas");secondPanel.checkboxes[0].default_value=1;
+    uint64_t secondOwner{},secondSession{};
+    CHECK(endpoint.add(&secondPanel,&secondOwner)==NIMBY_OK);
+    CHECK(endpoint.begin(secondOwner,"save-A",6,&secondSession)==NIMBY_OK);
+    std::array<NimbyUiSignalV1,2> models{signal,signal};models[1].id=id+1;
+    std::strcpy(models[1].texture_set,"second.atlas");
+    CHECK(endpoint.observe(owner,session,models.data(),2)==NIMBY_OK);
+    CHECK(endpoint.observe(secondOwner,secondSession,models.data(),2)==NIMBY_OK);
+    CHECK(endpoint.read(owner,id+1,&values)==NIMBY_OK&&values.status==1);
+    CHECK(endpoint.read(secondOwner,id,&values)==NIMBY_OK&&values.status==1);
+    CHECK(endpoint.read(secondOwner,id+1,&values)==NIMBY_OK&&values.status==2&&values.fields[0].value==1);
+    CHECK(endpoint.host.prepare(2,id).panels.size()==1);
+    CHECK(endpoint.host.prepare(3,id+1).panels.front().owner==secondOwner);
+    CHECK(endpoint.remove(secondOwner)==NIMBY_OK);
+    CHECK(endpoint.read(owner,id,&values)==NIMBY_OK&&values.fields[0].value==1);
+    // A migration acknowledgement occupies no UI row in ordinary profiles.
+    CHECK(endpoint.add(&secondPanel,&secondOwner)==NIMBY_OK);
+    CHECK(endpoint.conditionalVisibility(secondOwner,2)==NIMBY_INVALID_ARGUMENT);
+    CHECK(endpoint.conditionalVisibility(secondOwner,1)==NIMBY_OK);
+    CHECK(endpoint.begin(secondOwner,"save-A",6,&secondSession)==NIMBY_OK);
+    CHECK(endpoint.observe(secondOwner,secondSession,models.data(),2)==NIMBY_OK);
+    CHECK(endpoint.conditionalVisibility(secondOwner,0)==NIMBY_INVALID_ARGUMENT);
+    auto conditional=endpoint.host.prepare(4,id+1);
+    CHECK(conditional.panels.front().controls.controls.size()==1);
+    auto secondStore=endpoint.host.store(secondOwner);
+    CHECK(secondStore->setBoolean(conditional.panels.front().controls.editor,"active",false));
+    CHECK(endpoint.host.prepare(5,id+1).panels.front().controls.controls.empty());
+    CHECK(endpoint.read(secondOwner,id+1,&values)==NIMBY_OK&&values.fields[0].value==0);
+    CHECK(endpoint.remove(secondOwner)==NIMBY_OK);
     uint32_t needed=99;
     CHECK(endpoint.exportSettings(owner,session,nullptr,0,&needed)==NIMBY_OK&&needed);
     std::string saved(needed,'?');uint32_t written=99;

@@ -15,17 +15,17 @@ if(!$BuildDirectory){$BuildDirectory=Join-Path $projectRoot 'build/Release'}
 if(!$SkipBuild) { & "$PSScriptRoot/build.ps1" -ClionHome $ClionHome -Configuration Release }
 & $cmake --install $BuildDirectory --prefix $prefix
 if($LASTEXITCODE) { throw 'SDK installation failed' }
-foreach($removed in @('include/nimby/client.hpp','include/nimby/sdk.h','include/nimby/observation.h','bin/NimbyRailsSDK.dll','lib/cmake/NimbyRailsSDK')) {
+foreach($removed in @('include/nimby/client.hpp','include/nimby/sdk.h','include/nimby/observation.h','bin/NimbyRailsSDK.dll','lib/cmake/NimbyRailsSDK','share/NimbyRailsFranceSDK/examples')) {
     if(Test-Path -LiteralPath (Join-Path $prefix $removed)) { throw "Old SDK files in package: $removed. Use a fresh output directory." }
 }
 # Verify a copy of the installed consumer layout. Gradle writes build/cache
 # directories: running it inside the distributable would leak local build state.
-$validation=Join-Path $projectRoot ('build/package-example-'+[guid]::NewGuid().ToString('N'))
-New-Item -ItemType Directory -Path "$validation/examples" -Force | Out-Null
-Copy-Item -LiteralPath "$prefix/share/NimbyRailsFranceSDK/examples/kotlin-observer" -Destination "$validation/examples/kotlin-observer" -Recurse
+$validation=Join-Path $projectRoot ('build/package-consumer-'+[guid]::NewGuid().ToString('N'))
+New-Item -ItemType Directory -Path $validation -Force | Out-Null
+Copy-Item -LiteralPath "$projectRoot/verification/kotlin-consumer" -Destination "$validation/consumer" -Recurse
 Copy-Item -LiteralPath "$prefix/share/NimbyRailsFranceSDK/kotlin-client" -Destination "$validation/kotlin-client" -Recurse
-& "$projectRoot/gradle-plugin/gradlew.bat" -p "$validation/examples/kotlin-observer" build '--console=plain' '--no-daemon'
-if($LASTEXITCODE) { throw 'Installed Kotlin client example build failed' }
+& "$projectRoot/gradle-plugin/gradlew.bat" -p "$validation/consumer" build '--console=plain' '--no-daemon'
+if($LASTEXITCODE) { throw 'Installed Kotlin client consumer compilation failed' }
 $generated=Get-ChildItem -LiteralPath $prefix -Directory -Recurse -Force | Where-Object { $_.Name -in @('.gradle','.kotlin','build') }
 if($generated){throw 'Generated build/cache directory in SDK package; use a fresh output prefix'}
 Copy-Item -LiteralPath "$projectRoot/README.md" -Destination $prefix -Force

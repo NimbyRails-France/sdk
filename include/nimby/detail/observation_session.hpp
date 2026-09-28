@@ -1,5 +1,6 @@
 #pragma once
 #include <nimby/detail/observation_values.hpp>
+#include <nimby/detail/construction.h>
 
 namespace nimby::detail {
 // SDK-internal discovery for diagnostic hosts. In-game adapters pass their
@@ -27,6 +28,12 @@ public:
     ObservationSession& operator=(const ObservationSession&) = delete;
     ~ObservationSession() { if (session_) NimbyInternal_CloseSession(session_); }
     std::uint32_t getProcessId() const noexcept { return pid_; }
+    uint32_t construction(const NimbyConstructionRequest& request,NimbyConstructionResult& result){
+        std::lock_guard lock(mutex_);return NimbyInternal_Construction(session_,&request,&result);
+    }
+    uint32_t pollConstruction(uint64_t token,NimbyConstructionResult& result){
+        std::lock_guard lock(mutex_);return NimbyInternal_ConstructionPoll(session_,token,&result);
+    }
 
     Snapshot::Ptr capture(SnapshotScope scope = SnapshotScope::Complete, const char* textureSet = nullptr) {
         std::lock_guard guard(mutex_);

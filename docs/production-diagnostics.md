@@ -17,7 +17,6 @@ inclus.
 | Mods Kotlin et adaptateur, dont SFR | `NimbyRailsFrance/logs/mods` |
 | Client Kotlin du SDK | `NimbyRailsFrance/logs/sdk-client` |
 | TCO | `NimbyRailsFrance/logs/tco` |
-| Banc de test | `NimbyRailsFrance/logs/testbench` |
 
 Le TCO propose **Journaux**, le banc **Fichiers de logs**. Les noms natifs
 contiennent le nom de la DLL/exécutable ; les noms JVM contiennent le composant
