@@ -6,12 +6,24 @@ sdk_root=$(CDPATH= cd -- "$1" && pwd)
 export DEBIAN_FRONTEND=noninteractive
 dpkg --add-architecture i386
 apt-get update
+apt-get install -y --no-install-recommends ca-certificates curl gnupg
+mkdir -p /etc/apt/keyrings
+curl --fail --location --retry 3 -o /etc/apt/keyrings/nrf-winehq.asc \
+  https://dl.winehq.org/wine-builds/winehq.key
+echo 'd965d646defe94b3dfba6d5b4406900ac6c81065428bf9d9303ad7a72ee8d1b8  /etc/apt/keyrings/nrf-winehq.asc' | sha256sum -c -
+echo 'deb [signed-by=/etc/apt/keyrings/nrf-winehq.asc] https://dl.winehq.org/wine-builds/ubuntu/ noble main' > /etc/apt/sources.list.d/nrf-winehq.list
+apt-get update
 apt-get install -y --no-install-recommends \
   ca-certificates curl git python3 cmake ninja-build make gcc libc6-dev \
   g++-mingw-w64-x86-64-posix binutils-mingw-w64-x86-64 \
-  wine wine64 wine32:i386 xvfb xauth fonts-dejavu-core \
+  winehq-stable=11.0.0.0~noble-1 xvfb xauth fonts-dejavu-core \
   fontconfig libxi6 libxtst6 libxrender1 libgl1 unzip
 mkdir -p /opt/mingw/bin /opt/nimby-ci
+# CMake stages compiler runtimes next to the chosen compiler. Mirror the same
+# directory contract as the Woodpecker image instead of assuming /usr/bin DLLs.
+ln -s /usr/bin/x86_64-w64-mingw32-gcc-posix /opt/mingw/bin/gcc
+ln -s /usr/bin/x86_64-w64-mingw32-g++-posix /opt/mingw/bin/g++
+ln -s /usr/bin/x86_64-w64-mingw32-windres /opt/mingw/bin/windres
 for library in libgcc_s_seh-1.dll libstdc++-6.dll libwinpthread-1.dll; do
   location=$(x86_64-w64-mingw32-g++-posix -print-file-name="$library")
   test -f "$location"
@@ -21,9 +33,9 @@ chmod +x "$sdk_root/.woodpecker/wine-run.py"
 cat > /opt/nimby-ci/nimby-mingw.cmake <<EOF
 set(CMAKE_SYSTEM_NAME Windows)
 set(CMAKE_SYSTEM_PROCESSOR x86_64)
-set(CMAKE_C_COMPILER x86_64-w64-mingw32-gcc-posix)
-set(CMAKE_CXX_COMPILER x86_64-w64-mingw32-g++-posix)
-set(CMAKE_RC_COMPILER x86_64-w64-mingw32-windres)
+set(CMAKE_C_COMPILER /opt/mingw/bin/gcc)
+set(CMAKE_CXX_COMPILER /opt/mingw/bin/g++)
+set(CMAKE_RC_COMPILER /opt/mingw/bin/windres)
 set(CMAKE_CROSSCOMPILING_EMULATOR "$sdk_root/.woodpecker/wine-run.py")
 set(CMAKE_FIND_ROOT_PATH /usr/x86_64-w64-mingw32)
 set(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER)
