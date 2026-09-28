@@ -44,8 +44,12 @@ set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)
 set(CMAKE_FIND_ROOT_PATH_MODE_PACKAGE ONLY)
 EOF
 export WINEDEBUG=-all
-xvfb-run -a wineboot --init
-xvfb-run -a winecfg -v win10
+# WineHQ offers optional Mono/Gecko installers in a fresh prefix. These native
+# fixtures and JVM applications use neither; no interactive installer may stall
+# a headless runner. Bound initialization separately from compilation.
+export WINEDLLOVERRIDES='mscoree,mshtml='
+timeout 90 xvfb-run -a wineboot --init
+timeout 60 xvfb-run -a winecfg -v win10
 # The installer compiler is needed only by the Hub; verify the upstream digest
 # before executing it. This installation is confined to the disposable runner.
 if [ "${CI_REPO##*/}" = hub ]; then
