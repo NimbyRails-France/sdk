@@ -48,7 +48,7 @@ def archive(stage, name):
         for item in sorted(stage.rglob('*')):
             if item.is_file():
                 if item.is_symlink():
-                    raise ValueError('Symlinks are not distributable')
+                    raise ValueError('Symlinks are not distributable: ' + str(item.relative_to(stage)))
                 archive.write(item, item.relative_to(stage.parent).as_posix())
     with zipfile.ZipFile(target) as archive:
         if archive.testzip():

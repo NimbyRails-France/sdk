@@ -27,7 +27,9 @@ ln -s /usr/bin/x86_64-w64-mingw32-windres /opt/mingw/bin/windres
 for library in libgcc_s_seh-1.dll libstdc++-6.dll libwinpthread-1.dll; do
   location=$(x86_64-w64-mingw32-g++-posix -print-file-name="$library")
   test -f "$location"
-  ln -s "$location" "/opt/mingw/bin/$library"
+  # Install the actual DLL bytes: CMake preserves symlinks during install,
+  # while distributable Windows ZIPs deliberately reject symbolic links.
+  cp -L "$location" "/opt/mingw/bin/$library"
 done
 chmod +x "$sdk_root/.woodpecker/wine-run.py"
 cat > /opt/nimby-ci/nimby-mingw.cmake <<EOF
