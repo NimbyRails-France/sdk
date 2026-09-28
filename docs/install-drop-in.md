@@ -56,6 +56,36 @@ Pour une installation manuelle uniquement : retirer les quatre DLL ajoutées,
 puis renommer NimbyRailsSDL3Original.dll en SDL3.dll. Le script de retrait exige
 son manifeste ; il ne peut pas retirer une installation manuelle.
 
+## Gestion des DLL dans le script actuel
+
+Ces règles concernent le script source mis à jour, pas les anciennes archives
+déjà publiées. Utiliser également le Hub mis à jour pour la réparation.
+
+Une DLL déjà présente est réutilisée seulement si son SHA-256 est identique à
+celui du paquet. Toutes les DLL réutilisées sont inscrites dans `sharedFiles`
+d'un manifeste de format 3 : désinstallation, réparation et retour arrière les
+conservent. Les fichiers copiés par le SDK restent sa propriété et sont retirés
+seulement après vérification de leur contenu. Une version différente bloque
+l'opération sans écrasement.
+
+Exception documentée : l'ancienne `libwinpthread-1.dll` d'empreinte
+`1179c0c0ed77abb4aa92a14db97f369cdf364d810167d251b0dfe466db004c21`
+(également distribuée avec le SDK 0.6.6) peut migrer vers la version du paquet.
+Le script conserve le fichier précédent sous `libwinpthread-1.dll.nrf-before-sdk`
+et enregistre son empreinte dans `replacedFiles`. Retrait, réparation et échec
+d'installation restaurent cette version précédente ; une version inconnue reste
+un conflit. Ne pas supprimer ces sauvegardes manuellement.
+
+Le script écrit `NimbyRailsFranceSDK-install.tmp` avant de copier les DLL et le
+renomme en manifeste final après validation. En cas d'arrêt brutal, conserver
+ce fichier : la réparation du Hub peut utiliser ses empreintes et une SDL
+originale vérifiée pour revenir à un état réinstallable. Une DLL gérée manquante
+n'empêche plus cette récupération. Un fichier modifié ou une sauvegarde SDL
+invalide reste un conflit explicite.
+
+Tests autonomes, sans jeu installé ni exécution des DLL :
+`powershell -NoProfile -File tests/windows/proxy-ownership.ps1`.
+
 ## Compatibilité
 
 Windows x64, jeu SHA-256 :

@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+## [0.8.0-alpha.4] - 2026-09-28
+
+- R?utilise les DLL pr?existantes identiques sans les supprimer ? la d?sinstallation.
+- Migre l'ancienne d?pendance pthread reconnue avec sauvegarde et restauration ; conserve les DLL inconnues.
+- Conserve un manifeste de r?cup?ration avant les copies et permet le retrait malgr? des DLL g?r?es manquantes ou une SDL d?j? restaur?e.
+- ? utiliser avec le Hub 0.4.1-alpha.9 pour la r?paration des installations interrompues.
+
+Preserves shared DLLs, safely migrates the recognized legacy pthread dependency, and records recovery information before installation. Use Hub 0.4.1-alpha.9 for interrupted-install recovery.
+
 ## [0.8.0-alpha.3] - 2026-09-28
 
 - Corrige des retards de réaction des signaux et de la marche à vue quand la simulation est accélérée.
