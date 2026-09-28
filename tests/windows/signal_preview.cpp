@@ -5,6 +5,24 @@
 #include <stdexcept>
 #define CHECK(x) do{if(!(x))throw std::runtime_error("Line "+std::to_string(__LINE__)+": " #x);}while(false)
 namespace {
+void positionBytes(){
+    // Both travel directions and both destination orientations, including a
+    // change of track orientation in one batch. Guard every neighbouring byte.
+    std::array<unsigned char,0xe8> command;
+    command.fill(0xa5);
+    for(int direction:{-1,1})for(uint8_t orientation:{0,1}){
+        nimby::platform::windows::writeSignalPosition(command.data()+0x60,
+            0x1000000000001ULL,.375,direction,orientation);
+        uint64_t track{};double fraction{};int8_t actual{};
+        std::memcpy(&track,command.data()+0x60,8);
+        std::memcpy(&fraction,command.data()+0x68,8);
+        std::memcpy(&actual,command.data()+0x70,1);
+        CHECK(track==0x1000000000001ULL&&fraction==.375&&actual==direction);
+        CHECK(command[0x71]==orientation);
+        for(size_t i=0;i<command.size();++i)
+            if(i<0x60||i>=0x72)CHECK(command[i]==0xa5);
+    }
+}
 constexpr uint64_t source=0x8000000000001,track=0x1000000000001;
 struct Memory {
     static constexpr uint64_t base=0x100000;
@@ -128,4 +146,4 @@ void lifecycle(){
     CHECK(endpoint.publishPreview(provider,&wire)==NIMBY_INVALID_HANDLE);
 }
 }
-int main(){try{renderer();lifecycle();std::cout<<"PASS transient signal preview geometry, ownership and lifecycle\n";}catch(const std::exception& e){std::cerr<<e.what()<<'\n';return 1;}}
+int main(){try{positionBytes();renderer();lifecycle();std::cout<<"PASS transient signal preview geometry, ownership and lifecycle\n";}catch(const std::exception& e){std::cerr<<e.what()<<'\n';return 1;}}
