@@ -36,6 +36,7 @@ struct Api {
     int (*defaults)(std::int64_t*)=nullptr;
     int (*decide)(int,std::int64_t,int,std::int64_t,std::int64_t,const int*,int,int,int*)=nullptr;
     int (*decideType)(int,int,std::int64_t,int,std::int64_t,std::int64_t,std::int64_t,const int*,int,int,int*)=nullptr;
+    int (*prepareNetwork)(int,const int64_t*,const int*,int64_t*,int*)=nullptr;
     int (*typeMetadata)(int,int,int,char*,int)=nullptr;
     int (*migrate)(int,const char*,const int*,int,std::int64_t*)=nullptr;
     int (*texture)(int,int,std::int64_t,std::int64_t,char*,int)=nullptr;
@@ -58,6 +59,8 @@ struct Api {
         std::vector<SignalCheckbox> boxes;
         std::vector<std::array<std::string,4>> actionLabels;
         std::vector<SignalAction> actions;
+        std::vector<std::array<std::string,3>> numberLabels;
+        std::vector<SignalNumber> numbers;
     };
     std::vector<Type> types;
     std::vector<SignalSettingsPanel> panels;
@@ -116,7 +119,7 @@ struct Api {
         if(const auto available=reinterpret_cast<int(*)(int)>(detail::native::symbol(module,"NRFKotlin_TranslationsAvailable")))
             check(available(translationsJson.empty()?0:1));
         const auto version=symbol<int(*)()>("NRFKotlin_Version");const auto abi=version();check(abi);
-        if(abi<1||abi>7)throw std::runtime_error("Unsupported Kotlin ABI");
+        if(abi<1||abi>8)throw std::runtime_error("Unsupported Kotlin ABI");
         metadata=symbol<decltype(metadata)>("NRFKotlin_Metadata");
         if(abi>=3){
             const auto kind=symbol<int(*)()>("NRFKotlin_ModKind")();check(kind);
@@ -135,7 +138,7 @@ struct Api {
         }
         if(abi>=7){
             const auto count=symbol<int(*)()>("NRFKotlin_WindowCount")();check(count);
-            if(count>8||!tool)throw std::runtime_error("Invalid tool window declaration");
+            if(count>8||(count&&!tool))throw std::runtime_error("Invalid tool window declaration");
             windowEvent=symbol<decltype(windowEvent)>("NRFKotlin_WindowEvent");
             auto meta=symbol<int(*)(int,int,char*,int)>("NRFKotlin_WindowMetadata");
             for(int i=0;i<count;++i){std::array<std::string,3> values;
@@ -144,6 +147,7 @@ struct Api {
             }
         }
         if(tool){id=text(0);title=text(1);diagnostic=text(3);return;}
+        if(abi>=8)prepareNetwork=symbol<decltype(prepareNetwork)>("NRFKotlin_PrepareNetwork");
         if(abi>=4){
             fallbackType=symbol<decltype(fallbackType)>("NRFKotlin_FallbackType");
             localDecision=symbol<decltype(localDecision)>("NRFKotlin_LocalDecision");
@@ -192,7 +196,22 @@ struct Api {
                     (std::uint64_t(description[2])&(std::uint64_t{1}<<i))!=0});
                 // Validate before any UI registration. Declaration strings are
                 // owned for the DLL lifetime, including loader stop/restart.
-                SignalSettingsStore validator;validator.configure({type.id,type.title,type.catalogue,type.boxes});
+                if(abi>=8){
+                    const auto count=symbol<int(*)(int)>("NRFKotlin_NumberCount")(n);check(count);
+                    if(count>4)throw std::runtime_error("Too many numeric settings");
+                    auto meta=symbol<int(*)(int,int,int,char*,int)>("NRFKotlin_NumberMetadata");
+                    auto info=symbol<int(*)(int,int,int*)>("NRFKotlin_NumberInfo");
+                    type.numberLabels.resize(count);
+                    for(int i=0;i<count;++i){
+                        for(int field=0;field<3;++field){std::array<char,257> buffer{};const auto bytes=meta(n,i,field,buffer.data(),int(buffer.size()));check(bytes);
+                            if(bytes>=int(buffer.size())||buffer[bytes])throw std::runtime_error("Invalid number metadata");
+                            type.numberLabels[i][field].assign(buffer.data(),bytes);}
+                        std::array<int,2> values{};check(info(n,i,values.data()));
+                        const auto& labels=type.numberLabels[i];
+                        type.numbers.push_back({labels[0],labels[1],labels[2],uint32_t(values[0]),uint32_t(values[1])});
+                    }
+                }
+                SignalSettingsStore validator;validator.configure({type.id,type.title,type.catalogue,type.boxes,nullptr,{},type.numbers});
                 if(abi>=3){
                     const auto count=symbol<int(*)(int)>("NRFKotlin_ActionCount")(n);check(count);
                     if(count>16)throw std::runtime_error("Too many signal actions");
@@ -207,7 +226,7 @@ struct Api {
                 }
                 detail::diagnostics::write("mods","INFO",("Registered signal type: "+type.id+" textures="+type.catalogue+" settings="+std::to_string(type.boxes.size())).c_str());
             }
-            for(const auto& type:types)panels.push_back({type.id,type.title,type.catalogue,type.boxes,migrate?migrateSettings:nullptr,type.actions});
+            for(const auto& type:types)panels.push_back({type.id,type.title,type.catalogue,type.boxes,migrate?migrateSettings:nullptr,type.actions,type.numbers});
         } else {
             // Optional exports preserve compatibility with older one-type mods.
             panels.push_back({id,title,catalogue,boxes});
@@ -266,6 +285,26 @@ Signal Rules::fromLive(const LiveSignalState& state) {
             if(!value){result.settingsStatus=SettingsStatus::Unavailable;break;}
             if(*value)result.settings.mask|=std::uint64_t{1}<<i;
         }
+    }
+    return result;
+}
+std::vector<Signal> Rules::prepareNetwork(std::span<const Signal> input) {
+    std::vector<Signal> result(input.begin(),input.end());
+    const auto prepare=api().prepareNetwork;
+    if(!prepare||input.empty())return result;
+    if(input.size()>maxSignals)throw std::invalid_argument("Too many signals");
+    std::vector<int64_t> identities(input.size()*4),masks(input.size());
+    std::vector<int> fields(input.size()*9),statuses(input.size());
+    for(size_t i=0;i<input.size();++i){const auto& signal=input[i];
+        identities[i*4]=signal.id;identities[i*4+1]=signal.nextSignal;identities[i*4+2]=signal.settings.mask;identities[i*4+3]=signal.approachingTrain;
+        fields[i*9]=int(signal.typeIndex);fields[i*9+1]=int(signal.settingsStatus);
+        const auto values=observation(signal.observation);std::copy(values.begin(),values.end(),fields.begin()+i*9+2);
+    }
+    check(prepare(int(input.size()),identities.data(),fields.data(),masks.data(),statuses.data()));
+    for(size_t i=0;i<input.size();++i){
+        if(statuses[i]!=int(input[i].settingsStatus)&&!(input[i].settingsStatus==SettingsStatus::Absent&&statuses[i]==int(SettingsStatus::Present)))
+            throw std::runtime_error("Invalid prepared settings status");
+        result[i].settings.mask=uint64_t(masks[i]);result[i].settingsStatus=SettingsStatus(statuses[i]);
     }
     return result;
 }

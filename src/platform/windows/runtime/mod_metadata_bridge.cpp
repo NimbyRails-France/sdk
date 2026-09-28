@@ -3,6 +3,7 @@
 // for the picker and the in-game manager. No save, signal ID or file is rewritten.
 #include <engine/binary_identity.h>
 #include <engine/mod_metadata.h>
+#include <engine/signal_construction_defaults.h>
 #include <platform/windows/game_language.h>
 #include <nimby/detail/diagnostics.hpp>
 #include <MinHook.h>
@@ -22,6 +23,12 @@ uintptr_t base{};
 bool enabled=false;
 SRWLOCK initialization=SRWLOCK_INIT;
 nimby::engine::ModMetadataRegistry registry;
+nimby::engine::ConstructionDefaultsRegistry constructionDefaults;
+using BuildSignal=uintptr_t(*)(uintptr_t,uintptr_t,uintptr_t,uintptr_t,uintptr_t,uintptr_t,uint8_t);
+BuildSignal originalBuildSignal{};
+using HashString=uint64_t(*)(const void*);
+HashString hashString{};
+void registerConstruction(int,const std::string&,const nimby::engine::ModMetadataCatalog&);
 using ReadMeta=uintptr_t(*)(uintptr_t,int,uintptr_t);
 using GetMeta=uintptr_t(*)(uintptr_t,uintptr_t);
 using ListMeta=uintptr_t(*)(uintptr_t,uint8_t);
@@ -71,10 +78,12 @@ uintptr_t discover(uintptr_t out,int kind,uintptr_t path){
         // Forget a previous catalogue first: invalid/removed files cannot leave
         // stale translations attached to a reinstalled mod with the same ID.
         registry.replace(kind,id,{});
+        constructionDefaults.replace(kind,id,{});
         auto texts=catalogue(path);
         if(texts){
             const nimby::engine::MetadataText fallback{string<char>(out+0x28,16384),string<char>(out+0x68,16384)};
             if(texts->fallback()!=fallback)throw std::runtime_error("Metadata sidecar differs from mod.txt fallback");
+            registerConstruction(kind,id,*texts);
             registry.replace(kind,id,std::move(texts));
             nimby::detail::diagnostics::write("sdk","INFO",("Metadata translations registered: "+id).c_str());
         }
@@ -92,6 +101,27 @@ struct NativeString {
     ~NativeString(){destroyString(words.data());}
     void moveTo(uintptr_t destination){moveString(reinterpret_cast<void*>(destination),words.data());}
 };
+void registerConstruction(int kind,const std::string& id,const nimby::engine::ModMetadataCatalog& catalog){
+    std::set<uint64_t> hashes;
+    for(const auto& texture:catalog.leftConstruction()){
+        NativeString native(texture);
+        if(!hashes.insert(hashString(native.words.data())).second)throw std::runtime_error("Ambiguous construction catalogue");
+    }
+    constructionDefaults.replace(kind,id,std::move(hashes));
+}
+uintptr_t buildSignal(uintptr_t placement,uintptr_t out,uintptr_t database,uintptr_t flag,
+                      uintptr_t preferences,uintptr_t editor,uint8_t reverse){
+    const auto result=originalBuildSignal(placement,out,database,flag,preferences,editor,reverse);
+    try{
+        // This routine builds both the cursor preview and the value subsequently
+        // moved into the game's normal construction command (RVA 0x7832e0).
+        auto signal=value<std::array<uint8_t,0x64>>(out);
+        uint64_t hash{};std::memcpy(&hash,signal.data()+0x38,8);
+        if(constructionDefaults.left(hash)&&nimby::engine::leftConstruction(signal,value<uint64_t>(editor+0x148)))
+            std::memcpy(reinterpret_cast<void*>(out+0x58),signal.data()+0x58,4);
+    }catch(...){nimby::detail::diagnostics::exception("sdk","Signal construction default; native position retained");}
+    return result;
+}
 std::shared_ptr<const nimby::engine::ModMetadataCatalog> sourceCatalogue(uintptr_t meta){
     const auto found=registry.find(value<int>(meta),string<char>(meta+8,32767));
     if(!found)return {};
@@ -206,19 +236,22 @@ extern "C" __declspec(dllexport) DWORD WINAPI NimbyInternal_Bootstrap(void* argu
             {0x668ca0,{0x48,0x89,0x5c,0x24,0x08,0x48,0x89,0x74,0x24,0x10,0x57,0x48,0x83,0xec,0x20,0x48}},
             {0x55bc50,{0x48,0x83,0x7a,0x18,0x0f,0x48,0x8b,0x01,0x76,0x03,0x48,0x8b,0x12,0x48,0xff,0xa0}},
             {0x2d82e0,{0x41,0x54,0x41,0x56,0x48,0x83,0xec,0x68,0x4c,0x8b,0xe2,0x4c,0x8b,0xf1,0x48,0x85}},
+            {0x7830a0,{0x48,0x89,0x5c,0x24,0x08,0x48,0x89,0x74,0x24,0x10,0x48,0x89,0x7c,0x24,0x18,0x41}},
             {0x2c00,{0x48,0x89,0x6c,0x24,0x10,0x48,0x89,0x74,0x24,0x18,0x48,0x89,0x7c,0x24,0x20,0x41}},
             {0x25630,{0x48,0x89,0x5c,0x24,0x08,0x57,0x48,0x83,0xec,0x30,0x48,0x8b,0xfa,0x48,0x8b,0xd9}},
             {0x2d30,{0x40,0x53,0x48,0x83,0xec,0x30,0x48,0x8b,0x51,0x18,0x48,0x8b,0xd9,0x48,0x83,0xfa}},
+            {0x241780,{0x56,0x57,0x48,0x83,0xec,0x48,0x48,0x83,0x79,0x18,0x0f,0x48,0x8b,0x79,0x10,0x76}},
         };
         for(const auto& entry:entries)if(std::memcmp(reinterpret_cast<void*>(base+entry.rva),entry.bytes.data(),16))return NIMBY_INVALID_BINARY;
         constructString=reinterpret_cast<ConstructString>(base+0x2c00);
         moveString=reinterpret_cast<MoveString>(base+0x25630);
         destroyString=reinterpret_cast<DestroyString>(base+0x2d30);
+        hashString=reinterpret_cast<HashString>(base+0x241780);
         if(MH_Initialize()!=MH_OK)return NIMBY_INTERNAL_ERROR;
         size_t created=0;
         struct Cleanup{size_t& count;const Entry* entries;~Cleanup(){if(enabled)return;for(size_t i=0;i<count;++i)MH_RemoveHook(reinterpret_cast<void*>(base+entries[i].rva));MH_Uninitialize();}} cleanup{created,entries};
-        void* replacements[]{reinterpret_cast<void*>(&discover),reinterpret_cast<void*>(&get),reinterpret_cast<void*>(&list),reinterpret_cast<void*>(&details),reinterpret_cast<void*>(&label),reinterpret_cast<void*>(&localize)};
-        void** originals[]{reinterpret_cast<void**>(&originalRead),reinterpret_cast<void**>(&originalGet),reinterpret_cast<void**>(&originalList),reinterpret_cast<void**>(&originalDetails),reinterpret_cast<void**>(&originalLabel),reinterpret_cast<void**>(&originalLocalize)};
+        void* replacements[]{reinterpret_cast<void*>(&discover),reinterpret_cast<void*>(&get),reinterpret_cast<void*>(&list),reinterpret_cast<void*>(&details),reinterpret_cast<void*>(&label),reinterpret_cast<void*>(&localize),reinterpret_cast<void*>(&buildSignal)};
+        void** originals[]{reinterpret_cast<void**>(&originalRead),reinterpret_cast<void**>(&originalGet),reinterpret_cast<void**>(&originalList),reinterpret_cast<void**>(&originalDetails),reinterpret_cast<void**>(&originalLabel),reinterpret_cast<void**>(&originalLocalize),reinterpret_cast<void**>(&originalBuildSignal)};
         for(size_t i=0;i<std::size(replacements);++i){const auto target=reinterpret_cast<void*>(base+entries[i].rva);
             if(MH_CreateHook(target,replacements[i],originals[i])!=MH_OK)return NIMBY_INTERNAL_ERROR;
             ++created;if(MH_QueueEnableHook(target)!=MH_OK)return NIMBY_INTERNAL_ERROR;}

@@ -20,12 +20,14 @@ public:
     };
 private:
     std::vector<Resource> resources_;
+    std::vector<std::string> leftConstruction_;
 public:
     explicit ModMetadataCatalog(std::string_view bytes) {
         const auto root=detail::Translations::parse(bytes);
         if(!root.is_object())bad();
         const auto format=root.value("format",0);
-        if(!((format==1&&root.size()==3)||(format==2&&root.size()==4&&root.contains("resources")))||
+        if(!((format==1&&root.size()==3)||(format==2&&root.size()==4&&root.contains("resources"))||
+             (format==3&&root.size()==5&&root.contains("resources")&&root.contains("construction")))||
            !root.contains("fallback")||!root["fallback"].is_string()||
            !root.contains("languages")||!root["languages"].is_object())bad();
         fallback_=detail::Translations::locale(root["fallback"].get<std::string>());
@@ -40,8 +42,8 @@ public:
             languages_.emplace(code,std::move(value));
         }
         if(!languages_.contains(fallback_))bad();
-        if(format==2){
-            if(!root["resources"].is_array()||root["resources"].empty()||root["resources"].size()>32)bad();
+        if(format>=2){
+            if(!root["resources"].is_array()||(format==2&&root["resources"].empty())||root["resources"].size()>32)bad();
             std::set<std::string> keys,identities;
             for(const auto& r:root["resources"]){
                 if(!r.is_object()||r.size()!=5)bad();
@@ -60,6 +62,18 @@ public:
                 resources_.push_back(std::move(resource));
             }
         }
+        if(format==3){
+            const auto& declarations=root["construction"];
+            if(!declarations.is_array()||declarations.empty()||declarations.size()>16)bad();
+            std::set<std::string> seen;
+            for(const auto& entry:declarations){
+                if(!entry.is_object()||entry.size()!=2||!entry.contains("textures")||!entry["textures"].is_string()||
+                   !entry.contains("side")||entry["side"]!="left")bad();
+                const auto id=entry["textures"].get<std::string>();
+                if(!detail::Translations::identifier(id)||!seen.insert(id).second)bad();
+                leftConstruction_.push_back(id);
+            }
+        }
     }
     const MetadataText& fallback()const{return languages_.at(fallback_);}
     const MetadataText& resolve(std::string_view language)const {
@@ -72,6 +86,7 @@ public:
         return key.size()==72&&key.starts_with("nrf.sdk.")&&std::all_of(key.begin()+8,key.end(),[](char c){return (c>='0'&&c<='9')||(c>='a'&&c<='f');});
     }
     const std::vector<Resource>& resources()const{return resources_;}
+    const std::vector<std::string>& leftConstruction()const{return leftConstruction_;}
     const std::string& resolve(const Resource& resource,std::string_view language)const {
         const auto exact=detail::Translations::locale(language);
         for(const auto& code:{exact,exact.substr(0,exact.find('-')),fallback_})

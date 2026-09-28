@@ -82,7 +82,11 @@ public:
     }
     static NetworkResult evaluateNetwork(const NetworkRequest& request,bool live) {
         checkClock(request.simulationMs,request.halfPeriodMs);
-        const auto decisions=nimby::evaluateSignalsWithFallback<typename Rules::Decision>(request.signals.values(),[live](const auto& signal,const auto& next) {
+        const auto signals = [&] {
+            if constexpr(requires { Rules::prepareNetwork(request.signals.values()); })return Rules::prepareNetwork(request.signals.values());
+            else return request.signals.values();
+        }();
+        const auto decisions=nimby::evaluateSignalsWithFallback<typename Rules::Decision>(std::span<const typename Rules::Signal>{signals},[live](const auto& signal,const auto& next) {
                 if constexpr(controllable)if(live)if(auto forced=controlState().forced(signal.id))return forced;
                 return Rules::decide(signal,next);
             },

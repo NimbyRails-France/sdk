@@ -7,6 +7,40 @@
 int main(){try{
     using Store=nimby::SignalSettingsStore;
     {
+        constexpr nimby::SignalCheckbox boxes[]{{"works","Works","",false},
+            {"nrf.number.blocks.0","Blocks","",false},{"nrf.number.blocks.1","Blocks","",false},
+            {"nrf.number.blocks.2","Blocks","",false}};
+        constexpr nimby::SignalNumber numbers[]{{"blocks","Following blocks","works",3,4}};
+        const nimby::SignalSettingsPanel panel{"numbers","Numbers","atlas",boxes,nullptr,{},numbers};
+        Store store;store.configure(panel);
+        const auto epoch=store.beginSession("world");
+        constexpr uint64_t a=0x8000000000011,b=0x8000000010011;
+        CHECK(store.observeSignals(epoch,std::array<Store::Signal,2>{{{a,"atlas"},{b,"atlas"}}}));
+        const auto editor=store.selectSignal(epoch,a);
+        CHECK(store.frame(editor)->controls.size()==1&&store.frame(editor)->numbers.empty());
+        CHECK(!store.setNumber(editor,"blocks",2));
+        CHECK(store.setBoolean(editor,"works",true));
+        CHECK(store.setNumber(editor,"blocks",3));
+        auto frame=store.frame(editor);CHECK(frame&&frame->numbers.size()==1&&frame->numbers[0].value==3);
+        CHECK(!store.setNumber(editor,"blocks",-1)&&!store.setNumber(editor,"blocks",5));
+        // Partial text survives observations, but not changing the edited signal.
+        frame->numbers[0].draft->length=0;frame->numbers[0].draft->modified=true;
+        CHECK(store.observeSignals(epoch,std::array<Store::Signal,2>{{{a,"atlas"},{b,"atlas"}}}));
+        CHECK(store.frame(editor)->numbers[0].draft->length==0);
+        CHECK(store.queueCopies(*store.copySource(a),std::array{b}));
+        CHECK(store.observeSignals(epoch,std::array<Store::Signal,2>{{{a,"atlas"},{b,"atlas"}}}));
+        auto target=store.selectSignal(epoch,b);CHECK(store.frame(target)->numbers[0].value==3);
+        CHECK(!store.setNumber(editor,"blocks",1));
+        const auto saved=store.save(epoch);
+        Store restored;restored.configure(panel);const auto restoredEpoch=restored.beginSession("world",&saved);
+        CHECK(restored.observeSignals(restoredEpoch,std::array<Store::Signal,2>{{{a,"atlas"},{b,"atlas"}}}));
+        auto restoredEditor=restored.selectSignal(restoredEpoch,b);
+        CHECK(restored.frame(restoredEditor)->numbers[0].value==3);
+        CHECK(restored.setBoolean(restoredEditor,"works",false));CHECK(restored.frame(restoredEditor)->numbers.empty());
+        CHECK(restored.setBoolean(restoredEditor,"works",true));CHECK(restored.frame(restoredEditor)->numbers[0].value==3);
+        restored.suspendObservations();CHECK(!restored.setNumber(restoredEditor,"blocks",2));
+    }
+    {
         Store copied;
         constexpr nimby::SignalCheckbox boxes[]{{"active","Active","",false},{"option","Option","",true}};
         copied.configure({"copy","Copy","atlas",boxes});

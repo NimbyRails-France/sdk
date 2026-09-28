@@ -17,7 +17,7 @@ private val mod: SignallingMod get() = gameMod as SignallingMod
 // Copy the declarations once. A mod cannot change the mask layout after the
 // native adapter has copied its panels. No mutable current-type global exists.
 private val types by lazy {
-    if(gameMod is SignallingMod) mod.signalTypes.map { it.copy(checkboxes = it.checkboxes.toList(), actions = it.actions.toList()) }.also(::validateSignalTypes)
+    if(gameMod is SignallingMod) mod.signalTypes.map { it.copy(checkboxes = it.checkboxes.toList(), actions = it.actions.toList(), numbers = it.numbers.toList()) }.also(::validateSignalTypes)
     else emptyList()
 }
 private val services by lazy { gameMod.services.toList().also { entries ->
@@ -53,7 +53,7 @@ private fun text(value: String, out: CPointer<ByteVar>?, capacity: Int): Int {
 @CName("NRFKotlin_Version") fun version(): Int = guarded("Version") {
     // Newly compiled signals require an animation-aware adapter. Otherwise an
     // old adapter could silently sample a custom cadence as a static image.
-    if(gameMod.windows.isNotEmpty()) 7 else if(gameMod is SignallingMod) 6 else 3
+    if(gameMod is SignallingMod) 8 else if(gameMod.windows.isNotEmpty()) 7 else 3
 }
 // Called before version()/createMod(). Tests using the Kotlin API directly
 // keep the default; the actual loader checks the file next to the mod DLL.
@@ -118,6 +118,15 @@ private fun inTool(world: String, generation: Long, call: ToolCall?, block: (Too
 // Optional extension of ABI 1. Old single-type DLLs remain supported. New
 // adapters use these exports together, never mix layouts from two versions.
 @CName("NRFKotlin_TypeCount") fun typeCount(): Int = guarded("TypeCount") { types.size }
+@CName("NRFKotlin_NumberCount") fun numberCount(type: Int): Int = guarded("NumberCount") { types[type].numbers.size }
+@CName("NRFKotlin_NumberMetadata") fun numberMetadata(type: Int, index: Int, field: Int, out: CPointer<ByteVar>?, capacity: Int): Int = guarded("NumberMetadata") {
+    val number = types[type].numbers[index]
+    text(when(field) { 0 -> number.name; 1 -> number.label; 2 -> number.visibleWhen; else -> error("Unknown number field") }, out, capacity)
+}
+@CName("NRFKotlin_NumberInfo") fun numberInfo(type: Int, index: Int, out: CPointer<IntVar>?): Int = guarded("NumberInfo") {
+    require(out != null)
+    val number = types[type].numbers[index]; out[0] = (1..16).first { number.maximum < (1 shl it) }; out[1] = number.maximum; 0
+}
 /** ABI 4 : un échec réseau garde le modèle du signal concerné. */
 @CName("NRFKotlin_FallbackType") fun fallbackType(type: Int, invalid: Int, out: CPointer<IntVar>?): Int = guarded("FallbackType") {
     require(out != null && invalid in 0..1)
@@ -204,6 +213,28 @@ private fun inTool(world: String, generation: Long, call: ToolCall?, block: (Too
 @CName("NRFKotlin_Decide") fun decide(mode: Int, mask: Long, status: Int, id: Long, nextId: Long,
     observation: CPointer<IntVar>?, nextAspect: Int, nextReason: Int, out: CPointer<IntVar>?): Int =
     decideType(0, mode, mask, status, id, nextId, 0, observation, nextAspect, nextReason, out)
+
+// Each row: id, next, mask, approaching train; type, status and seven observation integers.
+@CName("NRFKotlin_PrepareNetwork") fun prepareNetwork(count: Int, identities: CPointer<LongVar>?, fields: CPointer<IntVar>?, masks: CPointer<LongVar>?, statuses: CPointer<IntVar>?): Int = guarded("PrepareNetwork") {
+    require(count in 0..512)
+    if(count == 0) return@guarded 0
+    require(identities != null && fields != null && masks != null && statuses != null)
+    val source = List(count) { i ->
+        val declaration = types[fields[i*9]]
+        val mask = identities[i*4+2]
+        val settings = declaration.checkboxes.mapIndexed { bit, box -> box.name to (mask and (1L shl bit) != 0L) }.toMap()
+        val observation = Observation(Occupancy.entries[fields[i*9+2]], fields[i*9+3]!=0, fields[i*9+4]!=0,
+            fields[i*9+5]!=0, fields[i*9+6]!=0, fields[i*9+7]!=0, fields[i*9+8], identities[i*4+3].takeIf { it!=0L })
+        Signal(identities[i*4], identities[i*4+1], settings, observation, SettingsStatus.entries[fields[i*9+1]], declaration.id)
+    }
+    val prepared = mod.prepareObservedNetwork(source)
+    prepared.forEachIndexed { i, signal ->
+        masks[i] = types[fields[i*9]].checkboxes.foldIndexed(0L) { bit, mask, box ->
+            if(signal.settings[box.name] ?: box.defaultValue) mask or (1L shl bit) else mask }
+        statuses[i] = signal.settingsStatus.ordinal
+    }
+    0
+}
 
 @CName("NRFKotlin_DecideType") fun decideType(type: Int, mode: Int, mask: Long, status: Int, id: Long, nextId: Long, approachingTrain: Long,
     observation: CPointer<IntVar>?, nextAspect: Int, nextReason: Int, out: CPointer<IntVar>?): Int = guarded("Decide") {

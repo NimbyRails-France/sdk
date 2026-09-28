@@ -71,6 +71,8 @@ class SignalRuleContext internal constructor(
 @SignalModDsl
 class SignalModelBuilder<A : Enum<A>, R : Enum<R>> internal constructor(private val base: SignalType) {
     private val options = base.checkboxes.toMutableList()
+    private val numbers = base.numbers.toMutableList()
+    fun number(option: NumberSetting) { numbers.add(option) }
     private val actions = base.actions.toMutableList()
     private var construction = base.construction
     /** Déclare les images dans leur ordre de catalogue et le signal constructible.
@@ -78,8 +80,9 @@ class SignalModelBuilder<A : Enum<A>, R : Enum<R>> internal constructor(private 
      * Les chemins sont relatifs au paquet : assets/a.svg devient a.svg.
      * Le SDK génère mod.txt au build, sans exécuter les règles ni ouvrir le jeu. */
     fun construction(states: List<String>, name: String = base.title, kind: String = "path",
-                     catalogueName: String = name, nameKey: String? = null, catalogueNameKey: String? = null) {
-        construction = SignalConstruction(states, name, kind, catalogueName, nameKey, catalogueNameKey)
+                     catalogueName: String = name, nameKey: String? = null, catalogueNameKey: String? = null,
+                     size: Int = 0, left: Boolean = false) {
+        construction = SignalConstruction(states, name, kind, catalogueName, nameKey, catalogueNameKey, size, left)
     }
     var observeApproach = base.observeApproach
     var approachBlocks = base.approachBlocks
@@ -132,7 +135,12 @@ class SignalModelBuilder<A : Enum<A>, R : Enum<R>> internal constructor(private 
     fun activeWhen(block: (Indication<A, R>) -> Boolean) { active = block }
     fun aspectNames(block: (A) -> String) { aspectLabel = block }
     fun reasonNames(block: (R) -> String) { reasonLabel = block }
-    internal fun type() = base.copy(checkboxes = options.toList(), actions = actions.toList(), observeApproach = observeApproach, approachBlocks = approachBlocks, construction = construction)
+    internal fun type(): SignalType {
+        require(numbers.map { it.name }.distinct().size == numbers.size && numbers.size <= 4)
+        require(numbers.all { n -> n.visibleWhen.isEmpty() || options.any { it.name == n.visibleWhen } })
+        return base.copy(checkboxes = options.toList() + numbers.flatMap { it.storage() }, numbers = numbers.toList(),
+            actions = actions.toList(), observeApproach = observeApproach, approachBlocks = approachBlocks, construction = construction)
+    }
 }
 
 /** Modèle réutilisable et typé. Sa déclaration ne charge ni DLL ni partie.
@@ -205,6 +213,8 @@ inline fun <reified A : Enum<A>, reified R : Enum<R>> signalModel(
 /** Composition du paquet : chaque modèle conserve ses enums et ses callbacks. */
 @SignalModDsl
 class SignalModelsBuilder internal constructor() {
+    internal var preparation: (List<Signal>) -> List<Signal> = { it }
+    fun prepareNetwork(block: (List<Signal>) -> List<Signal>) { preparation = block }
     internal var metadata: ModMetadata? = null
     /** Auteur et description affichés dans la liste des mods du jeu. */
     fun metadata(author: String, description: String, name: String? = null) { metadata = ModMetadata(author, description, name) }
@@ -232,6 +242,7 @@ fun signalMod(id: String, title: String, block: SignalModelsBuilder.() -> Unit):
     }
     val planner = builder.planner
     return object : SignallingMod() {
+        override fun prepareNetwork(signals: List<Signal>) = builder.preparation(signals)
         override val id = id
         override val title = title
         override val metadata = builder.metadata

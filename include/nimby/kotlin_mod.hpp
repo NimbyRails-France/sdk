@@ -36,6 +36,7 @@ struct Rules {
     static Decision evaluate(const Settings&,const Observation&);
     static std::optional<Decision> decide(const Signal&,const std::optional<Decision>&);
     static Signal fromLive(const LiveSignalState&);
+    static std::vector<Signal> prepareNetwork(std::span<const Signal>);
     static std::vector<LiveSignalState> observe(const Snapshot&);
     static bool multipleTypes();
     static Decision unknownDecision();

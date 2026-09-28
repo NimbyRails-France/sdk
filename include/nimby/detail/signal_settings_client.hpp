@@ -50,6 +50,10 @@ public:
         for(size_t i=0;i<panel.actions.size();++i){const auto& a=panel.actions[i];auto& target=declarations[i];
             copy(target.id,a.id);copy(target.label,a.label);copy(target.provider,a.provider);copy(target.service,a.service);}
         std::string panelId(panel.id);
+        std::vector<NimbyUiNumberSettingV1> numbers(panel.numbers.size());
+        for(size_t i=0;i<panel.numbers.size();++i){const auto& field=panel.numbers[i];auto& target=numbers[i];
+            copy(target.name,field.name);copy(target.label,field.label);copy(target.visible_when,field.visibleWhen);
+            target.bits=field.bits;target.maximum=field.maximum;}
         auto module=native::existing(platform::signalUiLibrary);
         if(!module)return false;
         auto add=resolve<NimbyUiRegisterV1>(module,"NimbyUi_RegisterV1");
@@ -62,6 +66,12 @@ public:
         if(!add||!remove||!read||!suspend||!begin||!observe){native::unload(module);return false;}
         const auto result=add(wire.get(),&owner);
         if(result!=NIMBY_OK||!owner){native::unload(module);return false;}
+        if(!numbers.empty()){
+            const auto configure=resolve<NimbyUiNumberSettingsV1>(module,"NimbyUi_NumberSettingsV1");
+            if(!configure||configure(owner,numbers.data(),static_cast<uint32_t>(numbers.size()))!=NIMBY_OK){
+                remove(owner);native::unload(module);return false;
+            }
+        }
         if(!translations.empty()){
             const auto set=resolve<NimbyUiTranslationsV1>(module,"NimbyUi_TranslationsV1");
             if(!set||set(0,owner,translations.data(),static_cast<uint32_t>(translations.size()))!=NIMBY_OK){

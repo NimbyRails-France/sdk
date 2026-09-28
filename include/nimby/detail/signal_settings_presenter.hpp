@@ -23,6 +23,14 @@ size_t drawSignalSettings(SignalSettingsStore& store,
             catch(...) { nimby::detail::diagnostics::exception("mods", __func__); ++failedWrites;} // Still consume the remaining native layout slots.
         }
     }
+    if constexpr(requires(NumberInputDraft& draft){ui.numberField("",draft,0,0,0,true);})
+        for(const auto& number:frame.numbers){
+            const bool enabled=frame.available&&store.accepts(frame.editor);
+            const auto edit=ui.numberField(number.field.label.c_str(),*number.draft,number.value,0,int(number.field.maximum),enabled);
+            if(interactive&&enabled&&edit.value&&(edit.changed||(number.draft->modified&&*edit.value!=number.value)))
+                try{store.setNumber(frame.editor,number.field.name,*edit.value);}
+                catch(...){nimby::detail::diagnostics::exception("mods",__func__);++failedWrites;}
+        }
     return failedWrites;
 }
 

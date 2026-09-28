@@ -11,6 +11,15 @@ namespace nimby::runtime {
 // a removed store, even if the native renderer retains an older frame.
 class SignalUiEndpoint {
 public:
+    uint32_t numbers(uint64_t owner,const NimbyUiNumberSettingV1* fields,uint32_t count)noexcept {
+        return boundary([&]() -> uint32_t {
+            if(count>4||(!fields&&count))return NIMBY_INVALID_ARGUMENT;
+            auto store=host.store(owner);if(!store)return NIMBY_INVALID_HANDLE;
+            std::vector<SignalNumber> definitions;
+            for(uint32_t i=0;i<count;++i)definitions.push_back({text(fields[i].name),text(fields[i].label),text(fields[i].visible_when),fields[i].bits,fields[i].maximum});
+            return store->configureNumbers(definitions)?NIMBY_OK:NIMBY_INVALID_ARGUMENT;
+        });
+    }
     SignalUiHost host;
     uint32_t add(const NimbyUiPanelV1* source,uint64_t* token) noexcept {
         if(token)*token=0;

@@ -103,9 +103,43 @@ int main(){
         for(size_t i=0;i<loaded.data.size();++i)if(!(i>=0x28&&i<0x48)&&!(i>=0x68&&i<0x88))assert(loaded.data[i]==unchanged[i]);
         fixture::Meta nextCopy;
         translate(nextCopy.at(),"fr");assert(string<char>(nextCopy.at()+0x28,4096)=="Horloge");
+        withResources["format"]=3;
+        withResources["construction"]={{{"textures","bal_images"},{"side","left"}}};
+        hashString=+[](const void* native){assert(string<char>(reinterpret_cast<uintptr_t>(native),96)=="bal_images");return uint64_t(123);};
+        std::ofstream(file)<<withResources.dump();discover(nextCopy.at(),1,path);
+        assert(constructionDefaults.left(123)&&!constructionDefaults.left(124));
+        originalBuildSignal=+[](uintptr_t,uintptr_t out,uintptr_t,uintptr_t,uintptr_t,uintptr_t,uint8_t){return out;};
+        std::array<uint8_t,0x150> editor{};
+        for(int direction:{-1,1})for(uint8_t orientation:{0,1,2}){
+            std::array<uint8_t,0x64> fresh{};
+            uint64_t hash=123,track=456;std::memcpy(fresh.data()+0x38,&hash,8);std::memcpy(fresh.data()+0x40,&track,8);
+            fresh[0x50]=uint8_t(direction);fresh[0x51]=orientation;fresh[0x5c]=4;
+            const auto before=fresh;
+            const auto out=reinterpret_cast<uintptr_t>(fresh.data());
+            assert(buildSignal(0,out,0,0,0,reinterpret_cast<uintptr_t>(editor.data()),0)==out);
+            int32_t side{};std::memcpy(&side,fresh.data()+0x58,4);assert(side==-direction);
+            for(size_t i=0;i<fresh.size();++i)if(i<0x58||i>=0x5c)assert(fresh[i]==before[i]);
+            // A placed signal, a copied source, an unknown catalogue or an
+            // invalid track/direction must retain every byte.
+            for(int invalid=0;invalid<5;++invalid){
+                fresh=before;editor[0x148]=0;
+                if(invalid==0)fresh[0]=8;
+                if(invalid==1)editor[0x148]=8;
+                if(invalid==2)fresh[0x38]=124;
+                if(invalid==3)fresh[0x50]=0;
+                if(invalid==4)std::memset(fresh.data()+0x40,0,8);
+                const auto unchanged=fresh;
+                buildSignal(0,out,0,0,0,reinterpret_cast<uintptr_t>(editor.data()),0);
+                assert(fresh==unchanged);
+            }
+            editor[0x148]=0;
+        }
+        constructionDefaults.replace(2,"duplicate",{123});assert(!constructionDefaults.left(123));
+        constructionDefaults.replace(2,"duplicate",{});assert(constructionDefaults.left(123));
         // Removing a sidecar invalidates the registry. A later invalid or
         // mismatched file must not revive a previous mod's translated text.
         std::filesystem::remove(file);discover(nextCopy.at(),1,path);assert(!registry.find(1,"fixture-mod"));
+        assert(!constructionDefaults.left(123));
         drawDetails(0,0,nextCopy.at(),"en");assert(fixture::renderedMeta==nextCopy.at()&&fixture::renderedName=="Horloge");
         std::ofstream(file)<<"invalid";discover(nextCopy.at(),1,path);assert(!registry.find(1,"fixture-mod"));
         std::ofstream(file)<<json;

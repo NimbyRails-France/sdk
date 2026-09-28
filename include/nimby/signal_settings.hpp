@@ -4,6 +4,7 @@
 #include <string>
 #include <string_view>
 #include <span>
+#include <cstdint>
 
 namespace nimby {
 // Declarative C++ UI contract. The SDK owns rendering, events and persistence.
@@ -16,6 +17,9 @@ struct SignalCheckbox {
 // A named optional provider handles the action. This declaration does not add
 // a loader dependency, and it never contains a callback from another mod.
 struct SignalAction {std::string_view id,label,provider,service;};
+// Integers use declared storage bits in the existing persisted boolean schema.
+// Storage fields are never rendered as checkboxes by a compatible bridge.
+struct SignalNumber { std::string_view name,label,visibleWhen;uint32_t bits=0,maximum=0; };
 struct SignalSettingsPanel {
     std::string_view id,title,textureSet;
     std::span<const SignalCheckbox> checkboxes;
@@ -23,6 +27,7 @@ struct SignalSettingsPanel {
     // Never copied into or called by the resident game's UI thread.
     void (*migrate)(std::string_view panelId,std::map<std::string,bool,std::less<>>& values)=nullptr;
     std::span<const SignalAction> actions{};
+    std::span<const SignalNumber> numbers{};
 };
 // Absence is an observed fact; an unsuccessful read is a different state.
 enum class SettingsStatus { Unavailable, Absent, Present };

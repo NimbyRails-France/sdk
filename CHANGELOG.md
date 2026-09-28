@@ -2,12 +2,37 @@
 
 ## [Unreleased]
 
+## [0.8.0-alpha.7] - 2026-09-29
+
+- Ajoute des réglages numériques bornés dans les panneaux des signaux, avec affichage conditionnel, conservation de la saisie, sauvegarde et copie lors de la répétition.
+- Permet au mod de calculer des réglages effectifs pour un réseau de signaux sans modifier les observations, les identifiants ni les liens entre signaux. Le pont Kotlin utilise l’ABI 8.
+- Prend en charge la taille native de 0 à 4 et le placement à gauche par défaut pour les nouveaux signaux. Le sens de circulation et les propriétés des signaux existants ou copiés sont conservés.
+- Tests automatisés des champs numériques, de la construction native et de la propagation en réseau. La confirmation visuelle en jeu reste à effectuer.
+
+English:
+
+- Adds bounded numeric signal settings with conditional visibility, persistent edit drafts, save/reload and repeat-copy support.
+- Adds a network preparation callback for derived settings. The Kotlin bridge uses ABI 8; existing observations, identities and topology cannot be changed by this callback.
+- Construction declarations support native size 0–4 and a left-side default for new signals. The qualified Windows construction hook changes only the fresh signal's lateral offset, preserving its direction and other fields; existing signals and copies retain their cosmetics.
+- Automated tests cover numeric fields, native construction fixtures and network propagation. Visual confirmation in the game remains required.
+
 ## [0.8.0-alpha.6] - 2026-09-29
+
+- Corrige l’orientation des signaux répétés : la construction écrit uniquement l’octet du sens de circulation et conserve les champs voisins. Elle utilise l’orientation de la voie de destination, comme l’aperçu.
+- Tests de non-régression dans les deux sens de circulation et les deux orientations de voie. La confirmation en jeu reste à effectuer.
+
+English:
 
 - Fixes repeated signal orientation: construction writes the signed direction byte without overwriting neighbouring native fields, and uses the destination track orientation, matching the preview.
 - Regression tests cover both directions, both destination orientations and preservation of neighbouring bytes. Live-game confirmation remains required.
 
 ## [0.8.0-alpha.5] - 2026-09-28
+
+- Maintient le rafraîchissement des panneaux pendant une suspension temporaire des observations ; un ancien panneau ne provoque plus de perte d’observation.
+- Les signaux répétés héritent des réglages NRF, y compris les cases décochées. La copie respecte la session et attend l’identification des nouveaux signaux.
+- Tests de non-régression de la suspension des panneaux, de la copie des réglages et des anciens panneaux. La validation visuelle en jeu reste à effectuer.
+
+English:
 
 - Keeps signal tool panels refreshable during temporary observation suspension; stale panel handles no longer invalidate tool observations.
 - Repeated signals inherit effective NRF checkbox settings, including unchecked values, with session isolation and deferred application to newly observed IDs.
@@ -15,10 +40,10 @@
 
 ## [0.8.0-alpha.4] - 2026-09-28
 
-- R?utilise les DLL pr?existantes identiques sans les supprimer ? la d?sinstallation.
-- Migre l'ancienne d?pendance pthread reconnue avec sauvegarde et restauration ; conserve les DLL inconnues.
-- Conserve un manifeste de r?cup?ration avant les copies et permet le retrait malgr? des DLL g?r?es manquantes ou une SDL d?j? restaur?e.
-- ? utiliser avec le Hub 0.4.1-alpha.9 pour la r?paration des installations interrompues.
+- Réutilise les DLL préexistantes identiques sans les supprimer à la désinstallation.
+- Migre l'ancienne dépendance pthread reconnue avec sauvegarde et restauration ; conserve les DLL inconnues.
+- Conserve un manifeste de récupération avant les copies et permet le retrait malgré des DLL gérées manquantes ou une SDL déjà restaurée.
+- À utiliser avec le Hub 0.4.1-alpha.9 pour la réparation des installations interrompues.
 
 Preserves shared DLLs, safely migrates the recognized legacy pthread dependency, and records recovery information before installation. Use Hub 0.4.1-alpha.9 for interrupted-install recovery.
 

@@ -52,6 +52,9 @@ final class GameModManifest {
             String templateKey = nativeKey(declaration.id, signal, 'template')
             if (templateKey != null) text << "name_loc=${templateKey}\n"
             text << "kind=${kind}\ntextures=${catalogue}\n"
+            def size = signal.size == null ? 0 : signal.size
+            if (!(size instanceof Integer) || size < 0 || size > 4) fail('Signal size must be an integer between 0 and 4')
+            text << "size=${size}\n"
         }
         text.toString()
     }
@@ -84,6 +87,16 @@ final class GameModManifest {
         }
         def result = [format: resources ? 2 : 1, fallback: fallback, languages: languages]
         if (resources) result.resources = resources
+        List construction = []
+        declaration.signals.each { signal ->
+            if (signal.left != null && !(signal.left instanceof Boolean)) fail('Signal left must be boolean')
+            if (signal.left == true) construction.add([textures: line(signal.textures, 'textures'), side: 'left'])
+        }
+        if (construction) {
+            result.format = 3
+            result.resources = resources
+            result.construction = construction
+        }
         if (JsonOutput.toJson(result).getBytes('UTF-8').length > 1048576) fail('Metadata translations exceed 1 MiB')
         result
     }

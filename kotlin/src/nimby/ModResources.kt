@@ -31,9 +31,12 @@ class SignalConstruction(
     states: List<String>, val name: String, val kind: String = "path",
     val catalogueName: String = name,
     val nameKey: String? = null, val catalogueNameKey: String? = null,
+    val size: Int = 0,
+    val left: Boolean = false,
 ) {
     val states: List<String> = states.toList()
     init {
+        require(size in 0..4) { "Signal size must be between 0 and 4" }
         require(states.isNotEmpty() && states.size <= 256) { "Déclarer de 1 à 256 images" }
         require(states.distinct().size == states.size) { "Image déclarée plusieurs fois" }
         require(kind.matches(Regex("[a-z_]{1,32}"))) { "Type de signal natif invalide" }

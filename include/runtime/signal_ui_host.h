@@ -72,6 +72,7 @@ public:
                 for(auto& field:controls->controls){
                     translate(false,token,field.checkbox.label);translate(false,token,field.checkbox.description);
                 }
+                for(auto& field:controls->numbers)translate(false,token,field.field.label);
                 auto buttons=actions->prepare(token,controls->editor);
                 for(auto& button:buttons){
                     const bool provider=button.revision!=0;const auto owner=provider?button.provider:token;
@@ -179,8 +180,9 @@ private:
         // Freeze the row budget with the frame so a provider disappearing
         // between layout and interaction cannot change the parent layout.
         size_t rows=frame.actions.size();
-        for(const auto& panel:frame.panels)rows+=panel.controls.controls.size();
+        for(const auto& panel:frame.panels)rows+=panel.controls.controls.size()+panel.controls.numbers.size();
         float extra=0;
+        for(const auto& panel:frame.panels)extra+=32.f*float(panel.controls.numbers.size());
         if constexpr(requires{ui.heading("");})extra+=32.f*float(frame.panels.size());
         for(const auto& panel:frame.panels)for(const auto& control:panel.controls.controls)
             if(!control.checkbox.description.empty())extra+=56.f;
@@ -196,6 +198,7 @@ private:
         if constexpr(requires{ui.textWidth("");ui.scroll("",height,0.f,draw);}){
             float width=0;
             for(const auto& panel:frame.panels)for(const auto& c:panel.controls.controls)width=std::max(width,ui.textWidth(c.checkbox.label.c_str()));
+            for(const auto& panel:frame.panels)for(const auto& n:panel.controls.numbers)width=std::max(width,ui.textWidth(n.field.label.c_str()));
             // Status text wraps inside its own column. It must never force all
             // controls wider than the viewport and hide the numeric editor.
             for(const auto& a:frame.actions)if(!a.action.id.empty())width=std::max(width,ui.textWidth(a.action.label.c_str()));

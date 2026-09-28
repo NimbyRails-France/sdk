@@ -25,7 +25,7 @@ fun main() {
         "{\"id\":${quote(type.id)},\"textures\":${quote(type.textureSet)}," +
             "\"name\":${quote(resource.name)},\"kind\":${quote(resource.kind)}," +
             "\"catalogueName\":${quote(resource.catalogueName)},\"nameKey\":${optional(resource.nameKey)}," +
-            "\"catalogueNameKey\":${optional(resource.catalogueNameKey)}," +
+            "\"catalogueNameKey\":${optional(resource.catalogueNameKey)},\"size\":${resource.size},\"left\":${resource.left}," +
             "\"states\":[${resource.states.joinToString(",", transform = ::quote)}]}"
     }
     println("{\"format\":1,\"id\":${quote(mod.id)},\"name\":${quote(mod.title)}," +

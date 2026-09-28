@@ -18,6 +18,22 @@ class GameModManifestTest {
         String text = GameModManifest.render(mod, declaration(), temp.root)
         assertEquals('[ModMeta]\nschema=1\nname=Demo\nauthor=Author\ndesc=Description\nversion=1.2.0-alpha.3\n', text)
     }
+    @Test void constructionSizeIsValidatedAndSerialized() {
+        asset('closed.svg'); asset('open.svg')
+        assertTrue(GameModManifest.render(mod, declaration()+[signals:[signal()+[size:4]]], temp.root).contains('size=4\n'))
+        [-1,5,1.5,'4'].each { value ->
+            assertThrows(GradleException) { GameModManifest.render(mod, declaration()+[signals:[signal()+[size:value]]], temp.root) }
+        }
+    }
+    @Test void leftDefaultUsesSdkMetadataAndRetainsOlderFormats() {
+        def entry = declaration()+[signals:[signal()+[left:true,size:4]]]
+        def metadata = GameModManifest.metadata(entry, temp.root)
+        assertEquals(3, metadata.format)
+        assertEquals([[textures:'catalogue',side:'left']], metadata.construction)
+        assertTrue(metadata.resources.isEmpty())
+        assertEquals(1, GameModManifest.metadata(declaration()+[signals:[signal()+[left:false]]], temp.root).format)
+        assertThrows(GradleException) { GameModManifest.metadata(declaration()+[signals:[signal()+[left:'true']]], temp.root) }
+    }
     @Test void multipleModelsKeepCatalogueIdentityOrderAndNativeNames() {
         asset('closed.svg'); asset('open.svg')
         def first = signal() + [nameKey: 'old.template', catalogueNameKey: 'old.catalogue']

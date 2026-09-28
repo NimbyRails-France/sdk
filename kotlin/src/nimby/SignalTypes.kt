@@ -18,5 +18,11 @@ fun validateSignalTypes(types: List<SignalType>) {
         type.checkboxes.forEach { box ->
             text(box.name, 128); text(box.label, 256); text(box.description, 1024, empty = true)
         }
+        require(type.numbers.size <= 4 && type.numbers.map { it.name }.distinct().size == type.numbers.size)
+        type.numbers.forEach { number ->
+            text(number.label,256)
+            require(number.visibleWhen.isEmpty() || type.checkboxes.any { it.name==number.visibleWhen })
+            require(number.storage().all { field -> type.checkboxes.any { it.name==field.name && it.defaultValue==field.defaultValue } })
+        }
     }
 }

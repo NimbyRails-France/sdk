@@ -5,6 +5,9 @@
 #include <set>
 #include <stdexcept>
 #include <vector>
+#include <memory>
+#include <algorithm>
+#include <nimby/detail/number_input_draft.hpp>
 
 namespace nimby {
 // SDK-owned model for the injected panel. It never invokes native UI functions.
@@ -12,6 +15,7 @@ namespace nimby {
 class SignalSettingsStore {
 public:
     struct Checkbox { std::string name,label,description;bool defaultValue=false,onlyWhenEnabled=false; };
+    struct Number {std::string name,label,visibleWhen;uint32_t bits=0,maximum=0;};
     struct Panel { std::string id,title,textureSet;std::vector<Checkbox> checkboxes; };
     struct Signal { uint64_t id;std::string textureSet; };
     struct Editor {
@@ -43,7 +47,8 @@ public:
     // Owned frame data: native layout and interactive drawing must use the same
     // fields, even if the observation worker invalidates the session meanwhile.
     struct Control { Checkbox checkbox;bool value=false; };
-    struct Frame { Editor editor;std::string panelId,title;std::vector<Control> controls;bool available=true; };
+    struct NumberControl {Number field;int value=0;std::shared_ptr<detail::NumberInputDraft> draft;};
+    struct Frame { Editor editor;std::string panelId,title;std::vector<Control> controls;bool available=true;std::vector<NumberControl> numbers; };
 
     void configure(const SignalSettingsPanel& source) {
         Panel candidate;
@@ -61,6 +66,12 @@ public:
             throw std::invalid_argument("Missing settings panel ID");
         std::lock_guard lock(mutex_);
         panel_=std::move(candidate);invalidate();
+        numbers_.clear();
+        configureNumbersLocked(source.numbers);
+    }
+    bool configureNumbers(std::span<const SignalNumber> fields){
+        std::lock_guard lock(mutex_);if(!sessionId_.empty())return false;
+        configureNumbersLocked(fields);return true;
     }
     Panel panel() const {std::lock_guard lock(mutex_);return panel_;}
     bool knowsSignal(uint64_t signal)const {std::lock_guard lock(mutex_);return !sessionId_.empty()&&signals_.contains(signal);}
@@ -156,9 +167,25 @@ private:
     std::optional<Frame> frameLocked(Editor editor,bool presentationOnly=false) const {
         if(!current(editor.session)||(!observed_&&!presentationOnly)||!editor.signal||editor!=editor_||!signals_.contains(editor.signal))
             return std::nullopt;
-        Frame result{editor,panel_.id,panel_.title,{},observed_};
+        Frame result{editor,panel_.id,panel_.title,{},observed_,{}};
+        if(numberSignal_!=editor.signal){numberDrafts_.clear();numberSignal_=editor.signal;}
         const auto saved=values_.find(editor.signal);
+        const auto valueOf=[&](std::string_view name){
+            if(saved!=values_.end())if(auto i=saved->second.find(name);i!=saved->second.end())return i->second;
+            for(const auto& box:panel_.checkboxes)if(box.name==name)return box.defaultValue;
+            return false;
+        };
+        std::set<std::string> hidden;
+        for(const auto& field:numbers_){
+            int value=0;
+            for(uint32_t bit=0;bit<field.bits;++bit){auto key=numberKey(field.name,bit);hidden.insert(key);if(valueOf(key))value|=1<<bit;}
+            if(!field.visibleWhen.empty()&&!valueOf(field.visibleWhen))continue;
+            value=std::min(value,int(field.maximum));
+            auto& draft=numberDrafts_[field.name];if(!draft)draft=std::make_shared<detail::NumberInputDraft>();
+            draft->synchronize(value);result.numbers.push_back({field,value,draft});
+        }
         for(const auto& box:panel_.checkboxes){
+            if(hidden.contains(box.name))continue;
             bool value=box.defaultValue;
             if(saved!=values_.end()){
                 const auto field=saved->second.find(box.name);
@@ -169,6 +196,23 @@ private:
         return result;
     }
 public:
+    bool setNumber(Editor editor,std::string_view name,int value){
+        std::lock_guard lock(mutex_);
+        if(!current(editor.session)||!observed_||editor!=editor_||!signals_.contains(editor.signal))return false;
+        for(const auto& field:numbers_)if(field.name==name){
+            if(value<0||uint32_t(value)>field.maximum)return false;
+            if(!field.visibleWhen.empty()){
+                bool enabled=false;for(const auto& box:panel_.checkboxes)if(box.name==field.visibleWhen)enabled=box.defaultValue;
+                if(auto s=values_.find(editor.signal);s!=values_.end())if(auto v=s->second.find(field.visibleWhen);v!=s->second.end())enabled=v->second;
+                if(!enabled)return false;
+            }
+            if(!values_.contains(editor.signal)&&values_.size()>=16384)throw std::length_error("Settings capacity exceeded");
+            auto& saved=values_[editor.signal];
+            for(uint32_t bit=0;bit<field.bits;++bit)saved[numberKey(field.name,bit)]=(value&(1<<bit))!=0;
+            return true;
+        }
+        return false;
+    }
     bool setBoolean(Editor editor,std::string_view name,bool value) {
         std::lock_guard lock(mutex_);
         if(!current(editor.session)||!observed_||!editor.signal||editor!=editor_||!signals_.contains(editor.signal))return false;
@@ -200,14 +244,31 @@ public:
         return saved;
     }
 private:
+    static std::string numberKey(std::string_view name,uint32_t bit){return "nrf.number."+std::string(name)+"."+std::to_string(bit);}
+    void configureNumbersLocked(std::span<const SignalNumber> fields){
+        if(fields.size()>4)throw std::invalid_argument("Too many numeric settings");
+        std::vector<Number> candidate;std::set<std::string_view> names;
+        for(const auto& field:fields){
+            checkText(field.name,96);checkText(field.label,256);checkText(field.visibleWhen,128,true);
+            if(!names.insert(field.name).second||field.bits<1||field.bits>16||!field.maximum||field.maximum>65535||field.maximum>=(1u<<field.bits))throw std::invalid_argument("Invalid numeric setting");
+            for(uint32_t bit=0;bit<field.bits;++bit){const auto key=numberKey(field.name,bit);
+                if(std::none_of(panel_.checkboxes.begin(),panel_.checkboxes.end(),[&](const auto& box){return box.name==key;}))throw std::invalid_argument("Missing numeric storage field");}
+            if(!field.visibleWhen.empty()&&std::none_of(panel_.checkboxes.begin(),panel_.checkboxes.end(),[&](const auto& box){return box.name==field.visibleWhen;}))throw std::invalid_argument("Missing numeric visibility setting");
+            candidate.push_back({std::string(field.name),std::string(field.label),std::string(field.visibleWhen),field.bits,field.maximum});
+        }
+        numbers_=std::move(candidate);
+    }
     static void checkText(std::string_view text,size_t limit,bool allowEmpty=false) {
         if((text.empty()&&!allowEmpty)||text.size()>limit||text.find('\0')!=std::string_view::npos)
             throw std::invalid_argument("Invalid settings text");
     }
     bool current(uint64_t session)const{return session && session==session_ && !sessionId_.empty();}
-    void invalidate(){++session_;editor_={};sessionId_.clear();observed_=false;signals_.clear();values_.clear();pendingCopies_.clear();}
+    void invalidate(){++session_;editor_={};sessionId_.clear();observed_=false;signals_.clear();values_.clear();pendingCopies_.clear();numberDrafts_.clear();numberSignal_=0;}
     mutable std::mutex mutex_;
     Panel panel_;
+    std::vector<Number> numbers_;
+    mutable uint64_t numberSignal_=0;
+    mutable std::map<std::string,std::shared_ptr<detail::NumberInputDraft>> numberDrafts_;
     uint64_t session_=0,selection_=0;
     std::string sessionId_;
     bool observed_=false;

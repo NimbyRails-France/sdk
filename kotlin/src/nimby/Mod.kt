@@ -30,7 +30,8 @@ data class SignalType(
      * Le SDK fournit une observation ; le mod décide si elle autorise l'ouverture. */
     val approachBlocks: Int = 1,
     /** Ressources et entrée constructible, utilisées pour générer mod.txt. */
-    val construction: SignalConstruction? = null
+    val construction: SignalConstruction? = null,
+    val numbers: List<NumberSetting> = emptyList()
 )
 /** Occupation physique : l'entrée de la tête suffit à occuper un canton et
  * l'arrière doit le dégager pour le libérer. Une portion aval observée peut
@@ -90,6 +91,9 @@ data class DrivingRule(
 
 /** Une seule implémentation Kotlin suffit. Le SDK fournit DLL, exports et boucle de lecture. */
 abstract class SignallingMod : GameMod() {
+    /** Pure transformation of effective settings in this observed network.
+     * Never persists derived values or changes topology/observations. */
+    open fun prepareNetwork(signals: List<Signal>): List<Signal> = signals
     // Compatibilité des mods à un type. Les nouveaux mods déclarent signalTypes.
     open val textureSet: String = ""
     open val checkboxes: List<Checkbox> = emptyList()
@@ -133,15 +137,29 @@ abstract class SignallingMod : GameMod() {
 }
 
 /** Résolution des liens, commune aux mods et aux tests, sans récursion profonde. */
-fun SignallingMod.evaluateNetwork(input: List<Signal>): List<Decision> {
+/** Validated preparation shared by the native adapter and the offline resolver. */
+fun SignallingMod.prepareObservedNetwork(input: List<Signal>): List<Signal> {
     require(input.size <= 512)
     val types = signalTypes
     validateSignalTypes(types)
     val knownTypes = types.map { it.id }.toSet()
-    val signals = input.map { signal ->
+    val normalized = input.map { signal ->
         if (signal.type.isEmpty()) signal.copy(type = types.first().id)
         else signal.also { require(it.type in knownTypes) { "Type de signal inconnu : ${it.type}" } }
     }
+    require(normalized.map { it.id }.toSet().size == normalized.size && normalized.none { it.id == 0L })
+    val signals = prepareNetwork(normalized)
+    require(signals.size == normalized.size && signals.indices.all { i ->
+        signals[i].id == normalized[i].id && signals[i].nextSignal == normalized[i].nextSignal &&
+            signals[i].type == normalized[i].type && signals[i].observation == normalized[i].observation &&
+            (signals[i].settingsStatus == normalized[i].settingsStatus ||
+                (normalized[i].settingsStatus == SettingsStatus.Absent && signals[i].settingsStatus == SettingsStatus.Present))
+    }) { "Network preparation may only change effective settings" }
+    return signals
+}
+
+fun SignallingMod.evaluateNetwork(input: List<Signal>): List<Decision> {
+    val signals = prepareObservedNetwork(input)
     val index = signals.mapIndexed { i, signal -> signal.id to i }.toMap()
     require(index.size == signals.size && signals.none { it.id == 0L })
     val results = arrayOfNulls<Decision>(signals.size)

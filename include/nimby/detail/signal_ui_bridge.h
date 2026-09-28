@@ -27,6 +27,11 @@ typedef struct NimbyUiValuesV1 {
 typedef uint32_t (*NimbyUiRegisterV1)(const NimbyUiPanelV1*,uint64_t* owner);
 typedef uint32_t (*NimbyUiRemoveV1)(uint64_t owner);
 typedef uint32_t (*NimbyUiConditionalVisibilityV1)(uint64_t owner,uint64_t mask);
+typedef struct NimbyUiNumberSettingV1 {
+    char name[129],label[257],visible_when[129];
+    uint32_t bits,maximum;
+} NimbyUiNumberSettingV1;
+typedef uint32_t (*NimbyUiNumberSettingsV1)(uint64_t,const NimbyUiNumberSettingV1*,uint32_t);
 typedef uint32_t (*NimbyUiBeginV1)(uint64_t owner,const char* identity,uint32_t length,uint64_t* session);
 typedef uint32_t (*NimbyUiObserveV1)(uint64_t owner,uint64_t session,const NimbyUiSignalV1*,uint32_t count);
 typedef uint32_t (*NimbyUiSuspendV1)(uint64_t owner);

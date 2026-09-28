@@ -5,6 +5,17 @@ plugins { kotlin("multiplatform") version "2.2.20" }
 val mod = file(providers.gradleProperty("modProject").get())
 require(mod.resolve("mod.json").isFile) { "modProject must contain mod.json" }
 val sdk = rootDir.resolve("../..").canonicalFile
+val identity = groovy.json.JsonSlurper().parse(mod.resolve("mod.json")) as Map<*, *>
+val generated = sdk.resolve("build/verification-mod-info")
+val generateModInfo by tasks.registering {
+    inputs.file(mod.resolve("mod.json")); outputs.dir(generated)
+    doLast {
+        generated.mkdirs()
+        generated.resolve("ModInfo.kt").writeText("package nimby.mod\nimport nimby.ModInfo\nval modInfo = ModInfo(" +
+            groovy.json.JsonOutput.toJson(identity["id"]).replace("$", "\\$") + "," +
+            groovy.json.JsonOutput.toJson(identity["name"]).replace("$", "\\$") + ")\n")
+    }
+}
 val host = when {
     System.getProperty("os.name").startsWith("Windows") -> "windows"
     System.getProperty("os.name") == "Linux" -> "linux"
@@ -18,6 +29,7 @@ kotlin {
     sourceSets {
         val hostMain by getting {
             kotlin.srcDirs(sdk.resolve("kotlin/src"), sdk.resolve("kotlin/native"), mod.resolve("src/main/kotlin"))
+            kotlin.srcDir(generated)
         }
         val hostTest by getting {
             kotlin.srcDir(mod.resolve("src/test/kotlin"))
@@ -25,6 +37,7 @@ kotlin {
         }
     }
 }
+tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinNativeCompile>().configureEach { dependsOn(generateModInfo) }
 val prepareTestAssets by tasks.registering(Sync::class) {
     from(mod.resolve("assets"))
     from(mod.resolve("imgs")) { into("imgs") }
