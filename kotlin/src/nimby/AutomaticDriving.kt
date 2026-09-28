@@ -61,7 +61,11 @@ object AutomaticDriving {
     /**
      * Apres passage, plafond conserve jusqu'au panneau suivant (passage tete),
      * avec freinage sur l'espace libre physiquement verifie. stopFirst impose
-     * une preuve d'arret avant entree ; les permissions natives restent actives.
+     * une preuve d'arret avant entree. Sous Windows, cette permission remplace
+     * le verrou d'occupation/reservation du canton sur la voie suivie. Les
+     * conflits de voies croisees et les controles d'itineraire natifs restent
+     * bloquants. Le mod doit choisir quand l'entree est permise ; une voie
+     * reservee ne devient pas libre et les obstacles physiques restent detectes.
      */
     fun restrictedUntilNextSignal(entrySpeedMps: Double, maximumSpeedMps: Double, stopFirst: Boolean): DrivingRule {
         require(speed(maximumSpeedMps) > 0.0)

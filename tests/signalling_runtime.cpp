@@ -59,9 +59,25 @@ using Runtime=nimby::SignallingRuntime<Rules>;
 struct TypedRules : Rules {
     static Decision invalidNetworkDecision(const Signal& signal) { return -int(signal.id); }
 };
+struct AnimatedRules : Rules {
+    static inline std::int64_t duration=250;
+    static std::optional<nimby::detail::SignalAnimation> animation(Decision) {
+        return nimby::detail::SignalAnimation{"on.svg","off.svg",duration};
+    }
+    static std::string texture(Decision,std::int64_t,std::int64_t) {
+        throw std::runtime_error("A declared cadence must not be resampled at the legacy cadence");
+    }
+};
 }
 int main() {
     try {
+        const auto blink=nimby::detail::signalAnimation<AnimatedRules>(1,500);
+        CHECK(blink.first=="on.svg"&&blink.alternate=="off.svg"&&blink.everyMs==250);
+        AnimatedRules::duration=750;
+        CHECK(nimby::detail::signalAnimation<AnimatedRules>(1,500)!=blink); // Cache must notice cadence-only changes.
+        AnimatedRules::duration=99;
+        try { nimby::detail::signalAnimation<AnimatedRules>(1,500);CHECK(false); } catch(const std::invalid_argument&) {}
+        CHECK(nimby::detail::signalAnimation<Rules>(1,500).everyMs==0); // Existing image callback.
         Runtime::SignalRequest signal; signal.observation.value=3;
         CHECK(Runtime::evaluate(signal).texturePath.view()=="known.svg");
         signal.simulationMs=-1;

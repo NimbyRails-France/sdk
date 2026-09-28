@@ -72,7 +72,7 @@ if REPO == 'sdk':
     archive(stage, folder + '-windows-x64-mingw.zip')
     drop = WORK / (folder + '-drop-in')
     drop.mkdir()
-    for name in ('SDL3.dll', 'NimbyRailsFranceSDK.dll', 'NimbyRailsFranceTextureBridge-experimental-v4.dll', 'NimbySignalUiBridge-experimental-v1.dll', 'NimbyAutomaticDrivingBridge-v1.dll'):
+    for name in ('SDL3.dll', 'NimbyRailsFranceSDK.dll', 'NimbyRailsFranceTextureBridge-experimental-v4.dll', 'NimbySignalUiBridge-experimental-v1.dll', 'NimbyAutomaticDrivingBridge-v1.dll', 'NimbyRailsFranceClockBridge-0.7.1.dll', 'NimbyModMetadataBridge-v1.dll'):
         source = ROOT / 'build/ci' / ('drop-in/' + name if name == 'SDL3.dll' else name)
         copy(source, drop / name)
     runtimes(drop)

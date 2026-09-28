@@ -68,16 +68,13 @@ void startObservations(const nimby::Mod& mod) {
         connectSettings(panel,mod.translationsJson);
         connectServices(mod);
         if (!*connection) connection->reset(new nimby::detail::ObservationSession(currentProcessId()));
-        auto snapshot = textureSet.empty()?(*connection)->capture(scope):(*connection)->captureSignalling(textureSet);
-        // Presence and occupation are separate native tables. A train entering
-        // or leaving the network between their reads can invalidate coverage.
-        // Retry the WHOLE observation, never merge tables or reuse a former
-        // clear block. Persistent uncertainty still reaches the mod unchanged.
-        // Tools without a signalling panel consume their own observations;
-        // retrying block coverage here needlessly triples their UI poll delay.
-        if(scope==nimby::SnapshotScope::Signalling&&!panel.id.empty())
-            for(unsigned retry=0;retry<2&&!nimby::observeBlockCoverage(*snapshot).verified;++retry)
-                snapshot=textureSet.empty()?(*connection)->capture(scope):(*connection)->captureSignalling(textureSet);
+        auto snapshot = !mod.observationSignals.empty()?(*connection)->captureSignalling(mod.observationSignals):
+            textureSet.empty()?(*connection)->capture(scope):(*connection)->captureSignalling(textureSet);
+        // Capture already retries the mutable presence/occupation pair together.
+        // Repeating the entire topology capture here tripled response time when
+        // coverage stayed incomplete, delaying approach detection and allowing
+        // driving instructions to expire between observations. Deliver this
+        // capture immediately; its unknown blocks remain unknown for the mod.
         if(settingsBridge().connected())settingsBridge().synchronize(*snapshot);
         for(auto& panel:additionalPanels())if(panel.client->connected())panel.client->synchronize(*snapshot);
         const auto& game=snapshot->getGameSession();

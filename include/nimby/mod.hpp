@@ -46,6 +46,9 @@ struct Mod {
     SignalSettingsPanel signalSettings{};
     SnapshotScope observationScope = SnapshotScope::Complete;
     std::string_view observationTextureSet{};
+    // Owned, adapter-private declarations. Multi-model signalling stays scoped
+    // instead of falling back to a complete world scan every 20 ms.
+    std::vector<NimbySignalCaptureScope> observationSignals{};
     // Local recipe endpoint, explicitly stopped by the adapter before unload.
     const char* controlId=nullptr;
     NimbyControlHandler control=nullptr;

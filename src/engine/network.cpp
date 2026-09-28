@@ -9,6 +9,8 @@
 #include <cmath>
 #include <cstring>
 #include <map>
+#include <set>
+#include <tuple>
 #include <unordered_set>
 #include "engine/detail/memory_reader.h"
 #include "engine/detail/position.h"
@@ -213,8 +215,16 @@ bool read_network(ReadMemory read,void* context,const LiveState& state,bool reco
     } catch(...) {out={};return false;}
 }
 bool read_signalling_network(ReadMemory read,void* context,const LiveState& state,uint64_t texturesHash,Network& out) noexcept {
+    const SignallingScope scope{texturesHash,0};
+    return read_signalling_network(read,context,state,std::span(&scope,1),out);
+}
+bool read_signalling_network(ReadMemory read,void* context,const LiveState& state,std::span<const SignallingScope> scopes,Network& out) noexcept {
     out={};if(!read)return false;
     try {
+        if(scopes.empty()||scopes.size()>16)return false;
+        std::map<uint64_t,uint32_t> selectedHashes;
+        for(const auto& scope:scopes)
+            if(scope.approach_blocks>16||!selectedHashes.emplace(scope.textures_hash,scope.approach_blocks).second)return false;
         LiveState current{};
         if(!resolve_live_state(read,context,state.module_base,true,state.profile,current)||current!=state)return false;
         std::vector<Signal> signals;
@@ -264,17 +274,19 @@ bool read_signalling_network(ReadMemory read,void* context,const LiveState& stat
             }
             return true;
         };
+        std::map<uint64_t,std::vector<const Signal*>> signalsByTrack;
+        for(const auto& signal:signals)if(signal.kind==4)signalsByTrack[signal.track_id].push_back(&signal);
         size_t selected=0;
-        for(const auto& seed:signals)if(seed.textures_hash==texturesHash&&seed.kind==4){
+        for(const auto& seed:signals)if(selectedHashes.contains(seed.textures_hash)&&seed.kind==4){
             if(++selected>4096)return false;
             auto id=seed.track_id;auto fraction=seed.fraction;auto direction=-seed.direction;
             for(unsigned step=0;step<256;++step){
                 const auto* record=track(id);if(!record)return false;
                 const auto* p=record->data();if(!attachments(id,p))return false;
                 std::optional<double> boundary;
-                for(const auto& signal:signals)if(signal.track_id==id&&signal.kind==4&&signal.id!=seed.id&&-signal.direction==direction&&
-                    (direction==1?signal.fraction>=fraction:signal.fraction<=fraction))
-                    if(!boundary||(direction==1?signal.fraction<*boundary:signal.fraction>*boundary))boundary=signal.fraction;
+                for(const auto* signal:signalsByTrack[id])if(signal->id!=seed.id&&-signal->direction==direction&&
+                    (direction==1?signal->fraction>=fraction:signal->fraction<=fraction))
+                    if(!boundary||(direction==1?signal->fraction<*boundary:signal->fraction>*boundary))boundary=signal->fraction;
                 bool fork=false;
                 for(const auto& [child,j]:junctions)if(j.main_track_id==id&&j.main_direction==direction&&
                     (direction==1?j.main_fraction>=fraction:j.main_fraction<=fraction)&&
@@ -294,6 +306,50 @@ bool read_signalling_network(ReadMemory read,void* context,const LiveState& stat
                     id=parent;fraction=j.main_fraction;direction=-j.main_direction;
                 }
             }
+            // Walk backwards from this model, counting facing signals rather
+            // than metres or real time. A merging junction has several possible
+            // upstream approaches: retain their geometry, then let the ordinary
+            // forward topology reader reject ambiguous train routes as before.
+            struct Cursor {uint64_t track;double fraction;int direction;uint32_t blocks;unsigned steps;uint64_t exclude;};
+            std::vector<Cursor> pending;
+            if(const auto blocks=selectedHashes.at(seed.textures_hash))
+                pending.push_back({seed.track_id,seed.fraction,seed.direction,blocks,0,seed.id});
+            std::set<std::tuple<uint64_t,double,int,uint32_t,uint64_t>> visited;
+            while(!pending.empty()){
+                const auto cursor=pending.back();pending.pop_back();
+                if(cursor.steps>=256||!visited.emplace(cursor.track,cursor.fraction,cursor.direction,cursor.blocks,cursor.exclude).second)continue;
+                if(visited.size()>32768)return false;
+                const auto* record=track(cursor.track);if(!record)return false;
+                const auto* p=record->data();if(!attachments(cursor.track,p))return false;
+                const auto direction=cursor.direction;
+                const Signal* boundary=nullptr;
+                for(const auto* signal:signalsByTrack[cursor.track])
+                    if(signal->id!=cursor.exclude&&signal->direction==direction&&
+                       (direction==1?signal->fraction>=cursor.fraction:signal->fraction<=cursor.fraction)&&
+                       (!boundary||(direction==1?signal->fraction<boundary->fraction:signal->fraction>boundary->fraction)))boundary=signal;
+                const double end=boundary?boundary->fraction:(direction==1?1.:0.);
+                // Branches merging into the observed forward direction. Include
+                // every candidate, never infer which one an approaching train uses.
+                for(const auto& [child,j]:junctions)if(j.main_track_id==cursor.track&&j.main_direction==direction&&
+                    (direction==1?j.main_fraction>=cursor.fraction&&j.main_fraction<=end:j.main_fraction<=cursor.fraction&&j.main_fraction>=end))
+                    pending.push_back({child,j.branch_direction==1?0.:1.,j.branch_direction,cursor.blocks,cursor.steps+1,0});
+                if(boundary){
+                    if(cursor.blocks>1)pending.push_back({cursor.track,boundary->fraction,direction,cursor.blocks-1,cursor.steps+1,boundary->id});
+                    continue;
+                }
+                const auto next=field<uint64_t>(p,direction==1?16:8);
+                if(next){
+                    const auto* following=track(next);if(!following)return false;
+                    const bool a=field<uint64_t>(following->data(),8)==cursor.track,b=field<uint64_t>(following->data(),16)==cursor.track;
+                    if(a==b)return false;
+                    pending.push_back({next,a?0.:1.,a?1:-1,cursor.blocks,cursor.steps+1,0});
+                }else if(const auto parent=field<uint64_t>(p,0x3f0)){
+                    const auto* main=track(parent);if(!main||!attachments(parent,main->data()))return false;
+                    const auto found=junctions.find(cursor.track);if(found==junctions.end())return false;
+                    const auto& j=found->second;
+                    if(direction==-j.branch_direction)pending.push_back({parent,j.main_fraction,-j.main_direction,cursor.blocks,cursor.steps+1,0});
+                }
+            }
         }
         for(const auto& [id,record]:records){
             const auto* p=record.data();Track t{};t.id=id;t.links[0]=field<uint64_t>(p,8);t.links[1]=field<uint64_t>(p,16);
@@ -301,7 +357,7 @@ bool read_signalling_network(ReadMemory read,void* context,const LiveState& stat
             t.geometry=std::isfinite(t.x)&&std::isfinite(t.y)&&std::abs(t.x)<1e9&&std::abs(t.y)<1e9;
             out.tracks.push_back(t);
         }
-        for(const auto& signal:signals)if(records.contains(signal.track_id)||signal.textures_hash==texturesHash)out.signals.push_back(signal);
+        for(const auto& signal:signals)if(records.contains(signal.track_id)||selectedHashes.contains(signal.textures_hash))out.signals.push_back(signal);
         for(const auto& [id,j]:junctions)out.junctions.push_back(j);
         if(!resolve_live_state(read,context,state.module_base,true,state.profile,current)||current!=state){out={};return false;}
         return true;

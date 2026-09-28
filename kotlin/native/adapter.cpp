@@ -39,6 +39,7 @@ struct Api {
     int (*typeMetadata)(int,int,int,char*,int)=nullptr;
     int (*migrate)(int,const char*,const int*,int,std::int64_t*)=nullptr;
     int (*texture)(int,int,std::int64_t,std::int64_t,char*,int)=nullptr;
+    int (*animation)(int,int,char*,char*,int,std::int64_t*)=nullptr;
     int (*force)(int,int*)=nullptr;
     int (*forceType)(int,int,int*)=nullptr;
     int (*fallbackType)(int,int,int*)=nullptr;
@@ -66,6 +67,8 @@ struct Api {
     int (*serviceEventV2)(int,int64_t,int64_t,int64_t,int64_t,const char*,const char*,const char*,ToolCall,int,int)=nullptr;
     int (*toolTick)(const char*,int64_t,ToolCall)=nullptr;
     int (*toolStop)()=nullptr;
+    std::vector<platform::ToolWindows::Definition> windows;
+    int (*windowEvent)(int,int64_t,const char*,const char*,const int32_t*,int,const char*,int64_t,ToolCall)=nullptr;
     template<class T> T symbol(const char* name) {
         auto address=detail::native::symbol(module,name);if(!address)throw std::runtime_error(std::string("Missing Kotlin SDK export: ")+name);
         return reinterpret_cast<T>(address);
@@ -113,7 +116,7 @@ struct Api {
         if(const auto available=reinterpret_cast<int(*)(int)>(detail::native::symbol(module,"NRFKotlin_TranslationsAvailable")))
             check(available(translationsJson.empty()?0:1));
         const auto version=symbol<int(*)()>("NRFKotlin_Version");const auto abi=version();check(abi);
-        if(abi<1||abi>5)throw std::runtime_error("Unsupported Kotlin ABI");
+        if(abi<1||abi>7)throw std::runtime_error("Unsupported Kotlin ABI");
         metadata=symbol<decltype(metadata)>("NRFKotlin_Metadata");
         if(abi>=3){
             const auto kind=symbol<int(*)()>("NRFKotlin_ModKind")();check(kind);
@@ -130,6 +133,16 @@ struct Api {
                 if(n<1||n>=int(buffer.size())||buffer[n]||!unique.emplace(buffer.data(),n).second)throw std::runtime_error("Invalid service name");
                 services.emplace_back(buffer.data(),n);}
         }
+        if(abi>=7){
+            const auto count=symbol<int(*)()>("NRFKotlin_WindowCount")();check(count);
+            if(count>8||!tool)throw std::runtime_error("Invalid tool window declaration");
+            windowEvent=symbol<decltype(windowEvent)>("NRFKotlin_WindowEvent");
+            auto meta=symbol<int(*)(int,int,char*,int)>("NRFKotlin_WindowMetadata");
+            for(int i=0;i<count;++i){std::array<std::string,3> values;
+                for(int field=0;field<3;++field){std::array<char,2048> buffer{};const auto n=meta(i,field,buffer.data(),int(buffer.size()));check(n);if(n<=0||n>=int(buffer.size())||buffer[n])throw std::runtime_error("Window metadata");values[field].assign(buffer.data(),n);}
+                windows.push_back({values[0],values[1],values[2]});
+            }
+        }
         if(tool){id=text(0);title=text(1);diagnostic=text(3);return;}
         if(abi>=4){
             fallbackType=symbol<decltype(fallbackType)>("NRFKotlin_FallbackType");
@@ -139,6 +152,7 @@ struct Api {
         LOAD(metadata,"NRFKotlin_Metadata");LOAD(info,"NRFKotlin_Info");LOAD(defaults,"NRFKotlin_Defaults");
         LOAD(decide,"NRFKotlin_Decide");LOAD(texture,"NRFKotlin_Texture");LOAD(fault,"NRFKotlin_Fault");
         LOAD(driving,"NRFKotlin_Driving");LOAD(plan,"NRFKotlin_Plan");
+        if(abi>=6)LOAD(animation,"NRFKotlin_TextureAnimation");
         force=reinterpret_cast<decltype(force)>(detail::native::symbol(module,"NRFKotlin_Force"));
 #undef LOAD
         check(info(properties.data()));if(properties[0]<0||properties[0]>64)throw std::runtime_error("Invalid checkbox count");
@@ -282,6 +296,15 @@ std::string Rules::texture(const Decision& d,std::int64_t time,std::int64_t half
     if(count>=int(buffer.size())||buffer[count]!=0)throw std::runtime_error("Invalid Kotlin texture length");
     return {buffer.data(),static_cast<std::size_t>(count)};
 }
+std::optional<detail::SignalAnimation> Rules::animation(const Decision& d) {
+    if(!api().animation)return std::nullopt; // Existing Kotlin ABI 1..5 mods.
+    std::array<char,96> first{},alternate{};std::int64_t everyMs{};
+    const auto status=api().animation(d.aspect,d.reason,first.data(),alternate.data(),int(first.size()),&everyMs);
+    check(status);if(status==1)return std::nullopt;
+    const auto firstEnd=std::find(first.begin(),first.end(),'\0'),alternateEnd=std::find(alternate.begin(),alternate.end(),'\0');
+    if(status!=0||firstEnd==first.end()||alternateEnd==alternate.end())throw std::runtime_error("Invalid Kotlin animation response");
+    return detail::checkedAnimation({std::string(first.begin(),firstEnd),std::string(alternate.begin(),alternateEnd),everyMs});
+}
 std::optional<SignalDrivingRule> Rules::drivingRule(Id id,const Decision& d) {
     std::array<double,2> numbers{};std::array<int,2> flags{};const auto status=api().driving(d.aspect,d.reason,numbers.data(),flags.data());
     check(status);if(status==1)return std::nullopt;if(status!=0)throw std::runtime_error("Invalid Kotlin driving status");
@@ -310,6 +333,8 @@ void Rules::diagnose(const Snapshot& snapshot,const std::vector<LiveSignalState>
         detail::diagnostics::write("mods","INFO",("Mod signal heartbeat: id="+api().id+
             " signals="+std::to_string(states.size())+" faults="+std::to_string(faults)+
             " snapshotAgeMs="+std::to_string(snapshot.getAge().count())+
+            " tracks="+std::to_string(snapshot.getAllTracks().size())+
+            " boundaries="+std::to_string(snapshot.getAllSignals().size())+
             " occupationsAvailable="+(snapshot.getAllOccupations().has_value()?"yes":"no")).c_str());
     }
     if(!fault){recorded=0;return;}if(recorded>=128)return;
@@ -360,18 +385,42 @@ nimby::Mod nimby::createMod() {
         mod.observe=+[](const Snapshot& snapshot){
             if(const auto game=snapshot.getGameSession()){
                 kotlin::ToolScope scope(*game);
+                auto& api=kotlin::api();
+                if(!api.windows.empty()){
+                    if(!kotlin::toolWindows)kotlin::toolWindows=std::make_unique<platform::ToolWindows>(api.windows,api.translationsJson);
+                    kotlin::toolWindows->observe(*game);
+                    while(const auto event=kotlin::toolWindows->poll()){
+                        if(event->game!=*game)continue;
+                        std::string names;std::vector<int32_t> values;
+                        for(const auto& [name,value]:event->values){names+=name;names+='\0';values.push_back(value);}
+                        kotlin::check(api.windowEvent(int(event->index),int64_t(event->sequence),event->action.c_str(),names.c_str(),values.data(),int(values.size()),game->worldId.c_str(),int64_t(game->generation),kotlin::toolCall));
+                    }
+                }
                 kotlin::check(kotlin::api().toolTick(game->worldId.c_str(),int64_t(game->generation),kotlin::toolCall));
             }
         };
-        mod.stop=+[]{kotlin::toolReader().reset();kotlin::check(kotlin::api().toolStop());};
+        mod.stop=+[]{
+            kotlin::toolWindows.reset();
+            kotlin::toolReader().reset();kotlin::check(kotlin::api().toolStop());};
         // A temporary observation failure must not forget an uncertain CREATE.
         // Kotlin keeps its ticket and resumes polling after observations recover.
-        mod.observationLost=+[]{kotlin::toolReader().reset();};
-        mod.observationScope=SnapshotScope::Signalling;mod.observationIntervalMs=250;
+        mod.observationLost=+[]{
+            if(kotlin::toolWindows)kotlin::toolWindows->invalidate();
+            kotlin::toolReader().reset();};
+        // Tool ticks and service events only need session identity. Network
+        // operations already obtain their own fresh capture through toolCall.
+        mod.observationScope=SnapshotScope::Session;mod.observationIntervalMs=250;
     }else{
         kotlin::Rules::controlId=api.id;kotlin::Rules::textureSet=api.catalogue;kotlin::Rules::maximumLineSpeed=api.properties[1]!=0;
         mod=kotlin::Runtime::createMod();mod.signalSettings=api.panels.front();
         mod.additionalSignalSettings=std::span<const SignalSettingsPanel>(api.panels).subspan(1);
+        for(const auto& panel:api.panels){
+            NimbySignalCaptureScope scope{};
+            if(panel.textureSet.size()>256)throw std::invalid_argument("Signal catalogue too long");
+            std::memcpy(scope.texture_set,panel.textureSet.data(),panel.textureSet.size());
+            for(const auto& type:api.types)if(type.catalogue==panel.textureSet)scope.approach_blocks=static_cast<uint32_t>(type.approachBlocks);
+            mod.observationSignals.push_back(scope);
+        }
     }
     mod.id=api.id;mod.services=api.services;mod.translationsJson=api.translationsJson;
     if(!api.services.empty())mod.signalActionV2=+[](const NimbyUiActionEventV2& input,const Snapshot& snapshot){

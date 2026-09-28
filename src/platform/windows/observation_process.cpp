@@ -52,7 +52,15 @@ bool readProcess(void* context,uint64_t address,void* output,size_t size) {
 
 uint32_t ObservationProcess::setClock(int64_t utc_seconds,NimbySimulationClock& output) noexcept {
     auto& session=*this; auto* out=&output;
-    if(session.pid==GetCurrentProcessId())return NIMBY_INVALID_ARGUMENT;
+    if(session.pid==GetCurrentProcessId()) {
+        // Never suspend our own process. The bridge applies the same calendar
+        // translation at the simulation boundary before the UI copy is made.
+        engine::LiveState state{};
+        if(!engine::resolve_live_state(readProcess,&session,session.base,true,profile(),state))return NIMBY_DATA_UNAVAILABLE;
+        uint32_t interventions{};
+        return clock_bridge::change(session.impl_->process.get(),session.pid,state.simulation,session.binary,
+            utc_seconds,output,interventions,false);
+    }
     if(!session.alive())return NIMBY_PROCESS_EXITED;
     using ProcessControl=LONG (NTAPI*)(HANDLE);
     const auto ntdll=GetModuleHandleW(L"ntdll.dll");
@@ -98,7 +106,6 @@ uint32_t ObservationProcess::setClock(int64_t utc_seconds,NimbySimulationClock& 
 }
 uint32_t ObservationProcess::setClockAndRecalculate(int64_t utc,NimbySimulationClock& output,uint32_t& countValue) noexcept {
     auto& session=*this; auto* out=&output; auto* count=&countValue;
-    if(session.pid==GetCurrentProcessId())return NIMBY_INVALID_ARGUMENT;
     if(!session.alive())return NIMBY_PROCESS_EXITED;
     nimby::engine::LiveState state{};
     if(!nimby::engine::resolve_live_state(readProcess,&session,session.base,true,profile(),state))return NIMBY_DATA_UNAVAILABLE;

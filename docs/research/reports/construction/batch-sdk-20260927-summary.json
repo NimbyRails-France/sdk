@@ -1,0 +1,42 @@
+{
+  "date": "2026-09-27",
+  "gameVersion": "1.19.10.5bfaea3",
+  "gameSha256": "fff49ac21720abfc824c2b4f68b862727630eb0db71cfe1f9ea8f685d0db10ae",
+  "bridgeSha256": "e8b9cd24a2f56cc12ac6a8d12d32d407ef7733b3d7fd427114e256bb30f89807",
+  "beforeSignals": 2,
+  "afterCreateSignals": 5,
+  "afterSingleUndoSignals": 2,
+  "afterRefusalTestsSignals": 2,
+  "created": [
+    {
+      "id": 2251799813816322,
+      "track": 281474976776193,
+      "fraction": 0.171,
+      "direction": -1,
+      "kind": 4
+    },
+    {
+      "id": 2251799813881857,
+      "track": 281474976776193,
+      "fraction": 0.271,
+      "direction": -1,
+      "kind": 4
+    },
+    {
+      "id": 2251799813947393,
+      "track": 281474976776193,
+      "fraction": 0.371,
+      "direction": -1,
+      "kind": 4
+    }
+  ],
+  "originalSignalsExactlyPreserved": true,
+  "scope": "Isolated single-player test save; external SDK API, straight track only",
+  "notQualified": [
+    "multiplayer refusal",
+    "junction completeness",
+    "curves",
+    "save/reload",
+    "SFR template settings"
+  ]
+}

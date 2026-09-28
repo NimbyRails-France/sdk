@@ -51,11 +51,9 @@ private fun text(value: String, out: CPointer<ByteVar>?, capacity: Int): Int {
 // An older adapter must reject schemas it cannot represent, rather than
 // silently operate only the first model or persist under a different ID.
 @CName("NRFKotlin_Version") fun version(): Int = guarded("Version") {
-    if(gameMod is SignallingMod && types.any { it.observeApproach && it.approachBlocks > 1 }) 5
-    else if(gameMod is SignallingMod && mod.modelLocalIndications) 4
-    else if(gameMod is ToolMod || services.isNotEmpty() || types.any { it.actions.isNotEmpty() }) 3
-    else if (types.size > 1 || types.first().id != mod.id || types.first().checkboxes.isEmpty() ||
-        types.any { type -> type.observeApproach || type.checkboxes.any { it.onlyWhenEnabled } }) 2 else 1
+    // Newly compiled signals require an animation-aware adapter. Otherwise an
+    // old adapter could silently sample a custom cadence as a static image.
+    if(gameMod.windows.isNotEmpty()) 7 else if(gameMod is SignallingMod) 6 else 3
 }
 // Called before version()/createMod(). Tests using the Kotlin API directly
 // keep the default; the actual loader checks the file next to the mod DLL.
@@ -95,6 +93,23 @@ private fun inTool(world: String, generation: Long, call: ToolCall?, block: (Too
     inTool(request.worldId,generation,call) { gameMod.onSignalAction(request,it) };0
 }
 @CName("NRFKotlin_ToolStop") fun toolStop(): Int = guarded("ToolStop") { gameMod.onStop(); 0 }
+@CName("NRFKotlin_WindowCount") fun windowCount(): Int = guarded("WindowCount") { gameMod.windows.size }
+@CName("NRFKotlin_WindowMetadata") fun windowMetadata(index: Int, field: Int, out: CPointer<ByteVar>?, capacity: Int): Int = guarded("WindowMetadata") {
+    val window = gameMod.windows[index]
+    text(when(field) { 0 -> window.id; 1 -> window.title; 2 -> window.shortcut; else -> error("Unknown window field") }, out, capacity)
+}
+@CName("NRFKotlin_WindowEvent") fun windowEvent(index: Int, sequence: Long, action: CPointer<ByteVar>?, names: CPointer<ByteVar>?, values: CPointer<IntVar>?, count: Int,
+    world: CPointer<ByteVar>?, generation: Long, call: ToolCall?): Int = guarded("WindowEvent") {
+    require(sequence > 0 && action != null && world != null && count in 0..8)
+    require(count == 0 || (names != null && values != null))
+    val fields = linkedMapOf<String, Int>(); var offset = 0
+    repeat(count) { i ->
+        val name = (names!! + offset)!!.toKString(); offset += name.encodeToByteArray().size + 1
+        require(name.matches(Regex("[a-zA-Z0-9_.-]{1,128}")) && name !in fields); fields[name] = values!![i]
+    }
+    val request = ToolWindowEvent(gameMod.windows[index].id, action.toKString(), fields, sequence, world.toKString(), generation)
+    inTool(request.worldId, generation, call) { gameMod.onWindowEvent(request, it) }; 0
+}
 @CName("NRFKotlin_ActionCount") fun actionCount(type: Int): Int = guarded("ActionCount") { types[type].actions.size }
 @CName("NRFKotlin_ActionMetadata") fun actionMetadata(type: Int,index: Int,field: Int,out: CPointer<ByteVar>?,capacity: Int): Int = guarded("ActionMetadata") {
     val action=types[type].actions[index]
@@ -204,6 +219,16 @@ private fun inTool(world: String, generation: Long, call: ToolCall?, block: (Too
 }
 @CName("NRFKotlin_Texture") fun texture(aspect: Int, reason: Int, time: Long, half: Long, out: CPointer<ByteVar>?, capacity: Int): Int = guarded("Texture") {
     text(mod.texture(Decision(aspect, reason), time, half), out, capacity)
+}
+@CName("NRFKotlin_TextureAnimation") fun textureAnimation(aspect: Int, reason: Int,
+    first: CPointer<ByteVar>?, alternate: CPointer<ByteVar>?, capacity: Int, everyMs: CPointer<LongVar>?): Int = guarded("TextureAnimation") {
+    require(first != null && alternate != null && everyMs != null)
+    val animation = mod.animation(Decision(aspect, reason))
+    if (animation == null) 1 else {
+        text(animation.first, first, capacity); text(animation.alternate, alternate, capacity)
+        everyMs[0] = animation.everyMs
+        0
+    }
 }
 @CName("NRFKotlin_Fault") fun fault(aspect: Int, reason: Int): Int = guarded("Fault") {
     val decision = Decision(aspect, reason)

@@ -20,6 +20,7 @@ $sources=@(Get-ChildItem -LiteralPath "$sdkRoot/kotlin/src" -Recurse -Filter *.k
 & $compiler -target mingw_x64 -produce library -o "$Destination/klib/nimby-mod-api" @sources
 if($LASTEXITCODE){throw 'Kotlin SDK API compilation failed'}
 Copy-Item -LiteralPath "$sdkRoot/kotlin/native/Exports.kt" -Destination "$Destination/bridge/Exports.kt" -Force
+Copy-Item -LiteralPath "$sdkRoot/kotlin/native/Package.kt" -Destination "$Destination/bridge/Package.kt" -Force
 $clion=Join-Path $ClionHome 'bin'
 $cmake=Join-Path $clion 'cmake/win/x64/bin/cmake.exe'
 $nativeBuild=if($BuildDirectory){$BuildDirectory}else{Join-Path $sdkRoot 'build/kotlin-devkit-adapter'}

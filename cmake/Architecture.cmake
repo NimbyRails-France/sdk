@@ -6,6 +6,7 @@ if(NOT DEFINED SDK_ROOT)
     get_filename_component(SDK_ROOT "${CMAKE_CURRENT_LIST_DIR}/.." ABSOLUTE)
 endif()
 set(selectors
+    include/platform/tool_windows.h
     include/nimby/detail/diagnostics.hpp
     include/nimby/detail/native_library.hpp
     include/nimby/detail/platform/export.h

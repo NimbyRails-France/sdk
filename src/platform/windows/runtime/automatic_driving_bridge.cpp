@@ -4,6 +4,7 @@
 #include <engine/automatic_controller.h>
 #include <engine/binary_identity.h>
 #include <platform/windows/runtime/automatic_driving_status.h>
+#include <platform/windows/runtime/physical_route.h>
 #include <MinHook.h>
 #include <windows.h>
 #include <array>
@@ -15,7 +16,9 @@ using Integrate=uintptr_t(__fastcall*)(uintptr_t,uintptr_t,uintptr_t,uintptr_t,u
 using Scan=uintptr_t(__fastcall*)(uintptr_t,uintptr_t);
 using Check=uint8_t(__fastcall*)(uintptr_t,uintptr_t,uintptr_t,uintptr_t,uintptr_t,uintptr_t,uint64_t,uint8_t);
 using Occupancy=uint8_t(__fastcall*)(uintptr_t,uintptr_t,double,double);
-Integrate nativeIntegrate{};Scan nativeScan{},nativePermissionRange{};Check nativeCheck{};Occupancy nativeOccupancy{};
+using Step=uint32_t(__fastcall*)(uintptr_t,uintptr_t,uintptr_t,uintptr_t,double,uintptr_t);
+Integrate nativeIntegrate{};Scan nativeScan{},nativePermissionRange{};Check nativeCheck{};Occupancy nativeOccupancy{},nativeReservation{};
+Step nativeStep{};
 SRWLOCK initialization=SRWLOCK_INIT,stateLock=SRWLOCK_INIT;
 uintptr_t base{},session{};uint64_t expiry{};
 volatile LONG active=0;
@@ -23,21 +26,41 @@ bool installed=false;
 uint32_t drivingOptions=0;
 nimby::automatic_status::Shared* telemetry{};
 std::vector<NimbySignalDrivingRule> rules;
-std::unordered_map<uint64_t,Train> trains;
+struct RuntimeTrain : Train {nimby::windows::automatic::PhysicalRoute physicalRoute;};
+std::unordered_map<uint64_t,RuntimeTrain> trains;
 std::unordered_map<uint64_t,NimbyTrainConstraint> constraints;
 uint64_t constraintExpiry=0,constraintOwner=0;
-template<class T> bool read(uintptr_t address,T& value){SIZE_T got{};return address>=0x10000&&ReadProcessMemory(GetCurrentProcess(),reinterpret_cast<void*>(address),&value,sizeof value,&got)&&got==sizeof value;}
+bool readBytes(uintptr_t address,void* value,size_t size){SIZE_T got{};return address>=0x10000&&ReadProcessMemory(GetCurrentProcess(),reinterpret_cast<void*>(address),value,size,&got)&&got==size;}
+template<class T> bool read(uintptr_t address,T& value){return readBytes(address,&value,sizeof value);}
 uintptr_t currentSession(){uintptr_t root{},sim{};return read(base+0xb81998,root)&&read(root+0x680,sim)?sim:0;}
 struct Lock {Lock(){AcquireSRWLockExclusive(&stateLock);}~Lock(){ReleaseSRWLockExclusive(&stateLock);}};
+// The worker's occupancy map is scoped to this native step, not the integrator's
+// Network object. Never keep a worker context pointer between callbacks/threads.
+// Qualified caller RVA 0x44b367 passes four pointers, extra mass and tick budget
+// to 0x448710; that routine calls both scan and integrate. Its context +8 is
+// the integration Network, +0x18 the simulation and +0x68 the occupation map.
+struct StepContext {uintptr_t context=0,motion=0;};
+thread_local StepContext currentStep;
+struct StepScope {
+ StepContext previous;
+ StepScope(uintptr_t context,uintptr_t motion):previous(currentStep){currentStep={context,motion};}
+ ~StepScope(){currentStep=previous;}
+};
+uint32_t __fastcall stepMotion(uintptr_t context,uintptr_t train,uintptr_t motion,uintptr_t service,double mass,uintptr_t budget){
+ StepScope scope(context,motion);
+ return nativeStep(context,train,motion,service,mass,budget);
+}
 // Permission traversal is synchronous on the calling simulation thread. This
 // scope cannot leak to another train, a UI query, or a subsequent callback.
 struct PermissionQuery {
  uint64_t signal{};
  bool started=false,valid=true,allowOccupation=false;
  double covered=0,free=200;
- uintptr_t occupationContext{},track{};
+ uintptr_t occupationContext{},reservationContext{},track{},motion{};
+ bool occupationPending=false,reservationPending=false,reservationReplaced=false;
  double from=0,to=0,length=0;
  unsigned ranges=0;
+ nimby::windows::automatic::PhysicalRoute* route=nullptr;
 };
 thread_local PermissionQuery* permissionQuery=nullptr;
 struct QueryScope {PermissionQuery* previous;QueryScope(PermissionQuery& q):previous(permissionQuery){permissionQuery=&q;}
@@ -58,18 +81,43 @@ double physicalPrefix(uintptr_t context,uintptr_t track,double from,double to,do
 uint8_t __fastcall occupancy(uintptr_t context,uintptr_t track,double from,double to) {
  auto* q=permissionQuery;
  // Cross-track checks made by the native callback retain their exact refusal.
- if(q&&q->valid&&q->started&&q->allowOccupation&&q->occupationContext==context&&
+ if(q&&q->valid&&q->started&&q->allowOccupation&&q->occupationPending&&q->occupationContext==context&&
     q->track==track&&q->from==from&&q->to==to) {
+  q->occupationPending=false;
   bool occupied=false;const double free=physicalPrefix(context,track,from,to,q->length,occupied);
-  if(free>=0){if(occupied)q->free=std::min(q->free,q->covered+free);return 1;}
+  if(free>=0){if(occupied)q->free=std::min(q->free,q->covered+free);q->reservationPending=true;return 1;}
   q->valid=false;
  }
  return nativeOccupancy(context,track,from,to);
 }
+uint8_t __fastcall reservation(uintptr_t context,uintptr_t track,double from,double to) {
+ auto* q=permissionQuery;
+ // On-sight authority replaces exclusive block admission on the followed range.
+ // Otherwise a leading train's reservation prevents departure even after the
+ // required stop and a successful physical-clearance query. The native callback
+ // checks this range first, then crossing tracks: consume the exception ONCE,
+ // so even a repeated identical crossing query keeps its native refusal.
+ if(q&&q->valid&&q->started&&q->allowOccupation&&q->reservationPending&&
+    q->reservationContext==context&&q->track==track&&q->from==from&&q->to==to) {
+  q->reservationPending=false;
+  std::array<uintptr_t,3> copy{};uintptr_t motion{};
+  if(read(context,copy)&&copy[0]&&read(copy[1],motion)&&motion==q->motion&&copy[2]) {
+   // Preserve native lookup/locking and retain its decision for diagnostics.
+   // Only the private result byte changes; no reservation, route, signal state,
+   // train speed or pre-existing native refusal is erased.
+   uint8_t clear=1;copy[2]=reinterpret_cast<uintptr_t>(&clear);
+   const auto result=nativeReservation(reinterpret_cast<uintptr_t>(copy.data()),track,from,to);
+   q->reservationReplaced|=!result||!clear;
+   return 1;
+  }
+  q->valid=false;
+ }
+ return nativeReservation(context,track,from,to);
+}
 uintptr_t __fastcall permissionRange(uintptr_t context,uintptr_t range) {
  auto* q=permissionQuery;
  if(!q||!q->allowOccupation)return nativePermissionRange(context,range);
- uintptr_t signalPtr{},track{},occupationContext{};uint64_t signal{};
+ uintptr_t signalPtr{},track{},occupationContext{},reservationContext{};uint64_t signal{};
  int kind{};double from{},to{},length{},metric{};
  if(++q->ranges>4096||!read(range+0x20,kind)||!read(range+0x28,signalPtr))q->valid=false;
  if(q->valid&&kind==6&&signalPtr&&read(signalPtr,signal)&&signal==q->signal){
@@ -78,14 +126,20 @@ uintptr_t __fastcall permissionRange(uintptr_t context,uintptr_t range) {
  }
  if(q->valid&&q->started) {
   if(!read(range,track)||!read(range+8,from)||!read(range+16,to)||!read(range+24,length)||
-     !read(track+0x88,metric)||!read(context+24,occupationContext)||
+     !read(track+0x88,metric)||!read(context+24,occupationContext)||!read(context+32,reservationContext)||
      !std::isfinite(from)||!std::isfinite(to)||from<0||from>1||to<0||to>1||
      !std::isfinite(length)||length<0||!std::isfinite(metric)||metric<=0||
      std::abs(length-std::abs(to-from)*metric)>.01)q->valid=false;
   else {
+   if(q->route)q->route->append(track,from,to,length,q->covered,readBytes);
    q->track=track;q->from=from;q->to=to;q->length=length;q->occupationContext=occupationContext;
+   q->reservationContext=reservationContext;q->occupationPending=true;q->reservationPending=false;
    const auto result=nativePermissionRange(context,range);
-   q->covered+=length;q->occupationContext=0;
+   // A range only contributes observed clearance if the expected physical and
+   // reservation predicates actually ran. An early native exit proves nothing.
+   if(q->occupationPending||q->reservationPending)q->valid=false;
+   q->covered+=length;q->occupationContext=q->reservationContext=0;
+   q->occupationPending=q->reservationPending=false;
    return result;
   }
  }
@@ -112,21 +166,27 @@ uintptr_t __fastcall scan(uintptr_t context,uintptr_t range){
      if(const auto command=constraints.find(id);command!=constraints.end())train.controlled.accept(command->second,head);
      else train.controlled={};
     }else train.controlled={};
-    if(offset==0){train.ahead.clear();train.managed=false;train.view={head,0,200,GetTickCount64(),true};}
+    const bool restricted=train.memory.sight||(train.controlled.instruction.revision&&!train.controlled.completed&&train.controlled.instruction.mode==1);
+    if(offset==0){
+     train.ahead.clear();train.managed=false;train.view={head,0,200,GetTickCount64(),true};
+     if(restricted)train.physicalRoute.begin(motion,id,head,readBytes);
+     else train.physicalRoute.clear();
+    }
     // Only restricted trains need a second physical query. Ordinary BAL
     // continues using the normal native scan, without a full-world capture.
-    if((train.memory.sight||(train.controlled.instruction.revision&&!train.controlled.completed&&train.controlled.instruction.mode==1))&&train.view.valid&&offset<200) {
+    if(restricted&&train.view.valid&&offset<200) {
      uintptr_t track{},map{};double from{},to{},metric{};
      if(std::abs(train.view.head-head)>1e-6||std::abs(train.view.covered-offset)>.01||
         !read(range,track)||!read(range+8,from)||!read(range+16,to)||!read(track+0x88,metric)||
         !read(nativeContext+0x68,map)||!std::isfinite(from)||!std::isfinite(to)||
         from<0||from>1||to<0||to>1||!std::isfinite(metric)||metric<=0||
-        std::abs(part-std::abs(to-from)*metric)>.01)train.view.valid=false;
+        std::abs(part-std::abs(to-from)*metric)>.01){train.view.valid=false;train.physicalRoute.clear();}
      else {
+      train.physicalRoute.append(track,from,to,part,offset,readBytes);
       uint8_t clear=1;std::array<uintptr_t,3> query{map,reinterpret_cast<uintptr_t>(&motion),reinterpret_cast<uintptr_t>(&clear)};
       bool occupied=false;
       const double free=physicalPrefix(reinterpret_cast<uintptr_t>(query.data()),track,from,to,part,occupied);
-      if(free<0)train.view.valid=false;
+      if(free<0){train.view.valid=false;train.physicalRoute.clear();}
       else {if(occupied)train.view.free=std::min(train.view.free,offset+free);train.view.covered=offset+part;}
      }
     }
@@ -177,11 +237,13 @@ uint8_t __fastcall check(uintptr_t a,uintptr_t b,uintptr_t c,uintptr_t d,uintptr
    }
   }
  }
- PermissionQuery query;query.signal=signal;query.started=lookahead==0;query.allowOccupation=eligible;
+ PermissionQuery query;query.signal=signal;query.motion=motion;query.started=lookahead==0;query.allowOccupation=eligible;
+ nimby::windows::automatic::PhysicalRoute entryRoute;
+ if(eligible){entryRoute.begin(motion,id,source,readBytes);query.route=&entryRoute;}
  uint8_t native;
- // The game still evaluates ALL reservation and cross-track checks. Only the
- // physical occupation predicate on the exact followed range can be replaced,
- // and only for an explicit mod instruction plus the required measured stop.
+ // The mod owns restricted admission on the exact followed ranges. The game
+ // still evaluates crossing occupation/reservations and controller ownership;
+ // their refusal cannot be turned into approval by the final decision below.
  {QueryScope scope(query);native=nativeCheck(a,b,c,d,train,motion,signal,lookahead);}
  if(!managed)return native;
  Lock lock;
@@ -195,12 +257,16 @@ uint8_t __fastcall check(uintptr_t a,uintptr_t b,uintptr_t c,uintptr_t d,uintptr
    found->second.entrySignal=signal;
    found->second.entry={head,std::max(0.0,source-head)+query.covered,
     std::max(0.0,source-head)+query.free,GetTickCount64(),granted};
-   if(granted&&!lookahead)found->second.boundary={Passage{{signal,source},{signal,source},instruction,{}}};
+   if(granted&&!lookahead){
+    found->second.boundary={Passage{{signal,source},{signal,source},instruction,{}}};
+    found->second.physicalRoute=std::move(entryRoute);
+   }
   }
   if(telemetry){InterlockedIncrement64(&telemetry->restrictedChecks);
    // Capture changes in the actual native decision, not every simulation tick.
-   // Bits: eligible, native approval, valid geometry, traversal started, granted.
-   const uint32_t state=(eligible?1u:0u)|(native?2u:0u)|(query.valid?4u:0u)|(query.started?8u:0u)|(granted?16u:0u)|(found!=trains.end()?32u:0u)|(lookahead?64u:0u);
+   // Bit 128 records replacement of a longitudinal reservation refusal. It can
+   // coexist with a final denial (obstacle, crossing or another native reason).
+   const uint32_t state=(eligible?1u:0u)|(native?2u:0u)|(query.valid?4u:0u)|(query.started?8u:0u)|(granted?16u:0u)|(found!=trains.end()?32u:0u)|(lookahead?64u:0u)|(query.reservationReplaced?128u:0u);
    const auto n=telemetry->permissionCount;
    if(n<512&&(!n||telemetry->permissions[n-1].state!=state||telemetry->permissions[n-1].flags!=instruction.flags||telemetry->permissions[n-1].train!=id)) {
     auto& sample=telemetry->permissions[telemetry->permissionCount];
@@ -252,6 +318,24 @@ uintptr_t __fastcall integrate(uintptr_t result,uintptr_t network,uintptr_t path
     if(found!=trains.end()&&found->second.motion==dynamics-8) {
      auto& state=found->second;
      if(GetTickCount64()>=constraintExpiry||!constraints.contains(id))state.controlled={};
+     if(state.memory.sight||(state.controlled.instruction.revision&&!state.controlled.completed&&state.controlled.instruction.mode==1)){
+      // Geometry comes from the native scanner, but occupation is read NOW,
+      // before each movement step. A long canton, a pause or accelerated time
+      // must not turn the scanner's cadence into repeated artificial stops.
+      // Reusing the geometry requires the same path, motion, full track IDs and
+      // matching current head. No new route or free continuation is invented.
+      uintptr_t map{},stepNetwork{},stepSession{};
+      if(currentStep.motion==dynamics-8&&path==dynamics-8+0x290&&
+         read(currentStep.context+8,stepNetwork)&&stepNetwork==network&&
+         read(currentStep.context+0x18,stepSession)&&stepSession==session&&
+         read(currentStep.context+0x68,map)&&map){
+       uintptr_t motion=dynamics-8;uint8_t clear=1;
+       std::array<uintptr_t,3> query{map,reinterpret_cast<uintptr_t>(&motion),reinterpret_cast<uintptr_t>(&clear)};
+       state.view=state.physicalRoute.refresh(motion,head,GetTickCount64(),readBytes,
+        [&](uintptr_t track,double from,double to,double length){bool occupied=false;
+         return physicalPrefix(reinterpret_cast<uintptr_t>(query.data()),track,from,to,length,occupied);});
+      }else state.view={};
+     }
      auto proposed=prepareIntegration(state,rules,head,material[7],material[0],material[2],
          material[6],extraMass,brakeFactor,fresh,GetTickCount64(),chosenCeiling,braking,distance,target);
      chosenCeiling=proposed.ceiling;chosenBraking=proposed.braking;
@@ -322,9 +406,11 @@ extern "C" __declspec(dllexport) DWORD WINAPI NimbyInternal_Bootstrap(void* argu
  struct MappingCleanup{HANDLE mapping;~MappingCleanup(){if(!installed){UnmapViewOfFile(telemetry);telemetry=nullptr;CloseHandle(mapping);}}} mappingCleanup{mapping};
  struct Entry{uintptr_t rva;std::array<unsigned char,16> bytes;void* hook;void** original;};
  const Entry entries[]{
+  {0x448710,{0x48,0x8b,0xc4,0x4c,0x89,0x48,0x20,0x4c,0x89,0x40,0x18,0x48,0x89,0x50,0x10,0x55},reinterpret_cast<void*>(&stepMotion),reinterpret_cast<void**>(&nativeStep)},
   {0x378600,{0x4c,0x89,0x44,0x24,0x18,0x48,0x89,0x4c,0x24,0x08,0x55,0x56,0x57,0x41,0x55,0x41},reinterpret_cast<void*>(&integrate),reinterpret_cast<void**>(&nativeIntegrate)},
   {0x449700,{0x48,0x8b,0xc4,0x48,0x89,0x50,0x10,0x48,0x89,0x48,0x08,0x53,0x55,0x56,0x57,0x41},reinterpret_cast<void*>(&scan),reinterpret_cast<void**>(&nativeScan)},
   {0x4582d0,{0x48,0x89,0x5c,0x24,0x08,0x48,0x89,0x74,0x24,0x10,0x57,0x48,0x83,0xec,0x50,0x4c},reinterpret_cast<void*>(&occupancy),reinterpret_cast<void**>(&nativeOccupancy)},
+  {0x458460,{0x4c,0x8b,0xdc,0x53,0x48,0x81,0xec,0x90,0x00,0x00,0x00,0x41,0x0f,0x29,0x73,0xe8},reinterpret_cast<void*>(&reservation),reinterpret_cast<void**>(&nativeReservation)},
   {0x458560,{0x48,0x89,0x74,0x24,0x20,0x57,0x48,0x83,0xec,0x40,0x48,0x8b,0x01,0x48,0x8b,0xf9},reinterpret_cast<void*>(&permissionRange),reinterpret_cast<void**>(&nativePermissionRange)},
   {0x451b60,{0x40,0x55,0x53,0x56,0x57,0x48,0x8d,0x6c,0x24,0xe1,0x48,0x81,0xec,0xd8,0x00,0x00},reinterpret_cast<void*>(&check),reinterpret_cast<void**>(&nativeCheck)}
  };

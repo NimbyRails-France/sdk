@@ -69,6 +69,17 @@ void initialize_sdk() noexcept {
     initialized=status==NIMBY_OK;
     log(initialized ? "OK: SDK initialized after SDL_Init; game hooks disabled" :
         status==NIMBY_ALREADY_INITIALIZED ? "INFO: SDK already initialized by another owner" : "ERROR: SDK initialization failed");
+    // Metadata is read before any save is loaded. Start the resident cosmetic
+    // adapter here, outside DllMain, rather than waiting for a mod's game tick.
+    if ((initialized || status == NIMBY_ALREADY_INITIALIZED) && sibling_path(L"NimbyModMetadataBridge-v1.dll", path)) {
+        const auto metadata=LoadLibraryExW(path,nullptr,LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR|LOAD_LIBRARY_SEARCH_SYSTEM32);
+        const auto start=metadata?std::bit_cast<Bootstrap>(GetProcAddress(metadata,"NimbyInternal_Bootstrap")):nullptr;
+        const auto result=start?start(nullptr):NIMBY_IO_ERROR;
+        log(result==NIMBY_OK||result==NIMBY_ALREADY_INITIALIZED ? "OK: mod metadata localisation initialized" :
+            "INFO: mod metadata localisation unavailable; mod.txt fallback retained");
+        // As with the other resident bridges, hooks and native allocations must
+        // survive every mod unload. The module remains until process exit.
+    }
     if ((initialized || status == NIMBY_ALREADY_INITIALIZED) && sibling_path(L"NRFMods", path))
         mods.start(path, log);
 }

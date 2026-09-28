@@ -193,14 +193,20 @@ bool read_trains(ReadMemory read,void* context,const LiveState& state,bool recog
                 if(stable){t.service.flags=NIMBY_SERVICE_PRESENCE_VALID;t.service.motion_flags=presenceFlags;}
             }
             if(presenceOnly){
-                // Lightweight signalling also exposes a stable Drive head for
-                // approach observations. Reuse the two Motion copies already
-                // read for presence: no model, path, timetable or speed reads.
+                // The bulk Motion copy may precede the per-train copy by a
+                // simulation tick. Requiring the fraction to be identical
+                // made moving trains disappear from approach observations.
+                // Keep the newest observed head when identity, membership,
+                // track and direction agree and movement follows that direction.
+                // A track change/reversal remains unavailable for this capture;
+                // never mix fields, extrapolate a head or reuse a previous one.
+                // Reuse the two copies: no path, timetable or speed reads.
                 TrainPosition firstHead{},secondHead{};
                 if(motionRechecked&&(t.service.flags&NIMBY_SERVICE_PRESENCE_VALID)&&
                    decode_train_position(p,0x638,firstHead)&&
                    decode_train_position(service_after.data(),service_after.size(),secondHead)&&
-                   firstHead.track_id==secondHead.track_id&&firstHead.fraction==secondHead.fraction&&firstHead.direction==secondHead.direction){
+                   firstHead.track_id==secondHead.track_id&&firstHead.direction==secondHead.direction&&
+                   (secondHead.fraction-firstHead.fraction)*firstHead.direction>=0){
                     t.position=secondHead;t.positioned=true;
                 }
                 return true;

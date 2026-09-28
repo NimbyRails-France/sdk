@@ -27,6 +27,12 @@ $constructionName = 'NimbyConstructionBridge-experimental-v1.dll'
 $construction = Join-Path $gameRoot $constructionName
 $constructionStage = Join-Path $gameRoot 'NimbyConstructionBridge.NimbySDK.tmp'
 $manifestStage = Join-Path $gameRoot 'NimbyRailsFranceSDK-install.tmp'
+# Optional for older archives, included by current SDK packages. The manifest
+# may name only these exact files; ownership still requires their recorded hash.
+$extraNames = @('NimbyRailsFranceClockBridge-0.7.1.dll', 'NimbyModMetadataBridge-v1.dll')
+$extraBridges = @($extraNames | ForEach-Object { @{
+    name=$_; path=(Join-Path $gameRoot $_); stage=(Join-Path $gameRoot ($_+'.NimbySDK.tmp')); hash=$null; copied=$false
+} })
 $originalExeHash = 'FFF49AC21720ABFC824C2B4F68B862727630EB0DB71CFE1F9EA8F685D0DB10AE'
 $originalSdlHash = '2A2704678BF6C9C6A944270AB35079DF76F5AFE92B780394ED72D9C8218B98D8'
 function Hash([string]$path) { (Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash }
@@ -36,6 +42,11 @@ function RequireHash([string]$path, [string]$expected) {
 foreach($target in @($exe,$sdl,$backup,$sdk,$manifestPath,$proxyStage,$sdkStage,$manifestStage,$pthread,$pthreadStage,$texture,$textureStage,$ui,$uiStage,$driving,$drivingStage,$construction,$constructionStage)) {
     if([IO.Path]::GetDirectoryName([IO.Path]::GetFullPath($target)) -ne $gameRoot) { throw 'Path outside selected game directory' }
 }
+foreach($extra in $extraBridges) {
+    foreach($target in @($extra.path,$extra.stage)) {
+        if([IO.Path]::GetDirectoryName([IO.Path]::GetFullPath($target)) -ne $gameRoot) { throw 'Bridge path outside selected game directory' }
+    }
+}
 $running = Get-Process -Name NimbyRails -ErrorAction SilentlyContinue | Where-Object { !$_.Path -or $_.Path -ieq $exe }
 if($running) { throw 'Close NIMBY Rails before installing or removing the proxy. The installer will not close the game.' }
 if(Get-Process -Name NimbyRailsFranceLoader -ErrorAction SilentlyContinue) { throw 'Stop NimbyRailsFranceLoader first with --stop.' }
@@ -43,6 +54,14 @@ if(Get-Process -Name NimbyRailsFranceLoader -ErrorAction SilentlyContinue) { thr
 if($Action -eq 'Remove') {
     if(!(Test-Path -LiteralPath $manifestPath)) { throw 'No proxy installation manifest found.' }
     $manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
+    if($manifest.additionalBridges) {
+        foreach($entry in $manifest.additionalBridges.PSObject.Properties) {
+            if($entry.Name -notin $extraNames -or $entry.Value -notmatch '^[a-fA-F0-9]{64}$') { throw 'Invalid additional bridge in manifest' }
+            $extra = $extraBridges | Where-Object { $_.name -eq $entry.Name }
+            $extra.hash=$entry.Value
+            RequireHash $extra.path $extra.hash
+        }
+    }
     if($manifest.textureBridgeSha256) {
         $allowedBridges = 1..4 | ForEach-Object { "NimbyRailsFranceTextureBridge-experimental-v$_.dll" }
         if($manifest.textureBridgeFile) {
@@ -84,6 +103,7 @@ if($Action -eq 'Remove') {
     if($manifest.signalUiBridgeSha256) { Remove-Item -LiteralPath $ui }
     if($manifest.automaticDrivingBridgeSha256) { Remove-Item -LiteralPath $driving }
     if($manifest.constructionBridgeSha256) { Remove-Item -LiteralPath $construction }
+    foreach($extra in $extraBridges) { if($extra.hash) { Remove-Item -LiteralPath $extra.path } }
     Remove-Item -LiteralPath $manifestPath
     RequireHash $sdl $originalSdlHash
     Write-Output 'Original SDL3.dll restored. Proxy and SDK removed.'
@@ -95,7 +115,16 @@ RequireHash $sdl $originalSdlHash
 foreach($target in @($backup,$sdk,$manifestPath,$proxyStage,$sdkStage,$manifestStage,$pthreadStage,$texture,$textureStage,$ui,$uiStage,$driving,$drivingStage,$construction,$constructionStage)) {
     if(Test-Path -LiteralPath $target) { throw "File already exists; refusing to overwrite: $target" }
 }
+foreach($extra in $extraBridges) {
+    foreach($target in @($extra.path,$extra.stage)) {
+        if(Test-Path -LiteralPath $target) { throw "File already exists; refusing to overwrite: $target" }
+    }
+}
 $sourceRoot = (Resolve-Path -LiteralPath $SourceDirectory).Path
+foreach($extra in $extraBridges) {
+    $extra.source=Join-Path $sourceRoot $extra.name
+    if(Test-Path -LiteralPath $extra.source) { $extra.hash=Hash $extra.source }
+}
 $proxySource = Join-Path $sourceRoot 'SDL3.dll'
 $sdkSource = Join-Path $sourceRoot 'NimbyRailsFranceSDK.dll'
 $proxyHash = Hash $proxySource
@@ -124,6 +153,16 @@ $uiCopied = $false
 $drivingCopied = $false
 $constructionCopied = $false
 try {
+    $additionalBridges=[ordered]@{}
+    foreach($extra in $extraBridges) {
+        if($extra.hash) {
+            Copy-Item -LiteralPath $extra.source -Destination $extra.stage
+            RequireHash $extra.stage $extra.hash
+            Move-Item -LiteralPath $extra.stage -Destination $extra.path
+            $extra.copied=$true
+            $additionalBridges[$extra.name]=$extra.hash
+        }
+    }
     # Validate staged copies before changing any game dependency.
     Copy-Item -LiteralPath $sdkSource -Destination $sdkStage
     Copy-Item -LiteralPath $proxySource -Destination $proxyStage
@@ -154,6 +193,7 @@ try {
         $pthreadCopied = $true
     }
     [ordered]@{format=2; installedUtc=[DateTime]::UtcNow.ToString('o'); executableSha256=$originalExeHash;
+        additionalBridges=$additionalBridges;
         originalSdlSha256=$originalSdlHash; proxySha256=$proxyHash; sdkSha256=$sdkHash; pthreadSha256=$pthreadHash;
         textureBridgeFile=$textureName; textureBridgeSha256=$textureHash;
         signalUiBridgeFile=$uiName; signalUiBridgeSha256=$uiHash;
@@ -181,6 +221,10 @@ try {
     if($uiCopied -and (Test-Path -LiteralPath $ui) -and (Hash $ui) -eq $uiHash) { Remove-Item -LiteralPath $ui }
     if($drivingCopied -and (Test-Path -LiteralPath $driving) -and (Hash $driving) -eq $drivingHash) { Remove-Item -LiteralPath $driving }
     if($constructionCopied -and (Test-Path -LiteralPath $construction) -and (Hash $construction) -eq $constructionHash) { Remove-Item -LiteralPath $construction }
+    foreach($extra in $extraBridges) {
+        if($extra.copied -and (Test-Path -LiteralPath $extra.path) -and (Hash $extra.path) -eq $extra.hash) { Remove-Item -LiteralPath $extra.path }
+        if(Test-Path -LiteralPath $extra.stage) { Remove-Item -LiteralPath $extra.stage }
+    }
     foreach($stage in @($proxyStage,$sdkStage,$manifestStage,$pthreadStage,$textureStage,$uiStage,$drivingStage,$constructionStage)) {
         if(Test-Path -LiteralPath $stage) { Remove-Item -LiteralPath $stage }
     }

@@ -4,7 +4,7 @@
 #include <cstdint>
 #include <span>
 #include <optional>
-#include <limits>
+#include <nimby/detail/track_fraction.hpp>
 #include <unordered_map>
 #include <vector>
 
@@ -41,7 +41,7 @@ class BlockReader {
         if(entry&&section.track==entry->track) {
             // Native signal and footprint endpoints can differ by a few double
             // rounding units. This is numerical tolerance, not a braking margin.
-            constexpr double rounding=8*std::numeric_limits<double>::epsilon();
+            constexpr double rounding=detail::trackFractionRounding;
             if(entry->direction>0 && train.end<=entry->fraction+rounding)return false;
             if(entry->direction<0 && train.begin>=entry->fraction-rounding)return false;
         }

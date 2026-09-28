@@ -232,11 +232,13 @@ public:
     // This is an in-process call, never a remote-process operation. The native
     // primitive updates uint32_t synchronously; neither bool* nor game-owned
     // signal bytes are passed. The caller keeps label storage alive for the
-    // entire layout/render cycle. Tooltip rendering is not wired yet.
-    void checkbox(const char* label,const char* /*description*/,uint32_t& value) const {
+    // entire layout/render cycle. Help is a wrapped native row below the
+    // checkbox, so it remains readable without a hover or another input target.
+    void checkbox(const char* label,const char* description,uint32_t& value) const {
         prepareRow();
         using Checkbox=void(*)(uint64_t,const char*,uint32_t*);
         reinterpret_cast<Checkbox>(checkbox_)(object_,label,&value);
+        if(description&&*description)message(description);
     }
 private:
     void prepareRow()const {

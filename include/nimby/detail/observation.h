@@ -254,6 +254,13 @@ NIMBY_API uint32_t __cdecl NimbyInternal_CaptureSnapshotDiagnostic(NimbySession 
 // Signalisation : presence globale et occupations conservees, details de service omis.
 NIMBY_API uint32_t __cdecl NimbyInternal_CaptureSignallingSnapshot(NimbySession session, NimbySnapshot* out, uint32_t* stage) NIMBY_NOEXCEPT;
 NIMBY_API uint32_t __cdecl NimbyInternal_CaptureSignallingFor(NimbySession session,const char* texture_set,NimbySnapshot* out,uint32_t* stage) NIMBY_NOEXCEPT;
+// Adapter-private scope. All models are observed together, with their upstream
+// range and downstream boundary. Other catalogues still delimit native blocks.
+typedef struct NimbySignalCaptureScope { char texture_set[257]; uint32_t approach_blocks; } NimbySignalCaptureScope;
+NIMBY_API uint32_t __cdecl NimbyInternal_CaptureSignallingScope(NimbySession session,const NimbySignalCaptureScope* scopes,uint32_t count,NimbySnapshot* out,uint32_t* stage) NIMBY_NOEXCEPT;
+// Tool heartbeat needs only world identity and the simulation clock. Geometry
+// is obtained explicitly when a tool action actually needs it.
+NIMBY_API uint32_t __cdecl NimbyInternal_CaptureSessionSnapshot(NimbySession session,NimbySnapshot* out,uint32_t* stage) NIMBY_NOEXCEPT;
 NIMBY_API uint32_t __cdecl NimbyInternal_GetGameSession(NimbySnapshot snapshot, NimbyGameSession* out) NIMBY_NOEXCEPT;
 NIMBY_API uint32_t __cdecl NimbyInternal_ReleaseSnapshot(NimbySnapshot snapshot) NIMBY_NOEXCEPT;
 NIMBY_API uint32_t __cdecl NimbyInternal_GetSnapshotInfo(NimbySnapshot snapshot, NimbySnapshotInfo* out) NIMBY_NOEXCEPT;

@@ -3,6 +3,7 @@
 #include <nimby/detail/observation_session.hpp>
 #include <nimby/detail/platform/host.hpp>
 #include <limits>
+#include <platform/tool_windows.h>
 
 namespace nimby::kotlin {
 using ToolCall=int(*)(int,int64_t*,int,double*,int,char*,int);
@@ -14,6 +15,7 @@ struct ToolFrame {
     Snapshot::Ptr captured;
 };
 inline thread_local ToolFrame* currentTool=nullptr;
+inline std::unique_ptr<platform::ToolWindows> toolWindows;
 struct ToolScope {
     ToolFrame frame;
     ToolFrame* previous;
@@ -30,6 +32,32 @@ inline int toolCall(int op,int64_t* ints,int size,double* nums,int numCount,char
         if(size<0||numCount<0||textSize<0||size>4000000||numCount>1000000||textSize>8192||
            (!ints&&size)||(!nums&&numCount)||(!text&&textSize))return NIMBY_INVALID_ARGUMENT;
         auto& frame=*currentTool;
+        if(op==10||op==11){
+            if(size!=(op==10?2:3)||numCount||textSize)return NIMBY_INVALID_ARGUMENT;
+            const auto snapshot=toolConnection().capture(SnapshotScope::Session);
+            if(!snapshot->getGameSession()||*snapshot->getGameSession()!=frame.game)return NIMBY_DATA_UNAVAILABLE;
+            if(op==10){const auto clock=snapshot->getSimulationClock();if(!clock)return NIMBY_DATA_UNAVAILABLE;
+                ints[0]=std::chrono::floor<std::chrono::seconds>(clock->getDateTimeUtc()).time_since_epoch().count();ints[1]=clock->getElapsedTime().count();return NIMBY_OK;}
+            if(ints[1]<0||ints[1]>1||ints[0]<-62135596800LL||ints[0]>253402300799LL)return NIMBY_INVALID_ARGUMENT;
+            const auto utc=std::chrono::sys_seconds{std::chrono::seconds{ints[0]}};
+            const auto changed=ints[1]?toolConnection().setSimulationDateTimeAndRecalculateTrains(utc):
+                SimulationTimeChange{toolConnection().setSimulationDateTime(utc),0};
+            ints[0]=std::chrono::floor<std::chrono::seconds>(changed.clock.getDateTimeUtc()).time_since_epoch().count();
+            ints[1]=changed.clock.getElapsedTime().count();ints[2]=changed.interventions;return NIMBY_OK;
+        }
+        if(op==12){
+            if(!toolWindows||size<3||ints[0]<=0||ints[1]<0||ints[1]>12||ints[2]<0||ints[2]>8||size!=3+ints[1]+ints[2]*4||numCount||!textSize)return NIMBY_INVALID_ARGUMENT;
+            const char* cursor=text;const char* end=text+textSize;
+            auto read=[&](){const auto zero=static_cast<const char*>(std::memchr(cursor,0,size_t(end-cursor)));if(!zero)throw std::invalid_argument("Window text");std::string value(cursor,zero);cursor=zero+1;return value;};
+            const auto id=read();platform::ToolWindows::Content content;content.message=read();
+            for(int i=0;i<ints[1];++i){if(ints[3+i]<0||ints[3+i]>1)return NIMBY_INVALID_ARGUMENT;content.buttons.push_back({read(),read(),ints[3+i]!=0});}
+            for(int i=0;i<ints[2];++i){const auto at=3+ints[1]+i*4;
+                for(int j=0;j<3;++j)if(ints[at+j]<INT32_MIN||ints[at+j]>INT32_MAX)return NIMBY_INVALID_ARGUMENT;
+                if(ints[at+3]<0||ints[at+3]>1||ints[at+1]>ints[at]||ints[at]>ints[at+2])return NIMBY_INVALID_ARGUMENT;
+                content.inputs.push_back({read(),read(),int32_t(ints[at]),int32_t(ints[at+1]),int32_t(ints[at+2]),ints[at+3]!=0});}
+            if(cursor!=end)return NIMBY_INVALID_ARGUMENT;
+            return toolWindows->publish(id,uint64_t(ints[0]),frame.game,std::move(content))?NIMBY_OK:NIMBY_INVALID_HANDLE;
+        }
         if(op==1){
             if(size!=3)return NIMBY_INVALID_ARGUMENT;
             frame.captured=toolConnection().capture();

@@ -18,6 +18,29 @@ int main() { try {
     CHECK(reverseBlock.hasBoundary() && reverseBlock.nextSignal==1409);
     CHECK(reverseBlock.sections.size()==1 && reverseBlock.sections[0].begin==.2 && reverseBlock.sections[0].end==.8);
     CHECK(!BlockTopology(reversePaths,straight).read(1409).hasBoundary());
+    // A signal without an observed exit still sees a head entering its known
+    // downstream section. Closing must not wait for the rear or another signal.
+    // An empty partial section can never establish clearance of the whole block.
+    for(int direction:{1,-1}){
+        const std::vector<Signal> entryOnly{Signal{{100,1,.5,-direction,NIMBY_SIGNAL_PATH}}};
+        const auto openEnded=BlockTopology(entryOnly,straight).read(100);
+        CHECK(!openEnded.hasBoundary());
+        auto footprint=[&](double head){return direction==1?
+            std::vector<TrainFootprint>{{99,1,.3,head}}:
+            std::vector<TrainFootprint>{{99,1,head,.7}};};
+        const auto waiting=footprint(.5);
+        CHECK(openEnded.occupation(BlockReader(waiting,true))==BlockOccupancy::Unknown);
+        const auto entered=footprint(direction==1?.5001:.4999);
+        const auto occupied=openEnded.observe(BlockReader(entered,false));
+        CHECK(occupied.occupation==BlockOccupancy::Occupied);
+        CHECK(occupied.trains==std::vector<Id>{99}&&!occupied.complete);
+        CHECK(openEnded.occupation(BlockReader(entered,false))==BlockOccupancy::Occupied);
+        const auto upstream=direction==1?BlockSection{1,0,.5}:BlockSection{1,.5,1};
+        CHECK(BlockReader(entered,true).read(std::span(&upstream,1))==BlockOccupancy::Occupied);
+        CHECK(openEnded.observe(BlockReader(entered,true,false)).occupation==BlockOccupancy::Unknown);
+        const auto empty=openEnded.observe(BlockReader({},true));
+        CHECK(empty.occupation==BlockOccupancy::Unknown&&empty.trains.empty()&&!empty.complete);
+    }
     const std::vector<TrainFootprint> atEntrance{{99,1,std::nextafter(.8,0.0),.9}};
     CHECK(reverseBlock.occupation(BlockReader(atEntrance,true))==BlockOccupancy::Clear);
     CHECK(reverseBlock.observe(BlockReader(atEntrance,true)).trains.empty());
@@ -68,6 +91,13 @@ int main() { try {
     CHECK(block.occupation(BlockReader({},true)) == BlockOccupancy::Unknown);
     CHECK(!block.observe(BlockReader(tail,true)).complete);
     CHECK(block.observe(BlockReader(tail,true)).trains.empty());
+    const std::vector<TrainFootprint> beforeJunction{{77,1,.1,.21}};
+    CHECK(block.occupation(BlockReader(beforeJunction,false))==BlockOccupancy::Occupied);
+    const auto partial=block.observe(BlockReader(beforeJunction,true));
+    CHECK(partial.occupation==BlockOccupancy::Occupied&&!partial.complete);
+    CHECK(partial.trains==std::vector<Id>{77});
+    const std::vector<TrainFootprint> unchosenBranch{{78,4,.1,.2}};
+    CHECK(block.occupation(BlockReader(unchosenBranch,true))==BlockOccupancy::Unknown);
     auto beforeFork = forkSignals;
     beforeFork.push_back(Signal{{40,1,.3,-1,NIMBY_SIGNAL_PATH}});
     CHECK(BlockTopology(beforeFork,forkNodes,forks).read(10).nextSignal == 40);

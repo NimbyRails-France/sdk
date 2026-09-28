@@ -67,7 +67,7 @@ uint8_t button(uint64_t obj,const char* label,uint32_t flags){
     CHECK(*label);row(obj);f->calls.emplace_back("button");return f->interactive&&!flags;
 }
 void label(uint64_t obj,const char*,uint32_t flags){CHECK(flags==0x11);row(obj);f->calls.emplace_back("label");}
-void wrapped(uint64_t obj,float width,const char*){CHECK(width==260);row(obj);f->calls.emplace_back("message");}
+void wrapped(uint64_t obj,float width,const char* text){CHECK(width==260&&*text);row(obj);f->calls.emplace_back("message");}
 void space(uint64_t obj){const auto height=get<float>(obj,0x34);row(obj);f->calls.emplace_back(height==1?"separator":"input");}
 void nextRect(uint64_t obj,float* rect){
     const auto height=get<float>(obj,0x34);row(obj);rect[0]=10;rect[1]=40;rect[2]=260;rect[3]=height;
@@ -161,6 +161,19 @@ int main(){try{
         CHECK(child.numberInput("Spacing",1000,3,100000,false)==1000);
     });
     CHECK(f->width==1200.f&&f->rows==2); // Long labels enlarge content, not the viewport.
+    // Help consumes one wrapped row in BOTH passes, immediately after its
+    // checkbox. Empty help consumes none and does not alter click semantics.
+    for(bool interactive:{false,true}) {
+        f->begin(interactive);
+        auto helpUi=nimby::engine::SignalUi::bind(read,nullptr,f->image,f->p());CHECK(helpUi);
+        helpUi->scroll("panel",280,[](auto& child){
+            uint32_t value=0;child.checkbox("Option","Translated help below the option",value);
+            CHECK(value==(f->interactive?1u:0u));child.checkbox("Other","",value);
+        });
+        CHECK(f->rows==3);
+        const auto at=std::find(f->calls.begin(),f->calls.end(),"checkbox");
+        CHECK(at!=f->calls.end()&&*(at+1)=="message"&&*(at+2)=="checkbox");
+    }
     nimby::detail::NumberInputDraft draft;
     for(const auto& text:std::vector<std::string>{"","7","725","2","100001","2147483648","12x","750"}){
         f->begin(true);f->edited=text;

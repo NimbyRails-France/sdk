@@ -43,6 +43,7 @@ struct Rules {
     static Decision invalidNetworkDecision(const Signal&);
     static Decision diagnosticDecision(const Decision&);
     static std::string texture(const Decision&,std::int64_t,std::int64_t);
+    static std::optional<detail::SignalAnimation> animation(const Decision&);
     static std::optional<SignalDrivingRule> drivingRule(Id,const Decision&);
     static Plan plan(const Vehicle&,const DrivingSettings&,const DrivingInput&,std::span<const Constraint>);
     static std::span<const SignalCheckbox> checkboxes();

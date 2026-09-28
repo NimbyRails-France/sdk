@@ -2,6 +2,17 @@
 
 ## [Unreleased]
 
+## [0.8.0-alpha.3] - 2026-09-28
+
+- Corrige des retards de réaction des signaux et de la marche à vue quand la simulation est accélérée.
+- Améliore l'approche des trains sur les grands cantons et le passage après un arrêt autorisé par le mod.
+- Ajoute les fenêtres d'outils, dont celles utilisées pour changer la date et l'heure de la partie.
+- Prend en charge les noms et descriptions traduits des mods et des signaux ; conserve les saisies lors d'un changement de langue.
+- Simplifie la création des mods Kotlin : leurs informations pour le jeu sont générées automatiquement.
+- Distribution Windows. Mettre à jour ensemble le SDK et les mods de cette série alpha.
+
+Improves signal reactions at accelerated simulation speeds, adds translated mod information and tool windows, and simplifies Kotlin mod packaging. Windows alpha; update the SDK and its mods together.
+
 ## [0.8.0-alpha.2] - 2026-09-28
 
 - Traductions JSON par mod, français/anglais selon la langue du jeu, avec langue de repli et paramètres nommés.

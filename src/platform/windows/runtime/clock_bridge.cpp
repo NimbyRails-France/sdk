@@ -28,7 +28,7 @@ uint32_t apply(uintptr_t sim,uintptr_t db) {
     if(!read_local(nullptr,base+0xb81998,&root,8) ||
        !read_local(nullptr,root+0x680,&currentSim,8) || !read_local(nullptr,root+0x540,&currentDb,8) ||
        currentSim!=sim || currentDb!=db)return NIMBY_DATA_UNAVAILABLE;
-    if(sim!=shared->expected_sim || !read_simulation_clock(read_local,nullptr,sim,before) ||
+    if(shared->recalculate>1 || sim!=shared->expected_sim || !read_simulation_clock(read_local,nullptr,sim,before) ||
         !rebase_clock(before,shared->requested_utc,after))return NIMBY_INVALID_ARGUMENT;
     std::vector<CalendarWrite> edits;
     if(!plan_simulation_calendar(read_local,nullptr,sim,after.epoch_seconds-before.epoch_seconds,edits))
@@ -39,7 +39,7 @@ uint32_t apply(uintptr_t sim,uintptr_t db) {
     using Intervene=uintptr_t(__fastcall*)(uintptr_t,uintptr_t,uintptr_t,void*);
     using WeekSeconds=int32_t(__fastcall*)(void*);
     alignas(16) std::array<uint64_t,6> tree{};
-    reinterpret_cast<Collect>(base+0x44cc70)(sim+0xa0,tree.data(),db,sim,0);
+    if(shared->recalculate)reinterpret_cast<Collect>(base+0x44cc70)(sim+0xa0,tree.data(),db,sim,0);
     shared->count=static_cast<uint32_t>(tree[4]);
     for(const auto& edit:edits)std::memcpy(reinterpret_cast<void*>(edit.address),&edit.after,8);
     std::memcpy(reinterpret_cast<void*>(sim+0x20),&after.epoch_seconds,8);
@@ -49,7 +49,7 @@ uint32_t apply(uintptr_t sim,uintptr_t db) {
     std::memcpy(reinterpret_cast<void*>(sim+0x20f8),&weekSeconds,4);
     std::memcpy(reinterpret_cast<void*>(sim+0x2100),&weekStart,8);
     std::memcpy(reinterpret_cast<void*>(sim+0x2108),&utc,8);
-    reinterpret_cast<Intervene>(base+0x44c9b0)(sim+0xa0,db,sim,tree.data());
+    if(shared->recalculate)reinterpret_cast<Intervene>(base+0x44c9b0)(sim+0xa0,db,sim,tree.data());
     ++*reinterpret_cast<uint64_t*>(sim+0x2120);
     shared->epoch=after.epoch_seconds;shared->ticks=after.ticks;
     return NIMBY_OK;

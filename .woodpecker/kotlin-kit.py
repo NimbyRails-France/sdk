@@ -31,6 +31,7 @@ for folder in ('klib', 'bridge', 'bin', 'sources', 'licenses'):
 run(KOTLIN / 'bin/konanc', '-target', 'mingw_x64', '-produce', 'library',
     '-o', KIT / 'klib/nimby-mod-api', *sorted((ROOT / 'kotlin/src').rglob('*.kt')))
 copy(ROOT / 'kotlin/native/Exports.kt', KIT / 'bridge/Exports.kt')
+copy(ROOT / 'kotlin/native/Package.kt', KIT / 'bridge/Package.kt')
 run('cmake', '-S', 'kotlin/native', '-B', 'build/ci-kotlin', '-G', 'Ninja',
     '-DCMAKE_TOOLCHAIN_FILE=/opt/nimby-ci/nimby-mingw.cmake', '-DCMAKE_BUILD_TYPE=Release',
     '-DNimbyRailsFranceSDK_DIR=' + str(ROOT / 'build/install/lib/cmake/NimbyRailsFranceSDK'),
@@ -51,7 +52,7 @@ with zipfile.ZipFile(KIT / 'sources/nimby-mod-api-sources.jar', 'w', zipfile.ZIP
 # A separate consumer directory keeps caches and build outputs out of the SDK ZIP.
 consumer = ROOT / 'build/ci-consumer'
 copy(ROOT / 'verification/packaged-mod', consumer)
-(consumer / 'mod.json').write_text(json.dumps(dict(id='sdk-contract', name='SDK contract', modId='SdkContract',
+(consumer / 'mod.json').write_text(json.dumps(dict(id='sdk-contract', name='SDK package contract', modId='SdkContract',
     module='SdkContractMod', language='kotlin-native', version='1.0.0', sdkMin=VERSION,
     sdkMaxExclusive='0.9.0', gameSha256=['fff49ac21720abfc824c2b4f68b862727630eb0db71cfe1f9ea8f685d0db10ae'])))
 run('sh', ROOT / 'gradle-plugin/gradlew', '-p', consumer, 'packageMod',

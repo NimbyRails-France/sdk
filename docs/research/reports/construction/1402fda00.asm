@@ -1,0 +1,2 @@
+1402fda00 MOV RAX,qword ptr [0x140b77230]
+1402fda07 RET

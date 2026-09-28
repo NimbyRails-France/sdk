@@ -26,7 +26,7 @@
 namespace nimby {
 using Id = std::uint64_t;
 using Milliseconds = std::chrono::milliseconds;
-enum class SnapshotScope { Complete, Signalling };
+enum class SnapshotScope { Complete, Signalling, Session };
 
 enum class ErrorCode : std::uint32_t {
     Ok = 0, InvalidArgument = 1, IoError = 2, InvalidBinary = 3,
@@ -788,10 +788,15 @@ private:
         for (const auto& row : rows) if (predicate(row)) result.push_back(row);
         return result;
     }
-    static Ptr capture(NimbySession session, SnapshotScope scope,const char* textureSet=nullptr) {
+    static Ptr capture(NimbySession session, SnapshotScope scope,const char* textureSet=nullptr,std::span<const NimbySignalCaptureScope> signalScopes={}) {
+        // Age includes the native capture, registry contention and copy-out.
+        // A slow capture must not be presented as a brand-new observation.
+        const auto started=std::chrono::steady_clock::now();
         detail::NativeSnapshot native;
         uint32_t stage{};
-        const auto captureStatus=textureSet ? NimbyInternal_CaptureSignallingFor(session,textureSet,&native.value,&stage) : scope==SnapshotScope::Signalling
+        const auto captureStatus=scope==SnapshotScope::Session ? NimbyInternal_CaptureSessionSnapshot(session,&native.value,&stage) :
+            !signalScopes.empty() ? NimbyInternal_CaptureSignallingScope(session,signalScopes.data(),static_cast<uint32_t>(signalScopes.size()),&native.value,&stage) :
+            textureSet ? NimbyInternal_CaptureSignallingFor(session,textureSet,&native.value,&stage) : scope==SnapshotScope::Signalling
             ? NimbyInternal_CaptureSignallingSnapshot(session, &native.value, &stage)
             : NimbyInternal_CaptureSnapshotDiagnostic(session, &native.value, &stage);
         constexpr const char* stages[]{"CaptureSnapshot", "CaptureSnapshot/live roots",
@@ -800,7 +805,7 @@ private:
             "CaptureSnapshot/roots after textures"};
         detail::check(captureStatus,stages[stage<std::size(stages)?stage:0]);
         auto result = std::shared_ptr<Snapshot>(new Snapshot);
-        result->captured_ = std::chrono::steady_clock::now();
+        result->captured_ = started;
         result->info_.struct_size = sizeof result->info_;
         detail::check(NimbyInternal_GetSnapshotInfo(native.value, &result->info_), "GetSnapshotInfo");
         NimbyGameSession game{};game.struct_size=sizeof(game);
@@ -815,6 +820,7 @@ private:
         const auto clockStatus=NimbyInternal_GetSimulationClock(native.value,&clock);
         if(clockStatus==NIMBY_OK)result->clock_=SimulationClock{clock};
         else if(clockStatus!=NIMBY_DATA_UNAVAILABLE)detail::check(clockStatus,"GetSimulationClock");
+        if(scope==SnapshotScope::Session)return result;
         result->trains_ = detail::table<Train, NimbyTrain>(
             [&](auto* out, auto capacity, auto* count) { return NimbyInternal_CopyTrains(native.value, out, capacity, count); },
             [](const NimbyTrain& row) { return row.id; }, "CopyTrains");

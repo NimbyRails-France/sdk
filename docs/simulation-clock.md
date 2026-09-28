@@ -73,7 +73,14 @@ d'écriture est ouvert uniquement lors du setter. Le processus distant est
 brièvement suspendu ; les deux horloges natives, simulation et copie, sont
 contrôlées. Les modifications des horloges et des services des deux copies
 sont préparées avant toute écriture, puis écrites et relues avant de reprendre le jeu.
-Le setter refuse de suspendre son propre processus : utiliser un client externe.
+Depuis le développement du kit 0.8, un appel depuis le processus du jeu utilise
+la passerelle d'horloge et applique la translation au point de mise à jour natif,
+sans suspendre son propre processus. `ToolContext.clock()` et
+`changeTime(utcSeconds, recalculateTrains)` exposent ces opérations aux `toolMod`.
+Le formulaire Time Change propose uniquement le changement avec interventions
+sur les trains et exige une confirmation qui en explique les effets. Le SDK
+conserve les deux modes. Ce parcours est compilé et testé sur fixtures, mais son
+utilisation depuis un mod dans une partie réelle reste à valider.
 Les sessions d'observation ordinaires restent en lecture seule.
 
 Si une écriture échoue, la restauration de toutes les valeurs touchées est tentée avant la

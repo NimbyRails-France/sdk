@@ -4,6 +4,7 @@
 #include <nimby/signal_observation.hpp>
 #include <nimby/automatic_driving.hpp>
 #include <nimby/signalling_control.hpp>
+#include <nimby/detail/signal_animation.hpp>
 
 namespace nimby {
 // Generic command names supplied by a mod. All strings need static lifetime.
@@ -151,7 +152,7 @@ private:
         if constexpr(requires(Id id,typename Rules::Decision decision){Rules::drivingRule(id,decision);})
             AutomaticDriving::release();
     }
-    struct Rendered { std::string first,alternate,catalogue; std::chrono::steady_clock::time_point renewed; };
+    struct Rendered { detail::SignalAnimation animation; std::string catalogue; std::chrono::steady_clock::time_point renewed; };
     static std::unordered_map<Id,Rendered>& rendered() {
         static std::unordered_map<Id,Rendered> values;return values;
     }
@@ -197,22 +198,21 @@ private:
             // Record before sending: a partially successful batch is restored
             // by observationLost if any later render fails.
             if (std::find(owned.begin(), owned.end(), row.signal) == owned.end()) owned.push_back(row.signal);
-            const auto first=Rules::texture(row.result.decision,0,request.halfPeriodMs);
-            const auto alternate=Rules::texture(row.result.decision,request.halfPeriodMs,request.halfPeriodMs);
+            const auto animation=detail::signalAnimation<Rules>(row.result.decision,request.halfPeriodMs);
             const auto source=std::find_if(states.begin(),states.end(),[&](const auto& s){return s.id==row.signal;});
             if(source==states.end())throw std::logic_error("Missing rendered signal type");
             // React immediately to changes; renew identical leases less often.
             // Reading occupancy must not repeatedly reload the same texture.
             const auto now=std::chrono::steady_clock::now();
             const auto previous=rendered().find(row.signal);
-            if(previous!=rendered().end()&&previous->second.first==first&&previous->second.alternate==alternate&&
+            if(previous!=rendered().end()&&previous->second.animation==animation&&
                previous->second.catalogue==source->textureSet&&
                now-previous->second.renewed<Milliseconds{500})continue;
-            const TextureImage image{source->textureSet,std::string(first)};
+            const TextureImage image{source->textureSet,animation.first};
             const auto textures=SignalTextures::inGame();
-            if(first==alternate) textures.showFor(row.signal,image,Milliseconds{2500});
-            else textures.animateFor(row.signal,image,alternate,Milliseconds{request.halfPeriodMs},Milliseconds{2500});
-            rendered()[row.signal]={std::string(first),std::string(alternate),source->textureSet,now};
+            if(animation.first==animation.alternate) textures.showFor(row.signal,image,Milliseconds{2500});
+            else textures.animateFor(row.signal,image,animation.alternate,Milliseconds{animation.everyMs},Milliseconds{2500});
+            rendered()[row.signal]={animation,source->textureSet,now};
         }
     }
     static void checkClock(std::int64_t time,std::int64_t halfPeriod) {

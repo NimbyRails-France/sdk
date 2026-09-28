@@ -1,0 +1,1047 @@
+140b77230 <- 14030e69f WRITE caller 14030e2d0
+140b77230 <- 1402fda00 READ caller 1402fda00
+140b771e8 <- 14030e2e9 WRITE caller 14030e2d0
+140b771e8 <- 1402f3a30 READ caller 1402f3a30
+nimby::model::cmd::tn::CreateSignal::vftable 140a6dde8
+slot 0 -> 140321e90
+slot 8 -> 1402fda60
+slot 16 -> 1402fd8e0
+slot 24 -> 1402fd970
+slot 32 -> 1402fda00
+slot 40 -> 1402f3830
+nimby::model::cmd::tn::Undo::vftable 140a6c998
+slot 0 -> 140320e80
+slot 8 -> 1402f3ab0
+slot 16 -> 1402f3890
+slot 24 -> 1402f3960
+slot 32 -> 1402f3a30
+slot 40 -> 1402f3830
+offset 238 14074e730 LEA RDX,[RBX + 0x238] function 14074e650
+offset 238 140755e34 LEA RCX,[RSI + 0x238] function 1407558f0
+offset 238 140756231 LEA RCX,[R14 + 0x238] function 140755ea0
+offset 238 140757634 LEA RDX,[RDI + 0x238] function 1407575e0
+offset 238 140758162 ADD RCX,0x238 function 140758150
+offset 238 14075838e SUB RAX,qword ptr [RDI + 0x238] function 140758300
+offset 238 1407583c8 MOV RAX,qword ptr [RDI + 0x238] function 140758300
+offset 238 140758404 MOV RBX,qword ptr [RDI + 0x238] function 140758300
+offset 238 14075842b MOV RCX,qword ptr [RDI + 0x238] function 140758300
+offset 238 14075843c MOV qword ptr [RDI + 0x238],R15 function 140758300
+offset 238 140758544 SUB RAX,qword ptr [RDI + 0x238] function 1407584c0
+offset 238 14075857e MOV RCX,qword ptr [RDI + 0x238] function 1407584c0
+offset 238 1407585b4 MOV RBX,qword ptr [RDI + 0x238] function 1407584c0
+offset 238 1407585db MOV RCX,qword ptr [RDI + 0x238] function 1407584c0
+offset 238 1407585ec MOV qword ptr [RDI + 0x238],R15 function 1407584c0
+offset 238 1407b585d SUB RAX,qword ptr [RDI + 0x238] function 1407b57c0
+offset 238 1407b5897 MOV RCX,qword ptr [RDI + 0x238] function 1407b57c0
+offset 238 1407b58d4 MOV RBX,qword ptr [RDI + 0x238] function 1407b57c0
+offset 238 1407b58fb MOV RCX,qword ptr [RDI + 0x238] function 1407b57c0
+offset 238 1407b590c MOV qword ptr [RDI + 0x238],R15 function 1407b57c0
+offset 238 1407b7ba9 SUB RCX,qword ptr [RDI + 0x238] function 1407b7b20
+offset 238 1407b7be3 MOV RCX,qword ptr [RDI + 0x238] function 1407b7b20
+offset 238 1407b7c16 MOV RBX,qword ptr [RDI + 0x238] function 1407b7b20
+offset 238 1407b7c3d MOV RCX,qword ptr [RDI + 0x238] function 1407b7b20
+offset 238 1407b7c4e MOV qword ptr [RDI + 0x238],R15 function 1407b7b20
+offset 238 1407b7d59 SUB RCX,qword ptr [RDI + 0x238] function 1407b7cd0
+offset 238 1407b7d93 MOV RCX,qword ptr [RDI + 0x238] function 1407b7cd0
+offset 238 1407b7dc6 MOV RBX,qword ptr [RDI + 0x238] function 1407b7cd0
+offset 238 1407b7ded MOV RCX,qword ptr [RDI + 0x238] function 1407b7cd0
+offset 238 1407b7dfe MOV qword ptr [RDI + 0x238],R15 function 1407b7cd0
+offset 238 1407b7f09 SUB RCX,qword ptr [RDI + 0x238] function 1407b7e80
+offset 238 1407b7f43 MOV RCX,qword ptr [RDI + 0x238] function 1407b7e80
+offset 238 1407b7f76 MOV RBX,qword ptr [RDI + 0x238] function 1407b7e80
+offset 238 1407b7f9d MOV RCX,qword ptr [RDI + 0x238] function 1407b7e80
+offset 238 1407b7fae MOV qword ptr [RDI + 0x238],R15 function 1407b7e80
+offset 238 1407b8bd5 SUB RAX,qword ptr [RDI + 0x238] function 1407b8b70
+offset 238 1407b8c11 MOV RAX,qword ptr [RDI + 0x238] function 1407b8b70
+offset 238 1407b8c44 MOV RBX,qword ptr [RDI + 0x238] function 1407b8b70
+offset 238 1407b8c6b MOV RCX,qword ptr [RDI + 0x238] function 1407b8b70
+offset 238 1407b8c7c MOV qword ptr [RDI + 0x238],R15 function 1407b8b70
+offset 238 1407b8d65 SUB RAX,qword ptr [RDI + 0x238] function 1407b8d00
+offset 238 1407b8da1 MOV RAX,qword ptr [RDI + 0x238] function 1407b8d00
+offset 238 1407b8dd4 MOV RBX,qword ptr [RDI + 0x238] function 1407b8d00
+offset 238 1407b8dfb MOV RCX,qword ptr [RDI + 0x238] function 1407b8d00
+offset 238 1407b8e0c MOV qword ptr [RDI + 0x238],R15 function 1407b8d00
+offset 238 1407baab5 SUB RAX,qword ptr [RDI + 0x238] function 1407baa50
+offset 238 1407baaf1 MOV RAX,qword ptr [RDI + 0x238] function 1407baa50
+offset 238 1407bab24 MOV RBX,qword ptr [RDI + 0x238] function 1407baa50
+offset 238 1407bab4b MOV RCX,qword ptr [RDI + 0x238] function 1407baa50
+offset 238 1407bab5c MOV qword ptr [RDI + 0x238],R15 function 1407baa50
+offset 238 1407bc238 SUB RAX,qword ptr [RDI + 0x238] function 1407bc1b0
+offset 238 1407bc272 MOV RAX,qword ptr [RDI + 0x238] function 1407bc1b0
+offset 238 1407bc2a5 MOV RBX,qword ptr [RDI + 0x238] function 1407bc1b0
+offset 238 1407bc2cc MOV RCX,qword ptr [RDI + 0x238] function 1407bc1b0
+offset 238 1407bc2dd MOV qword ptr [RDI + 0x238],R15 function 1407bc1b0
+offset 238 1407bc455 SUB RAX,qword ptr [RDI + 0x238] function 1407bc3f0
+offset 238 1407bc491 MOV RAX,qword ptr [RDI + 0x238] function 1407bc3f0
+offset 238 1407bc4c4 MOV RBX,qword ptr [RDI + 0x238] function 1407bc3f0
+offset 238 1407bc4eb MOV RCX,qword ptr [RDI + 0x238] function 1407bc3f0
+offset 238 1407bc4fc MOV qword ptr [RDI + 0x238],R15 function 1407bc3f0
+offset 238 1407bc845 SUB RAX,qword ptr [RDI + 0x238] function 1407bc7e0
+offset 238 1407bc881 MOV RAX,qword ptr [RDI + 0x238] function 1407bc7e0
+offset 238 1407bc8b4 MOV RBX,qword ptr [RDI + 0x238] function 1407bc7e0
+offset 238 1407bc8db MOV RCX,qword ptr [RDI + 0x238] function 1407bc7e0
+offset 238 1407bc8ec MOV qword ptr [RDI + 0x238],R15 function 1407bc7e0
+offset 238 1407bcca5 SUB RAX,qword ptr [RDI + 0x238] function 1407bcc40
+offset 238 1407bcce1 MOV RAX,qword ptr [RDI + 0x238] function 1407bcc40
+offset 238 1407bcd14 MOV RBX,qword ptr [RDI + 0x238] function 1407bcc40
+offset 238 1407bcd3b MOV RCX,qword ptr [RDI + 0x238] function 1407bcc40
+offset 238 1407bcd4c MOV qword ptr [RDI + 0x238],R15 function 1407bcc40
+offset 238 1407bd315 SUB RAX,qword ptr [RDI + 0x238] function 1407bd2b0
+offset 238 1407bd351 MOV RAX,qword ptr [RDI + 0x238] function 1407bd2b0
+offset 238 1407bd384 MOV RBX,qword ptr [RDI + 0x238] function 1407bd2b0
+offset 238 1407bd3ab MOV RCX,qword ptr [RDI + 0x238] function 1407bd2b0
+offset 238 1407bd3bc MOV qword ptr [RDI + 0x238],R15 function 1407bd2b0
+offset 238 1407bd4a5 SUB RAX,qword ptr [RDI + 0x238] function 1407bd440
+offset 238 1407bd4e1 MOV RAX,qword ptr [RDI + 0x238] function 1407bd440
+offset 238 1407bd514 MOV RBX,qword ptr [RDI + 0x238] function 1407bd440
+offset 238 1407bd53b MOV RCX,qword ptr [RDI + 0x238] function 1407bd440
+offset 238 1407bd54c MOV qword ptr [RDI + 0x238],R15 function 1407bd440
+offset 238 1407bd635 SUB RAX,qword ptr [RDI + 0x238] function 1407bd5d0
+offset 238 1407bd671 MOV RAX,qword ptr [RDI + 0x238] function 1407bd5d0
+offset 238 1407bd6a4 MOV RBX,qword ptr [RDI + 0x238] function 1407bd5d0
+offset 238 1407bd6cb MOV RCX,qword ptr [RDI + 0x238] function 1407bd5d0
+offset 238 1407bd6dc MOV qword ptr [RDI + 0x238],R15 function 1407bd5d0
+offset 238 1407bd884 SUB RAX,qword ptr [RDI + 0x238] function 1407bd7f0
+offset 238 1407bd8be MOV RAX,qword ptr [RDI + 0x238] function 1407bd7f0
+offset 238 1407bd8f4 MOV RBX,qword ptr [RDI + 0x238] function 1407bd7f0
+offset 238 1407bd91b MOV RCX,qword ptr [RDI + 0x238] function 1407bd7f0
+offset 238 1407bd92c MOV qword ptr [RDI + 0x238],R15 function 1407bd7f0
+offset 238 1407bf425 SUB RAX,qword ptr [RDI + 0x238] function 1407bf3c0
+offset 238 1407bf461 MOV RAX,qword ptr [RDI + 0x238] function 1407bf3c0
+offset 238 1407bf494 MOV RBX,qword ptr [RDI + 0x238] function 1407bf3c0
+offset 238 1407bf4bb MOV RCX,qword ptr [RDI + 0x238] function 1407bf3c0
+offset 238 1407bf4cc MOV qword ptr [RDI + 0x238],R15 function 1407bf3c0
+offset 238 1407e39f4 MOV qword ptr [RCX + 0x238],RDX function 1407e3850
+offset 238 1407e481a LEA RCX,[R14 + 0x238] function 1407e4070
+offset 238 1407e5854 MOV qword ptr [RCX + 0x238],RDX function 1407e56b0
+offset 238 1407e59d4 LEA RCX,[RSI + 0x238] function 1407e5970
+offset 238 1407e5cbb LEA RCX,[RSI + 0x238] function 1407e5970
+offset 238 1407e658a LEA RCX,[RSI + 0x238] function 1407e5de0
+offset 238 1407eba64 LEA RDX,[RDI + 0x238] function 1407eb7f0
+offset 238 1407f04c7 LEA RCX,[RSI + 0x238] function 1407f0450
+offset 238 1407fe1d3 LEA RDX,[RSI + 0x238] function 1407fd860
+offset 238 1407fe2e1 LEA RDX,[RSI + 0x238] function 1407fd860
+offset 228 14004c17a MOV RAX,qword ptr [RBX + 0x228] function 14004c170
+offset 228 1400bbf7d MOV EDX,0x228 function 1400bbd20
+offset 228 1400bc2c0 MOV qword ptr [R10 + 0x228],R15 function 1400bbd20
+offset 228 1400c2c88 MOV RAX,qword ptr [RCX + 0x228] function 1400c2ba0
+offset 228 1400d29ad MOV qword ptr [RBX + 0x228],RSI function 1400d2980
+offset 228 1400d2a9d MOV qword ptr [RBX + 0x228],RAX function 1400d2a70
+offset 228 14019057b MOV RAX,qword ptr [R9 + 0x228] function 140190490
+offset 228 14019072c LEA R8,[RBX + 0x228] function 140190630
+offset 228 140190804 LEA R8,[RBX + 0x228] function 140190630
+offset 228 14019086e MOV R9,qword ptr [RBX + 0x228] function 140190630
+offset 228 1401908d1 MOV RAX,qword ptr [RBX + 0x228] function 140190630
+offset 228 1401b1db7 MOV RDX,qword ptr [RDI + 0x228] function 1401b1830
+offset 228 1401b1dc4 MOV qword ptr [RDI + 0x228],R12 function 1401b1830
+offset 228 1401b2990 MOV R15,qword ptr [R13 + 0x228] function 1401b2400
+offset 228 1401b6d24 MOV RDX,qword ptr [RCX + 0x228] function 1401b6d00
+offset 228 1401bb310 MOV RAX,qword ptr [RBX + 0x228] function 1401bb260
+offset 228 1401bb35f MOV RDX,qword ptr [RBX + 0x228] function 1401bb260
+offset 228 1401bb374 MOV qword ptr [RBX + 0x228],RAX function 1401bb260
+offset 228 1401bb39d ADD R8,qword ptr [RBX + 0x228] function 1401bb260
+offset 228 1401c9eaf MOV qword ptr [RDI + 0x228],R13 function 1401c9a10
+offset 228 1402754dd CMP byte ptr [RBX + 0x228],0x0 function 140275410
+offset 228 14027cb0f MOV byte ptr [R8 + 0x228],R10B function 14027c980
+offset 228 14027cb16 CMP byte ptr [R9 + 0x228],R10B function 14027c980
+offset 228 14027cb71 MOV byte ptr [R8 + 0x228],0x1 function 14027c980
+offset 228 1402e9f6f LEA RBX,[RAX + 0x228] function 1402e8c00
+offset 228 1402ea07c ADD RCX,0x228 function 1402e8c00
+offset 228 1402eb7d4 ADD RCX,0x228 function 1402eb730
+offset 228 140312f5c MOV RAX,qword ptr [R15 + 0x228] function 140312660
+offset 228 1403150ab LEA RCX,[R15 + 0x228] function 140314af0
+offset 228 140315634 LEA RCX,[R14 + 0x228] function 140315100
+offset 228 14032f9b8 LEA R12,[RDI + 0x228] function 14032f980
+offset 228 14032fa81 LEA RAX,[RDI + 0x228] function 14032f980
+offset 228 1403347de CMP qword ptr [RDI + 0x228],0x1 function 140334780
+offset 228 1403349c8 MOV RCX,qword ptr [RDI + 0x228] function 140334970
+offset 228 1403367bd MOV qword ptr [RCX + 0x228],0x1 function 140336580
+offset 228 140336922 MOV qword ptr [RCX + 0x228],R8 function 1403367f0
+offset 228 14033977d LEA RDX,[RDI + 0x228] function 1403395b0
+offset 228 140339784 LEA RCX,[RBX + 0x228] function 1403395b0
+offset 228 140339d66 MOV RAX,qword ptr [RBX + 0x228] function 140339a10
+offset 228 14033d34b LEA RAX,[RCX + 0x228] function 14033d270
+offset 228 140340722 MOV qword ptr [R11 + 0x228],R9 function 1403401b0
+offset 228 140340750 MOV qword ptr [R11 + 0x228],0x1 function 1403401b0
+offset 228 1403407b0 MOV RAX,qword ptr [R10 + 0x228] function 1403401b0
+offset 228 1403407be MOV RCX,qword ptr [R11 + 0x228] function 1403401b0
+offset 228 1403407c5 MOV qword ptr [R11 + 0x228],RAX function 1403401b0
+offset 228 1403407d3 MOV qword ptr [R10 + 0x228],RCX function 1403401b0
+offset 228 140341005 MOV qword ptr [R8 + 0x228],R10 function 140340bb0
+offset 228 14034100c MOV RAX,qword ptr [RDX + 0x228] function 140340bb0
+offset 228 140341013 MOV qword ptr [R8 + 0x228],RAX function 140340bb0
+offset 228 140341021 MOV qword ptr [RDX + 0x228],R10 function 140340bb0
+offset 228 14034396e LEA RCX,[R15 + 0x228] function 140343610
+offset 228 140346b72 LEA RCX,[RDI + 0x228] function 140346b10
+offset 228 140346d24 MOV qword ptr [RCX + 0x228],R15 function 140346cb0
+offset 228 140348ec3 MOV RAX,qword ptr [RCX + 0x228] function 1403489d0
+offset 228 140348edf MOV RAX,qword ptr [RCX + 0x228] function 1403489d0
+offset 228 14034924b MOV RAX,qword ptr [R8 + 0x228] function 1403489d0
+offset 228 140349267 MOV RAX,qword ptr [R8 + 0x228] function 1403489d0
+offset 228 140349393 MOV RAX,qword ptr [R8 + 0x228] function 1403489d0
+offset 228 1403493af MOV RAX,qword ptr [R8 + 0x228] function 1403489d0
+offset 228 1403495c6 MOV RAX,qword ptr [RDX + 0x228] function 1403489d0
+offset 228 1403495e2 MOV RAX,qword ptr [RDX + 0x228] function 1403489d0
+offset 228 140349627 MOV RAX,qword ptr [RDX + 0x228] function 1403489d0
+offset 228 140349645 MOV RAX,qword ptr [RDX + 0x228] function 1403489d0
+offset 228 14034999c MOV RAX,qword ptr [RDX + 0x228] function 1403489d0
+offset 228 1403499ba MOV RAX,qword ptr [RDX + 0x228] function 1403489d0
+offset 228 140349b2a MOV RAX,qword ptr [R8 + 0x228] function 1403489d0
+offset 228 140349b46 MOV RAX,qword ptr [R8 + 0x228] function 1403489d0
+offset 228 140349b9a MOV RAX,qword ptr [RDX + 0x228] function 1403489d0
+offset 228 140349bb8 MOV RAX,qword ptr [RDX + 0x228] function 1403489d0
+offset 228 14034e517 MOV RCX,qword ptr [RDI + 0x228] function 14034e480
+offset 228 14034f0e6 LEA RCX,[RBX + 0x228] function 14034ef10
+offset 228 140369826 MOV ECX,dword ptr [R8 + 0x228] function 140368d40
+offset 228 14036985c MOV RAX,qword ptr [R8 + 0x228] function 140368d40
+offset 228 1403698ac MOV RAX,qword ptr [R8 + 0x228] function 140368d40
+offset 228 140384121 MOV qword ptr [RCX + 0x228],RAX function 140383f90
+offset 228 1403b5330 MOV qword ptr [RSI + 0x228],R14 function 1403b5230
+offset 228 1403df0f3 MOVUPS xmmword ptr [R9 + 0x228],XMM0 function 1403def50
+offset 228 1403e3d07 MOV R9,qword ptr [RSI + 0x228] function 1403e3c30
+offset 228 1403e3f06 MOV RBX,qword ptr [RCX + 0x228] function 1403e3ee0
+offset 228 1403e4247 LEA R10,[RSI + 0x228] function 1403e4120
+offset 228 1403e4427 MOV R9,qword ptr [RSI + 0x228] function 1403e4310
+offset 228 1403e68b0 SUB RAX,qword ptr [R12 + 0x228] function 1403e5ce0
+offset 228 1403e68eb MOV RDX,qword ptr [R12 + 0x228] function 1403e5ce0
+offset 228 1403e8ee7 MOV R14,qword ptr [RSI + 0x228] function 1403e8e30
+offset 228 1403e9010 MOV R14,qword ptr [RSI + 0x228] function 1403e8e30
+offset 228 1403f1ca0 MOV ECX,dword ptr [RDI + 0x228] function 1403f1bc0
+offset 228 1403f1cef MOV RAX,qword ptr [RDI + 0x228] function 1403f1bc0
+offset 228 1404060b6 LEA RCX,[R13 + 0x228] function 140405a90
+offset 228 14040ade0 LEA RCX,[RSI + 0x228] function 14040ad90
+offset 228 14040b1c0 LEA RCX,[RSI + 0x228] function 14040ad90
+offset 228 14040c1c3 MOV qword ptr [RCX + 0x228],0xf function 14040bfe0
+offset 228 14040c439 MOVUPS xmmword ptr [RCX + 0x228],XMM0 function 14040c250
+offset 228 14040c452 MOV byte ptr [RCX + 0x228],DL function 14040c250
+offset 228 14040caa5 LEA RDX,[RBX + 0x228] function 14040c920
+offset 228 14040caac LEA RCX,[RDI + 0x228] function 14040c920
+offset 228 140413881 LEA RDI,[R13 + 0x228] function 1404136f0
+offset 228 1404144b5 LEA RDI,[R13 + 0x228] function 1404136f0
+offset 228 14042e917 MOV R8D,0x228 function 140428790
+offset 228 140437e5d MOV qword ptr [RDI + 0x228],0xf function 140437d30
+offset 228 14043dd8a MOV R10,qword ptr [RCX + 0x228] function 14043dd80
+offset 228 14044bf51 LEA RCX,[R13 + 0x228] function 14044be30
+offset 228 14044bf8a LEA RCX,[R13 + 0x228] function 14044be30
+offset 228 14044c678 LEA R8,[R14 + 0x228] function 14044c390
+offset 228 14044ed06 LEA RDX,[RDI + 0x228] function 14044d6b0
+offset 228 14044ed19 LEA RCX,[RDI + 0x228] function 14044d6b0
+offset 228 14044efbf LEA RBX,[R9 + 0x228] function 14044ef70
+offset 228 14044f712 LEA RCX,[RDI + 0x228] function 14044f560
+offset 228 14044fb6e LEA RCX,[R13 + 0x228] function 14044f7e0
+offset 228 14047d2b8 LEA RCX,[RDI + 0x228] function 14047d260
+offset 228 14047d572 LEA RCX,[RBX + 0x228] function 14047d410
+offset 228 140487a05 LEA RAX,[RCX + 0x228] function 140487840
+offset 228 1404892eb LEA RDX,[RDI + 0x228] function 140488f80
+offset 228 1404892f2 LEA RCX,[RBX + 0x228] function 140488f80
+offset 228 14048be82 LEA RBX,[RSI + 0x228] function 14048bcf0
+offset 228 140497f5a LEA RDX,[RDI + 0x228] function 140497e10
+offset 228 140497f61 LEA RCX,[RSI + 0x228] function 140497e10
+offset 228 1404a4c0d LEA RAX,[R14 + 0x228] function 1404a48e0
+offset 228 1404a9412 LEA RDX,[RSI + 0x228] function 1404a8980
+offset 228 1404a9d23 MOV qword ptr [RBX + 0x228],RDI function 1404a9ca0
+offset 228 1404aa6a0 MOV RDI,qword ptr [RBX + 0x228] function 1404aa510
+offset 228 1404aa6c4 MOV RCX,qword ptr [RBX + 0x228] function 1404aa510
+offset 228 1404ab289 LEA RSI,[RBX + 0x228] function 1404aafd0
+offset 228 1404b60dd LEA RCX,[R15 + 0x228] function 1404b5ea0
+offset 228 1404b69b4 LEA RCX,[RSI + 0x228] function 1404b6700
+offset 228 1404cdc9e MOVUPS xmmword ptr [R10 + 0x228],XMM0 function 1404cd970
+offset 228 1404cdcb4 MOVUPS XMM0,xmmword ptr [R9 + 0x228] function 1404cd970
+offset 228 1404cdcbc MOVUPS xmmword ptr [R10 + 0x228],XMM0 function 1404cd970
+offset 228 1404cdcd4 MOV byte ptr [R9 + 0x228],R11B function 1404cd970
+offset 228 1404d0638 MOV RDI,qword ptr [RSI + 0x228] function 1404d04d0
+offset 228 1404d097a SUB RAX,qword ptr [RSI + 0x228] function 1404d04d0
+offset 228 1404d09ba MOV RDX,qword ptr [RSI + 0x228] function 1404d04d0
+offset 228 1404d09e8 MOV RBX,qword ptr [RBX + 0x228] function 1404d04d0
+offset 228 1404d0a0c MOV RCX,qword ptr [RSI + 0x228] function 1404d04d0
+offset 228 1404d0a1d MOV qword ptr [RSI + 0x228],R15 function 1404d04d0
+offset 228 1404d3a68 LEA R14,[RDI + 0x228] function 1404d30b0
+offset 228 1404d4402 LEA RSI,[RBX + 0x228] function 1404d30b0
+offset 228 1404d4454 LEA RSI,[R15 + 0x228] function 1404d30b0
+offset 228 1404d618a MOV RAX,qword ptr [RBX + 0x228] function 1404d5ce0
+offset 228 1404d61a7 MOV qword ptr [RBX + 0x228],RCX function 1404d5ce0
+offset 228 1404d6c78 LEA R14,[RBX + 0x228] function 1404d68c0
+offset 228 1404d6c7f LEA RSI,[RDI + 0x228] function 1404d68c0
+offset 228 1404d75d8 LEA RCX,[RDI + 0x228] function 1404d7590
+offset 228 1404daa4d LEA RCX,[RBX + 0x228] function 1404da8a0
+offset 228 1404f6586 LEA RDI,[R14 + 0x228] function 1404f63b0
+offset 228 1404f658d LEA RBX,[RSI + 0x228] function 1404f63b0
+offset 228 1404f7003 LEA RDX,[RBX + 0x228] function 1404f6b60
+offset 228 1404f700a LEA RCX,[RDI + 0x228] function 1404f6b60
+offset 228 1405580b9 MOV EAX,dword ptr [R14 + 0x228] function 1405577e0
+offset 228 14055d130 MOV qword ptr [R9 + 0x228],R10 function 14055d040
+offset 228 14055faac MOV R8,qword ptr [RCX + 0x228] function 14055faa0
+offset 228 140582acf MOV RAX,qword ptr [RDI + 0x228] function 140582aa0
+offset 228 1405857ac MOV RAX,qword ptr [RDI + 0x228] function 140585750
+offset 228 14058596c MOV RAX,qword ptr [RDI + 0x228] function 140585910
+offset 228 140585c20 MOV RAX,qword ptr [RDI + 0x228] function 140585bd0
+offset 228 140585dd0 MOV RAX,qword ptr [RDI + 0x228] function 140585d80
+offset 228 140585f87 MOV RAX,qword ptr [RDI + 0x228] function 140585f30
+offset 228 1405b30f6 MOV RBX,qword ptr [R15 + 0x228] function 1405b1360
+offset 228 1405b3207 LEA RCX,[R14 + 0x228] function 1405b1360
+offset 228 1405b9f10 MOV RAX,qword ptr [R14 + 0x228] function 1405b9ea0
+offset 228 1405bb86f MOV RAX,qword ptr [RDI + 0x228] function 1405bb840
+offset 228 1405bbb86 MOV RCX,qword ptr [RDI + 0x228] function 1405bbb40
+offset 228 1405bbd36 MOV RCX,qword ptr [RDI + 0x228] function 1405bbcf0
+offset 228 1405bbeea MOV RAX,qword ptr [RDI + 0x228] function 1405bbea0
+offset 228 1405bc09a MOV RAX,qword ptr [RDI + 0x228] function 1405bc050
+offset 228 1405bc20d ADD RCX,0x228 function 1405bc200
+offset 228 1405bc27d ADD RCX,0x228 function 1405bc270
+offset 228 1405bd72e MOV RAX,qword ptr [RDI + 0x228] function 1405bd6e0
+offset 228 1405bdaff MOV RAX,qword ptr [RDI + 0x228] function 1405bdad0
+offset 228 1405bdcca MOV RAX,qword ptr [RDI + 0x228] function 1405bdc60
+offset 228 14061c2a5 MOV qword ptr [RCX + 0x228],R8 function 14061c0b0
+offset 228 14061cfa3 MOV qword ptr [RDI + 0x228],RAX function 14061c0b0
+offset 228 140621ee3 CMP R14,qword ptr [RBX + 0x228] function 1406214b0
+offset 228 140621f19 MOV qword ptr [RBX + 0x228],R14 function 1406214b0
+offset 228 140623975 MOVUPS XMM1,xmmword ptr [RDI + 0x228] function 1406236d0
+offset 228 140627046 MOV qword ptr [RBX + 0x228],RSI function 140626f50
+offset 228 14063296c MOVUPS XMM0,xmmword ptr [RDX + 0x228] function 1406328b0
+offset 228 1406394e1 MOVUPS XMM1,xmmword ptr [RDX + 0x228] function 140639480
+offset 228 140639544 MOVUPS XMM0,xmmword ptr [RDX + 0x228] function 140639480
+offset 228 140654f31 CMP RBX,qword ptr [RDI + 0x228] function 140653e30
+offset 228 140654f89 MOV R8,qword ptr [RDI + 0x228] function 140653e30
+offset 228 140654fa3 ADD qword ptr [RDI + 0x228],-0x8 function 140653e30
+offset 228 140654fab CMP RBX,qword ptr [RDI + 0x228] function 140653e30
+offset 228 140656d99 LEA RCX,[R12 + 0x228] function 1406569e0
+offset 228 14065d430 LEA RCX,[R12 + 0x228] function 14065c6a0
+offset 228 14065d45c LEA RCX,[R12 + 0x228] function 14065c6a0
+offset 228 14065db59 ADD RCX,0x228 function 14065c6a0
+offset 228 14065f868 LEA RCX,[RSI + 0x228] function 14065f400
+offset 228 140661960 LEA RCX,[R13 + 0x228] function 140661740
+offset 228 1406655d1 LEA RCX,[RSI + 0x228] function 1406647b0
+offset 228 140667b7a LEA RCX,[R15 + 0x228] function 1406678f0
+offset 228 140667c58 LEA RCX,[R15 + 0x228] function 1406678f0
+offset 228 14066a82c LEA RCX,[R12 + 0x228] function 140669130
+offset 228 14066b15b LEA RCX,[R15 + 0x228] function 140669130
+offset 228 14066b295 LEA RCX,[R15 + 0x228] function 140669130
+offset 228 14066b2df LEA RCX,[R15 + 0x228] function 140669130
+offset 228 14066f465 LEA RBX,[R14 + 0x228] function 14066eec0
+offset 228 14066f540 MOV RAX,qword ptr [R13 + 0x228] function 14066f4e0
+offset 228 14066f724 LEA R15,[RSI + 0x228] function 14066f4e0
+offset 228 140670eae ADD RCX,0x228 function 140670ea0
+offset 228 140676fd9 LEA RCX,[RDI + 0x228] function 140675af0
+offset 228 140677197 ADD RCX,0x228 function 140675af0
+offset 228 1406844b7 LEA RSI,[R15 + 0x228] function 1406830d0
+offset 228 140684545 LEA RCX,[R15 + 0x228] function 1406830d0
+offset 228 14068509b LEA RSI,[R15 + 0x228] function 1406830d0
+offset 228 14068514e LEA RCX,[R15 + 0x228] function 1406830d0
+offset 228 140685f98 LEA RCX,[R15 + 0x228] function 1406830d0
+offset 228 14068798c MOV RAX,qword ptr [RDI + 0x228] function 140687940
+offset 228 140687b43 MOV RAX,qword ptr [RDI + 0x228] function 140687af0
+offset 228 140687cad ADD RCX,0x228 function 140687ca0
+offset 228 140687d61 MOV RAX,qword ptr [RDI + 0x228] function 140687d10
+offset 228 1406881ff MOV RAX,qword ptr [RDI + 0x228] function 1406881d0
+offset 228 140688d16 MOV RCX,qword ptr [RDI + 0x228] function 140688cd0
+offset 228 140688eca MOV RAX,qword ptr [RDI + 0x228] function 140688e80
+offset 228 14068a260 LEA RCX,[R11 + 0x228] function 140689cc0
+offset 228 14068a41d MOV qword ptr [R9 + 0x228],R14 function 140689cc0
+offset 228 14068aa53 LEA RCX,[RBX + 0x228] function 14068a820
+offset 228 14068adb0 LEA RCX,[RBX + 0x228] function 14068ad40
+offset 228 14068b245 LEA RCX,[RBX + 0x228] function 14068b230
+offset 228 1406aa6b3 MOV qword ptr [R9 + 0x228],R11 function 1406aa560
+offset 228 1406b974c LEA RCX,[RSI + 0x228] function 1406b8ca0
+offset 228 1406b9884 LEA RCX,[RSI + 0x228] function 1406b8ca0
+offset 228 1406f70cc LEA RCX,[R15 + 0x228] function 1406f6f50
+offset 228 1406faf8c MOV qword ptr [R12 + 0x228],RDX function 1406f9600
+offset 228 140701852 LEA RCX,[R13 + 0x228] function 1407016d0
+offset 228 1407018e8 LEA RCX,[R13 + 0x228] function 1407016d0
+offset 228 140701fe6 LEA RCX,[R13 + 0x228] function 1407016d0
+offset 228 140708841 MOV dword ptr [R15 + 0x228],EBX function 1407085a0
+offset 228 1407094f8 LEA R13,[RCX + 0x228] function 1407094b0
+offset 228 140709f8e MOV dword ptr [RBX + 0x228],0xffffffff function 140709c20
+offset 228 14070a03b MOV dword ptr [RBX + 0x228],ECX function 140709c20
+offset 228 14070a481 MOV EAX,dword ptr [R14 + 0x228] function 14070a160
+offset 228 14070ba39 MOV RBX,qword ptr [R15 + 0x228] function 14070af20
+offset 228 14070d530 MOV R8,qword ptr [RSI + 0x228] function 14070cd40
+offset 228 14070e410 MOV RAX,qword ptr [RSI + 0x228] function 14070e370
+offset 228 14070ec80 LEA RCX,[RSI + 0x228] function 14070e370
+offset 228 14070f682 MOV dword ptr [R8 + 0x228],ECX function 14070f660
+offset 228 140710d9a MOV RCX,qword ptr [RDI + 0x228] function 140710d50
+offset 228 140710f4e MOV RAX,qword ptr [RDI + 0x228] function 140710f00
+offset 228 1407110f6 MOV RCX,qword ptr [RDI + 0x228] function 1407110b0
+offset 228 1407112aa MOV RCX,qword ptr [RDI + 0x228] function 140711260
+offset 228 140711464 MOV RAX,qword ptr [RDI + 0x228] function 140711410
+offset 228 140711617 MOV RAX,qword ptr [RDI + 0x228] function 1407115c0
+offset 228 1407117d4 MOV RAX,qword ptr [RDI + 0x228] function 140711780
+offset 228 14071197e MOV RAX,qword ptr [RDI + 0x228] function 140711930
+offset 228 140711b2e MOV RAX,qword ptr [RDI + 0x228] function 140711ae0
+offset 228 140711cec MOV RAX,qword ptr [RDI + 0x228] function 140711c90
+offset 228 140711e9e MOV RAX,qword ptr [RDI + 0x228] function 140711e50
+offset 228 14071246a MOV RCX,qword ptr [RDI + 0x228] function 140712420
+offset 228 14071261e MOV RAX,qword ptr [RDI + 0x228] function 1407125d0
+offset 228 1407127ce MOV RAX,qword ptr [RDI + 0x228] function 140712780
+offset 228 140712986 MOV RAX,qword ptr [RDI + 0x228] function 140712930
+offset 228 140712afd ADD RCX,0x228 function 140712af0
+offset 228 140712bc2 MOV RAX,qword ptr [RDI + 0x228] function 140712b60
+offset 228 140712d7c MOV RAX,qword ptr [RDI + 0x228] function 140712d20
+offset 228 140712f3c MOV RAX,qword ptr [RDI + 0x228] function 140712ee0
+offset 228 1407130f2 MOV RAX,qword ptr [RDI + 0x228] function 1407130a0
+offset 228 1407132a6 MOV RAX,qword ptr [RDI + 0x228] function 140713250
+offset 228 14071341d ADD RCX,0x228 function 140713410
+offset 228 1407137ef MOV RAX,qword ptr [RDI + 0x228] function 140713790
+offset 228 1407139ab MOV RAX,qword ptr [RDI + 0x228] function 140713950
+offset 228 140713b62 MOV RAX,qword ptr [RDI + 0x228] function 140713b10
+offset 228 140713d14 MOV RAX,qword ptr [RDI + 0x228] function 140713cc0
+offset 228 1407372d5 MOVUPS XMM0,xmmword ptr [RBX + 0x228] function 1407371d0
+offset 228 1407372dc MOVUPS xmmword ptr [RDI + 0x228],XMM0 function 1407371d0
+offset 228 14073b2b8 MOV RBX,qword ptr [RDI + 0x228] function 14073b1f0
+offset 228 14073f765 ADD RCX,0x228 function 14073f520
+offset 228 14073f88a LEA RCX,[RDI + 0x228] function 14073f800
+offset 228 14073f942 ADD RCX,0x228 function 14073f930
+offset 228 14073fa15 MOV RAX,qword ptr [RSI + 0x228] function 14073f9b0
+offset 228 14073fbd2 ADD RCX,0x228 function 14073fbc0
+offset 228 14073fc5d ADD RCX,0x228 function 14073fc40
+offset 228 14073fd44 ADD RCX,0x228 function 14073fd30
+offset 228 14073fe04 ADD RCX,0x228 function 14073fdf0
+offset 228 14073fe84 ADD RCX,0x228 function 14073fe80
+offset 228 14073feba ADD RCX,0x228 function 14073feb0
+offset 228 1408033d0 MOV RAX,qword ptr [R8 + 0x228] function 140803320
+offset 228 140803a9c LEA RCX,[R14 + 0x228] function 140803320
+offset 228 14080639f MOV RAX,qword ptr [RDI + 0x228] function 140806370
+offset 228 140806cae MOV RAX,qword ptr [RDI + 0x228] function 140806c60
+offset 228 140806e5e MOV RAX,qword ptr [RDI + 0x228] function 140806e10
+offset 228 14080701f MOV RAX,qword ptr [RDI + 0x228] function 140806fc0
+offset 228 1408071ca MOV RCX,qword ptr [RDI + 0x228] function 140807180
+offset 228 14080733d ADD RCX,0x228 function 140807330
+offset 228 1408073f0 MOV RAX,qword ptr [RDI + 0x228] function 1408073a0
+offset 228 140822192 MOV dword ptr [RBX + 0x228],R9D function 140822070
+offset 228 1408227a0 INC dword ptr [RBX + 0x228] function 140822070
+offset 228 140826126 MOV qword ptr [RDI + 0x228],RAX function 140826100
+offset 228 14082ff22 MOV RAX,qword ptr [RDX + RAX*0x1 + 0x228] function 14082fe70
+offset 228 14083004b MOV qword ptr [RSI + 0x228],RAX function 14082fe70
+offset 228 140837cf0 LEA RBX,[R14 + 0x228] function 1408373a0
+offset 228 14083895b MOV RCX,qword ptr [RDI + 0x228] function 1408384c0
+offset 228 14083896d MOV qword ptr [RDI + 0x228],R15 function 1408384c0
+offset 228 1408483bf LEA R8,[RDI + 0x228] function 1408482c0
+offset 228 140848405 MOV qword ptr [RAX + RDI*0x1 + 0x228],RSI function 1408482c0
+offset 228 14084ed3e MOV qword ptr [RBX + 0x228],R13 function 14084eb80
+offset 228 1408566b2 LEA RAX,[RBX + 0x228] function 1408565f0
+offset 228 140856892 MOV RAX,qword ptr [RCX + 0x228] function 140856840
+offset 228 140859b99 MOV qword ptr [RBX + 0x228],R12 function 140859a50
+offset 228 140865870 CALL qword ptr [RAX + 0x228] function 140865840
+offset 228 14086cc0d CALL qword ptr [RAX + 0x228] function 14086c470
+offset 228 140871dc8 MOV qword ptr [RBX + 0x228],RDI function 140871c20
+offset 228 1408a3dc0 MOV qword ptr [RAX + 0x228],RDI function 1408a3bc0
+offset 228 1408a40d0 MOV qword ptr [RAX + 0x228],RDI function 1408a3ed0
+offset 228 1408a4fb5 MOV RAX,qword ptr [RCX + 0x228] function 1408a4b40
+offset 228 1408a5577 MOV RAX,qword ptr [RCX + 0x228] function 1408a5120
+offset 228 1408d69a9 MOV qword ptr [RBX + 0x228],RAX function 1408d6830
+offset 228 1408eb444 MOV dword ptr [RDX + 0x228],0x0 function 1408eb430
+offset 228 1408ee214 CMP qword ptr [RCX + 0x228],0x0 function 1408ee160
+offset 228 1408ee229 MOV RAX,qword ptr [RBX + 0x228] function 1408ee160
+offset 228 1408ff4ca ADD R9,0x228 function 1408ff3f0
+offset 228 1408ffb1c MOV EAX,0x228 function 1408ffb10
+symbol EXTERNAL:000001b6 API-MS-WIN-CRT-RUNTIME-L1-1-0.DLL::_get_wide_winmain_command_line
+symbol 140985108 API-MS-WIN-CRT-RUNTIME-L1-1-0.DLL::_get_wide_winmain_command_line
+symbol 1409abf68 PTR__get_wide_winmain_command_line_1409abf68
+symbol 1409b9600 s_Quote_command_returned_error_1409b9600
+symbol 1409b9708 s_FTP:_command_PORT_failed_1409b9708
+symbol 1409b9728 s_FTP:_command_REST_failed_1409b9728
+symbol 140a368e0 PTR_s_vkCommand_140a368e0
+symbol 140a59fe8 s_expected_MoveTo_command_(spec_4._140a59fe8
+symbol 140a5a010 s_expected_LineTo_command_(spec_4._140a5a010
+symbol 140a5a038 s_MoveTo_command_count_is_not_1_(s_140a5a038
+symbol 140a5a0a0 s_MoveTo_command_count_is_zero_(sp_140a5a0a0
+symbol 140a5a0d0 s_expected_ClosePath_command_(spec_140a5a0d0
+symbol 140a5a100 s_expected_LineTo_command_(spec_4._140a5a100
+symbol 140a5a128 s_MoveTo_command_count_is_not_1_(s_140a5a128
+symbol 140a5a158 s_LineTo_command_count_is_zero_(sp_140a5a158
+symbol 140a5a1c8 s_ClosePath_command_count_is_not_1_140a5a1c8
+symbol 140a5a1f0 s_expected_command_140a5a1f0
+symbol 140a5fba0 u_\shell\open\command_140a5fba0
+symbol 140a61168 s_misc::TMCommand_140a61168
+symbol 140a6cd80 nimby::model::cmd::misc::TMCommand::vftable_meta_ptr
+symbol 140a6cd88 nimby::model::cmd::misc::TMCommand::vftable
+symbol 140aa69e8 s_vkCommand_140aa69e8
+symbol 140aa70f0 s_vkAllocateCommandBuffers_140aa70f0
+symbol 140aa7110 s_vkFreeCommandBuffers_140aa7110
+symbol 140aa7128 s_vkDestroyCommandPool_140aa7128
+symbol 140aa7140 s_vkResetCommandPool_140aa7140
+symbol 140aa7168 s_vkCreateCommandPool_140aa7168
+symbol 140aa75c0 s_vkBeginCommandBuffer_140aa75c0
+symbol 140aa75d8 s_vkEndCommandBuffer_140aa75d8
+symbol 140ab6e38 nimby::model::cmd::train::TrainCommand::RTTI_Base_Class_Descriptor_at_(0,-1,0,64)
+symbol 140ab6e60 nimby::model::cmd::line::LineCommand::RTTI_Class_Hierarchy_Descriptor
+symbol 140ab7198 nimby::model::cmd::sched::SchedCommand::RTTI_Base_Class_Descriptor_at_(0,-1,0,64)
+symbol 140ab7338 nimby::model::cmd::Command::RTTI_Base_Class_Array
+symbol 140ab7548 nimby::model::cmd::sched::SchedCommand::RTTI_Base_Class_Array
+symbol 140ab75f8 nimby::model::cmd::misc::TMCommand::RTTI_Base_Class_Array
+symbol 140ab7670 nimby::model::cmd::Command::RTTI_Base_Class_Descriptor_at_(0,-1,0,64)
+symbol 140ab76e8 nimby::model::cmd::line::LineCommand::RTTI_Base_Class_Array
+symbol 140ab7ac8 nimby::model::cmd::train::TrainCommand::RTTI_Base_Class_Array
+symbol 140ab8758 nimby::model::cmd::sched::SchedCommand::RTTI_Class_Hierarchy_Descriptor
+symbol 140ab8770 nimby::model::cmd::tn::TNCommand::RTTI_Base_Class_Descriptor_at_(0,-1,0,64)
+symbol 140ab8b50 nimby::model::cmd::tn::TNCommand::RTTI_Class_Hierarchy_Descriptor
+symbol 140ab8d48 nimby::model::cmd::Command::RTTI_Class_Hierarchy_Descriptor
+symbol 140ab8f70 nimby::model::cmd::misc::TMCommand::RTTI_Complete_Object_Locator
+symbol 140ab91c8 nimby::model::cmd::misc::TMCommand::RTTI_Class_Hierarchy_Descriptor
+symbol 140ab9298 nimby::model::cmd::line::LineCommand::RTTI_Base_Class_Descriptor_at_(0,-1,0,64)
+symbol 140ab9438 nimby::model::cmd::station::StationCommand::RTTI_Class_Hierarchy_Descriptor
+symbol 140ab94b0 nimby::model::cmd::station::StationCommand::RTTI_Base_Class_Array
+symbol 140ab9600 nimby::model::cmd::station::StationCommand::RTTI_Base_Class_Descriptor_at_(0,-1,0,64)
+symbol 140ab9878 nimby::model::cmd::train::TrainCommand::RTTI_Class_Hierarchy_Descriptor
+symbol 140aba068 nimby::model::cmd::misc::TMCommand::RTTI_Base_Class_Descriptor_at_(0,-1,0,64)
+symbol 140aba3d8 nimby::model::cmd::tn::TNCommand::RTTI_Base_Class_Array
+symbol 140b6e718 nimby::model::cmd::station::StationCommand::RTTI_Type_Descriptor
+symbol 140b6e810 nimby::model::cmd::line::LineCommand::RTTI_Type_Descriptor
+symbol 140b6ecb8 nimby::model::cmd::sched::SchedCommand::RTTI_Type_Descriptor
+symbol 140b6f4b8 nimby::model::cmd::train::TrainCommand::RTTI_Type_Descriptor
+symbol 140b6f688 nimby::model::cmd::tn::TNCommand::RTTI_Type_Descriptor
+symbol 140b6fc10 nimby::model::cmd::misc::TMCommand::RTTI_Type_Descriptor
+symbol 140b6fdd0 nimby::model::cmd::Command::RTTI_Type_Descriptor
+symbol 140a60a98 s_tn::Undo_140a60a98
+symbol 140a6c990 nimby::model::cmd::tn::Undo::vftable_meta_ptr
+symbol 140a6c998 nimby::model::cmd::tn::Undo::vftable
+symbol 140aa0c80 s_Ctrl-Z_to_undo_the_last_edit_140aa0c80
+symbol 140aa0cd8 s_editor_tip_undo_140aa0cd8
+symbol 140ab6fb0 nimby::model::cmd::tn::Undo::RTTI_Base_Class_Array
+symbol 140ab8188 nimby::model::cmd::tn::Undo::RTTI_Class_Hierarchy_Descriptor
+symbol 140ab8f98 nimby::model::cmd::tn::Undo::RTTI_Base_Class_Descriptor_at_(0,-1,0,64)
+symbol 140ab9740 nimby::model::cmd::tn::Undo::RTTI_Complete_Object_Locator
+symbol 140b6e6b0 nimby::model::cmd::tn::Undo::RTTI_Type_Descriptor
+140a6c998 <- 1407b580c DATA caller 1407b57c0
+140a6c998 <- 1407b5813 DATA caller 1407b57c0
+140a6c998 <- 1402f3a76 DATA caller 1402f3a40
+140a6c998 <- 1402f3a85 DATA caller 1402f3a40
+140aa0c80 <- 1407af920 DATA caller 1407af120
+140aa0c80 <- 1407afcfe DATA caller 1407af120
+140aa0cd8 <- 1407af927 DATA caller 1407af120
+140aa0cd8 <- 1407afd05 DATA caller 1407af120
+offset d70 140761652 LEA RAX,[RSI + 0xd70] function 140761150
+offset d70 140786d1a LEA RCX,[RSI + 0xd70] function 140786320
+offset d70 1407affc0 LEA RCX,[R14 + 0xd70] function 1407afe40
+offset d70 1407affd9 LEA RCX,[R14 + 0xd70] function 1407afe40
+offset d70 1407b018b LEA RCX,[R14 + 0xd70] function 1407afe40
+offset d70 1407c2267 LEA R14,[RBX + 0xd70] function 1407c1dc0
+offset 238 14062156b MOV R8,qword ptr [R13 + 0x238] function 1406214b0
+offset 238 140621572 MOV RAX,qword ptr [RCX + 0x238] function 1406214b0
+offset 238 140621579 MOV RCX,qword ptr [RDX + 0x238] function 1406214b0
+offset 238 140621580 MOV RDX,qword ptr [R9 + 0x238] function 1406214b0
+offset 238 140621ef5 CMP DIL,byte ptr [RBX + 0x238] function 1406214b0
+offset 238 140621f27 MOV byte ptr [RBX + 0x238],DIL function 1406214b0
+offset 238 140623983 MOVUPS XMM0,xmmword ptr [RDI + 0x238] function 1406236d0
+offset 238 140627054 MOV word ptr [RBX + 0x238],BP function 140626f50
+offset 238 14063297a MOVUPS XMM1,xmmword ptr [RDX + 0x238] function 1406328b0
+offset 238 1406394ec MOVUPS XMM0,xmmword ptr [RDX + 0x238] function 140639480
+offset 238 14063954f MOVUPS XMM1,xmmword ptr [RDX + 0x238] function 140639480
+offset 238 14065533f MOVZX EAX,byte ptr [R12 + 0x238] function 140655030
+offset 238 140655421 CMP byte ptr [R12 + 0x238],0x0 function 140655030
+offset 238 140655592 CMP byte ptr [R12 + 0x238],0x0 function 140655030
+offset 238 140656f66 MOV byte ptr [RBX + 0x238],AL function 140656e30
+offset 238 1406591c8 MOV byte ptr [RCX + 0x238],R8B function 140658fd0
+offset 238 14065a247 CMP byte ptr [RSI + 0x238],0x9 function 1406599e0
+offset 238 14065a25c MOV byte ptr [RSI + 0x238],0x9 function 1406599e0
+offset 238 14065b4e1 CMP byte ptr [R12 + 0x238],0xa function 14065a970
+offset 238 14065b4f9 MOV byte ptr [R12 + 0x238],0xa function 14065a970
+offset 238 14065c271 CMP byte ptr [RDI + 0x238],0x1 function 14065bbd0
+offset 238 14065c286 MOV byte ptr [RDI + 0x238],0x1 function 14065bbd0
+offset 238 14065c4db CMP byte ptr [R15 + 0x238],0x2 function 14065bbd0
+offset 238 14065c4f1 MOV byte ptr [R15 + 0x238],0x2 function 14065bbd0
+offset 238 14065c836 CMP byte ptr [RDI + 0x238],R15B function 14065c6a0
+offset 238 14065c84b MOV byte ptr [RDI + 0x238],R15B function 14065c6a0
+offset 238 14065d420 CMP byte ptr [RDI + 0x238],0x2 function 14065c6a0
+offset 238 1406879c2 SUB RAX,qword ptr [RDI + 0x238] function 140687940
+offset 238 1406879fc MOV RCX,qword ptr [RDI + 0x238] function 140687940
+offset 238 140687a34 MOV RBX,qword ptr [RDI + 0x238] function 140687940
+offset 238 140687a5b MOV RCX,qword ptr [RDI + 0x238] function 140687940
+offset 238 140687a6c MOV qword ptr [RDI + 0x238],R15 function 140687940
+offset 238 140687b79 SUB RAX,qword ptr [RDI + 0x238] function 140687af0
+offset 238 140687bb3 MOV RAX,qword ptr [RDI + 0x238] function 140687af0
+offset 238 140687be6 MOV RBX,qword ptr [RDI + 0x238] function 140687af0
+offset 238 140687c0d MOV RCX,qword ptr [RDI + 0x238] function 140687af0
+offset 238 140687c1e MOV qword ptr [RDI + 0x238],R15 function 140687af0
+offset 238 140687d97 SUB RAX,qword ptr [RDI + 0x238] function 140687d10
+offset 238 140687dd1 MOV RAX,qword ptr [RDI + 0x238] function 140687d10
+offset 238 140687e04 MOV RBX,qword ptr [RDI + 0x238] function 140687d10
+offset 238 140687e2b MOV RCX,qword ptr [RDI + 0x238] function 140687d10
+offset 238 140687e3c MOV qword ptr [RDI + 0x238],R15 function 140687d10
+offset 238 140688235 SUB RAX,qword ptr [RDI + 0x238] function 1406881d0
+offset 238 140688271 MOV RAX,qword ptr [RDI + 0x238] function 1406881d0
+offset 238 1406882a4 MOV RBX,qword ptr [RDI + 0x238] function 1406881d0
+offset 238 1406882cb MOV RCX,qword ptr [RDI + 0x238] function 1406881d0
+offset 238 1406882dc MOV qword ptr [RDI + 0x238],R15 function 1406881d0
+offset 238 140688d4c SUB RAX,qword ptr [RDI + 0x238] function 140688cd0
+offset 238 140688d86 MOV RCX,qword ptr [RDI + 0x238] function 140688cd0
+offset 238 140688dc4 MOV RBX,qword ptr [RDI + 0x238] function 140688cd0
+offset 238 140688deb MOV RCX,qword ptr [RDI + 0x238] function 140688cd0
+offset 238 140688dfc MOV qword ptr [RDI + 0x238],R15 function 140688cd0
+offset 238 140688f00 SUB RAX,qword ptr [RDI + 0x238] function 140688e80
+offset 238 140688f3a MOV RCX,qword ptr [RDI + 0x238] function 140688e80
+offset 238 140688f74 MOV RBX,qword ptr [RDI + 0x238] function 140688e80
+offset 238 140688f9b MOV RCX,qword ptr [RDI + 0x238] function 140688e80
+offset 238 140688fac MOV qword ptr [RDI + 0x238],R15 function 140688e80
+offset 238 14068a42b MOV word ptr [R9 + 0x238],0x0 function 140689cc0
+offset 238 1406aa6c5 MOV dword ptr [R9 + 0x238],R11D function 1406aa560
+offset 238 1406b2a0b MOV dword ptr [RDI + 0x238],ECX function 1406b27e0
+offset 238 1406c9af8 MOVSS XMM1,dword ptr [R15 + 0x238] function 1406c98a0
+offset 238 1406fb551 MOVUPS xmmword ptr [R12 + 0x238],XMM0 function 1406fb1e0
+offset 238 1406fbea2 MOV R8,qword ptr [RSI + 0x238] function 1406fbd70
+offset 238 1407098ff CMP dword ptr [RDI + 0x238],R14D function 1407094b0
+offset 238 140709b58 CMP R12D,dword ptr [RDI + 0x238] function 1407094b0
+offset 238 140709cab MOV EAX,dword ptr [RBX + 0x238] function 140709c20
+offset 238 14070f6b6 MOV dword ptr [R8 + 0x238],0x7 function 14070f660
+offset 238 140710dd0 SUB RAX,qword ptr [RDI + 0x238] function 140710d50
+offset 238 140710e0a MOV RCX,qword ptr [RDI + 0x238] function 140710d50
+offset 238 140710e44 MOV RBX,qword ptr [RDI + 0x238] function 140710d50
+offset 238 140710e6b MOV RCX,qword ptr [RDI + 0x238] function 140710d50
+offset 238 140710e7c MOV qword ptr [RDI + 0x238],R15 function 140710d50
+offset 238 140710f84 SUB RAX,qword ptr [RDI + 0x238] function 140710f00
+offset 238 140710fbe MOV RCX,qword ptr [RDI + 0x238] function 140710f00
+offset 238 140710ff4 MOV RBX,qword ptr [RDI + 0x238] function 140710f00
+offset 238 14071101b MOV RCX,qword ptr [RDI + 0x238] function 140710f00
+offset 238 14071102c MOV qword ptr [RDI + 0x238],R15 function 140710f00
+offset 238 14071112c SUB RAX,qword ptr [RDI + 0x238] function 1407110b0
+offset 238 140711166 MOV RCX,qword ptr [RDI + 0x238] function 1407110b0
+offset 238 1407111a4 MOV RBX,qword ptr [RDI + 0x238] function 1407110b0
+offset 238 1407111cb MOV RCX,qword ptr [RDI + 0x238] function 1407110b0
+offset 238 1407111dc MOV qword ptr [RDI + 0x238],R15 function 1407110b0
+offset 238 1407112e0 SUB RAX,qword ptr [RDI + 0x238] function 140711260
+offset 238 14071131a MOV RCX,qword ptr [RDI + 0x238] function 140711260
+offset 238 140711354 MOV RBX,qword ptr [RDI + 0x238] function 140711260
+offset 238 14071137b MOV RCX,qword ptr [RDI + 0x238] function 140711260
+offset 238 14071138c MOV qword ptr [RDI + 0x238],R15 function 140711260
+offset 238 14071149a SUB RAX,qword ptr [RDI + 0x238] function 140711410
+offset 238 1407114d4 MOV RAX,qword ptr [RDI + 0x238] function 140711410
+offset 238 140711507 MOV RBX,qword ptr [RDI + 0x238] function 140711410
+offset 238 14071152e MOV RCX,qword ptr [RDI + 0x238] function 140711410
+offset 238 14071153f MOV qword ptr [RDI + 0x238],R15 function 140711410
+offset 238 14071164d SUB RAX,qword ptr [RDI + 0x238] function 1407115c0
+offset 238 140711687 MOV RAX,qword ptr [RDI + 0x238] function 1407115c0
+offset 238 1407116c4 MOV RBX,qword ptr [RDI + 0x238] function 1407115c0
+offset 238 1407116eb MOV RCX,qword ptr [RDI + 0x238] function 1407115c0
+offset 238 1407116fc MOV qword ptr [RDI + 0x238],R15 function 1407115c0
+offset 238 14071180a SUB RAX,qword ptr [RDI + 0x238] function 140711780
+offset 238 140711844 MOV RCX,qword ptr [RDI + 0x238] function 140711780
+offset 238 140711877 MOV RBX,qword ptr [RDI + 0x238] function 140711780
+offset 238 14071189e MOV RCX,qword ptr [RDI + 0x238] function 140711780
+offset 238 1407118af MOV qword ptr [RDI + 0x238],R15 function 140711780
+offset 238 1407119b4 SUB RAX,qword ptr [RDI + 0x238] function 140711930
+offset 238 1407119ee MOV RAX,qword ptr [RDI + 0x238] function 140711930
+offset 238 140711a24 MOV RBX,qword ptr [RDI + 0x238] function 140711930
+offset 238 140711a4b MOV RCX,qword ptr [RDI + 0x238] function 140711930
+offset 238 140711a5c MOV qword ptr [RDI + 0x238],R15 function 140711930
+offset 238 140711b64 SUB RAX,qword ptr [RDI + 0x238] function 140711ae0
+offset 238 140711b9e MOV RAX,qword ptr [RDI + 0x238] function 140711ae0
+offset 238 140711bd4 MOV RBX,qword ptr [RDI + 0x238] function 140711ae0
+offset 238 140711bfb MOV RCX,qword ptr [RDI + 0x238] function 140711ae0
+offset 238 140711c0c MOV qword ptr [RDI + 0x238],R15 function 140711ae0
+offset 238 140711d22 SUB RAX,qword ptr [RDI + 0x238] function 140711c90
+offset 238 140711d5c MOV RCX,qword ptr [RDI + 0x238] function 140711c90
+offset 238 140711d94 MOV RBX,qword ptr [RDI + 0x238] function 140711c90
+offset 238 140711dbb MOV RCX,qword ptr [RDI + 0x238] function 140711c90
+offset 238 140711dcc MOV qword ptr [RDI + 0x238],R15 function 140711c90
+offset 238 140711ed4 SUB RAX,qword ptr [RDI + 0x238] function 140711e50
+offset 238 140711f0e MOV RCX,qword ptr [RDI + 0x238] function 140711e50
+offset 238 140711f44 MOV RBX,qword ptr [RDI + 0x238] function 140711e50
+offset 238 140711f6b MOV RCX,qword ptr [RDI + 0x238] function 140711e50
+offset 238 140711f7c MOV qword ptr [RDI + 0x238],R15 function 140711e50
+offset 238 1407124a0 SUB RAX,qword ptr [RDI + 0x238] function 140712420
+offset 238 1407124da MOV RCX,qword ptr [RDI + 0x238] function 140712420
+offset 238 140712514 MOV RBX,qword ptr [RDI + 0x238] function 140712420
+offset 238 14071253b MOV RCX,qword ptr [RDI + 0x238] function 140712420
+offset 238 14071254c MOV qword ptr [RDI + 0x238],R15 function 140712420
+offset 238 140712654 SUB RAX,qword ptr [RDI + 0x238] function 1407125d0
+offset 238 14071268e MOV RCX,qword ptr [RDI + 0x238] function 1407125d0
+offset 238 1407126c4 MOV RBX,qword ptr [RDI + 0x238] function 1407125d0
+offset 238 1407126eb MOV RCX,qword ptr [RDI + 0x238] function 1407125d0
+offset 238 1407126fc MOV qword ptr [RDI + 0x238],R15 function 1407125d0
+offset 238 140712804 SUB RAX,qword ptr [RDI + 0x238] function 140712780
+offset 238 14071283e MOV RCX,qword ptr [RDI + 0x238] function 140712780
+offset 238 140712874 MOV RBX,qword ptr [RDI + 0x238] function 140712780
+offset 238 14071289b MOV RCX,qword ptr [RDI + 0x238] function 140712780
+offset 238 1407128ac MOV qword ptr [RDI + 0x238],R15 function 140712780
+offset 238 1407129bc SUB RAX,qword ptr [RDI + 0x238] function 140712930
+offset 238 1407129f6 MOV RCX,qword ptr [RDI + 0x238] function 140712930
+offset 238 140712a34 MOV RBX,qword ptr [RDI + 0x238] function 140712930
+offset 238 140712a5b MOV RCX,qword ptr [RDI + 0x238] function 140712930
+offset 238 140712a6c MOV qword ptr [RDI + 0x238],R15 function 140712930
+offset 238 140712bf8 SUB RAX,qword ptr [RDI + 0x238] function 140712b60
+offset 238 140712c32 MOV RCX,qword ptr [RDI + 0x238] function 140712b60
+offset 238 140712c65 MOV RBX,qword ptr [RDI + 0x238] function 140712b60
+offset 238 140712c8c MOV RCX,qword ptr [RDI + 0x238] function 140712b60
+offset 238 140712c9d MOV qword ptr [RDI + 0x238],R15 function 140712b60
+offset 238 140712db2 SUB RAX,qword ptr [RDI + 0x238] function 140712d20
+offset 238 140712dec MOV RAX,qword ptr [RDI + 0x238] function 140712d20
+offset 238 140712e24 MOV RBX,qword ptr [RDI + 0x238] function 140712d20
+offset 238 140712e4b MOV RCX,qword ptr [RDI + 0x238] function 140712d20
+offset 238 140712e5c MOV qword ptr [RDI + 0x238],R15 function 140712d20
+offset 238 140712f72 SUB RAX,qword ptr [RDI + 0x238] function 140712ee0
+offset 238 140712fac MOV RAX,qword ptr [RDI + 0x238] function 140712ee0
+offset 238 140712fe4 MOV RBX,qword ptr [RDI + 0x238] function 140712ee0
+offset 238 14071300b MOV RCX,qword ptr [RDI + 0x238] function 140712ee0
+offset 238 14071301c MOV qword ptr [RDI + 0x238],R15 function 140712ee0
+offset 238 140713128 SUB RAX,qword ptr [RDI + 0x238] function 1407130a0
+offset 238 140713162 MOV RCX,qword ptr [RDI + 0x238] function 1407130a0
+offset 238 140713195 MOV RBX,qword ptr [RDI + 0x238] function 1407130a0
+offset 238 1407131bc MOV RCX,qword ptr [RDI + 0x238] function 1407130a0
+offset 238 1407131cd MOV qword ptr [RDI + 0x238],R15 function 1407130a0
+offset 238 1407132dc SUB RAX,qword ptr [RDI + 0x238] function 140713250
+offset 238 140713316 MOV RCX,qword ptr [RDI + 0x238] function 140713250
+offset 238 140713354 MOV RBX,qword ptr [RDI + 0x238] function 140713250
+offset 238 14071337b MOV RCX,qword ptr [RDI + 0x238] function 140713250
+offset 238 14071338c MOV qword ptr [RDI + 0x238],R15 function 140713250
+offset 238 140713825 SUB RAX,qword ptr [RDI + 0x238] function 140713790
+offset 238 14071385f MOV RAX,qword ptr [RDI + 0x238] function 140713790
+offset 238 140713894 MOV RBX,qword ptr [RDI + 0x238] function 140713790
+offset 238 1407138bb MOV RCX,qword ptr [RDI + 0x238] function 140713790
+offset 238 1407138cc MOV qword ptr [RDI + 0x238],R15 function 140713790
+offset 238 1407139e1 SUB RAX,qword ptr [RDI + 0x238] function 140713950
+offset 238 140713a1b MOV RAX,qword ptr [RDI + 0x238] function 140713950
+offset 238 140713a54 MOV RBX,qword ptr [RDI + 0x238] function 140713950
+offset 238 140713a7b MOV RCX,qword ptr [RDI + 0x238] function 140713950
+offset 238 140713a8c MOV qword ptr [RDI + 0x238],R15 function 140713950
+offset 238 140713b98 SUB RAX,qword ptr [RDI + 0x238] function 140713b10
+offset 238 140713bd2 MOV RCX,qword ptr [RDI + 0x238] function 140713b10
+offset 238 140713c05 MOV RBX,qword ptr [RDI + 0x238] function 140713b10
+offset 238 140713c2c MOV RCX,qword ptr [RDI + 0x238] function 140713b10
+offset 238 140713c3d MOV qword ptr [RDI + 0x238],R15 function 140713b10
+offset 238 140713d4a SUB RAX,qword ptr [RDI + 0x238] function 140713cc0
+offset 238 140713d84 MOV RAX,qword ptr [RDI + 0x238] function 140713cc0
+offset 238 140713db7 MOV RBX,qword ptr [RDI + 0x238] function 140713cc0
+offset 238 140713dde MOV RCX,qword ptr [RDI + 0x238] function 140713cc0
+offset 238 140713def MOV qword ptr [RDI + 0x238],R15 function 140713cc0
+offset 238 140728d22 LEA RCX,[RDI + 0x238] function 140728d00
+offset 238 14072aa16 MOV RAX,qword ptr [R9 + 0x238] function 14072a9e0
+offset 238 1407314ef MOV qword ptr [R9 + 0x238],R10 function 1407313c0
+offset 238 140736cbc LEA RDX,[RDI + 0x238] function 1407366b0
+offset 238 1407372e3 MOVUPS XMM1,xmmword ptr [RBX + 0x238] function 1407371d0
+offset 238 1407372ea MOVUPS xmmword ptr [RDI + 0x238],XMM1 function 1407371d0
+offset 238 14073fa4b SUB RAX,qword ptr [RSI + 0x238] function 14073f9b0
+offset 238 14073fa85 MOV RCX,qword ptr [RSI + 0x238] function 14073f9b0
+offset 238 14073fac4 MOV RBX,qword ptr [RSI + 0x238] function 14073f9b0
+offset 238 14073faeb MOV RCX,qword ptr [RSI + 0x238] function 14073f9b0
+offset 238 14073fafc MOV qword ptr [RSI + 0x238],R15 function 14073f9b0
+offset 238 14040c440 MOV qword ptr [RCX + 0x238],RDX function 14040c250
+offset 238 1404289ed LEA RCX,[RBX + 0x238] function 140428790
+offset 238 140437e76 MOVUPS xmmword ptr [RDI + 0x238],XMM0 function 140437d30
+offset 238 140437e8f MOV byte ptr [RDI + 0x238],SIL function 140437d30
+offset 238 14043a727 LEA RCX,[RSI + 0x238] function 14043a010
+offset 238 140471f4a LEA RCX,[RDI + 0x238] function 140471f30
+offset 238 14048fc0f MOV EAX,dword ptr [R14 + 0x238] function 14048fad0
+offset 238 14048fc1d MOV dword ptr [RSI + 0x238],EAX function 14048fad0
+offset 238 1404a9d31 MOV qword ptr [RBX + 0x238],RDI function 1404a9ca0
+offset 238 1404b38bf MOVSXD RAX,dword ptr [RDI + 0x238] function 1404b3760
+offset 238 1404b3b86 MOV dword ptr [RDI + 0x238],EAX function 1404b3a00
+offset 238 1404cdca6 MOV qword ptr [R10 + 0x238],R11 function 1404cd970
+offset 238 1404cdcc4 MOVUPS XMM1,xmmword ptr [R9 + 0x238] function 1404cd970
+offset 238 1404cdccc MOVUPS xmmword ptr [R10 + 0x238],XMM1 function 1404cd970
+offset 238 1404cdcdb MOV qword ptr [R9 + 0x238],R11 function 1404cd970
+offset 238 1404d0956 CMP RAX,qword ptr [RSI + 0x238] function 1404d04d0
+offset 238 1404d0a2e MOV qword ptr [RSI + 0x238],RAX function 1404d04d0
+offset 238 1404d6152 MOVSD XMM0,qword ptr [RBX + 0x238] function 1404d5ce0
+offset 238 1404d616d MOVSD qword ptr [RBX + 0x238],XMM1 function 1404d5ce0
+offset 238 1404d8f69 MOV qword ptr [RDI + 0x238],RAX function 1404d8e30
+offset 238 1404d8f70 MOV R8,qword ptr [RBX + 0x238] function 1404d8e30
+offset 238 1404d93d0 MOV qword ptr [RBX + 0x238],RAX function 1404d92a0
+offset 238 1404d93d7 MOV R8,qword ptr [RDI + 0x238] function 1404d92a0
+offset 238 1404dd234 MOV qword ptr [RSI + 0x238],RAX function 1404dcfd0
+offset 238 1404e2c6d ADD RCX,0x238 function 1404e2c60
+offset 238 1404f76b2 MOV EAX,dword ptr [R15 + 0x238] function 1404f7430
+offset 238 1404f76c0 MOV dword ptr [R14 + 0x238],EAX function 1404f7430
+offset 238 14050221e MOVSS XMM2,dword ptr [RCX + 0x238] function 1405021f0
+offset 238 14050552e MOVSS XMM6,dword ptr [RDI + 0x238] function 140505450
+offset 238 140506511 MOVSS XMM1,dword ptr [R13 + 0x238] function 140505fc0
+offset 238 1405071cf MOVSS XMM2,dword ptr [R14 + 0x238] function 140506ed0
+offset 238 1405077e8 COMISS XMM7,dword ptr [R14 + 0x238] function 140506ed0
+offset 238 140508210 MOVSS XMM1,dword ptr [RDI + 0x238] function 140507e00
+offset 238 140508464 MOVSS XMM1,dword ptr [RDI + 0x238] function 140507e00
+offset 238 14050872b MOVSS XMM2,dword ptr [RCX + 0x238] function 1405086f0
+offset 238 1405087c5 MOVSS XMM2,dword ptr [RCX + 0x238] function 140508760
+offset 238 140508825 MOVSS XMM0,dword ptr [RCX + 0x238] function 140508760
+offset 238 140508861 MOVSS XMM2,dword ptr [RCX + 0x238] function 140508760
+offset 238 140508ef8 LEA RAX,[RCX + 0x238] function 140508d50
+offset 238 140508f22 LEA RAX,[RDI + 0x238] function 140508d50
+offset 238 14050958e MOVSS XMM0,dword ptr [R9 + 0x238] function 1405094b0
+offset 238 14050a747 MOVSS XMM0,dword ptr [RDI + 0x238] function 14050a5a0
+offset 238 14050ad27 MOVSS XMM0,dword ptr [RBX + 0x238] function 14050abd0
+offset 238 14050b8e1 MOVSS XMM2,dword ptr [R8 + 0x238] function 14050b8a0
+offset 238 14050d8fe MOVSS XMM7,dword ptr [RBX + 0x238] function 14050d300
+offset 238 14050dc50 MOVSS XMM2,dword ptr [RBX + 0x238] function 14050db90
+offset 238 140511c2d LEA RAX,[RDI + 0x238] function 1405119a0
+offset 238 140511c59 LEA RAX,[RDI + 0x238] function 1405119a0
+offset 238 140511da9 MOVSS XMM0,dword ptr [RDI + 0x238] function 1405119a0
+offset 238 140513db8 MOVSS XMM2,dword ptr [RDX + 0x238] function 140513d00
+offset 238 140515554 LEA R14,[RDI + 0x238] function 140515490
+offset 238 14051558b LEA R14,[RDI + 0x238] function 140515490
+offset 238 1405156e6 MOVSS XMM2,dword ptr [RDI + 0x238] function 140515490
+offset 238 140516f67 ADDSS XMM1,dword ptr [RCX + 0x238] function 140516ec0
+offset 238 14055fc8c MOVSS XMM0,dword ptr [RAX + 0x238] function 14055fbd0
+offset 238 140582b05 SUB RAX,qword ptr [RDI + 0x238] function 140582aa0
+offset 238 140582b41 MOV RAX,qword ptr [RDI + 0x238] function 140582aa0
+offset 238 140582b74 MOV RBX,qword ptr [RDI + 0x238] function 140582aa0
+offset 238 140582b9b MOV RCX,qword ptr [RDI + 0x238] function 140582aa0
+offset 238 140582bac MOV qword ptr [RDI + 0x238],R15 function 140582aa0
+offset 238 1405857e2 SUB RAX,qword ptr [RDI + 0x238] function 140585750
+offset 238 14058581c MOV RAX,qword ptr [RDI + 0x238] function 140585750
+offset 238 140585854 MOV RBX,qword ptr [RDI + 0x238] function 140585750
+offset 238 14058587b MOV RCX,qword ptr [RDI + 0x238] function 140585750
+offset 238 14058588c MOV qword ptr [RDI + 0x238],R15 function 140585750
+offset 238 1405859a2 SUB RAX,qword ptr [RDI + 0x238] function 140585910
+offset 238 1405859dc MOV RAX,qword ptr [RDI + 0x238] function 140585910
+offset 238 140585a14 MOV RBX,qword ptr [RDI + 0x238] function 140585910
+offset 238 140585a3b MOV RCX,qword ptr [RDI + 0x238] function 140585910
+offset 238 140585a4c MOV qword ptr [RDI + 0x238],R15 function 140585910
+offset 238 140585c56 SUB RAX,qword ptr [RDI + 0x238] function 140585bd0
+offset 238 140585c90 MOV RAX,qword ptr [RDI + 0x238] function 140585bd0
+offset 238 140585cc4 MOV RBX,qword ptr [RDI + 0x238] function 140585bd0
+offset 238 140585ceb MOV RCX,qword ptr [RDI + 0x238] function 140585bd0
+offset 238 140585cfc MOV qword ptr [RDI + 0x238],R15 function 140585bd0
+offset 238 140585e06 SUB RAX,qword ptr [RDI + 0x238] function 140585d80
+offset 238 140585e40 MOV RAX,qword ptr [RDI + 0x238] function 140585d80
+offset 238 140585e74 MOV RBX,qword ptr [RDI + 0x238] function 140585d80
+offset 238 140585e9b MOV RCX,qword ptr [RDI + 0x238] function 140585d80
+offset 238 140585eac MOV qword ptr [RDI + 0x238],R15 function 140585d80
+offset 238 140585fbd SUB RAX,qword ptr [RDI + 0x238] function 140585f30
+offset 238 140585ff7 MOV RAX,qword ptr [RDI + 0x238] function 140585f30
+offset 238 140586034 MOV RBX,qword ptr [RDI + 0x238] function 140585f30
+offset 238 14058605b MOV RCX,qword ptr [RDI + 0x238] function 140585f30
+offset 238 14058606c MOV qword ptr [RDI + 0x238],R15 function 140585f30
+offset 238 1405bb8a5 SUB RAX,qword ptr [RDI + 0x238] function 1405bb840
+offset 238 1405bb8e1 MOV RAX,qword ptr [RDI + 0x238] function 1405bb840
+offset 238 1405bb914 MOV RBX,qword ptr [RDI + 0x238] function 1405bb840
+offset 238 1405bb93b MOV RCX,qword ptr [RDI + 0x238] function 1405bb840
+offset 238 1405bb94c MOV qword ptr [RDI + 0x238],R15 function 1405bb840
+offset 238 1405bbbbc SUB RAX,qword ptr [RDI + 0x238] function 1405bbb40
+offset 238 1405bbbf6 MOV RCX,qword ptr [RDI + 0x238] function 1405bbb40
+offset 238 1405bbc34 MOV RBX,qword ptr [RDI + 0x238] function 1405bbb40
+offset 238 1405bbc5b MOV RCX,qword ptr [RDI + 0x238] function 1405bbb40
+offset 238 1405bbc6c MOV qword ptr [RDI + 0x238],R15 function 1405bbb40
+offset 238 1405bbd6c SUB RAX,qword ptr [RDI + 0x238] function 1405bbcf0
+offset 238 1405bbda6 MOV RCX,qword ptr [RDI + 0x238] function 1405bbcf0
+offset 238 1405bbde4 MOV RBX,qword ptr [RDI + 0x238] function 1405bbcf0
+offset 238 1405bbe0b MOV RCX,qword ptr [RDI + 0x238] function 1405bbcf0
+offset 238 1405bbe1c MOV qword ptr [RDI + 0x238],R15 function 1405bbcf0
+offset 238 1405bbf20 SUB RAX,qword ptr [RDI + 0x238] function 1405bbea0
+offset 238 1405bbf5a MOV RAX,qword ptr [RDI + 0x238] function 1405bbea0
+offset 238 1405bbf94 MOV RBX,qword ptr [RDI + 0x238] function 1405bbea0
+offset 238 1405bbfbb MOV RCX,qword ptr [RDI + 0x238] function 1405bbea0
+offset 238 1405bbfcc MOV qword ptr [RDI + 0x238],R15 function 1405bbea0
+offset 238 1405bc0d0 SUB RAX,qword ptr [RDI + 0x238] function 1405bc050
+offset 238 1405bc10a MOV RAX,qword ptr [RDI + 0x238] function 1405bc050
+offset 238 1405bc144 MOV RBX,qword ptr [RDI + 0x238] function 1405bc050
+offset 238 1405bc16b MOV RCX,qword ptr [RDI + 0x238] function 1405bc050
+offset 238 1405bc17c MOV qword ptr [RDI + 0x238],R15 function 1405bc050
+offset 238 1405bd764 SUB RAX,qword ptr [RDI + 0x238] function 1405bd6e0
+offset 238 1405bd79e MOV RAX,qword ptr [RDI + 0x238] function 1405bd6e0
+offset 238 1405bd7d4 MOV RBX,qword ptr [RDI + 0x238] function 1405bd6e0
+offset 238 1405bd7fb MOV RCX,qword ptr [RDI + 0x238] function 1405bd6e0
+offset 238 1405bd80c MOV qword ptr [RDI + 0x238],R15 function 1405bd6e0
+offset 238 1405bdb35 SUB RAX,qword ptr [RDI + 0x238] function 1405bdad0
+offset 238 1405bdb71 MOV RAX,qword ptr [RDI + 0x238] function 1405bdad0
+offset 238 1405bdba4 MOV RBX,qword ptr [RDI + 0x238] function 1405bdad0
+offset 238 1405bdbcb MOV RCX,qword ptr [RDI + 0x238] function 1405bdad0
+offset 238 1405bdbdc MOV qword ptr [RDI + 0x238],R15 function 1405bdad0
+offset 238 1405bdd00 SUB RAX,qword ptr [RDI + 0x238] function 1405bdc60
+offset 238 1405bdd3a MOV RAX,qword ptr [RDI + 0x238] function 1405bdc60
+offset 238 1405bdd74 MOV RBX,qword ptr [RDI + 0x238] function 1405bdc60
+offset 238 1405bdd9b MOV RCX,qword ptr [RDI + 0x238] function 1405bdc60
+offset 238 1405bddac MOV qword ptr [RDI + 0x238],R15 function 1405bdc60
+offset 238 1405bebbe MOVSS XMM1,dword ptr [RSI + 0x238] function 1405be950
+nimby::model::cmd::tn::CreateSignal::vftable 140a6dde8
+slot 0 -> 140321e90
+slot 8 -> 1402fda60
+slot 16 -> 1402fd8e0
+slot 24 -> 1402fd970
+slot 32 -> 1402fda00
+slot 40 -> 1402f3830
+nimby::model::cmd::tn::Undo::vftable 140a6c998
+slot 0 -> 140320e80
+slot 8 -> 1402f3ab0
+slot 16 -> 1402f3890
+slot 24 -> 1402f3960
+slot 32 -> 1402f3a30
+slot 40 -> 1402f3830
+symbol 140a6c958 nimby::model::cmd::tn::Edit::vftable_meta_ptr
+symbol 140a6c960 nimby::model::cmd::tn::Edit::vftable
+symbol 140a6c990 nimby::model::cmd::tn::Undo::vftable_meta_ptr
+symbol 140a6c998 nimby::model::cmd::tn::Undo::vftable
+symbol 140a6cb88 nimby::model::cmd::tn::MassMove::vftable_meta_ptr
+symbol 140a6cb90 nimby::model::cmd::tn::MassMove::vftable
+symbol 140a6cbf8 nimby::model::cmd::tn::Split::vftable_meta_ptr
+symbol 140a6cc00 nimby::model::cmd::tn::Split::vftable
+symbol 140a6cca0 nimby::model::cmd::tn::TrackBulkEdit::vftable_meta_ptr
+symbol 140a6cca8 nimby::model::cmd::tn::TrackBulkEdit::vftable
+symbol 140a6cdb8 nimby::model::cmd::tn::CreatePlatform::vftable_meta_ptr
+symbol 140a6cdc0 nimby::model::cmd::tn::CreatePlatform::vftable
+symbol 140a6cdf0 nimby::model::cmd::tn::PlatformOptions::vftable_meta_ptr
+symbol 140a6cdf8 nimby::model::cmd::tn::PlatformOptions::vftable
+symbol 140a6cf08 nimby::model::cmd::tn::CreateBuilding::vftable_meta_ptr
+symbol 140a6cf10 nimby::model::cmd::tn::CreateBuilding::vftable
+symbol 140a6cf78 nimby::model::cmd::tn::CreatePOI::vftable_meta_ptr
+symbol 140a6cf80 nimby::model::cmd::tn::CreatePOI::vftable
+symbol 140a6d058 nimby::model::cmd::tn::ReBP::vftable_meta_ptr
+symbol 140a6d060 nimby::model::cmd::tn::ReBP::vftable
+symbol 140a6d090 nimby::model::cmd::tn::BuildingBulkEdit::vftable_meta_ptr
+symbol 140a6d098 nimby::model::cmd::tn::BuildingBulkEdit::vftable
+symbol 140a6d100 nimby::model::cmd::tn::BuildingTape::vftable_meta_ptr
+symbol 140a6d108 nimby::model::cmd::tn::BuildingTape::vftable
+symbol 140a6d2f8 nimby::model::cmd::tn::Delete::vftable_meta_ptr
+symbol 140a6d300 nimby::model::cmd::tn::Delete::vftable
+symbol 140a6d3b8 nimby::model::cmd::tn::MassSetMode::vftable_meta_ptr
+symbol 140a6d3c0 nimby::model::cmd::tn::MassSetMode::vftable
+symbol 140a6d5c8 nimby::model::cmd::tn::CreateTrack::vftable_meta_ptr
+symbol 140a6d5d0 nimby::model::cmd::tn::CreateTrack::vftable
+symbol 140a6d6a8 nimby::model::cmd::tn::SetConstraints::vftable_meta_ptr
+symbol 140a6d6b0 nimby::model::cmd::tn::SetConstraints::vftable
+symbol 140a6d718 nimby::model::cmd::tn::TrackBulkParOffset::vftable_meta_ptr
+symbol 140a6d720 nimby::model::cmd::tn::TrackBulkParOffset::vftable
+symbol 140a6d788 nimby::model::cmd::tn::ParallelTape::vftable_meta_ptr
+symbol 140a6d790 nimby::model::cmd::tn::ParallelTape::vftable
+symbol 140a6da28 nimby::model::cmd::tn::StationSetData::vftable_meta_ptr
+symbol 140a6da30 nimby::model::cmd::tn::StationSetData::vftable
+symbol 140a6db40 nimby::model::cmd::tn::MassRotate::vftable_meta_ptr
+symbol 140a6db48 nimby::model::cmd::tn::MassRotate::vftable
+symbol 140a6dbb0 nimby::model::cmd::tn::Build::vftable_meta_ptr
+symbol 140a6dbb8 nimby::model::cmd::tn::Build::vftable
+symbol 140a6dd38 nimby::model::cmd::tn::Paste::vftable_meta_ptr
+symbol 140a6dd40 nimby::model::cmd::tn::Paste::vftable
+symbol 140a6dd70 nimby::model::cmd::tn::TrackTape::vftable_meta_ptr
+symbol 140a6dd78 nimby::model::cmd::tn::TrackTape::vftable
+symbol 140a6dde0 nimby::model::cmd::tn::CreateSignal::vftable_meta_ptr
+symbol 140a6dde8 nimby::model::cmd::tn::CreateSignal::vftable
+symbol 140a6de88 nimby::model::cmd::tn::EnableModsBeforeCopy::vftable_meta_ptr
+symbol 140a6de90 nimby::model::cmd::tn::EnableModsBeforeCopy::vftable
+symbol 140ab6dc0 nimby::model::cmd::tn::Paste::RTTI_Class_Hierarchy_Descriptor
+symbol 140ab6ea0 nimby::model::cmd::tn::TrackBulkEdit::RTTI_Base_Class_Descriptor_at_(0,-1,0,64)
+symbol 140ab6f48 nimby::model::cmd::tn::PlatformOptions::RTTI_Base_Class_Descriptor_at_(0,-1,0,64)
+symbol 140ab6fb0 nimby::model::cmd::tn::Undo::RTTI_Base_Class_Array
+symbol 140ab7050 nimby::model::cmd::tn::CreatePlatform::RTTI_Complete_Object_Locator
+symbol 140ab7078 nimby::model::cmd::tn::SetConstraints::RTTI_Complete_Object_Locator
+symbol 140ab70c8 nimby::model::cmd::tn::BuildingBulkEdit::RTTI_Base_Class_Descriptor_at_(0,-1,0,64)
+symbol 140ab7130 nimby::model::cmd::tn::PlatformOptions::RTTI_Complete_Object_Locator
+symbol 140ab7158 nimby::model::cmd::tn::MassSetMode::RTTI_Base_Class_Array
+symbol 140ab7178 nimby::model::cmd::tn::CreateSignal::RTTI_Base_Class_Array
+symbol 140ab7250 nimby::model::cmd::tn::Delete::RTTI_Base_Class_Descriptor_at_(0,-1,0,64)
+symbol 140ab7278 nimby::model::cmd::tn::CreateTrack::RTTI_Base_Class_Array
+symbol 140ab7298 nimby::model::cmd::tn::Edit::RTTI_Complete_Object_Locator
+symbol 140ab72e8 nimby::model::cmd::tn::Split::RTTI_Base_Class_Array
+symbol 140ab7308 nimby::model::cmd::tn::CreateBuilding::RTTI_Class_Hierarchy_Descriptor
+symbol 140ab7320 nimby::model::cmd::tn::MassSetMode::RTTI_Class_Hierarchy_Descriptor
+symbol 140ab7348 nimby::model::cmd::tn::CreateBuilding::RTTI_Base_Class_Descriptor_at_(0,-1,0,64)
+symbol 140ab7440 nimby::model::cmd::tn::Delete::RTTI_Class_Hierarchy_Descriptor
+symbol 140ab7458 nimby::model::cmd::tn::PlatformOptions::RTTI_Class_Hierarchy_Descriptor
+symbol 140ab74b0 nimby::model::cmd::tn::CreatePOI::RTTI_Class_Hierarchy_Descriptor
+symbol 140ab74f0 nimby::model::cmd::tn::Split::RTTI_Class_Hierarchy_Descriptor
+symbol 140ab7528 nimby::model::cmd::tn::CreateBuilding::RTTI_Base_Class_Array
+symbol 140ab7560 nimby::model::cmd::tn::MassMove::RTTI_Complete_Object_Locator
+symbol 140ab75b0 nimby::model::cmd::tn::ParallelTape::RTTI_Base_Class_Array
+symbol 140ab7748 nimby::model::cmd::tn::MassRotate::RTTI_Class_Hierarchy_Descriptor
+symbol 140ab7830 nimby::model::cmd::tn::StationSetData::RTTI_Class_Hierarchy_Descriptor
+symbol 140ab7888 nimby::model::cmd::tn::Delete::RTTI_Complete_Object_Locator
+symbol 140ab78b0 nimby::model::cmd::tn::MassSetMode::RTTI_Complete_Object_Locator
+symbol 140ab78f0 nimby::model::cmd::tn::Build::RTTI_Base_Class_Descriptor_at_(0,-1,0,64)
+symbol 140ab7918 nimby::model::cmd::tn::TrackTape::RTTI_Complete_Object_Locator
+symbol 140ab7968 nimby::model::cmd::tn::Split::RTTI_Complete_Object_Locator
+symbol 140ab7a08 nimby::model::cmd::tn::ParallelTape::RTTI_Class_Hierarchy_Descriptor
+symbol 140ab7ab0 nimby::model::cmd::tn::BuildingTape::RTTI_Class_Hierarchy_Descriptor
+symbol 140ab7b78 nimby::model::cmd::tn::Paste::RTTI_Base_Class_Array
+symbol 140ab7b98 nimby::model::cmd::tn::TrackTape::RTTI_Class_Hierarchy_Descriptor
+symbol 140ab7c40 nimby::model::cmd::tn::EnableModsBeforeCopy::RTTI_Class_Hierarchy_Descriptor
+symbol 140ab7d58 nimby::model::cmd::tn::MassMove::RTTI_Base_Class_Array
+symbol 140ab7e88 nimby::model::cmd::tn::TrackBulkEdit::RTTI_Class_Hierarchy_Descriptor
+symbol 140ab7f50 nimby::model::cmd::tn::CreatePOI::RTTI_Base_Class_Descriptor_at_(0,-1,0,64)
+symbol 140ab7f90 nimby::model::cmd::tn::CreateSignal::RTTI_Base_Class_Descriptor_at_(0,-1,0,64)
+symbol 140ab7fb8 nimby::model::cmd::tn::Split::RTTI_Base_Class_Descriptor_at_(0,-1,0,64)
+symbol 140ab8168 nimby::model::cmd::tn::TrackBulkEdit::RTTI_Base_Class_Array
+symbol 140ab8188 nimby::model::cmd::tn::Undo::RTTI_Class_Hierarchy_Descriptor
+symbol 140ab81c8 nimby::model::cmd::tn::CreateTrack::RTTI_Complete_Object_Locator
+symbol 140ab8250 nimby::model::cmd::tn::CreateSignal::RTTI_Class_Hierarchy_Descriptor
+symbol 140ab82e0 nimby::model::cmd::tn::Build::RTTI_Class_Hierarchy_Descriptor
+symbol 140ab82f8 nimby::model::cmd::tn::ReBP::RTTI_Base_Class_Array
+symbol 140ab8660 nimby::model::cmd::tn::Build::RTTI_Base_Class_Array
+symbol 140ab8770 nimby::model::cmd::tn::TNCommand::RTTI_Base_Class_Descriptor_at_(0,-1,0,64)
+symbol 140ab8890 nimby::model::cmd::tn::BuildingTape::RTTI_Complete_Object_Locator
+symbol 140ab8920 nimby::model::cmd::tn::CreatePlatform::RTTI_Base_Class_Descriptor_at_(0,-1,0,64)
+symbol 140ab8948 nimby::model::cmd::tn::Delete::RTTI_Base_Class_Array
+symbol 140ab89c8 nimby::model::cmd::tn::TrackBulkParOffset::RTTI_Base_Class_Descriptor_at_(0,-1,0,64)
+symbol 140ab8a30 nimby::model::cmd::tn::SetConstraints::RTTI_Base_Class_Descriptor_at_(0,-1,0,64)
+symbol 140ab8aa0 nimby::model::cmd::tn::TrackBulkParOffset::RTTI_Base_Class_Array
+symbol 140ab8b50 nimby::model::cmd::tn::TNCommand::RTTI_Class_Hierarchy_Descriptor
+symbol 140ab8b90 nimby::model::cmd::tn::ReBP::RTTI_Class_Hierarchy_Descriptor
+symbol 140ab8bd0 nimby::model::cmd::tn::Build::RTTI_Complete_Object_Locator
+symbol 140ab8bf8 nimby::model::cmd::tn::ParallelTape::RTTI_Base_Class_Descriptor_at_(0,-1,0,64)
+symbol 140ab8c60 nimby::model::cmd::tn::CreatePOI::RTTI_Base_Class_Array
+symbol 140ab8c80 nimby::model::cmd::tn::SetConstraints::RTTI_Class_Hierarchy_Descriptor
+symbol 140ab8ce0 nimby::model::cmd::tn::Edit::RTTI_Base_Class_Array
+symbol 140ab8e00 nimby::model::cmd::tn::MassMove::RTTI_Class_Hierarchy_Descriptor
+symbol 140ab8e80 nimby::model::cmd::tn::BuildingTape::RTTI_Base_Class_Array
+symbol 140ab8f30 nimby::model::cmd::tn::BuildingTape::RTTI_Base_Class_Descriptor_at_(0,-1,0,64)
+symbol 140ab8f98 nimby::model::cmd::tn::Undo::RTTI_Base_Class_Descriptor_at_(0,-1,0,64)
+symbol 140ab90c8 nimby::model::cmd::tn::EnableModsBeforeCopy::RTTI_Complete_Object_Locator
+symbol 140ab9160 nimby::model::cmd::tn::TrackTape::RTTI_Base_Class_Descriptor_at_(0,-1,0,64)
+symbol 140ab91a0 nimby::model::cmd::tn::TrackBulkParOffset::RTTI_Complete_Object_Locator
+symbol 140ab91f8 nimby::model::cmd::tn::StationSetData::RTTI_Complete_Object_Locator
+symbol 140ab9240 nimby::model::cmd::tn::EnableModsBeforeCopy::RTTI_Base_Class_Descriptor_at_(0,-1,0,64)
+symbol 140ab9268 nimby::model::cmd::tn::BuildingBulkEdit::RTTI_Class_Hierarchy_Descriptor
+symbol 140ab92c0 nimby::model::cmd::tn::CreateTrack::RTTI_Base_Class_Descriptor_at_(0,-1,0,64)
+symbol 140ab93d8 nimby::model::cmd::tn::MassRotate::RTTI_Complete_Object_Locator
+symbol 140ab9488 nimby::model::cmd::tn::CreatePOI::RTTI_Complete_Object_Locator
+symbol 140ab94c8 nimby::model::cmd::tn::CreateBuilding::RTTI_Complete_Object_Locator
+symbol 140ab95a0 nimby::model::cmd::tn::MassSetMode::RTTI_Base_Class_Descriptor_at_(0,-1,0,64)
+symbol 140ab9628 nimby::model::cmd::tn::TrackBulkEdit::RTTI_Complete_Object_Locator
+symbol 140ab9720 nimby::model::cmd::tn::StationSetData::RTTI_Base_Class_Array
+symbol 140ab9740 nimby::model::cmd::tn::Undo::RTTI_Complete_Object_Locator
+symbol 140ab9990 nimby::model::cmd::tn::CreateSignal::RTTI_Complete_Object_Locator
+symbol 140ab99b8 nimby::model::cmd::tn::CreateTrack::RTTI_Class_Hierarchy_Descriptor
+symbol 140ab9a10 nimby::model::cmd::tn::EnableModsBeforeCopy::RTTI_Base_Class_Array
+symbol 140ab9b08 nimby::model::cmd::tn::TrackBulkParOffset::RTTI_Class_Hierarchy_Descriptor
+symbol 140ab9c40 nimby::model::cmd::tn::TrackTape::RTTI_Base_Class_Array
+symbol 140ab9c78 nimby::model::cmd::tn::Paste::RTTI_Complete_Object_Locator
+symbol 140ab9ca0 nimby::model::cmd::tn::MassRotate::RTTI_Base_Class_Descriptor_at_(0,-1,0,64)
+symbol 140ab9cc8 nimby::model::cmd::tn::Edit::RTTI_Base_Class_Descriptor_at_(0,-1,0,64)
+symbol 140ab9d78 nimby::model::cmd::tn::CreatePlatform::RTTI_Class_Hierarchy_Descriptor
+symbol 140ab9de0 nimby::model::cmd::tn::CreatePlatform::RTTI_Base_Class_Array
+symbol 140ab9fa0 nimby::model::cmd::tn::PlatformOptions::RTTI_Base_Class_Array
+symbol 140ab9fe8 nimby::model::cmd::tn::StationSetData::RTTI_Base_Class_Descriptor_at_(0,-1,0,64)
+symbol 140aba028 nimby::model::cmd::tn::Paste::RTTI_Base_Class_Descriptor_at_(0,-1,0,64)
+symbol 140aba0d0 nimby::model::cmd::tn::Edit::RTTI_Class_Hierarchy_Descriptor
+symbol 140aba168 nimby::model::cmd::tn::ReBP::RTTI_Base_Class_Descriptor_at_(0,-1,0,64)
+symbol 140aba190 nimby::model::cmd::tn::MassMove::RTTI_Base_Class_Descriptor_at_(0,-1,0,64)
+symbol 140aba258 nimby::model::cmd::tn::BuildingBulkEdit::RTTI_Base_Class_Array
+symbol 140aba318 nimby::model::cmd::tn::ParallelTape::RTTI_Complete_Object_Locator
+symbol 140aba3d8 nimby::model::cmd::tn::TNCommand::RTTI_Base_Class_Array
+symbol 140aba3f0 nimby::model::cmd::tn::ReBP::RTTI_Complete_Object_Locator
+symbol 140aba418 nimby::model::cmd::tn::MassRotate::RTTI_Base_Class_Array
+symbol 140aba538 nimby::model::cmd::tn::SetConstraints::RTTI_Base_Class_Array
+symbol 140aba580 nimby::model::cmd::tn::BuildingBulkEdit::RTTI_Complete_Object_Locator
+symbol 140b6e548 nimby::model::cmd::tn::Paste::RTTI_Type_Descriptor
+symbol 140b6e6b0 nimby::model::cmd::tn::Undo::RTTI_Type_Descriptor
+symbol 140b6e6e0 nimby::model::cmd::tn::StationSetData::RTTI_Type_Descriptor
+symbol 140b6e758 nimby::model::cmd::tn::TrackBulkParOffset::RTTI_Type_Descriptor
+symbol 140b6e888 nimby::model::cmd::tn::MassSetMode::RTTI_Type_Descriptor
+symbol 140b6e8c0 nimby::model::cmd::tn::CreateSignal::RTTI_Type_Descriptor
+symbol 140b6e970 nimby::model::cmd::tn::BuildingBulkEdit::RTTI_Type_Descriptor
+symbol 140b6ea60 nimby::model::cmd::tn::TrackBulkEdit::RTTI_Type_Descriptor
+symbol 140b6ea98 nimby::model::cmd::tn::Edit::RTTI_Type_Descriptor
+symbol 140b6ec50 nimby::model::cmd::tn::Delete::RTTI_Type_Descriptor
+symbol 140b6ecf8 nimby::model::cmd::tn::ReBP::RTTI_Type_Descriptor
+symbol 140b6ed28 nimby::model::cmd::tn::BuildingTape::RTTI_Type_Descriptor
+symbol 140b6ede0 nimby::model::cmd::tn::SetConstraints::RTTI_Type_Descriptor
+symbol 140b6eee8 nimby::model::cmd::tn::Split::RTTI_Type_Descriptor
+symbol 140b6f118 nimby::model::cmd::tn::TrackTape::RTTI_Type_Descriptor
+symbol 140b6f268 nimby::model::cmd::tn::MassRotate::RTTI_Type_Descriptor
+symbol 140b6f2a0 nimby::model::cmd::tn::CreateBuilding::RTTI_Type_Descriptor
+symbol 140b6f350 nimby::model::cmd::tn::ParallelTape::RTTI_Type_Descriptor
+symbol 140b6f388 nimby::model::cmd::tn::CreatePOI::RTTI_Type_Descriptor
+symbol 140b6f3c0 nimby::model::cmd::tn::EnableModsBeforeCopy::RTTI_Type_Descriptor
+symbol 140b6f568 nimby::model::cmd::tn::Build::RTTI_Type_Descriptor
+symbol 140b6f688 nimby::model::cmd::tn::TNCommand::RTTI_Type_Descriptor
+symbol 140b6f7b8 nimby::model::cmd::tn::MassMove::RTTI_Type_Descriptor
+symbol 140b6fa78 nimby::model::cmd::tn::CreateTrack::RTTI_Type_Descriptor
+symbol 140b6fc48 nimby::model::cmd::tn::PlatformOptions::RTTI_Type_Descriptor
+symbol 140b6fd08 nimby::model::cmd::tn::CreatePlatform::RTTI_Type_Descriptor
+nimby::model::cmd::tn::Paste::vftable 140a6dd40
+slot 0 -> 140323140
+slot 8 -> 1402fedb0
+slot 16 -> 1402fead0
+slot 24 -> 1402fec10
+slot 32 -> 1402fed50
+slot 40 -> 1402f3830
+nimby::model::cmd::tn::Edit::vftable 140a6c960
+slot 0 -> 140322ef0
+slot 8 -> 1402f6ee0
+slot 16 -> 1402f5fe0
+slot 24 -> 1402f6670
+slot 32 -> 1402f6e80
+slot 40 -> 1402f3830

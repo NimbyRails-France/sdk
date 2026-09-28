@@ -6,6 +6,9 @@
 namespace nimby::engine::automatic {
 // Owned observation, independent of OS clocks. The platform supplies elapsed
 // monotonic milliseconds; simulation head distance is a separate input.
+// This freshness check concerns only one physical observation, never the duration
+// of an on-sight instruction. Windows refreshes occupation before each restricted
+// integration step; the instruction itself ends at its measured exit signal.
 struct PhysicalView {
     double head=0,covered=0,free=200;
     uint64_t observed=0;

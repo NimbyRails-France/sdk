@@ -40,6 +40,11 @@ public:
         return Snapshot::capture(session_, scope, textureSet);
     }
     Snapshot::Ptr captureSignalling() { return capture(SnapshotScope::Signalling); }
+    Snapshot::Ptr captureSignalling(std::span<const NimbySignalCaptureScope> scopes) {
+        if(scopes.empty()||scopes.size()>16)throw std::invalid_argument("Invalid signalling scopes");
+        std::lock_guard guard(mutex_);
+        return Snapshot::capture(session_,SnapshotScope::Signalling,nullptr,scopes);
+    }
     Snapshot::Ptr captureSignalling(std::string_view textureSet) {
         if (textureSet.empty() || textureSet.size() > 256 || textureSet.find('\0') != std::string_view::npos)
             throw std::invalid_argument("Invalid texture set");

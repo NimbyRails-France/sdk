@@ -10,6 +10,7 @@ write_basic_package_version_file("${CMAKE_CURRENT_BINARY_DIR}/NimbyRailsFranceSD
 install(TARGETS NimbyRailsFranceSDK EXPORT NimbyRailsFranceSDKTargets RUNTIME DESTINATION bin ARCHIVE DESTINATION lib)
 install(TARGETS NimbyRailsFranceLoader RUNTIME DESTINATION bin)
 install(TARGETS NimbyRailsFranceClockBridge RUNTIME DESTINATION bin)
+install(TARGETS nimby_mod_metadata_bridge RUNTIME DESTINATION bin)
 install(EXPORT NimbyRailsFranceSDKTargets NAMESPACE NimbyRailsFranceSDK:: DESTINATION lib/cmake/NimbyRailsFranceSDK)
 install(FILES "${CMAKE_CURRENT_BINARY_DIR}/NimbyRailsFranceSDKConfig.cmake"
     "${CMAKE_CURRENT_BINARY_DIR}/NimbyRailsFranceSDKConfigVersion.cmake" DESTINATION lib/cmake/NimbyRailsFranceSDK)

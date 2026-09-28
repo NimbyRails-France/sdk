@@ -8,6 +8,8 @@ inline std::wstring name(DWORD pid){return L"Local\\Nimby.AutomaticDriving.4."+s
 struct PermissionSample {
  volatile LONG ready=0;
  uint64_t train=0,signal=0,proof=0;
+ // state bits: eligible=1, native approval=2, geometry=4, started=8, granted=16,
+ // train known=32, lookahead=64, longitudinal reservation refusal replaced=128.
  uint32_t flags=0,state=0,ranges=0;
  double head=0,source=0,covered=0,free=0;
 };

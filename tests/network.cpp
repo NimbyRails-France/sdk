@@ -1,5 +1,6 @@
 #include "engine/network.h"
 #include "engine/simulation_clock.h"
+#include <nimby/signal_approach.hpp>
 #include <array>
 #include <algorithm>
 #include <cmath>
@@ -13,6 +14,7 @@ struct Memory {
     uint64_t fail{},replace_header{},changing_slots{},changing_motion{},changing_station{},changing_service{},changing_presence{},changing_identity{};unsigned header_reads{},reads{},slot_reads{};
     uint64_t changing_metric{},changing_metric_identity{};
     uint64_t changing_retired_motion{},changing_retired_model{};size_t retired_flag_offset{};unsigned retired_model_reads{};
+    uint64_t changing_head{};TrainPosition latest_head{};
     template<class T> void put(uint64_t base,size_t off,T value) {
         auto& b=regions[base];if(b.size()<off+sizeof value)b.resize(off+sizeof value);
         std::memcpy(b.data()+off,&value,sizeof value);
@@ -24,6 +26,15 @@ bool read(void* ctx,uint64_t address,void* out,size_t size) {
     auto i=m.regions.upper_bound(address);if(i==m.regions.begin())return false;--i;
     if(address-i->first>i->second.size()||size>i->second.size()-(address-i->first))return false;
     std::memcpy(out,i->second.data()+address-i->first,size);
+    // The bulk Motion read and the later per-train validation can straddle a
+    // simulation tick. Change only the head in the second complete record.
+    if(address==m.changing_head && size==0x638){
+        auto* p=static_cast<unsigned char*>(out);
+        std::memcpy(p+0x3a8,&m.latest_head.track_id,sizeof(uint64_t));
+        std::memcpy(p+0x3b0,&m.latest_head.fraction,sizeof(double));
+        const auto direction=static_cast<int8_t>(m.latest_head.direction);
+        std::memcpy(p+0x3b8,&direction,sizeof direction);
+    }
     if(address==m.changing_metric&&size==0x90)static_cast<unsigned char*>(out)[0x88]^=1;
     if(address==m.changing_metric_identity&&size==0x90)static_cast<unsigned char*>(out)[0]^=1;
     if(address==m.changing_motion && size==0x638)static_cast<unsigned char*>(out)[0x4b0]=1;
@@ -119,6 +130,78 @@ int main() {
            !signalling.stations.empty()||!signalling.platforms.empty())return 215;
         minimal.fail=tb;
         if(read_network(read,&minimal,state,true,signalling,true))return 216;
+    }
+    {
+        // Accelerated-world regression: multi-model capture must retain two
+        // upstream blocks without reading the unrelated remainder of the map.
+        auto regional=m;
+        const auto configurePool=[&](uint64_t header,uint64_t block,size_t stride){
+            regional.put(header,4,uint32_t(3));regional.put(header,8,uint32_t(8));regional.put(header,16,uint32_t(7));
+            regional.regions[block].assign(stride*8,0);
+        };
+        configurePool(state.database,tb,0x4e8);configurePool(state.database+0x380,gb,0xc8);
+        const auto tid=[&](unsigned i){return track+uint64_t(i)*0x10000;};
+        const auto sid=[&](unsigned i){return signal+uint64_t(i)*0x10000;};
+        for(unsigned i=0;i<7;++i){
+            const size_t offset=i*0x4e8;
+            regional.put(tb,offset,tid(i));regional.put(tb,offset+8,i?tid(i-1):uint64_t(0));
+            regional.put(tb,offset+16,i<6?tid(i+1):uint64_t(0));regional.put(tb,offset+0x30,double(i));
+        }
+        const unsigned positions[]{0,1,3,5};const uint64_t hashes[]{99,66,77,99};
+        for(unsigned i=0;i<4;++i){
+            const size_t offset=i*0xc8;regional.put(gb,offset,sid(i));regional.put(gb,offset+0x30,int32_t(4));
+            regional.put(gb,offset+0x38,hashes[i]);regional.put(gb,offset+0x40,tid(positions[i]));
+            regional.put(gb,offset+0x48,.5);regional.put(gb,offset+0x50,int8_t(-1));
+        }
+        Network local;
+        const SignallingScope scopes[]{{77,2},{66,0}};
+        regional.fail=tb+6*0x4e8;
+        if(!read_signalling_network(read,&regional,state,scopes,local)||local.tracks.size()!=6||local.signals.size()!=4)return 260;
+        const auto topologyFor=[](const Network& network){
+            std::vector<nimby::TrackNode> nodes;std::vector<nimby::Signal> signals;
+            for(const auto& t:network.tracks)nodes.emplace_back(NimbyTrackNode{t.id,t.links[0],t.links[1],t.x,t.y});
+            for(const auto& s:network.signals)signals.emplace_back(NimbySignal{s.id,s.track_id,s.fraction,s.direction,s.kind});
+            return nimby::SignalTopology(signals,nodes,{},nimby::SignalDirectionConvention::Forward);
+        };
+        const auto topology=topologyFor(local);
+        if(nimby::approachedSignals(topology,{tid(0),.6,1},2)!=std::vector<nimby::Id>{sid(1),sid(2)})return 261;
+        if(nimby::approachedSignals(topology,{tid(2),.5,1},2)!=std::vector<nimby::Id>{sid(2),sid(3)})return 262;
+        {
+            auto merge=regional;merge.fail=0;
+            const auto child=tid(6),beyond=tid(7),children=uint64_t(0x600090000);
+            merge.put(tb,6*0x4e8+8,uint64_t(0));merge.put(tb,6*0x4e8+16,beyond);
+            merge.put(tb,6*0x4e8+0x3f0,tid(2));merge.put(tb,6*0x4e8+0x3f8,.4);
+            merge.put(tb,6*0x4e8+0x400,int32_t(-1));
+            merge.put(tb,7*0x4e8,beyond);merge.put(tb,7*0x4e8+8,child);
+            merge.put(tb,2*0x4e8+0x408,children);merge.put(tb,2*0x4e8+0x410,children+8);
+            merge.put(tb,2*0x4e8+0x418,children+8);merge.put(children,0,child);
+            for(unsigned i=4;i<6;++i){
+                merge.put(gb,i*0xc8,sid(i));merge.put(gb,i*0xc8+0x30,int32_t(4));
+                merge.put(gb,i*0xc8+0x38,uint64_t(99));merge.put(gb,i*0xc8+0x40,tid(i+2));
+                merge.put(gb,i*0xc8+0x48,.5);merge.put(gb,i*0xc8+0x50,int8_t(1));
+            }
+            Network merged;
+            if(!read_signalling_network(read,&merge,state,scopes,merged)||merged.tracks.size()!=8||merged.junctions.size()!=1)return 268;
+            std::vector<nimby::TrackNode> nodes;std::vector<nimby::Signal> signals;std::vector<nimby::TrackJunction> junctions;
+            for(const auto& t:merged.tracks)nodes.emplace_back(NimbyTrackNode{t.id,t.links[0],t.links[1],t.x,t.y});
+            for(const auto& s:merged.signals)signals.emplace_back(NimbySignal{s.id,s.track_id,s.fraction,s.direction,s.kind});
+            for(const auto& j:merged.junctions)junctions.emplace_back(j);
+            const nimby::SignalTopology joined(signals,nodes,junctions,nimby::SignalDirectionConvention::Forward);
+            if(nimby::approachedSignals(joined,{beyond,.4,-1},2)!=std::vector<nimby::Id>{sid(4),sid(2)})return 269;
+            if(nimby::approachedSignals(joined,{tid(0),.6,1},2)!=std::vector<nimby::Id>{sid(1),sid(2)})return 270;
+        }
+        const SignallingScope immediate[]{{77,1}};
+        if(!read_signalling_network(read,&regional,state,immediate,local)||local.tracks.size()!=5)return 263;
+        const SignallingScope invalid[]{{77,17}};
+        if(read_signalling_network(read,&regional,state,invalid,local))return 264;
+        const SignallingScope duplicate[]{{77,1},{77,2}};
+        if(read_signalling_network(read,&regional,state,duplicate,local))return 265;
+        // Same geometry in the opposite travel direction: upstream is reversed.
+        for(unsigned i=0;i<4;++i)regional.put(gb,i*0xc8+0x50,int8_t(1));
+        regional.put(gb,0x38,uint64_t(99));regional.put(gb,0xc8+0x38,uint64_t(77));
+        regional.put(gb,2*0xc8+0x38,uint64_t(66));regional.fail=0;
+        if(!read_signalling_network(read,&regional,state,scopes,local)||local.tracks.size()!=6)return 266;
+        if(nimby::approachedSignals(topologyFor(local),{tid(4),.5,-1},2)!=std::vector<nimby::Id>{sid(2),sid(1)})return 267;
     }
     {
         bool found=false;
@@ -357,6 +440,45 @@ int main() {
     if(!read_trains(read,&m,state,true,trains,true)||trains.size()!=1||
        trains[0].service.flags!=NIMBY_SERVICE_PRESENCE_VALID||trains[0].speed_available||
        !trains[0].name.empty()||trains[0].path_available||!trains[0].positioned||trains[0].position.fraction!=.25)return 210;
+    {
+        // A moving train must remain visible to two-block approach detection.
+        // Formerly any changed fraction erased its head until a stable/stopped
+        // sample happened to arrive, opening a resting signal too late.
+        for(int8_t direction:{int8_t(1),int8_t(-1)}){
+            auto moving=m;moving.changing_head=motionBlock;
+            moving.put(motionBlock,0x3b0,direction==1?.25:.75);
+            moving.put(motionBlock,0x3b8,direction);
+            moving.latest_head={track,direction==1?.30:.70,direction};
+            if(!read_trains(read,&moving,state,true,trains,true)||trains.size()!=1||!trains[0].positioned){
+                std::puts("FAIL: signalling lost the head of a moving train");return 249;
+            }
+            if(trains[0].position.fraction!=moving.latest_head.fraction)return 250;
+            const std::vector<nimby::TrackNode> nodes{nimby::TrackNode{{track,0,0,0,0}}};
+            const std::vector<nimby::Signal> signals{
+                nimby::Signal{{80,track,direction==1?.40:.60,-direction,NIMBY_SIGNAL_PATH}},
+                nimby::Signal{{81,track,direction==1?.60:.40,-direction,NIMBY_SIGNAL_PATH}}};
+            const nimby::SignalTopology topology(signals,nodes,{},nimby::SignalDirectionConvention::Forward);
+            auto approaches=[&]{const auto& head=trains[0].position;
+                return nimby::approachedSignals(topology,{head.track_id,head.fraction,head.direction},2);};
+            if(approaches()!=std::vector<nimby::Id>({80,81}))return 251;
+            moving.latest_head.fraction=direction==1?.45:.55;
+            if(!read_trains(read,&moving,state,true,trains,true)||!trains[0].positioned||
+               approaches()!=std::vector<nimby::Id>({81}))return 252;
+            moving.latest_head.fraction=direction==1?.65:.35;
+            if(!read_trains(read,&moving,state,true,trains,true)||!trains[0].positioned||!approaches().empty())return 253;
+            // Movement does not relax identity, direction or position validity.
+            for(const TrainPosition invalid:std::vector<TrainPosition>{
+                {track,direction==1?.20:.80,direction}, {track,.5,-direction},
+                {track+1,.5,direction}, {track,std::nan(""),direction}, {track,1.1,direction}}){
+                moving.latest_head=invalid;
+                if(!read_trains(read,&moving,state,true,trains,true)||trains[0].positioned)return 254;
+            }
+            moving.latest_head={track,.5,direction};moving.changing_identity=motionBlock;
+            if(!read_trains(read,&moving,state,true,trains,true)||trains[0].positioned)return 255;
+            moving.changing_identity=0;moving.put(motionBlock,0x4b0,uint8_t(0));
+            if(!read_trains(read,&moving,state,true,trains,true)||trains[0].positioned)return 256;
+        }
+    }
     m.put(motionBlock,0,train+1);
     if(read_trains(read,&m,state,true,trains,true))return 211;
     m.put(motionBlock,0,train);

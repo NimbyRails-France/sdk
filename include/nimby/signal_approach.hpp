@@ -1,5 +1,6 @@
 #pragma once
 #include <nimby/detail/observation_session.hpp>
+#include <nimby/detail/track_fraction.hpp>
 
 namespace nimby {
 // Ordered facing boundaries ahead of the HEAD. The first bounds the immediate
@@ -8,6 +9,21 @@ namespace nimby {
 // or coincident boundary; the caller chooses how many blocks matter to its mod.
 inline std::vector<Id> approachedSignals(const SignalTopology& topology,Position head,size_t blocks=1) {
     if(!blocks||blocks>16)throw std::invalid_argument("Approach range must be 1..16 blocks");
+    // A train stopped at a signal can be one rounding unit beyond its stored
+    // fraction. Keep that contact in the approach, consistently with BlockReader
+    // excluding it from downstream occupation. Only normalize the initial head,
+    // on its own track and facing direction; never rewind along a previous track
+    // or move subsequent traversal points. Real entry still releases the approach.
+    if(std::isfinite(head.getFraction())&&head.getFraction()>=0&&head.getFraction()<=1){
+        std::optional<double> contact;
+        for(const auto& signal:topology.getSignalsForTrack(head.getTrackId(),head.getDirection(),true)){
+            if(!(std::abs(signal.getFraction()-head.getFraction())<=detail::trackFractionRounding))continue;
+            if(contact)return {}; // Numerically coincident boundaries are ambiguous.
+            contact=signal.getFraction();
+        }
+        if(contact&&(head.getFraction()-*contact)*head.getDirection()>0)
+            head={head.getTrackId(),*contact,head.getDirection()};
+    }
     std::vector<Id> result;Id exclude=0;size_t remaining=256;
     while(result.size()<blocks&&remaining){
         const auto trace=topology.traceToNextSignal(head,exclude,remaining);

@@ -3,6 +3,7 @@
 #include <string>
 #include <nimby/detail/observation.h>
 #include <vector>
+#include <span>
 #include "engine/named_signal_extensions.h"
 namespace nimby::engine {
 // Experimental, read-only layout profile. Evidence: docs/research/network.md.
@@ -29,6 +30,11 @@ bool read_network(ReadMemory read, void* context, const LiveState& state,
                   bool recognized_build, Network& out, bool signallingOnly=false) noexcept;
 // Fresh bounded topology around one texture set; no cross-capture geometry cache.
 bool read_signalling_network(ReadMemory,void*,const LiveState&,uint64_t textures_hash,Network&) noexcept;
+// Each model supplies its own upstream observation range. Include the next
+// downstream boundary and all possible upstream approaches; this is geometry,
+// never a permission to select a branch. No records survive the capture.
+struct SignallingScope { uint64_t textures_hash{}; uint32_t approach_blocks{}; };
+bool read_signalling_network(ReadMemory,void*,const LiveState&,std::span<const SignallingScope>,Network&) noexcept;
 // Targeted membership check for visual commands. No native pointer escapes.
 // false means unreadable/changing data; a stable missing generation sets found=false.
 bool read_signal_membership(ReadMemory read, void* context, const LiveState& state,

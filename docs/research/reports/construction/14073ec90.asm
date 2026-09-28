@@ -1,0 +1,26 @@
+14073ec90 MOV R9,qword ptr [RCX + 0x250]
+14073ec97 MOVSXD R8,EDX
+14073ec9a XOR EDX,EDX
+14073ec9c MOV RAX,R8
+14073ec9f MOV ECX,dword ptr [R9 + 0x4f8]
+14073eca6 MOV R10,qword ptr [R9 + 0x4f0]
+14073ecad DIV RCX
+14073ecb0 MOV EAX,EDX
+14073ecb2 MOV RAX,qword ptr [R10 + RAX*0x8]
+14073ecb6 TEST RAX,RAX
+14073ecb9 JZ 0x14073ecce
+14073ecbb NOP dword ptr [RAX + RAX*0x1]
+14073ecc0 CMP R8D,dword ptr [RAX]
+14073ecc3 JZ 0x14073ecd1
+14073ecc5 MOV RAX,qword ptr [RAX + 0x18]
+14073ecc9 TEST RAX,RAX
+14073eccc JNZ 0x14073ecc0
+14073ecce XOR AL,AL
+14073ecd0 RET
+14073ecd1 MOV RCX,qword ptr [R9 + 0x4f8]
+14073ecd8 CMP RAX,qword ptr [R10 + RCX*0x8]
+14073ecdc JZ 0x14073ecce
+14073ecde MOV RCX,qword ptr [RAX + 0x10]
+14073ece2 CMP qword ptr [RAX + 0x8],RCX
+14073ece6 SETA AL
+14073ece9 RET

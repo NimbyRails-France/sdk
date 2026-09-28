@@ -20,7 +20,9 @@ typedef struct NimbySignalDrivingRule {
 // A missing/unmanaged target still means stop, never a guessed permission.
 #define NIMBY_DRIVING_FOLLOW_TARGET 8u
 // Explicit permission from the mod, never inferred from STOP or a texture.
-// Native reservations and crossing-track checks can still refuse entry.
+// Windows replaces exclusive occupation/reservation admission on the followed
+// range with fresh physical clearance. Crossing-track occupation/reservations
+// and native controller ownership can still refuse entry. No reservation is erased.
 // Retain a restricted mode after passing this signal. reopened_speed_mps is
 // then the maximum speed of that mode, not a demanded cruising speed.
 #define NIMBY_DRIVING_ON_SIGHT 16u

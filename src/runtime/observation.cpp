@@ -222,7 +222,7 @@ uint32_t __cdecl NimbyInternal_CaptureSnapshot(NimbySession handle,NimbySnapshot
     uint32_t stage{};
     return NimbyInternal_CaptureSnapshotDiagnostic(handle,out,&stage);
 }
-static uint32_t capture_snapshot(NimbySession handle,NimbySnapshot* out,uint32_t* stage,bool signallingOnly,const char* textureSet=nullptr) noexcept;
+static uint32_t capture_snapshot(NimbySession handle,NimbySnapshot* out,uint32_t* stage,bool signallingOnly,std::span<const NimbySignalCaptureScope> scopes={}) noexcept;
 uint32_t __cdecl NimbyInternal_CaptureSnapshotDiagnostic(NimbySession handle,NimbySnapshot* out,uint32_t* stage) noexcept {
     return capture_snapshot(handle,out,stage,false);
 }
@@ -231,9 +231,47 @@ uint32_t __cdecl NimbyInternal_CaptureSignallingSnapshot(NimbySession handle,Nim
 }
 uint32_t __cdecl NimbyInternal_CaptureSignallingFor(NimbySession handle,const char* textureSet,NimbySnapshot* out,uint32_t* stage) noexcept {
     if(!textureSet||!*textureSet||strnlen(textureSet,257)>256){if(out)*out=0;if(stage)*stage=0;return NIMBY_INVALID_ARGUMENT;}
-    return capture_snapshot(handle,out,stage,true,textureSet);
+    NimbySignalCaptureScope scope{};std::memcpy(scope.texture_set,textureSet,std::strlen(textureSet)+1);
+    return capture_snapshot(handle,out,stage,true,std::span(&scope,1));
 }
-static uint32_t capture_snapshot(NimbySession handle,NimbySnapshot* out,uint32_t* stage,bool signallingOnly,const char* textureSet) noexcept {
+uint32_t __cdecl NimbyInternal_CaptureSignallingScope(NimbySession handle,const NimbySignalCaptureScope* scopes,uint32_t count,NimbySnapshot* out,uint32_t* stage) noexcept {
+    if(out)*out=0;if(stage)*stage=0;
+    if(!scopes||!count||count>16)return NIMBY_INVALID_ARGUMENT;
+    for(uint32_t i=0;i<count;++i){
+        if(!scopes[i].texture_set[0]||!std::memchr(scopes[i].texture_set,0,257)||scopes[i].approach_blocks>16)return NIMBY_INVALID_ARGUMENT;
+        for(uint32_t j=0;j<i;++j)if(!std::strcmp(scopes[i].texture_set,scopes[j].texture_set))return NIMBY_INVALID_ARGUMENT;
+    }
+    return capture_snapshot(handle,out,stage,true,std::span(scopes,count));
+}
+uint32_t __cdecl NimbyInternal_CaptureSessionSnapshot(NimbySession handle,NimbySnapshot* out,uint32_t* stage) noexcept {
+    if(out)*out=0;if(stage)*stage=0;
+    if(!out||!stage)return NIMBY_INVALID_ARGUMENT;
+    try {
+        Guard guard;auto& r=registry();const auto found=r.sessions.find(handle);
+        if(found==r.sessions.end())return NIMBY_INVALID_HANDLE;
+        auto& session=*found->second;
+        if(!session.alive())return NIMBY_PROCESS_EXITED;
+        if(r.snapshots.size()>=16||!r.next)return NIMBY_RESOURCE_LIMIT;
+        nimby::engine::VersioningObservation before{},after{};Snapshot snapshot;
+        *stage=1;
+        if(!nimby::engine::read_versioning_observation(read,&session,session.base,true,before,session.profile())||
+           !nimby::engine::read_simulation_clock(read,&session,before.state.simulation,snapshot.clock)||
+           !nimby::engine::read_versioning_observation(read,&session,session.base,true,after,session.profile())||
+           before.state!=after.state||before.value!=after.value||before.history!=after.history){
+            session.settings_epoch->unavailable();return NIMBY_DATA_UNAVAILABLE;
+        }
+        snapshot.clock_available=true;
+        snapshot.game_session.struct_size=sizeof snapshot.game_session;
+        snapshot.game_session.generation=session.settings_epoch->observe(after,snapshot.clock.ticks);
+        std::memcpy(snapshot.game_session.world_value,after.value.data(),32);
+        auto& info=snapshot.info;info.struct_size=sizeof info;info.abi_version=NIMBY_OBSERVATION_ABI_VERSION;
+        info.process_id=session.pid;info.flags=NIMBY_SNAPSHOT_EXPERIMENTAL|NIMBY_SNAPSHOT_NON_ATOMIC;
+        info.captured_unix_ms=static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count());
+        std::memcpy(info.game_sha256,session.binary.sha256,sizeof info.game_sha256);
+        const auto id=r.next++;r.snapshots.emplace(id,std::move(snapshot));*out=id;*stage=0;return NIMBY_OK;
+    }catch(...){nimby::detail::diagnostics::exception("sdk",__func__);return NIMBY_INTERNAL_ERROR;}
+}
+static uint32_t capture_snapshot(NimbySession handle,NimbySnapshot* out,uint32_t* stage,bool signallingOnly,std::span<const NimbySignalCaptureScope> scopes) noexcept {
     if(stage)*stage=0;
     if(out)*out=0;
     if(!stage)return NIMBY_INVALID_ARGUMENT;
@@ -256,12 +294,18 @@ static uint32_t capture_snapshot(NimbySession handle,NimbySnapshot* out,uint32_t
         *stage=3;
         nimby::engine::SignalTextureCatalog texture_catalog;
         bool catalog_available=false;
-        if(textureSet){
+        const bool scoped=!scopes.empty();
+        if(scoped){
             catalog_available=nimby::engine::read_signal_texture_catalog(read,&session,state,true,texture_catalog);
             if(!catalog_available)return NIMBY_DATA_UNAVAILABLE;
-            const nimby::engine::SignalTextureSet* selected=nullptr;
-            for(const auto& [hash,set]:texture_catalog.sets)if(set.name==textureSet){if(selected)return NIMBY_DATA_UNAVAILABLE;selected=&set;}
-            if(!selected||!nimby::engine::read_signalling_network(read,&session,state,selected->hash,network))return NIMBY_DATA_UNAVAILABLE;
+            std::vector<nimby::engine::SignallingScope> selected;
+            for(const auto& scope:scopes){
+                const nimby::engine::SignalTextureSet* match=nullptr;
+                for(const auto& [hash,set]:texture_catalog.sets)if(set.name==scope.texture_set){if(match)return NIMBY_DATA_UNAVAILABLE;match=&set;}
+                if(!match)return NIMBY_DATA_UNAVAILABLE;
+                selected.push_back({match->hash,scope.approach_blocks});
+            }
+            if(!nimby::engine::read_signalling_network(read,&session,state,selected,network))return NIMBY_DATA_UNAVAILABLE;
         }else if(!nimby::engine::read_network(read,&session,state,true,network,signallingOnly))return NIMBY_DATA_UNAVAILABLE;
         *stage=4;
         if(!nimby::engine::resolve_live_state(read,&session,session.base,true,session.profile(),after)||state!=after)return NIMBY_DATA_UNAVAILABLE;
@@ -299,7 +343,7 @@ static uint32_t capture_snapshot(NimbySession handle,NimbySnapshot* out,uint32_t
         auto usage=[&](auto reader,std::vector<NimbyTrackUsage>& dest){
             std::vector<nimby::engine::TrackUsage> values;
             if(!reader(read,&session,state,true,values))return false;
-            for(const auto& v:values)if(!train_ids.contains(v.train_id)||(!textureSet&&!track_ids.contains(v.track_id)))return false;
+            for(const auto& v:values)if(!train_ids.contains(v.train_id)||(!scoped&&!track_ids.contains(v.track_id)))return false;
             dest.reserve(values.size());
             for(const auto& v:values)dest.push_back({v.train_id,v.track_id,v.begin,v.end});
             return true;
@@ -388,7 +432,7 @@ static uint32_t capture_snapshot(NimbySession handle,NimbySnapshot* out,uint32_t
         for(const auto& s:network.stations){NimbyStation value{};value.id=s.id;std::memcpy(value.name_utf8,s.name.data(),s.name.size());snapshot.stations.push_back(value);}
         std::vector<nimby::engine::SignalTextureState> native_signal_states;
         std::map<uint64_t,int32_t> texture_states;
-        if(!textureSet)catalog_available=nimby::engine::read_signal_texture_catalog(read,&session,state,true,texture_catalog);
+        if(!scoped)catalog_available=nimby::engine::read_signal_texture_catalog(read,&session,state,true,texture_catalog);
         const bool states_available=nimby::engine::read_signal_texture_states(read,&session,state,true,native_signal_states);
         if(states_available)
             for(const auto& value:native_signal_states)texture_states.emplace(value.id,value.state);
@@ -450,7 +494,7 @@ static uint32_t capture_snapshot(NimbySession handle,NimbySnapshot* out,uint32_t
             if(t.native_length_m>0)snapshot.metrics.push_back({t.id,t.native_length_m});
         for(const auto& [id,t]:geometry){
             // Branches can point into a main track without the reverse primary link.
-            auto link=[&](uint64_t target){return target!=id&&(textureSet||geometry.contains(target))?target:uint64_t(0);};
+            auto link=[&](uint64_t target){return target!=id&&(scoped||geometry.contains(target))?target:uint64_t(0);};
             snapshot.nodes.push_back({id,link(t->links[0]),link(t->links[1]),t->x,t->y});
         }
         for(const auto& junction:network.junctions)

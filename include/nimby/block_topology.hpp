@@ -17,14 +17,24 @@ struct SignalBlock {
     BlockBoundaryIssue issue = BlockBoundaryIssue::UnresolvedRoute;
     SignalTraceStop traceStop = SignalTraceStop::UnknownTrack;
     bool hasBoundary() const noexcept { return issue == BlockBoundaryIssue::None; }
-    // Partial geometry cannot establish the absence of a train in the full block.
+    // A known prefix can prove occupation as soon as a head enters it, even
+    // without an observed exit signal. Only a complete block can prove Clear.
+    // This reports geometry/occupancy; the mod still chooses its indication.
     BlockOccupancy occupation(const BlockReader& reader) const {
-        return hasBoundary() ? reader.read(sections,entry) : BlockOccupancy::Unknown;
+        const auto value=reader.read(sections,entry);
+        return hasBoundary()||value==BlockOccupancy::Occupied?value:BlockOccupancy::Unknown;
     }
     // Native footprints include the tail: a train can belong to two blocks.
-    // Unresolved block limits cannot produce a complete block observation.
+    // Unresolved block limits cannot produce a complete train list. Preserve
+    // positive detections in the known prefix so a following approach cannot
+    // hide a train whose head has entered while its rear remains upstream.
     BlockObservation observe(const BlockReader& reader) const {
-        return hasBoundary()?reader.inspect(sections,entry):BlockObservation{};
+        auto result=reader.inspect(sections,entry);
+        if(!hasBoundary()){
+            result.complete=false;
+            if(result.occupation!=BlockOccupancy::Occupied)result.occupation=BlockOccupancy::Unknown;
+        }
+        return result;
     }
 };
 
@@ -89,7 +99,7 @@ public:
                 return result;
             }
         }
-        // Partial sections are diagnostic only. Never use them to assert Clear.
+        // Partial sections can prove presence, never absence in the whole block.
         return result;
     }
 

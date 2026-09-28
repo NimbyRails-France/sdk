@@ -1,5 +1,6 @@
 #include <nimby/detail/observation_session.hpp>
 #include <nimby/signal_approach.hpp>
+#include <nimby/blocks.hpp>
 #include <iostream>
 #include <limits>
 #define CHECK(x) do { if(!(x)) throw std::runtime_error("line " + std::to_string(__LINE__) + ": " #x); } while(false)
@@ -93,6 +94,39 @@ int main(){try{
   CHECK(!firstApproachedSignal(route,{2,.8,1}));
   panels.push_back(Signal{{82,1,.5,-1,NIMBY_SIGNAL_PATH}});
   CHECK(!firstApproachedSignal(SignalTopology(panels,straight,{},SignalDirectionConvention::Forward),{1,.2,1}));
+ }
+ // Live regression: a train held at a reverse-facing signal had a head one
+ // rounding unit beyond the stored signal fraction. Occupancy correctly saw
+ // entry contact, but approach skipped the panel and left the train stranded.
+ for(int direction:{1,-1})for(double fraction:{.5,.24489791573599803}){
+  const std::vector<TrackNode> track{TrackNode{{1,0,0,0,0}}};
+  const std::vector<Signal> panels{Signal{{80,1,fraction,-direction,NIMBY_SIGNAL_PATH}}};
+  const SignalTopology route(panels,track,{},SignalDirectionConvention::Forward);
+  const BlockSection downstream{1,direction==1?fraction:0.,direction==1?1.:fraction};
+  const BlockEntry entry{1,fraction,direction};
+  const auto footprint=[&](double head){return direction==1?TrainFootprint{90,1,0.,head}:TrainFootprint{90,1,head,1.};};
+  const double roundoff=std::nextafter(fraction,direction==1?1.:0.);
+  const auto waiting=footprint(roundoff);
+  CHECK(BlockReader(std::span(&waiting,1),true).read(std::span(&downstream,1),entry)==BlockOccupancy::Clear);
+  CHECK(firstApproachedSignal(route,{1,roundoff,direction})==80);
+  CHECK(firstApproachedSignal(route,{1,fraction,direction})==80);
+  const double contactLimit=fraction+direction*detail::trackFractionRounding;
+  const auto contact=footprint(contactLimit);
+  CHECK(BlockReader(std::span(&contact,1),true).read(std::span(&downstream,1),entry)==BlockOccupancy::Clear);
+  CHECK(firstApproachedSignal(route,{1,contactLimit,direction})==80);
+  const double pastContact=std::nextafter(contactLimit,direction==1?1.:0.);
+  const auto past=footprint(pastContact);
+  CHECK(BlockReader(std::span(&past,1),true).read(std::span(&downstream,1),entry)==BlockOccupancy::Occupied);
+  CHECK(!firstApproachedSignal(route,{1,pastContact,direction}));
+  // A genuine head entry stops being an approach and occupies the block.
+  const double moved=fraction+direction*1e-10;
+  const auto entered=footprint(moved);
+  CHECK(BlockReader(std::span(&entered,1),true).read(std::span(&downstream,1),entry)==BlockOccupancy::Occupied);
+  CHECK(!firstApproachedSignal(route,{1,moved,direction}));
+  CHECK(!firstApproachedSignal(route,{1,roundoff,-direction}));
+  auto ambiguous=panels;
+  ambiguous.push_back(Signal{{81,1,roundoff,-direction,NIMBY_SIGNAL_PATH}});
+  CHECK(!firstApproachedSignal(SignalTopology(ambiguous,track,{},SignalDirectionConvention::Forward),{1,roundoff,direction}));
  }
  std::cout<<"Signal order, direction changes, cycles, missing and ambiguous connections: OK\n";
 }catch(const std::exception& e){std::cerr<<e.what()<<'\n';return 1;}}

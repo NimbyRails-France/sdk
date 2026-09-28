@@ -15,7 +15,9 @@ data class ToolButton(val id: String, val label: String, val enabled: Boolean = 
 /** Champ saisissable au clavier. Le mod choisit la valeur et les bornes ;
  * une modification valide arrive dans action=id et [SignalActionRequest.value].
  * Le texte vide ou incomplet reste un brouillon local : aucune valeur de
- * remplacement n'est envoyée au mod et les boutons de commande sont bloqués. */
+ * remplacement n'est envoyée au mod et les boutons de commande sont bloqués.
+ * Dans une ToolWindow, le clic envoie tous les champs dans ToolWindowEvent.values,
+ * sans événement intermédiaire par touche. */
 data class ToolNumberInput(val id: String, val label: String, val value: Int,
     val minimum: Int, val maximum: Int, val enabled: Boolean = true)
 enum class LogLevel { Info, Warning, Error }
@@ -54,6 +56,45 @@ class ToolContext internal constructor(
         val bytes=message.encodeToByteArray()
         require(bytes.size in 1..4096 && '\u0000' !in message)
         call(7,longArrayOf(level.ordinal.toLong()),text=bytes+byteArrayOf(0))
+    }
+
+    /** Lit seulement l'horloge et l'identité de la partie, sans capturer le réseau. */
+    fun clock(): ToolClock {
+        val values = LongArray(2); call(10, values)
+        return ToolClock(values[0], values[1])
+    }
+    /** Change la date UTC sur le thread de simulation. Par défaut, les positions
+     * et les délais relatifs sont conservés. recalculateTrains déclenche les
+     * interventions natives (déplacements et coûts) : obtenir un choix explicite.
+     * Les erreurs peuvent survenir après le début de l'opération : relire, jamais
+     * réessayer automatiquement. Les secondes sous la seconde sont conservées. */
+    fun changeTime(utcSeconds: Long, recalculateTrains: Boolean = false): ToolTimeChange {
+        require(utcSeconds in -62135596800L..253402300799L)
+        val values = longArrayOf(utcSeconds, if (recalculateTrains) 1 else 0, 0)
+        call(11, values)
+        return ToolTimeChange(ToolClock(values[0], values[1]), values[2])
+    }
+    /** Affiche le formulaire de la fenêtre à l'origine de request. message est
+     * affiché au-dessus, puis les libellés/champs et les boutons. Jusqu'à huit
+     * champs et douze boutons ; valeurs invalides refusées avant tout événement.
+     * Les valeurs sont envoyées ensemble au clic, pas à chaque touche saisie. */
+    fun showWindow(request: ToolWindowEvent, message: String, buttons: List<ToolButton>, inputs: List<ToolNumberInput> = emptyList()) {
+        require(request.worldId == worldId && request.generation == generation && request.sequence > 0)
+        require(buttons.size <= 12 && inputs.size <= 8)
+        require((buttons.map { it.id } + inputs.map { it.id }).let { it.size == it.distinct().size })
+        val strings = listOf(request.window, message) + buttons.flatMap {
+            validateServiceName(it.id); listOf(it.id, it.label)
+        } + inputs.flatMap {
+            validateServiceName(it.id); require(it.minimum <= it.maximum && it.value in it.minimum..it.maximum)
+            listOf(it.id, it.label)
+        }
+        strings.forEach { require('\u0000' !in it && it.encodeToByteArray().size <= 4096) }
+        val values = longArrayOf(request.sequence, buttons.size.toLong(), inputs.size.toLong()) +
+            buttons.map { if(it.enabled) 1L else 0L } +
+            inputs.flatMap { listOf(it.value.toLong(), it.minimum.toLong(), it.maximum.toLong(), if(it.enabled) 1L else 0L) }
+        val text = (strings.joinToString("\u0000") + "\u0000").encodeToByteArray()
+        require(text.size <= 8192) { "Formulaire trop volumineux (8192 octets maximum)" }
+        call(12, values, text = text)
     }
 
     /** Nouvelle capture après prepareConstruction, jamais une topologie cachée. */

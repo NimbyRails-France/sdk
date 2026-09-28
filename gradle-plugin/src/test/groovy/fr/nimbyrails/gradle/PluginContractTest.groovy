@@ -43,7 +43,7 @@ class PluginContractTest {
     }
     @Test void codeOnlyModHasAWorkingDirectoryEvenWithoutResources() {
         File root = project()
-        runner(root, 'prepareTestWorkingDirectory').build()
+        runner(root, 'prepareTestWorkingDirectory', '-x', 'generateDebugGameManifest').build()
         assertTrue(new File(root, 'build/gradle/test-assets').isDirectory())
         assertFalse(new File(root, 'assets').exists())
     }
@@ -55,6 +55,17 @@ class PluginContractTest {
         data.gradlePluginVersion = '0.0.1'
         metadata.text = JsonOutput.toJson(data)
         assertTrue(runner(root, 'tasks').buildAndFail().output.contains('Select the plugin supplied by sdk.json'))
+    }
+    @Test void identityIsGeneratedWithoutExecutingTheMod() {
+        File root = project()
+        File manifest = new File(root, 'mod.json')
+        def data = new JsonSlurper().parse(manifest)
+        data.name = 'Train $express "quoted"'
+        manifest.text = JsonOutput.toJson(data)
+        def result = runner(root, 'generateModIdentity').build()
+        def source = new File(root, 'build/gradle/generated/kotlin/ModInfo.kt').text
+        assertTrue(source.contains('Train \\$express \\"quoted\\"'))
+        assertFalse(result.tasks.any { it.path.contains('compileKotlin') })
     }
     @Test void packageDependsOnTestsAndNativeVerification() {
         def output = runner(project(), 'packageMod', '--dry-run').build().output

@@ -13,15 +13,19 @@ annotation class SignalModDsl
  * Si le suivant est absent ou si le réseau boucle, le SDK utilise le repli
  * `invalidNetwork` choisi par le mod. Aucune règle nationale n'est implicite. */
 class SignalContext<A : Enum<A>, R : Enum<R>> internal constructor(
-    val signal: Signal,
+    signal: Signal,
     val next: Indication<A, R>?,
     private val options: List<Checkbox>
 ) {
+    val signal = signal.copy(observation = signal.observation.validatedApproach())
     val observation: Observation get() = signal.observation
     val block: Occupancy get() = observation.block
     val fresh: Boolean get() = observation.fresh
     val routeKnown: Boolean get() = observation.routeKnown
-    val approachingTrain: Long? get() = observation.approachingTrain
+    /** Identifiant validé d'une approche fraîche ; null sinon. */
+    val approachingTrain: Long? get() = observation.approachingTrain.takeIf { fresh }
+    /** Présence d'une approche fraîche, sans décodage d'identifiant dans le mod. */
+    val trainApproaching: Boolean get() = approachingTrain != null
     val settingsStatus: SettingsStatus get() = signal.settingsStatus
 
     /** Une valeur absente prend le défaut déclaré. Un profil indisponible reste
@@ -39,6 +43,12 @@ class SignalDefinition<A : Enum<A>, R : Enum<R>> internal constructor(private va
     private val options = base.checkboxes.toMutableList()
     private val actions = base.actions.toMutableList()
     var observeApproach: Boolean = base.observeApproach
+    var approachBlocks: Int = base.approachBlocks
+    /** Active la détection dans [blocks] cantons en amont, de 1 à 16. */
+    fun observeApproach(blocks: Int) {
+        require(blocks in 1..16)
+        observeApproach = true; approachBlocks = blocks
+    }
     internal var rule: (SignalContext<A, R>.() -> Indication<A, R>?)? = null
     internal var isolated: ((Map<String, Boolean>, Observation) -> Indication<A, R>)? = null
     internal var migration: (Map<String, Boolean>) -> Map<String, Boolean> = { it }
@@ -64,7 +74,7 @@ class SignalDefinition<A : Enum<A>, R : Enum<R>> internal constructor(private va
     fun allowForcedAspect(block: (A) -> Indication<A, R>?) { forced = block }
 
     internal fun freeze(): CompiledSignal<A, R> = CompiledSignal(
-        base.copy(checkboxes = options.toList(), observeApproach = observeApproach, actions = actions.toList()),
+        base.copy(checkboxes = options.toList(), observeApproach = observeApproach, approachBlocks = approachBlocks, actions = actions.toList()),
         requireNotNull(rule) { "Déclarer rules pour ${base.id}" }, isolated, migration, preparation, forced)
 }
 
@@ -85,6 +95,7 @@ class SignalModBuilder<A : Enum<A>, R : Enum<R>> internal constructor() {
     var diagnosticFile: String = "nimby-kotlin-faults.jsonl"
     internal val definitions = mutableListOf<CompiledSignal<A, R>>()
     internal var image: ((Indication<A, R>, Long, Long) -> String)? = null
+    internal var animation: ((Indication<A, R>) -> SignalAnimation)? = null
     internal var driving: (Indication<A, R>) -> DrivingRule? = { null }
     internal var fault: (Indication<A, R>) -> Boolean = { false }
     internal var active: (Indication<A, R>) -> Boolean = { true }
@@ -99,9 +110,13 @@ class SignalModBuilder<A : Enum<A>, R : Enum<R>> internal constructor() {
     fun signal(type: SignalType, block: SignalDefinition<A, R>.() -> Unit) {
         definitions.add(SignalDefinition<A, R>(type).apply(block).freeze())
     }
-    fun images(block: (Indication<A, R>) -> String) { image = { decision, _, _ -> block(decision) } }
+    fun images(block: (Indication<A, R>) -> String) { animation = null; image = { decision, _, _ -> block(decision) } }
     /** Temps simulé et demi-période en millisecondes, jamais l'heure du PC. */
-    fun animatedImages(block: (Indication<A, R>, Long, Long) -> String) { image = block }
+    fun animatedImages(block: (Indication<A, R>, Long, Long) -> String) { animation = null; image = block }
+    /** Affichage déclaratif avec steady ou blink, synchronisé sur le jeu. */
+    fun appearance(block: (Indication<A, R>) -> SignalAnimation) {
+        animation = block; image = { value, time, _ -> block(value).frameAt(time) }
+    }
     fun driving(block: (Indication<A, R>) -> DrivingRule?) { driving = block }
     fun faults(block: (Indication<A, R>) -> Boolean) { fault = block }
     fun activeWhen(block: (Indication<A, R>) -> Boolean) { active = block }
@@ -130,6 +145,7 @@ internal fun <A : Enum<A>, R : Enum<R>> buildSignalMod(
     validateSignalTypes(definitions.map { it.type })
     val byId = definitions.associateBy { it.type.id }
     val image = requireNotNull(builder.image) { "Déclarer images ou animatedImages" }
+    val animation = builder.animation
     val driving = builder.driving; val fault = builder.fault; val active = builder.active
     val aspectLabel = builder.aspectLabel; val reasonLabel = builder.reasonLabel; val planner = builder.planner
     fun encode(value: Indication<A, R>) = Decision(value.aspect.ordinal, value.reason.ordinal)
@@ -166,6 +182,7 @@ internal fun <A : Enum<A>, R : Enum<R>> buildSignalMod(
             return aspects.getOrNull(aspect)?.let(entry.forced)?.let(::encode)
         }
         override fun texture(decision: Decision, simulationMs: Long, halfPeriodMs: Long) = image(decode(decision), simulationMs, halfPeriodMs)
+        override fun animation(decision: Decision) = animation?.invoke(decode(decision))
         override fun drivingRule(decision: Decision) = driving(decode(decision))
         override fun isFault(decision: Decision) = fault(decode(decision))
         override fun isActive(decision: Decision) = active(decode(decision))

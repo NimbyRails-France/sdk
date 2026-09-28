@@ -49,8 +49,24 @@ class NrfModPlugin implements Plugin<Project> {
         def kotlin = p.extensions.getByType(KotlinMultiplatformExtension)
         def target = platform.createTarget(kotlin)
         target.binaries.sharedLib { baseName = "${mod.module}Kotlin" }
+        target.binaries.executable('metadata', [NativeBuildType.DEBUG, NativeBuildType.RELEASE]) {
+            entryPoint = 'nimby.packaging.main'
+        }
+        def identityDirectory = p.layout.buildDirectory.dir('generated/kotlin')
+        def identity = p.tasks.register('generateModIdentity') {
+            inputs.file(p.file('mod.json'))
+            outputs.dir(identityDirectory)
+            doLast {
+                def quoted = { String value -> JsonOutput.toJson(value).replace('$', '\\$') }
+                File source = identityDirectory.get().file('ModInfo.kt').asFile
+                source.parentFile.mkdirs()
+                source.setText("// Generated from mod.json. Do not edit.\npackage nimby.mod\n\n" +
+                    "internal val modInfo = nimby.ModInfo(${quoted(mod.id)}, ${quoted(mod.name)})\n", 'UTF-8')
+            }
+        }
         def mainSources = kotlin.sourceSets.getByName("${platform.sourceSet}Main")
         mainSources.kotlin.srcDirs('src/main/kotlin', new File(sdk, 'bridge'))
+        mainSources.kotlin.srcDir(p.files(identityDirectory).builtBy(identity))
         mainSources.with {
             dependencies { implementation(p.files(new File(sdk, 'klib/nimby-mod-api.klib'))) }
         }
@@ -60,8 +76,41 @@ class NrfModPlugin implements Plugin<Project> {
             dependencies { implementation('org.jetbrains.kotlin:kotlin-test:2.2.20') }
         }
 
+        def gameManifests = [:]
+        [Debug: NativeBuildType.DEBUG, Release: NativeBuildType.RELEASE].each { name, type ->
+            def executable = target.binaries.getExecutable('metadata', type)
+            def destination = p.layout.buildDirectory.dir("generated/game/${name.toLowerCase()}")
+            def captured = new ByteArrayOutputStream()
+            gameManifests[name] = p.tasks.register("generate${name}GameManifest", Exec) {
+                group = 'build'
+                description = 'Generate mod.txt from the compiled Kotlin declaration, without running the game.'
+                dependsOn(executable.linkTaskProvider)
+                inputs.file(executable.outputFile); inputs.file(p.file('mod.json'))
+                inputs.files(p.fileTree('assets'), p.fileTree('imgs'), p.fileTree('config'))
+                outputs.dir(destination)
+                workingDir(p.projectDir)
+                commandLine(runner ? ['python3', runner, executable.outputFile] : [executable.outputFile])
+                standardOutput = captured
+                doFirst {
+                    captured.reset()
+                    if (!runner && !platform.executableOnHost()) throw new GradleException("Metadata generation requires a ${platform.id} host or the explicit CI runner")
+                }
+                doLast {
+                    def declaration
+                    try { declaration = new JsonSlurper().parseText(captured.toString('UTF-8')) }
+                    catch (Exception error) { throw new GradleException('Invalid metadata output: createMod must only declare the mod, without printing or accessing the game.', error) }
+                    String contents = GameModManifest.render(mod, declaration, p.projectDir)
+                    File output = destination.get().file('mod.txt').asFile
+                    output.parentFile.mkdirs()
+                    output.setText(contents, 'UTF-8')
+                    destination.get().file('nrf-metadata.json').asFile.setText(
+                        JsonOutput.prettyPrint(JsonOutput.toJson(GameModManifest.metadata(declaration, p.projectDir))) + '\n', 'UTF-8')
+                }
+            }
+        }
         def testAssets = p.tasks.register('prepareTestAssets', Sync) {
             from('assets'); from('imgs') { into('imgs') }; from('config') { into('config') }
+            from(gameManifests.Debug)
             into(p.layout.buildDirectory.dir('test-assets'))
         }
         // Sync is NO-SOURCE for a code-only tool and then creates no folder.
@@ -112,8 +161,9 @@ class NrfModPlugin implements Plugin<Project> {
                 dependsOn(binary.linkTaskProvider, manifest)
                 from(binary.outputFile) { rename { "${mod.module}Kotlin${platform.extension}" } }
                 from(new File(sdk, "bin/${platform.adapter}")) { rename { "${mod.module}${platform.extension}" } }
-                from('assets') { exclude('nrf-mod.ini') }
+                from('assets') { exclude('nrf-mod.ini', 'mod.txt') }
                 from(generated)
+                from(gameManifests[name])
                 from('imgs') { into('imgs') }
                 from('config') { into('config') }
                 from('docs') { into('docs') }

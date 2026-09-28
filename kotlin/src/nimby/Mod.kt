@@ -1,6 +1,12 @@
 package nimby
 
 /** API de mod Kotlin. Les unités sont mètres, secondes, m/s, kg, N et W. */
+/** Case du panneau d'extensions du signal sélectionné.
+ * name est la clé technique enregistrée, jamais affichée ; label apparaît à côté
+ * de la case et description sous la case, avec retour à la ligne automatique.
+ * Une description vide n'ajoute aucune ligne. label et description acceptent tr.
+ * defaultValue est utilisé quand aucun réglage n'a encore été enregistré.
+ * La case ne change pas une règle seule : consulter enabled dans rules. */
 data class Checkbox(val name: String, val label: String, val description: String, val defaultValue: Boolean = false,
     /** Pour un avertissement importé : visible tant qu'il reste à acquitter. */
     val onlyWhenEnabled: Boolean = false)
@@ -22,8 +28,14 @@ data class SignalType(
      * derrière le signal ; 2 = les deux cantons précédents. De 1 à 16.
      * Le parcours suit la tête du train, sans choisir de branche à une aiguille.
      * Le SDK fournit une observation ; le mod décide si elle autorise l'ouverture. */
-    val approachBlocks: Int = 1
+    val approachBlocks: Int = 1,
+    /** Ressources et entrée constructible, utilisées pour générer mod.txt. */
+    val construction: SignalConstruction? = null
 )
+/** Occupation physique : l'entrée de la tête suffit à occuper un canton et
+ * l'arrière doit le dégager pour le libérer. Une portion aval observée peut
+ * prouver [Occupied] même sans limite connue ; elle ne prouve jamais [Clear].
+ * Le modèle de signal reste responsable de l'indication à afficher. */
 enum class Occupancy { Unknown, Clear, Occupied }
 enum class SettingsStatus { Unavailable, Absent, Present }
 data class Observation(
@@ -32,6 +44,12 @@ data class Observation(
     val lampFailed: Boolean = false, val redFlashCondition: Boolean = false, val next: Int = 0,
     val approachingTrain: Long? = null
 )
+
+// The native object tag is an SDK detail. Invalid input cannot become evidence
+// of an approaching train, including in locally constructed test observations.
+internal fun Observation.validatedApproach(): Observation =
+    if (approachingTrain != null && approachingTrain ushr 48 != 5L)
+        copy(fresh = false, approachingTrain = null) else this
 /** Transport opaque, propre à la déclaration du mod. Ne pas persister ces codes
  * ni les utiliser comme indices d'enum : SignallingMod.indication les décode.
  * Les recettes du banc utilisent séparément les ordinaux locaux du modèle. */
@@ -98,6 +116,9 @@ abstract class SignallingMod : GameMod() {
     abstract fun decide(signal: Signal, next: Decision?): Decision?
     open fun fromLive(signal: Signal): Signal = signal
     abstract fun texture(decision: Decision, simulationMs: Long, halfPeriodMs: Long): String
+    /** Description d'affichage fournie par appearance. Null conserve le callback
+     * historique texture ; les modèles déclaratifs la fournissent automatiquement. */
+    open fun animation(decision: Decision): SignalAnimation? = null
     /** Indication de recette autorisee par le mod. Null refuse le code.
      * Le motif determine aussi la conduite : arret absolu ou permissif.
      * Aucun aspect, motif ni vitesse ne sont interpretes par le SDK. */

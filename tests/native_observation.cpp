@@ -80,6 +80,12 @@ uint32_t __cdecl NimbyInternal_CaptureSignallingSnapshot(NimbySession s,NimbySna
 uint32_t __cdecl NimbyInternal_CaptureSignallingFor(NimbySession s,const char*,NimbySnapshot* out,uint32_t* stage) noexcept {
     return NimbyInternal_CaptureSnapshotDiagnostic(s,out,stage);
 }
+uint32_t __cdecl NimbyInternal_CaptureSignallingScope(NimbySession s,const NimbySignalCaptureScope*,uint32_t,NimbySnapshot* out,uint32_t* stage) noexcept {
+    return NimbyInternal_CaptureSnapshotDiagnostic(s,out,stage);
+}
+uint32_t __cdecl NimbyInternal_CaptureSessionSnapshot(NimbySession s,NimbySnapshot* out,uint32_t* stage) noexcept {
+    return NimbyInternal_CaptureSnapshotDiagnostic(s,out,stage);
+}
 uint32_t __cdecl NimbyInternal_GetGameSession(NimbySnapshot, NimbyGameSession* out) noexcept {
     *out={};out->struct_size=sizeof(*out);
     if(!gameSessionAvailable)return NIMBY_DATA_UNAVAILABLE;
@@ -405,7 +411,15 @@ int main() {
             auto second = std::async(std::launch::async, [&] { return client.capture(); });
             REQUIRE(first.get() && second.get());
             REQUIRE(peak == 1);
+            REQUIRE(client.capture()->getAge()>=nimby::Milliseconds{35});
             delayMs = 0;
+            // A tool heartbeat must not request any network tables. Deliberately
+            // failing track copy proves this is independent of network capture.
+            trackStatus=NIMBY_IO_ERROR;gameSessionAvailable=true;
+            const auto metadata=client.capture(nimby::SnapshotScope::Session);
+            REQUIRE(metadata->getGameSession()&&metadata->getSimulationClock());
+            REQUIRE(metadata->getAllTracks().empty()&&metadata->getAllTrains().empty());
+            trackStatus=NIMBY_OK;
         }
         REQUIRE(retained->getAllTrains().size() == 2); // Native session destruction is harmless.
         REQUIRE(closes == 1 && captures == releases);

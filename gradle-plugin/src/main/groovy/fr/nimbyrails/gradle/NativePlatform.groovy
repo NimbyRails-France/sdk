@@ -26,7 +26,7 @@ abstract class NativePlatform {
 
     String getAdapter() { "NimbyKotlinMod${extension}" }
     List<String> requiredFiles() {
-        ['sdk.json', 'klib/nimby-mod-api.klib', 'bridge/Exports.kt', "bin/${adapter}", "bin/${loaderTest}"] +
+        ['sdk.json', 'klib/nimby-mod-api.klib', 'bridge/Exports.kt', 'bridge/Package.kt', "bin/${adapter}", "bin/${loaderTest}"] +
             libraries.collect { "bin/${it}" }
     }
     /** Creates only the kit's declared target; never guesses from the host. */

@@ -1,0 +1,4 @@
+SHA256=fff49ac21720abfc824c2b4f68b862727630eb0db71cfe1f9ea8f685d0db10ae
+imageBase=140000000
+Ghidra=12.1.3
+Inferred signatures are not runtime-validated.

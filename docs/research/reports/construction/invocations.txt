@@ -1,0 +1,4 @@
+vtable:cmd::tn::CreateSignal vtable:cmd::tn::Undo 1407bc7e0 1407832e0 140339140 140786320 1407afe40 140762a70
+14030e12e 1403493d5 1402459c2
+symbols:cmd::tn::
+vtable:cmd::tn::Paste vtable:cmd::tn::Edit 14073ebd0 14073ebf0 14073ec90 140762bd0

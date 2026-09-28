@@ -19,6 +19,10 @@ data class SignalActionRequest(
 abstract class GameMod {
     abstract val id: String
     abstract val title: String
+    /** Déclarer metadata dans le builder pour générer les informations du jeu. */
+    open val metadata: ModMetadata? = null
+    open val windows: List<ToolWindow> = emptyList()
+    open fun onWindowEvent(request: ToolWindowEvent, context: ToolContext) {}
     open val services: List<String> = emptyList()
     open fun onSignalAction(request: SignalActionRequest, context: ToolContext) {}
     open fun onTick(context: ToolContext) {}
@@ -31,6 +35,9 @@ class ToolMod internal constructor(
     private val handlers: Map<String, ToolContext.(SignalActionRequest) -> Unit>,
     private val tick: ToolContext.() -> Unit,
     private val stop: () -> Unit,
+    override val metadata: ModMetadata?,
+    override val windows: List<ToolWindow>,
+    private val windowHandlers: Map<String, ToolContext.(ToolWindowEvent) -> Unit>,
 ) : GameMod() {
     override val services: List<String> = handlers.keys.toList()
     override fun onSignalAction(request: SignalActionRequest, context: ToolContext) {
@@ -38,9 +45,26 @@ class ToolMod internal constructor(
     }
     override fun onTick(context: ToolContext) = tick(context)
     override fun onStop() = stop()
+    override fun onWindowEvent(request: ToolWindowEvent, context: ToolContext) {
+        windowHandlers[request.window]?.invoke(context, request)
+    }
 }
 
 class ToolModBuilder internal constructor() {
+    internal val windows = mutableListOf<ToolWindow>()
+    internal val windowHandlers = linkedMapOf<String, ToolContext.(ToolWindowEvent) -> Unit>()
+    /** Enregistre une fenêtre et son formulaire ; aucun signal requis. */
+    fun window(id: String, title: String, shortcut: String = "F8", handler: ToolContext.(ToolWindowEvent) -> Unit) {
+        validateServiceName(id)
+        require(id !in windowHandlers && windows.size < 8)
+        require(windows.none { it.shortcut == shortcut }) { "Raccourci déjà déclaré : $shortcut" }
+        require(shortcut.matches(Regex("Ctrl\\+Shift\\+[A-Z]|F([1-9]|1[0-2])")))
+        require(title.isNotBlank() && title.encodeToByteArray().size <= 256 && '\u0000' !in title)
+        windows.add(ToolWindow(id, title, shortcut)); windowHandlers[id] = handler
+    }
+    internal var metadata: ModMetadata? = null
+    /** Auteur et description affichés dans la liste des mods du jeu. */
+    fun metadata(author: String, description: String, name: String? = null) { metadata = ModMetadata(author, description, name) }
     internal val handlers = linkedMapOf<String, ToolContext.(SignalActionRequest) -> Unit>()
     internal var tick: ToolContext.() -> Unit = {}
     internal var stop: () -> Unit = {}
@@ -59,8 +83,9 @@ fun toolMod(id: String, title: String, block: ToolModBuilder.() -> Unit): ToolMo
     validateServiceName(id)
     require(title.isNotBlank() && title.length <= 256 && '\u0000' !in title)
     val builder = ToolModBuilder().apply(block)
-    require(builder.handlers.isNotEmpty()) { "Déclarer au moins un service" }
-    return ToolMod(id, title, builder.handlers.toMap(), builder.tick, builder.stop)
+    require(builder.handlers.isNotEmpty() || builder.windows.isNotEmpty()) { "Déclarer un service ou une fenêtre" }
+    return ToolMod(id, title, builder.handlers.toMap(), builder.tick, builder.stop, builder.metadata,
+        builder.windows.toList(), builder.windowHandlers.toMap())
 }
 
 internal fun validateServiceName(value: String) {

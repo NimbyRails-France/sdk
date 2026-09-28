@@ -1,0 +1,238 @@
+{
+  "date": "2026-09-27",
+  "gameSha256": "fff49ac21720abfc824c2b4f68b862727630eb0db71cfe1f9ea8f685d0db10ae",
+  "scenario": "New empty game, simulation paused, three manual Path signals then one native undo",
+  "events": [
+    {
+      "event": 0,
+      "kind": 6,
+      "thread": 29708,
+      "tick": 189089437,
+      "historyCount": 0
+    },
+    {
+      "event": 1,
+      "kind": 7,
+      "thread": 29708,
+      "tick": 189089437,
+      "historyCount": 1
+    },
+    {
+      "event": 2,
+      "kind": 1,
+      "thread": 29708,
+      "tick": 189144968,
+      "historyCount": 0
+    },
+    {
+      "event": 3,
+      "kind": 2,
+      "thread": 35124,
+      "tick": 189144968,
+      "historyCount": 0
+    },
+    {
+      "event": 4,
+      "kind": 3,
+      "thread": 35124,
+      "tick": 189144968,
+      "historyCount": 0
+    },
+    {
+      "event": 5,
+      "kind": 6,
+      "thread": 29708,
+      "tick": 189144984,
+      "historyCount": 0
+    },
+    {
+      "event": 6,
+      "kind": 7,
+      "thread": 29708,
+      "tick": 189144984,
+      "historyCount": 1
+    },
+    {
+      "event": 7,
+      "kind": 1,
+      "thread": 29708,
+      "tick": 189155406,
+      "historyCount": 0
+    },
+    {
+      "event": 8,
+      "kind": 2,
+      "thread": 35124,
+      "tick": 189155406,
+      "historyCount": 0
+    },
+    {
+      "event": 9,
+      "kind": 3,
+      "thread": 35124,
+      "tick": 189155406,
+      "historyCount": 0
+    },
+    {
+      "event": 10,
+      "kind": 6,
+      "thread": 29708,
+      "tick": 189155421,
+      "historyCount": 1
+    },
+    {
+      "event": 11,
+      "kind": 7,
+      "thread": 29708,
+      "tick": 189155421,
+      "historyCount": 2
+    },
+    {
+      "event": 12,
+      "kind": 1,
+      "thread": 29708,
+      "tick": 189387953,
+      "historyCount": 0
+    },
+    {
+      "event": 13,
+      "kind": 2,
+      "thread": 35124,
+      "tick": 189387953,
+      "historyCount": 0
+    },
+    {
+      "event": 14,
+      "kind": 3,
+      "thread": 35124,
+      "tick": 189387953,
+      "historyCount": 0
+    },
+    {
+      "event": 15,
+      "kind": 6,
+      "thread": 29708,
+      "tick": 189387953,
+      "historyCount": 2
+    },
+    {
+      "event": 16,
+      "kind": 7,
+      "thread": 29708,
+      "tick": 189387953,
+      "historyCount": 3
+    },
+    {
+      "event": 17,
+      "kind": 4,
+      "thread": 35124,
+      "tick": 189496343,
+      "historyCount": 0
+    },
+    {
+      "event": 18,
+      "kind": 5,
+      "thread": 35124,
+      "tick": 189496343,
+      "historyCount": 0
+    }
+  ],
+  "beforeUndo": {
+    "captured": 1790518377743,
+    "tracks": 4,
+    "signals": 3,
+    "Signals": [
+      {
+        "id": 2251799813685249,
+        "track": 281474976710657,
+        "fraction": 0.5000001715924796,
+        "direction": -1,
+        "kind": 4
+      },
+      {
+        "id": 2251799813750785,
+        "track": 281474976776193,
+        "fraction": 0.08333344206912122,
+        "direction": -1,
+        "kind": 4
+      },
+      {
+        "id": 2251799813816321,
+        "track": 281474976776193,
+        "fraction": 0.6250000520345849,
+        "direction": -1,
+        "kind": 4
+      }
+    ],
+    "TrackMetrics": [
+      {
+        "id": 281474976710657,
+        "length": 819.7292
+      },
+      {
+        "id": 281474976776193,
+        "length": 819.7292
+      },
+      {
+        "id": 281474976841729,
+        "length": 819.7292
+      },
+      {
+        "id": 281474976907265,
+        "length": 819.7292
+      }
+    ]
+  },
+  "afterUndo": {
+    "captured": 1790518509791,
+    "tracks": 4,
+    "signals": 2,
+    "Signals": [
+      {
+        "id": 2251799813685249,
+        "track": 281474976710657,
+        "fraction": 0.5000001715924796,
+        "direction": -1,
+        "kind": 4
+      },
+      {
+        "id": 2251799813750785,
+        "track": 281474976776193,
+        "fraction": 0.08333344206912122,
+        "direction": -1,
+        "kind": 4
+      }
+    ],
+    "TrackMetrics": [
+      {
+        "id": 281474976710657,
+        "length": 819.7292
+      },
+      {
+        "id": 281474976776193,
+        "length": 819.7292
+      },
+      {
+        "id": 281474976841729,
+        "length": 819.7292
+      },
+      {
+        "id": 281474976907265,
+        "length": 819.7292
+      }
+    ]
+  },
+  "checks": {
+    "threeNativeCreates": true,
+    "oneNativeUndo": true,
+    "earlierSignalsUnchanged": true,
+    "trackMetricsUnchanged": true,
+    "noEventsLost": true
+  },
+  "limitations": [
+    "Manual editor actions, not SDK construction commands or an automatic series.",
+    "No grouped undo, save/reload, SFR model or junction validation.",
+    "Initial probe incorrectly read a delta after the temporary executor result; these bytes are excluded.",
+    "Thread IDs apply only to this process; they are not production thread selectors."
+  ]
+}

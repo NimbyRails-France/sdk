@@ -46,14 +46,19 @@ class SignalRuleContext internal constructor(
         settings = if (source.settingsStatus == SettingsStatus.Absent)
             options.associate { it.name to it.defaultValue } else source.settings,
         observation = if (source.settingsStatus == SettingsStatus.Unavailable)
-            source.observation.copy(fresh = false) else source.observation
+            source.observation.copy(fresh = false).validatedApproach() else source.observation.validatedApproach()
     )
     val settings: Map<String, Boolean> get() = signal.settings
     val observation: Observation get() = signal.observation
     val block: Occupancy get() = observation.block
     val fresh: Boolean get() = observation.fresh
     val routeKnown: Boolean get() = observation.routeKnown
-    val approachingTrain: Long? get() = observation.approachingTrain
+    /** Identifiant validé du train en approche, ou null si absent ou non frais.
+     * Aucun décodage de l'identifiant n'est nécessaire dans le mod. */
+    val approachingTrain: Long? get() = observation.approachingTrain.takeIf { fresh }
+    /** Vrai si une tête de train est observée en approche avec des données fraîches.
+     * Ne prouve ni voie libre ni autorisation de mouvement. */
+    val trainApproaching: Boolean get() = approachingTrain != null
     val settingsStatus: SettingsStatus get() = signal.settingsStatus
     fun enabled(option: Checkbox): Boolean {
         require(options.any { it === option }) { "Cette case appartient à un autre modèle" }
@@ -67,8 +72,23 @@ class SignalRuleContext internal constructor(
 class SignalModelBuilder<A : Enum<A>, R : Enum<R>> internal constructor(private val base: SignalType) {
     private val options = base.checkboxes.toMutableList()
     private val actions = base.actions.toMutableList()
+    private var construction = base.construction
+    /** Déclare les images dans leur ordre de catalogue et le signal constructible.
+     * name apparaît dans le menu de construction ; par défaut, le titre du modèle.
+     * Les chemins sont relatifs au paquet : assets/a.svg devient a.svg.
+     * Le SDK génère mod.txt au build, sans exécuter les règles ni ouvrir le jeu. */
+    fun construction(states: List<String>, name: String = base.title, kind: String = "path",
+                     catalogueName: String = name, nameKey: String? = null, catalogueNameKey: String? = null) {
+        construction = SignalConstruction(states, name, kind, catalogueName, nameKey, catalogueNameKey)
+    }
     var observeApproach = base.observeApproach
     var approachBlocks = base.approachBlocks
+    /** Active la détection dans [blocks] cantons en amont (de 1 à 16).
+     * Le mod consulte ensuite trainApproaching dans rules et décide de l'ouverture. */
+    fun observeApproach(blocks: Int) {
+        require(blocks in 1..16) { "La portée d'approche doit être comprise entre 1 et 16 cantons" }
+        observeApproach = true; approachBlocks = blocks
+    }
     internal var rule: (SignalRuleContext.() -> Indication<A, R>?)? = null
     internal var isolated: ((Map<String, Boolean>, Observation) -> Indication<A, R>)? = null
     internal var typedIsolated: ((Map<String, Boolean>, Observation, A) -> Indication<A, R>)? = null
@@ -76,6 +96,7 @@ class SignalModelBuilder<A : Enum<A>, R : Enum<R>> internal constructor(private 
     internal var preparation: (Signal) -> Signal = { it }
     internal var forced: (A) -> Indication<A, R>? = { null }
     internal var image: ((Indication<A, R>, Long, Long) -> String)? = null
+    internal var animation: ((Indication<A, R>) -> SignalAnimation)? = null
     internal var driving: (Indication<A, R>) -> DrivingRule? = { null }
     internal var fault: (Indication<A, R>) -> Boolean = { false }
     internal var active: (Indication<A, R>) -> Boolean = { true }
@@ -98,15 +119,20 @@ class SignalModelBuilder<A : Enum<A>, R : Enum<R>> internal constructor(private 
     fun prepareObservation(block: (Signal) -> Signal) { preparation = block }
     /** Recettes : le code reçu est l'ordinal local à ce modèle. */
     fun allowForcedAspect(block: (A) -> Indication<A, R>?) { forced = block }
-    fun images(block: (Indication<A, R>) -> String) { image = { value, _, _ -> block(value) } }
+    fun images(block: (Indication<A, R>) -> String) { animation = null; image = { value, _, _ -> block(value) } }
     /** Temps de simulation, en millisecondes. */
-    fun animatedImages(block: (Indication<A, R>, Long, Long) -> String) { image = block }
+    fun animatedImages(block: (Indication<A, R>, Long, Long) -> String) { animation = null; image = block }
+    /** Décrit l'affichage avec steady ou blink. Les durées sont transmises au
+     * moteur de rendu ; le mod ne calcule pas la phase du clignotement. */
+    fun appearance(block: (Indication<A, R>) -> SignalAnimation) {
+        animation = block; image = { value, time, _ -> block(value).frameAt(time) }
+    }
     fun driving(block: (Indication<A, R>) -> DrivingRule?) { driving = block }
     fun faults(block: (Indication<A, R>) -> Boolean) { fault = block }
     fun activeWhen(block: (Indication<A, R>) -> Boolean) { active = block }
     fun aspectNames(block: (A) -> String) { aspectLabel = block }
     fun reasonNames(block: (R) -> String) { reasonLabel = block }
-    internal fun type() = base.copy(checkboxes = options.toList(), actions = actions.toList(), observeApproach = observeApproach, approachBlocks = approachBlocks)
+    internal fun type() = base.copy(checkboxes = options.toList(), actions = actions.toList(), observeApproach = observeApproach, approachBlocks = approachBlocks, construction = construction)
 }
 
 /** Modèle réutilisable et typé. Sa déclaration ne charge ni DLL ni partie.
@@ -118,6 +144,7 @@ class SignalModel<A : Enum<A>, R : Enum<R>> @PublishedApi internal constructor(
     val type: SignalType = builder.type()
     private val rule = requireNotNull(builder.rule) { "Déclarer rules pour ${type.id}" }
     private val image = requireNotNull(builder.image) { "Déclarer images pour ${type.id}" }
+    private val animation = builder.animation
     private val isolated = builder.isolated
     private val typedIsolated = builder.typedIsolated
     private val migrate = builder.migration
@@ -152,6 +179,7 @@ class SignalModel<A : Enum<A>, R : Enum<R>> @PublishedApi internal constructor(
     internal fun migrate(saved: Map<String, Boolean>) = migrate.invoke(saved)
     internal fun prepare(signal: Signal) = prepare.invoke(signal)
     internal fun texture(raw: Decision, simulationMs: Long, halfPeriodMs: Long) = image(decode(raw), simulationMs, halfPeriodMs)
+    internal fun animation(raw: Decision) = animation?.invoke(decode(raw))
     internal fun driving(raw: Decision) = driving.invoke(decode(raw))
     internal fun fault(raw: Decision) = fault.invoke(decode(raw))
     internal fun active(raw: Decision) = active.invoke(decode(raw))
@@ -177,6 +205,9 @@ inline fun <reified A : Enum<A>, reified R : Enum<R>> signalModel(
 /** Composition du paquet : chaque modèle conserve ses enums et ses callbacks. */
 @SignalModDsl
 class SignalModelsBuilder internal constructor() {
+    internal var metadata: ModMetadata? = null
+    /** Auteur et description affichés dans la liste des mods du jeu. */
+    fun metadata(author: String, description: String, name: String? = null) { metadata = ModMetadata(author, description, name) }
     var maximumLineSpeed = false
     var diagnosticFile = "nimby-kotlin-faults.jsonl"
     internal val models = mutableListOf<SignalModel<*, *>>()
@@ -203,6 +234,7 @@ fun signalMod(id: String, title: String, block: SignalModelsBuilder.() -> Unit):
     return object : SignallingMod() {
         override val id = id
         override val title = title
+        override val metadata = builder.metadata
         override val modelLocalIndications = true
         override val maximumLineSpeed = builder.maximumLineSpeed
         override val diagnosticFile = builder.diagnosticFile
@@ -228,6 +260,7 @@ fun signalMod(id: String, title: String, block: SignalModelsBuilder.() -> Unit):
         override fun forcedDecision(aspect: Int) = forcedDecision("", aspect)
         override fun forcedDecision(type: String, aspect: Int) = index(type).let { models[it].forced(aspect, tag(it)) }
         override fun texture(decision: Decision, simulationMs: Long, halfPeriodMs: Long) = checked(decision).texture(decision, simulationMs, halfPeriodMs)
+        override fun animation(decision: Decision) = checked(decision).animation(decision)
         override fun drivingRule(decision: Decision) = checked(decision).driving(decision)
         override fun isFault(decision: Decision) = checked(decision).fault(decision)
         override fun isActive(decision: Decision) = checked(decision).active(decision)

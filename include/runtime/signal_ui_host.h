@@ -176,6 +176,8 @@ private:
         for(const auto& panel:frame.panels)rows+=panel.controls.controls.size();
         float extra=0;
         if constexpr(requires{ui.heading("");})extra+=32.f*float(frame.panels.size());
+        for(const auto& panel:frame.panels)for(const auto& control:panel.controls.controls)
+            if(!control.checkbox.description.empty())extra+=56.f;
         if constexpr(requires{ui.message("");})for(const auto& a:frame.actions)if(a.action.id.empty())extra+=72.f;
         if constexpr(requires(detail::NumberInputDraft& draft){ui.numberField("",draft,0,0,0,true);})
             for(const auto& a:frame.actions)if(a.input)extra+=32.f;
