@@ -56,7 +56,12 @@ références de vtable et les instructions sont les preuves utilisées ici.
 
 L'objet contient un en-tête de `0x20` octets puis un signal de `0xc8` octets.
 Dans cette commande, la position commence à `+0x60` : voie, fraction à `+0x68`,
-direction à `+0x70`. Ces données contiennent aussi des allocations appartenant
+direction à `+0x70` (un octet signé), orientation de la voie à `+0x71`.
+L'orientation doit venir de la voie de destination (`Track+0x2c`), comme pour
+l'aperçu natif décrit dans `include/platform/windows/signal_preview.h`.
+Écrire un `int32_t` à `+0x70` écrase cette orientation et les deux octets suivants :
+le pont utilise désormais la même écriture de position que l'aperçu.
+Ces données contiennent aussi des allocations appartenant
 au jeu. **Copier les octets du modèle avec `memcpy` serait incorrect** : les
 chaînes et collections deviendraient partagées avec des durées de vie erronées.
 Le futur adaptateur doit respecter construction, copie et destruction natives.

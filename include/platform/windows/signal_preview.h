@@ -1,5 +1,6 @@
 #pragma once
 #include "engine/detail/memory_reader.h"
+#include "platform/windows/signal_position.h"
 #include <nimby/detail/signal_ui_bridge.h>
 #include <span>
 
@@ -61,8 +62,8 @@ public:
             const auto put=[&]<class T>(size_t offset,T value){std::memcpy(ghost.data()+offset,&value,sizeof value);};
             // Match NewSignalEditor's temporary object: no persistent ID and
             // blueprint flag set. Fraction/direction are the mod's inputs.
-            put(0,uint64_t{0});put(8,uint8_t{1});put(0x40,p.track);put(0x48,p.fraction);
-            put(0x50,int8_t(p.direction));put(0x51,orientation);
+            put(0,uint64_t{0});put(8,uint8_t{1});
+            writeSignalPosition(ghost.data()+0x40,p.track,p.fraction,p.direction,orientation);
             render(reinterpret_cast<uint64_t>(ghost.data()));++drawn;
         }
         return drawn;

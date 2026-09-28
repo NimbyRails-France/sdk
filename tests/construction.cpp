@@ -2,12 +2,30 @@
 #undef NDEBUG
 #endif
 #include <engine/construction.h>
+#include <platform/windows/signal_position.h>
+#include <array>
 #include <initializer_list>
 #include <cassert>
 #include <cstddef>
 #include <limits>
 
 int main() {
+    // Both travel directions and both destination orientations, including a
+    // change of track orientation in one batch. Guard every neighbouring byte.
+    std::array<unsigned char,0xe8> command;
+    command.fill(0xa5);
+    for(int direction:{-1,1})for(uint8_t orientation:{0,1}){
+        nimby::platform::windows::writeSignalPosition(command.data()+0x60,
+            0x1000000000001ULL,.375,direction,orientation);
+        uint64_t track{};double fraction{};int8_t actual{};
+        std::memcpy(&track,command.data()+0x60,8);
+        std::memcpy(&fraction,command.data()+0x68,8);
+        std::memcpy(&actual,command.data()+0x70,1);
+        assert(track==0x1000000000001ULL&&fraction==.375&&actual==direction);
+        assert(command[0x71]==orientation);
+        for(size_t i=0;i<command.size();++i)
+            if(i<0x60||i>=0x72)assert(command[i]==0xa5);
+    }
     using nimby::engine::construction::valid;
     static_assert(sizeof(NimbyConstructionPosition)==24);
     static_assert(sizeof(NimbyConstructionRequest)==1568);

@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+## [0.8.0-alpha.6] - 2026-09-29
+
+- Fixes repeated signal orientation: construction writes the signed direction byte without overwriting neighbouring native fields, and uses the destination track orientation, matching the preview.
+- Regression tests cover both directions, both destination orientations and preservation of neighbouring bytes. Live-game confirmation remains required.
+
 ## [0.8.0-alpha.5] - 2026-09-28
 
 - Keeps signal tool panels refreshable during temporary observation suspension; stale panel handles no longer invalidate tool observations.

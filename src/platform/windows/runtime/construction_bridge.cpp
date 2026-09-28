@@ -4,6 +4,7 @@
 #include "platform/windows/runtime/construction_bridge.h"
 #include "engine/construction.h"
 #include "engine/binary_identity.h"
+#include "platform/windows/signal_position.h"
 #include <MinHook.h>
 #include <array>
 #include <atomic>
@@ -77,6 +78,12 @@ bool validTargets(uint64_t db,const NimbyConstructionRequest& request){
     return true;
 }
 
+void position(uint64_t command,uint64_t db,const NimbyConstructionPosition& p){
+    const auto track=object(db,p.track_id,0x4e8);
+    nimby::platform::windows::writeSignalPosition(reinterpret_cast<void*>(command+0x60),
+        p.track_id,p.fraction,p.direction,get<uint8_t>(track+0x2c));
+}
+
 uint64_t create(uint64_t command,uint64_t output,uint64_t context){
     Guard guard;
     if(!operation.waiting||operation.undo||operation.command!=command)return originalCreate(command,output,context);
@@ -108,13 +115,13 @@ uint64_t create(uint64_t command,uint64_t output,uint64_t context){
     for(uint32_t i=0;i<operation.request.count;++i){
         if(i)native<void(*)(uint64_t)>(0x2f3da0)(output);
         const auto& p=operation.request.positions[i];
-        put(command+0x60,p.track_id);put(command+0x68,p.fraction);put(command+0x70,p.direction);
+        position(command,db,p);
         result=originalCreate(command,output,context);
         const auto node=get<uint64_t>(result+0xe8),id=get<uint64_t>(node+0x20);
         if(get<uint64_t>(result+0x100)!=1||(id>>48)!=8){operation.result.reason=3;break;}
         operation.result.ids[operation.result.count++]=id;
     }
-    put(command+0x60,first.track_id);put(command+0x68,first.fraction);put(command+0x70,first.direction);
+    position(command,db,first);
     if(finishSettings&&finishSettings(settingsToken,operation.result.ids,operation.result.count)!=NIMBY_OK)
         operation.result.reason=7;
     return result; // Dispatcher finalizes one cumulative delta after this return.
@@ -231,7 +238,7 @@ void ui(uint64_t editor,uint64_t layout,uint64_t context,uint64_t view,uint64_t 
         const auto command=native<uint64_t(*)(uint64_t)>(0x7bc7e0)(context);
         native<uint64_t(*)(uint64_t,uint64_t)>(0x339140)(command+0x20,source);
         const auto& p=request.positions[0];
-        put(command+0x60,p.track_id);put(command+0x68,p.fraction);put(command+0x70,p.direction);
+        position(command,db,p);
         operation.request=request;operation.command=command;operation.undo=false;operation.result.count=0;
     }else{
         if(!operation.result.can_undo||!operation.history||get<uint64_t>(editor+0xd78)!=operation.history){reject(6);return;}
