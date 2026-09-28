@@ -202,6 +202,31 @@ public:
         });
     }
 private:
+    std::map<uint64_t,std::vector<SignalUiHost::SettingsCopy>> copies_;
+    uint64_t copySerial_=0;
+public:
+    uint32_t beginCopy(uint64_t source,uint64_t* token)noexcept {
+        if(token)*token=0;
+        return boundary([&]() -> uint32_t {
+            if(!token||source>>48!=8)return NIMBY_INVALID_ARGUMENT;
+            if(copies_.size()>=16)return NIMBY_RESOURCE_LIMIT;
+            auto copies=host.copySource(source);
+            *token=++copySerial_;copies_.emplace(*token,std::move(copies));return NIMBY_OK;
+        });
+    }
+    // count=0 cancels a prepared copy. Called before the native creation delta
+    // is finalized; the next signal observation imports the frozen values.
+    uint32_t finishCopy(uint64_t token,const uint64_t* ids,uint32_t count)noexcept {
+        return boundary([&]() -> uint32_t {
+            if(count>64||(!ids&&count))return NIMBY_INVALID_ARGUMENT;
+            auto found=copies_.find(token);if(found==copies_.end())return NIMBY_INVALID_HANDLE;
+            auto copies=std::move(found->second);copies_.erase(found);
+            if(!count)return NIMBY_OK;
+            for(auto& copy:copies)if(!copy.store->queueCopies(copy.values,{ids,count}))return NIMBY_DATA_UNAVAILABLE;
+            return NIMBY_OK;
+        });
+    }
+private:
     template<size_t N> static void copy(char (&out)[N],std::string_view value){
         if(value.size()>=N)throw std::length_error("Signal action text too long");
         std::memcpy(out,value.data(),value.size());out[value.size()]=0;

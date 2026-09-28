@@ -2,11 +2,27 @@ package nimby.mod
 
 import kotlin.test.*
 import nimby.*
+import nimby.internal.ToolAccess
 
 private enum class Aspect { Closed, Open }
 private enum class Reason { Unknown, Approach }
 
 class ContractTest {
+    @Test fun stalePanelDoesNotInvalidateObservationButConstructionStillFails() {
+        val calls = mutableListOf<Int>()
+        val request = SignalActionRequest(1, 0x8000000000001L, "preview", "repeat.v1", "world", 1, 10, "repeat")
+        ToolAccess.withContext("world", 1, { op, _, _, _ -> calls.add(op); if (op == 7) 0 else 9 }) { context ->
+            context.showPanel(request, "Preview", emptyList())
+            context.showPanel(request, "Preview", emptyList(), listOf(ToolNumberInput("spacing", "Spacing", 100, 10, 1000)))
+            assertEquals(listOf(6, 8), calls)
+            assertFailsWith<IllegalStateException> { context.prepareConstruction(request.signalId) }
+            assertEquals(listOf(6, 8, 5, 7), calls)
+        }
+        ToolAccess.withContext("world", 1, { _, _, _, _ -> 1 }) { context ->
+            assertFailsWith<IllegalStateException> { context.showPanel(request, "Preview", emptyList()) }
+        }
+    }
+
     @Test fun installedApiBuildsAService() {
         assertEquals(listOf("contract.v1"), createMod().services)
     }

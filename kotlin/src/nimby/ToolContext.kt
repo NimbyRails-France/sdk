@@ -34,6 +34,11 @@ class ToolContext internal constructor(
     private fun call(op: Int, integers: LongArray, numbers: DoubleArray = doubleArrayOf(), text: ByteArray = byteArrayOf()) {
         check(open) { "Le contexte d'outil n'est plus actif" }
         val status = nativeCall(op, integers, numbers, text)
+        // A signal can be deleted or change catalogue while its tool is open.
+        // A rejected presentation grants no action and is safe to retry on the
+        // next tick. Do not turn it into observation loss and log a stack four
+        // times per second. Malformed payloads and other errors still fail.
+        if ((op == 6 || op == 8) && status == 9) return
         if (status != 0) {
             if (op != 7) runCatching {
                 val diagnostic="ToolContext operation=$op status=$status world=$worldId generation=$generation"

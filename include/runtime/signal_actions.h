@@ -143,9 +143,12 @@ public:
                 throw std::invalid_argument("Invalid number input");}
         std::lock_guard lock(mutex_);const auto p=providers_.find(provider),end=providers_.end();
         const auto consumer=panels_.find(panel);
-        if(p==end||consumer==panels_.end()||!consumer->second.active||!p->second.context||p->second.context!=consumer->second.context||Clock::now()>=p->second.expires)return false;
+        if(p==end||consumer==panels_.end()||!p->second.context||p->second.context!=consumer->second.context||Clock::now()>=p->second.expires)return false;
         const auto declared=std::find_if(consumer->second.actions.begin(),consumer->second.actions.end(),[&](const auto& a){return a.id==origin&&a.service==service&&a.provider==p->second.id;});
-        if(declared==consumer->second.actions.end()||consumer->second.store->read(signal).status!=SettingsStatus::Present)return false;
+        // Publication only updates presentation. A transient loss of signal
+        // observations disables interaction below, without rejecting the tool
+        // tick and triggering another provider suspension/recovery cycle.
+        if(declared==consumer->second.actions.end()||!consumer->second.store->knowsSignal(signal))return false;
         auto& panels=p->second.panels;const auto key=std::make_pair(panel,signal);
         if(!panels.contains(key)&&panels.size()>=64)return false;
         // Workers can refresh their presentation every tick without revoking a

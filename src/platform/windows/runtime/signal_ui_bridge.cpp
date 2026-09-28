@@ -96,6 +96,8 @@ void renderViewport(uint64_t renderer,uint64_t camera,uint64_t scene,uint64_t co
 }
 }
 #define UI_EXPORT extern "C" __declspec(dllexport) uint32_t
+UI_EXPORT NimbyUi_SettingsCopyBeginV1(uint64_t source,uint64_t* token) noexcept {return endpoint.beginCopy(source,token);}
+UI_EXPORT NimbyUi_SettingsCopyFinishV1(uint64_t token,const uint64_t* ids,uint32_t count) noexcept {return endpoint.finishCopy(token,ids,count);}
 UI_EXPORT NimbyUi_RegisterV1(const NimbyUiPanelV1* panel,uint64_t* owner) noexcept {return endpoint.add(panel,owner);}
 UI_EXPORT NimbyUi_TranslationsV1(uint32_t kind,uint64_t token,const char* json,uint32_t bytes) noexcept {return endpoint.translations(kind,token,json,bytes);}
 UI_EXPORT NimbyUi_RemoveV1(uint64_t owner) noexcept {return endpoint.remove(owner);}

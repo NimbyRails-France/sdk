@@ -193,6 +193,11 @@ int main(){
     assert(endpoint.suspendProvider(token)==NIMBY_OK);
     assert(endpoint.suspend(owner)==NIMBY_OK);
     drawText(611);assert(textUi.shown.empty()); // A disabled panel retains the empty draft.
+    assert(endpoint.observeProvider(token,"world",5,2)==NIMBY_OK);
+    assert(endpoint.publishToolPanelV2(token,&numeric)==NIMBY_OK); // Presentation may refresh while SFR observations are suspended.
+    const auto suspended=endpoint.host.prepare(614,signal);
+    assert(suspended.actions.size()==3);
+    for(const auto& action:suspended.actions)assert(!endpoint.host.actions->available(action));
     assert(endpoint.host.prepare(612,signal).actions.size()==3);
     assert(endpoint.observe(owner,session,&row,1)==NIMBY_OK);
     assert(endpoint.panelContext(owner,session,2)==NIMBY_OK);

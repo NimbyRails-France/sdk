@@ -101,3 +101,6 @@ typedef struct NimbyUiSignalPreviewV1 {
 // Copied UTF-8 catalogue; kind 0 = panel owner, 1 = service provider.
 typedef uint32_t (*NimbyUiTranslationsV1)(uint32_t,uint64_t,const char*,uint32_t);
 typedef uint32_t (*NimbyUiSignalPreviewPublishV1)(uint64_t,const NimbyUiSignalPreviewV1*);
+// Internal native construction handoff. No STL objects cross DLL boundaries.
+typedef uint32_t (*NimbyUiSettingsCopyBeginV1)(uint64_t,uint64_t*);
+typedef uint32_t (*NimbyUiSettingsCopyFinishV1)(uint64_t,const uint64_t*,uint32_t);

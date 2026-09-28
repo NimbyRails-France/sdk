@@ -35,6 +35,19 @@ int main(){try{
     struct Click {void checkbox(const char*,const char*,uint32_t& value){value=1;}} click;
     nimby::runtime::SignalUiHost::interactive(frame,id,click);
     CHECK(endpoint.read(owner,id,&values)==NIMBY_OK&&values.fields[0].value==1);
+    {
+        uint64_t copy{};const uint64_t target=id+0x10000;
+        CHECK(endpoint.beginCopy(id,&copy)==NIMBY_OK&&copy);
+        CHECK(endpoint.finishCopy(copy,&target,1)==NIMBY_OK);
+        CHECK(endpoint.finishCopy(copy,&target,1)==NIMBY_INVALID_HANDLE);
+        CHECK(endpoint.observe(owner,session,&signal,1)==NIMBY_OK);
+        std::array<NimbyUiSignalV1,2> created{signal,signal};created[1].id=target;
+        CHECK(endpoint.observe(owner,session,created.data(),2)==NIMBY_OK);
+        CHECK(endpoint.read(owner,target,&values)==NIMBY_OK&&values.status==2&&values.fields[0].value==1);
+        CHECK(endpoint.observe(owner,session,&signal,1)==NIMBY_OK);
+        CHECK(endpoint.beginCopy(id,&copy)==NIMBY_OK);
+        CHECK(endpoint.finishCopy(copy,nullptr,0)==NIMBY_OK);
+    }
     // Two models in one mod: same setting name, separate catalogues/defaults,
     // no checkbox/persistence leakage when the editor changes selection.
     auto secondPanel=panel;std::strcpy(secondPanel.id,"test.second");

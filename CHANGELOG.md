@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [0.8.0-alpha.5] - 2026-09-28
+
+- Keeps signal tool panels refreshable during temporary observation suspension; stale panel handles no longer invalidate tool observations.
+- Repeated signals inherit effective NRF checkbox settings, including unchecked values, with session isolation and deferred application to newly observed IDs.
+- Regression coverage for panel suspension, settings copy and stale presentation handles. Live-game visual validation remains required.
+
 ## [0.8.0-alpha.4] - 2026-09-28
 
 - R?utilise les DLL pr?existantes identiques sans les supprimer ? la d?sinstallation.

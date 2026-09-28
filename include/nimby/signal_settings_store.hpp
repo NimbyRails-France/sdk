@@ -20,6 +20,26 @@ public:
     };
     struct SavedSignal { uint64_t id;std::map<std::string,bool,std::less<>> values; };
     struct SavedSettings { std::string sessionId,panelId;std::vector<SavedSignal> signals; };
+    struct Copy { uint64_t session;std::map<std::string,bool,std::less<>> values; };
+    // Freeze effective values, including defaults and explicit false values.
+    std::optional<Copy> copySource(uint64_t source) const {
+        std::lock_guard lock(mutex_);
+        if(!signals_.contains(source))return {};
+        if(!observed_)throw std::runtime_error("Source signal settings temporarily unavailable");
+        Copy copy{session_,{}};
+        for(const auto& box:panel_.checkboxes)copy.values.emplace(box.name,box.defaultValue);
+        if(const auto saved=values_.find(source);saved!=values_.end())
+            for(const auto& [name,value]:saved->second)if(copy.values.contains(name))copy.values[name]=value;
+        return copy;
+    }
+    bool queueCopies(const Copy& copy,std::span<const uint64_t> targets) {
+        std::lock_guard lock(mutex_);
+        if(!current(copy.session)||targets.size()>64)return false;
+        for(auto id:targets)if(id>>48!=8)return false;
+        if(values_.size()+pendingCopies_.size()+targets.size()>16384)return false;
+        for(auto id:targets)pendingCopies_[id]=copy.values;
+        return true;
+    }
     // Owned frame data: native layout and interactive drawing must use the same
     // fields, even if the observation worker invalidates the session meanwhile.
     struct Control { Checkbox checkbox;bool value=false; };
@@ -43,6 +63,7 @@ public:
         panel_=std::move(candidate);invalidate();
     }
     Panel panel() const {std::lock_guard lock(mutex_);return panel_;}
+    bool knowsSignal(uint64_t signal)const {std::lock_guard lock(mutex_);return !sessionId_.empty()&&signals_.contains(signal);}
     // Runtime context only; this does not serialize a profile or copy all values.
     std::optional<std::string> sessionIdentity(uint64_t expected)const {
         std::lock_guard lock(mutex_);if(!current(expected))return {};
@@ -92,6 +113,14 @@ public:
         for(const auto& signal:signals){
             if(signal.id>>48!=8||!all.insert(signal.id).second)throw std::invalid_argument("Invalid signal identity");
             if(signal.textureSet==panel_.textureSet)matching.insert(signal.id);
+        }
+        // A capture started before native construction can arrive afterwards.
+        // Keep copies pending until their full IDs appear in this catalogue.
+        for(auto i=pendingCopies_.begin();i!=pendingCopies_.end();){
+            if(matching.contains(i->first)){
+                values_[i->first]=i->second;i=pendingCopies_.erase(i);
+            }else if(all.contains(i->first))i=pendingCopies_.erase(i);
+            else ++i;
         }
         for(auto i=values_.begin();i!=values_.end();) {
             if(!matching.contains(i->first))i=values_.erase(i);else ++i;
@@ -167,6 +196,7 @@ public:
         if(sessionId_.empty())throw std::logic_error("No settings session");
         SavedSettings saved{sessionId_,panel_.id,{}};
         for(const auto& [id,values]:values_)saved.signals.push_back({id,values});
+        for(const auto& [id,values]:pendingCopies_)if(!values_.contains(id))saved.signals.push_back({id,values});
         return saved;
     }
 private:
@@ -175,7 +205,7 @@ private:
             throw std::invalid_argument("Invalid settings text");
     }
     bool current(uint64_t session)const{return session && session==session_ && !sessionId_.empty();}
-    void invalidate(){++session_;editor_={};sessionId_.clear();observed_=false;signals_.clear();values_.clear();}
+    void invalidate(){++session_;editor_={};sessionId_.clear();observed_=false;signals_.clear();values_.clear();pendingCopies_.clear();}
     mutable std::mutex mutex_;
     Panel panel_;
     uint64_t session_=0,selection_=0;
@@ -184,5 +214,6 @@ private:
     Editor editor_;
     std::set<uint64_t> signals_;
     std::map<uint64_t,std::map<std::string,bool,std::less<>>> values_;
+    std::map<uint64_t,std::map<std::string,bool,std::less<>>> pendingCopies_;
 };
 }

@@ -8,6 +8,7 @@
 #include <array>
 #include <atomic>
 #include <cstring>
+#include <nimby/detail/signal_ui_bridge.h>
 
 namespace {
 using namespace nimby::construction_bridge;
@@ -89,6 +90,19 @@ uint64_t create(uint64_t command,uint64_t output,uint64_t context){
         operation.result.reason=2;return result;
     }
     operation.authorized=true;
+    // Freeze NRF settings before the first native mutation. An older loaded UI
+    // bridge must refuse this operation instead of silently dropping settings.
+    uint64_t settingsToken{};
+    NimbyUiSettingsCopyFinishV1 finishSettings{};
+    if(const auto bridge=GetModuleHandleW(L"NimbySignalUiBridge-experimental-v1.dll")){
+        const auto begin=reinterpret_cast<NimbyUiSettingsCopyBeginV1>(GetProcAddress(bridge,"NimbyUi_SettingsCopyBeginV1"));
+        finishSettings=reinterpret_cast<NimbyUiSettingsCopyFinishV1>(GetProcAddress(bridge,"NimbyUi_SettingsCopyFinishV1"));
+        if(!begin||!finishSettings||begin(operation.request.source_signal,&settingsToken)!=NIMBY_OK){
+            const auto previous=get<uint64_t>(command+0x60);put<uint64_t>(command+0x60,0);
+            const auto result=originalCreate(command,output,context);put(command+0x60,previous);
+            operation.authorized=false;operation.result.reason=7;return result;
+        }
+    }
     const auto first=operation.request.positions[0];
     uint64_t result{};
     for(uint32_t i=0;i<operation.request.count;++i){
@@ -101,6 +115,8 @@ uint64_t create(uint64_t command,uint64_t output,uint64_t context){
         operation.result.ids[operation.result.count++]=id;
     }
     put(command+0x60,first.track_id);put(command+0x68,first.fraction);put(command+0x70,first.direction);
+    if(finishSettings&&finishSettings(settingsToken,operation.result.ids,operation.result.count)!=NIMBY_OK)
+        operation.result.reason=7;
     return result; // Dispatcher finalizes one cumulative delta after this return.
 }
 
@@ -179,7 +195,7 @@ void ui(uint64_t editor,uint64_t layout,uint64_t context,uint64_t view,uint64_t 
         operation.history=operation.singleCommand&&capturedHistory==get<uint64_t>(editor+0xd78)?capturedHistory:0;
         if(operation.history==editor+0xd70)operation.history=0;
         operation.result.can_undo=operation.history!=0;
-        finish(operation.result.count==operation.request.count?NIMBY_CONSTRUCTION_APPLIED:NIMBY_CONSTRUCTION_PARTIAL);
+        finish(operation.result.count==operation.request.count&&!operation.result.reason?NIMBY_CONSTRUCTION_APPLIED:NIMBY_CONSTRUCTION_PARTIAL,operation.result.reason);
         return;
     }
     if(InterlockedCompareExchange(&shared->state,executing,pending)!=pending)return;

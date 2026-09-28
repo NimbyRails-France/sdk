@@ -46,14 +46,23 @@ l’éditeur. Aucun pointeur du jeu ne traverse le contrat Kotlin.
 |---|---|
 | READY | Jeton préparé ; capturer puis calculer |
 | APPLIED | Toutes les créations ont été accusées ; IDs disponibles |
-| PARTIAL | Une partie seulement a été créée ; examiner les IDs et `canUndo` |
+| PARTIAL | Création ou copie des réglages incomplète ; examiner les IDs, la raison et `canUndo` |
 | UNDONE | Annulation exécutée et accusée |
 | REJECTED | Demande refusée ; raison numérique disponible |
 | PENDING | Résultat incertain ; appeler `pollConstruction(token)` |
 
 Raisons : 1 requête invalide/expirée, 2 jeton/session/révision invalide,
 3 retour de création inattendu, 4 éditeur occupé ou contexte indisponible,
-5 modèle/voie absent ou état incompatible, 6 historique non annulable.
+5 modèle/voie absent ou état incompatible, 6 historique non annulable,
+7 copie des réglages NRF indisponible.
+
+Les répétitions copient les valeurs effectives des cases NRF du signal source,
+y compris les valeurs par défaut et les cases décochées. Elles sont figées avant
+la première création et appliquées quand les nouveaux IDs sont observés dans
+la même partie. Une capture plus ancienne ne doit pas effacer cette copie.
+La présence d’un ancien pont UI incompatible fait refuser la construction avant
+mutation. Un échec de copie après création produit `PARTIAL`, même si tous les
+signaux natifs existent ; ne pas répéter automatiquement la pose.
 
 Un délai ou une exception de transport après une demande de création ne prouve
 pas l’absence de mutation. Ne pas refaire automatiquement la commande. Le pont

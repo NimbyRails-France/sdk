@@ -27,6 +27,12 @@ public:
         std::lock_guard lock(mutex_);const auto found=owners_.find(token);
         return found==owners_.end()?nullptr:found->second;
     }
+    struct SettingsCopy {std::shared_ptr<SignalSettingsStore> store;SignalSettingsStore::Copy values;};
+    std::vector<SettingsCopy> copySource(uint64_t source)const {
+        std::lock_guard lock(mutex_);std::vector<SettingsCopy> copies;
+        for(const auto& [token,store]:owners_)if(auto copy=store->copySource(source))copies.push_back({store,std::move(*copy)});
+        return copies;
+    }
     bool remove(Token token) {
         std::lock_guard lock(mutex_);const auto found=owners_.find(token);
         if(found==owners_.end())return false;

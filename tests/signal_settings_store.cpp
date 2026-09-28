@@ -6,6 +6,31 @@
 #define CHECK(x) do {if(!(x))throw std::runtime_error("Failed line "+std::to_string(__LINE__));}while(false)
 int main(){try{
     using Store=nimby::SignalSettingsStore;
+    {
+        Store copied;
+        constexpr nimby::SignalCheckbox boxes[]{{"active","Active","",false},{"option","Option","",true}};
+        copied.configure({"copy","Copy","atlas",boxes});
+        const auto epoch=copied.beginSession("world");
+        constexpr uint64_t source=0x8000000000011,target=0x8000000010011;
+        const std::array<Store::Signal,1> before{{{source,"atlas"}}};
+        CHECK(copied.observeSignals(epoch,before));
+        const auto editor=copied.selectSignal(epoch,source);
+        CHECK(copied.setBoolean(editor,"active",true));
+        CHECK(copied.setBoolean(editor,"option",false));
+        const auto frozen=copied.copySource(source);CHECK(frozen);
+        CHECK(copied.setBoolean(editor,"active",false));
+        CHECK(copied.queueCopies(*frozen,std::array{target}));
+        CHECK(copied.observeSignals(epoch,before)); // An older capture must not discard the pending copy.
+        const std::array<Store::Signal,2> after{{{source,"atlas"},{target,"atlas"}}};
+        CHECK(copied.observeSignals(epoch,after));
+        CHECK(copied.read(target).getBoolean("active")==true);
+        CHECK(copied.read(target).getBoolean("option")==false);
+        CHECK(copied.save(epoch).signals.size()==2);
+        CHECK(copied.observeSignals(epoch,before)); // Undo removes copied settings on observation.
+        CHECK(copied.read(target).status==nimby::SettingsStatus::Absent);
+        copied.beginSession("another world");
+        CHECK(!copied.queueCopies(*frozen,std::array{target}));
+    }
     constexpr uint64_t a=0x8000000000001,b=0x8000000010001,recycled=a+1;
     constexpr nimby::SignalCheckbox fields[]{{"active","Active","",false},{"green","Green","",true}};
     Store store;store.configure({"test.panel","Test","test.atlas",fields});
