@@ -3,8 +3,9 @@
 Cette API de développement Windows sert à qualifier la pose de séries dans une
 **partie solo d’essai**. Les kits reconstruits localement depuis le mode développeur
 du Hub incluent le pont (`NIMBY_DEVELOPMENT_CONSTRUCTION=ON`). Les builds
-de distribution gardent cette option désactivée. La cible CMake
-`nimby_construction_bridge` reste exclue des paquets de production.
+alpha Windows à partir de `0.8.0-alpha.2` l’incluent également pour Signal
+Placement. Les distributions stables gardent cette option désactivée ; la
+construction reste une fonctionnalité expérimentale réservée au jeu solo.
 Le binaire reconnu est NIMBY Rails `1.19.10.5bfaea3`, SHA-256
 `fff49ac21720abfc824c2b4f68b862727630eb0db71cfe1f9ea8f685d0db10ae`.
 

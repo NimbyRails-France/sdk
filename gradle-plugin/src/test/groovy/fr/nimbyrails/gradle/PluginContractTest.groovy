@@ -41,6 +41,12 @@ class PluginContractTest {
         metadata.text = metadata.text.replace('"sdkVersion":"0.8.0"', '"sdkVersion":"0.9.0"')
         assertTrue(runner(root, 'tasks').buildAndFail().output.contains('outside [0.8.0, 0.9.0)'))
     }
+    @Test void codeOnlyModHasAWorkingDirectoryEvenWithoutResources() {
+        File root = project()
+        runner(root, 'prepareTestWorkingDirectory').build()
+        assertTrue(new File(root, 'build/gradle/test-assets').isDirectory())
+        assertFalse(new File(root, 'assets').exists())
+    }
 
     @Test void rejectsPluginFromAnotherKit() {
         File root = project()

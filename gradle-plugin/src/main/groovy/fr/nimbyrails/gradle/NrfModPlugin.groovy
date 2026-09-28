@@ -64,8 +64,19 @@ class NrfModPlugin implements Plugin<Project> {
             from('assets'); from('imgs') { into('imgs') }; from('config') { into('config') }
             into(p.layout.buildDirectory.dir('test-assets'))
         }
-        p.tasks.withType(getClass().classLoader.loadClass('org.jetbrains.kotlin.gradle.targets.native.tasks.KotlinNativeTest')).configureEach {
+        // Sync is NO-SOURCE for a code-only tool and then creates no folder.
+        // Native launchers still need an existing working directory on both
+        // Windows and the CI host, independently of optional mod resources.
+        def testDirectory = p.tasks.register('prepareTestWorkingDirectory') {
             dependsOn(testAssets)
+            doLast {
+                File directory = p.layout.buildDirectory.dir('test-assets').get().asFile
+                if (!directory.isDirectory() && !directory.mkdirs())
+                    throw new GradleException("Cannot create test working directory: ${directory}")
+            }
+        }
+        p.tasks.withType(getClass().classLoader.loadClass('org.jetbrains.kotlin.gradle.targets.native.tasks.KotlinNativeTest')).configureEach {
+            dependsOn(testDirectory)
             workingDir = p.layout.buildDirectory.dir('test-assets').get().asFile.absolutePath
             testLogging { events('passed', 'skipped', 'failed') }
         }
@@ -76,7 +87,7 @@ class NrfModPlugin implements Plugin<Project> {
             wineTests = p.tasks.register('windowsTestsWithWine', Exec) {
                 group = 'verification'
                 description = 'Run cross-compiled Windows tests under Wine on CI.'
-                dependsOn(testAssets, testBinary.linkTaskProvider)
+                dependsOn(testDirectory, testBinary.linkTaskProvider)
                 workingDir(p.layout.buildDirectory.dir('test-assets'))
                 commandLine('python3', runner, testBinary.outputFile)
             }

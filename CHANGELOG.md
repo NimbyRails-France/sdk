@@ -13,7 +13,7 @@
 - Champs numériques `ToolNumberInput` dans les panneaux d'outils, événements Kotlin avec valeur et invalidation immédiate des commandes après édition ; défilement horizontal des libellés longs avec mesure de la police native.
 - Correction du cadre d'extensions vide : racine de mise en page explicite, contrôles à la largeur du panneau et recalcul après redimensionnement. Régression couverte sur l'adaptateur natif Windows.
 - Panneau des extensions défilant avec barre verticale native et séparation entre réglages des signaux et commandes des outils.
-- Pose depuis les callbacks Kotlin : chargement local du pont de construction, journalisation des refus et inclusion du pont dans les kits de développement locaux ; distribution publique toujours désactivée.
+- Pose depuis les callbacks Kotlin : chargement local du pont de construction, journalisation des refus et inclusion du pont dans les kits locaux et la distribution alpha Windows.
 - Correction des captures bloquées et des cases de réglage des signaux absentes lorsqu'un train supprimé conserve un ancien Motion inactif. Exclusion uniquement après vérification du marqueur de suppression, de la génération et de l'absence stable de présence physique ; les incohérences actives restent refusées.
 - Services optionnels entre mods, actions natives conditionnées à leur présence et `toolMod` pour les outils sans catalogue de signaux.
 - `ToolContext` : captures copiées, commandes de construction par ticket, panneaux temporaires et journal des mods. Validation logicielle Windows ; qualification du nouveau panneau en jeu encore nécessaire.
