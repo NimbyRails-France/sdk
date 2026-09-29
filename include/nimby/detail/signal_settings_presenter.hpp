@@ -13,6 +13,15 @@ size_t drawSignalSettings(SignalSettingsStore& store,
                         const SignalSettingsStore::Frame& frame,
                         Ui& ui,bool interactive) {
     size_t failedWrites=0;
+    const auto drawNumber=[&](const SignalSettingsStore::NumberControl& number){
+        if constexpr(requires(NumberInputDraft& draft){ui.numberField("",draft,0,0,0,true);}){
+            const bool enabled=frame.available&&store.accepts(frame.editor);
+            const auto edit=ui.numberField(number.field.label.c_str(),*number.draft,number.value,0,int(number.field.maximum),enabled);
+            if(interactive&&enabled&&edit.value&&(edit.changed||(number.draft->modified&&*edit.value!=number.value)))
+                try{store.setNumber(frame.editor,number.field.name,*edit.value);}
+                catch(...){nimby::detail::diagnostics::exception("mods",__func__);++failedWrites;}
+        }
+    };
     for(const auto& control:frame.controls){
         uint32_t value=control.value?1u:0u;
         ui.checkbox(control.checkbox.label.c_str(),control.checkbox.description.c_str(),value);
@@ -22,15 +31,14 @@ size_t drawSignalSettings(SignalSettingsStore& store,
             try {store.setBoolean(frame.editor,control.checkbox.name,value!=0);}
             catch(...) { nimby::detail::diagnostics::exception("mods", __func__); ++failedWrites;} // Still consume the remaining native layout slots.
         }
+        // Conditional fields belong immediately beneath their enabling checkbox.
+        // Use the captured frame in both passes, even when that box was just toggled.
+        for(const auto& number:frame.numbers)
+            if(number.field.visibleWhen==control.checkbox.name)drawNumber(number);
     }
-    if constexpr(requires(NumberInputDraft& draft){ui.numberField("",draft,0,0,0,true);})
-        for(const auto& number:frame.numbers){
-            const bool enabled=frame.available&&store.accepts(frame.editor);
-            const auto edit=ui.numberField(number.field.label.c_str(),*number.draft,number.value,0,int(number.field.maximum),enabled);
-            if(interactive&&enabled&&edit.value&&(edit.changed||(number.draft->modified&&*edit.value!=number.value)))
-                try{store.setNumber(frame.editor,number.field.name,*edit.value);}
-                catch(...){nimby::detail::diagnostics::exception("mods",__func__);++failedWrites;}
-        }
+    for(const auto& number:frame.numbers)
+        if(number.field.visibleWhen.empty()||std::none_of(frame.controls.begin(),frame.controls.end(),
+            [&](const auto& control){return control.checkbox.name==number.field.visibleWhen;}))drawNumber(number);
     return failedWrites;
 }
 

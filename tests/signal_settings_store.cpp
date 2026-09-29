@@ -7,7 +7,7 @@
 int main(){try{
     using Store=nimby::SignalSettingsStore;
     {
-        constexpr nimby::SignalCheckbox boxes[]{{"works","Works","",false},
+        constexpr nimby::SignalCheckbox boxes[]{{"works","Works","",false},{"yellow","Yellow","",false},
             {"nrf.number.blocks.0","Blocks","",false},{"nrf.number.blocks.1","Blocks","",false},
             {"nrf.number.blocks.2","Blocks","",false}};
         constexpr nimby::SignalNumber numbers[]{{"blocks","Following blocks","works",3,4}};
@@ -17,11 +17,30 @@ int main(){try{
         constexpr uint64_t a=0x8000000000011,b=0x8000000010011;
         CHECK(store.observeSignals(epoch,std::array<Store::Signal,2>{{{a,"atlas"},{b,"atlas"}}}));
         const auto editor=store.selectSignal(epoch,a);
-        CHECK(store.frame(editor)->controls.size()==1&&store.frame(editor)->numbers.empty());
+        CHECK(store.frame(editor)->controls.size()==2&&store.frame(editor)->numbers.empty());
         CHECK(!store.setNumber(editor,"blocks",2));
         CHECK(store.setBoolean(editor,"works",true));
         CHECK(store.setNumber(editor,"blocks",3));
         auto frame=store.frame(editor);CHECK(frame&&frame->numbers.size()==1&&frame->numbers[0].value==3);
+        struct OrderedUi {
+            std::vector<std::string> labels;bool disableWorks=false;
+            void checkbox(const char* label,const char*,uint32_t& value){
+                labels.emplace_back(label);if(disableWorks&&labels.back()=="Works")value=0;
+            }
+            nimby::detail::NumberInputResult numberField(const char* label,nimby::detail::NumberInputDraft&,int,int,int,bool){
+                labels.emplace_back(label);return {};
+            }
+        } layout,click;
+        nimby::detail::SignalSettingsPresentation presentation;
+        CHECK(presentation.layout(store,42,epoch,a,layout));
+        CHECK((layout.labels==std::vector<std::string>{"Works","Following blocks","Yellow"}));
+        click.disableWorks=true;
+        CHECK(presentation.interactive(store,42,epoch,a,click));
+        CHECK(click.labels==layout.labels); // No shifting native layout slots during a click.
+        OrderedUi hidden;
+        CHECK(presentation.layout(store,43,epoch,a,hidden));
+        CHECK((hidden.labels==std::vector<std::string>{"Works","Yellow"}));
+        CHECK(store.setBoolean(editor,"works",true));
         CHECK(!store.setNumber(editor,"blocks",-1)&&!store.setNumber(editor,"blocks",5));
         // Partial text survives observations, but not changing the edited signal.
         frame->numbers[0].draft->length=0;frame->numbers[0].draft->modified=true;

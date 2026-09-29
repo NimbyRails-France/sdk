@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+## [0.8.0-alpha.8] - 2026-09-29
+
+- Affiche les réglages numériques conditionnels immédiatement sous leur case d'activation, notamment le compteur de cantons sous « Vert CLI Travaux ». Conserve le même ordre pendant les passes de disposition et d'interaction.
+English:
+
+- Displays conditional numeric settings immediately below their enabling checkbox, preserving control order across layout and interaction passes.
+
 ## [0.8.0-alpha.7] - 2026-09-29
 
 - Ajoute des réglages numériques bornés dans les panneaux des signaux, avec affichage conditionnel, conservation de la saisie, sauvegarde et copie lors de la répétition.
