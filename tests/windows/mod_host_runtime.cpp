@@ -12,7 +12,7 @@ ULONGLONG WINAPI advancedTickCount64() {
 }
 BOOL WINAPI testSetInformationJobObject(HANDLE job,JOBOBJECTINFOCLASS kind,LPVOID info,DWORD size) {
     if(kind==JobObjectCpuRateControlInformation&&rejectCpuControl.load(std::memory_order_relaxed)) {
-        SetLastError(ERROR_CALL_NOT_IMPLEMENTED);return FALSE;
+        SetLastError(ERROR_INVALID_PARAMETER);return FALSE;
     }
     return SetInformationJobObject(job,kind,info,size);
 }

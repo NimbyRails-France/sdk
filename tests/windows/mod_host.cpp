@@ -225,6 +225,22 @@ void rejectedCpuControl(const std::filesystem::path& exe,const std::filesystem::
     CHECK(fixture::get(0).calls==0);
     std::cout<<"PASS unavailable CPU hard cap rejects mod launch and releases the unstarted channel\n";
 }
+constexpr bool unsupportedWineCpuControl(bool wine,DWORD error) noexcept {
+    return wine&&error==ERROR_INVALID_PARAMETER;
+}
+void cpuControlSkipPolicy() {
+    // Only the known Wine response to the unsupported CPU information class
+    // permits skipping the real-child tests. Windows errors always fail.
+    CHECK(unsupportedWineCpuControl(true,ERROR_INVALID_PARAMETER));
+    CHECK(!unsupportedWineCpuControl(false,ERROR_INVALID_PARAMETER));
+    for(const auto error:{ERROR_SUCCESS,ERROR_INVALID_FUNCTION,ERROR_ACCESS_DENIED,
+                         ERROR_INVALID_HANDLE,ERROR_NOT_ENOUGH_MEMORY,ERROR_NOT_SUPPORTED,
+                         ERROR_CALL_NOT_IMPLEMENTED,ERROR_INSUFFICIENT_BUFFER}) {
+        CHECK(!unsupportedWineCpuControl(true,error));
+        CHECK(!unsupportedWineCpuControl(false,error));
+    }
+    std::cout<<"PASS CPU preflight skips only Wine unsupported-class error 87; Windows and unrelated failures remain errors\n";
+}
 bool jobCpuControlAvailable() {
     const auto job=CreateJobObjectW(nullptr,nullptr);CHECK(job);
     JOBOBJECT_CPU_RATE_CONTROL_INFORMATION cpu{};
@@ -232,12 +248,15 @@ bool jobCpuControlAvailable() {
     const auto available=SetInformationJobObject(job,JobObjectCpuRateControlInformation,&cpu,sizeof(cpu));
     const auto error=available?ERROR_SUCCESS:GetLastError();CHECK(CloseHandle(job));
     if(available)return true;
-    // Wine 9.0 NtSetInformationJobObject returns STATUS_NOT_IMPLEMENTED for
-    // this information class. Never pretend its children have a Windows CPU
-    // hard cap, and never skip a real Windows configuration failure.
+    // Wine 9.0 defines MaxJobObjectInfoClass=11 but the CPU class is 15, so
+    // NtSetInformationJobObject rejects it before its switch with
+    // STATUS_INVALID_PARAMETER. kernel32/sync.c translates that to error 87.
+    // Never pretend its children have a Windows CPU hard cap, and never skip
+    // a real Windows configuration failure.
+    // https://github.com/wine-mirror/wine/blob/wine-9.0/include/winnt.h
     // https://github.com/wine-mirror/wine/blob/wine-9.0/dlls/ntdll/unix/sync.c
     const auto ntdll=GetModuleHandleW(L"ntdll.dll");
-    if(ntdll&&GetProcAddress(ntdll,"wine_get_version")&&error==ERROR_CALL_NOT_IMPLEMENTED) {
+    if(unsupportedWineCpuControl(ntdll&&GetProcAddress(ntdll,"wine_get_version"),error)) {
         std::cout<<"SKIP real isolated children: Wine does not implement JobObject CPU hard caps; "
                     "resource admission and refusal contracts passed; run fault/resume scenarios on Windows\n";
         return false;
@@ -351,7 +370,7 @@ int wmain(int argc,wchar_t** argv) {
     if(argc==8)return nimby::mod_host::runChild(argc,argv);
     try {
         CHECK(argc==2||argc==3);IsolatedDiagnostics diagnostics;resourcePlans();rejectedBatch();const std::filesystem::path directory=argv[1];const auto exe=executable();
-        watchdogDeadlines();rejectedCpuControl(exe,directory);
+        watchdogDeadlines();cpuControlSkipPolicy();rejectedCpuControl(exe,directory);
         if(argc==3&&std::wstring_view(argv[2])==L"--resource-rejection")return 0;
         if(!jobCpuControlAvailable())return 77;
         if(argc==3&&std::wstring_view(argv[2])==L"--watchdog-resume") {watchdogResume(exe,directory);return 0;}
