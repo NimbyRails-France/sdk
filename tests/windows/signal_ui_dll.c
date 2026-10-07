@@ -60,21 +60,33 @@ int main(int argc,char** argv) {
     CHECK(providerWake&&providerWake(providerToken,0)==NIMBY_INVALID_ARGUMENT);
     CHECK(providerWake(0,1)==NIMBY_INVALID_ARGUMENT);
     CHECK(providerWake(providerToken,(uint64_t)(uintptr_t)INVALID_HANDLE_VALUE)==NIMBY_INVALID_HANDLE);
-    DWORD handlesBefore=0,handlesBound=0,handlesAfter=0;
-    CHECK(GetProcessHandleCount(GetCurrentProcess(),&handlesBefore));
-    HANDLE actionEvent=CreateEventW(NULL,FALSE,FALSE,NULL);CHECK(actionEvent);
+    // Test the event's ownership directly. Process-wide handle counters include
+    // unrelated activity and are not implemented by every Windows-compatible host.
+    char eventName[128];
+    int eventNameLength=snprintf(eventName,sizeof(eventName),"Local\\NRF-SignalUi-Ownership-%lu-%llu",
+        (unsigned long)GetCurrentProcessId(),(unsigned long long)GetTickCount64());
+    CHECK(eventNameLength>0&&(size_t)eventNameLength<sizeof(eventName));
+    SetLastError(ERROR_SUCCESS);
+    HANDLE actionEvent=CreateEventA(NULL,FALSE,FALSE,eventName);CHECK(actionEvent);
+    CHECK(GetLastError()!=ERROR_ALREADY_EXISTS);
     CHECK(providerWake(providerToken+100000,(uint64_t)(uintptr_t)actionEvent)==NIMBY_INVALID_HANDLE);
     for(unsigned i=0;i<32;++i)CHECK(providerWake(providerToken,(uint64_t)(uintptr_t)actionEvent)==NIMBY_OK);
-    CHECK(GetProcessHandleCount(GetCurrentProcess(),&handlesBound)&&handlesBound==handlesBefore+2);
     CHECK(CloseHandle(actionEvent)); // Binding owns a duplicate, not this value.
-    CHECK(GetProcessHandleCount(GetCurrentProcess(),&handlesBound)&&handlesBound==handlesBefore+1);
+    HANDLE retainedEvent=OpenEventA(EVENT_MODIFY_STATE|SYNCHRONIZE,FALSE,eventName);
+    CHECK(retainedEvent); // The SDK's duplicate keeps the object alive.
+    CHECK(SetEvent(retainedEvent));
+    CHECK(WaitForSingleObject(retainedEvent,0)==WAIT_OBJECT_0);
+    CHECK(CloseHandle(retainedEvent));
     CHECK(present("tool-test",9,&loaded)==NIMBY_OK&&loaded==1);
     CHECK(providerObserve(providerToken,"test-save",9,7)==NIMBY_OK);
     NimbyUiToolPanelV1 tool={0};tool.size=sizeof(tool);tool.version=1;tool.panel=owner;tool.signal=signal.id;
     strcpy(tool.origin,"repeat");strcpy(tool.service,"repeat.v1");strcpy(tool.message,"Preview");
     CHECK(publish(providerToken,&tool)==NIMBY_OK);
     CHECK(providerRemove(providerToken)==NIMBY_OK);
-    CHECK(GetProcessHandleCount(GetCurrentProcess(),&handlesAfter)&&handlesAfter==handlesBefore);
+    // No duplicate from the rejected binding or any of the 32 replacements may
+    // remain: a named event disappears when its final owning handle is closed.
+    CHECK(OpenEventA(SYNCHRONIZE,FALSE,eventName)==NULL);
+    CHECK(GetLastError()==ERROR_FILE_NOT_FOUND);
     CHECK(present("tool-test",9,&loaded)==NIMBY_OK&&loaded==0);
     CHECK(publish(providerToken,&tool)!=NIMBY_OK);
     NimbyUiValuesV1 values={0};values.size=sizeof(values);values.version=1;

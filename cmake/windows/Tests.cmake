@@ -343,9 +343,13 @@ if(BUILD_TESTING)
         add_dependencies(nimby_mod_host_tests nimby_host_fixture_${mode})
     endforeach()
     add_test(NAME isolated_mod_faults COMMAND nimby_mod_host_tests "$<TARGET_FILE_DIR:nimby_mod_host_tests>")
-    set_tests_properties(isolated_mod_faults PROPERTIES TIMEOUT 30)
+    set_tests_properties(isolated_mod_faults PROPERTIES TIMEOUT 30 SKIP_RETURN_CODE 77)
     add_test(NAME isolated_mod_watchdog_resume COMMAND nimby_mod_host_tests "$<TARGET_FILE_DIR:nimby_mod_host_tests>" --watchdog-resume)
-    set_tests_properties(isolated_mod_watchdog_resume PROPERTIES TIMEOUT 15)
+    set_tests_properties(isolated_mod_watchdog_resume PROPERTIES TIMEOUT 15 SKIP_RETURN_CODE 77)
+    # Runs under Wine too: resource admission, watchdog bounds and fail-closed
+    # rejection are testable without creating an unbounded child process.
+    add_test(NAME isolated_mod_resource_rejection COMMAND nimby_mod_host_tests "$<TARGET_FILE_DIR:nimby_mod_host_tests>" --resource-rejection)
+    set_tests_properties(isolated_mod_resource_rejection PROPERTIES TIMEOUT 15)
     add_executable(nimby_mod_host_epoch_tests tests/windows/mod_host_epoch.cpp
         src/platform/windows/runtime/mod_host_epoch.cpp src/engine/live_state.cpp)
     target_include_directories(nimby_mod_host_epoch_tests PRIVATE include)

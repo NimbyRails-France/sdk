@@ -15,6 +15,7 @@
 #include <limits>
 
 void advanceHostTestWall(uint64_t milliseconds) noexcept;
+void rejectHostTestCpuControl(bool reject) noexcept;
 
 using namespace std::chrono_literals;
 #define CHECK(x) do { if(!(x)) throw std::runtime_error("line " + std::to_string(__LINE__) + ": " #x); } while(false)
@@ -202,6 +203,58 @@ void rejectedBatch() {
     CHECK(channelMappings()==before);CHECK(NimbyInternal_StopModHosts()==NIMBY_OK);
     std::cout<<"PASS rejected batch reports RESOURCE_LIMIT before creating any worker channel\n";
 }
+void rejectedCpuControl(const std::filesystem::path& exe,const std::filesystem::path& directory) {
+    const auto mappings=channelMappings();
+    struct Reset {~Reset(){rejectHostTestCpuControl(false);}} reset;
+    rejectHostTestCpuControl(true);
+    const auto reject=[&] {
+        bool rejected=false;
+        try {
+            nimby::mod_host::Worker worker(exe,directory/L"host_fixture_0.dll",{});
+        }catch(const std::runtime_error& error){
+            CHECK(std::string_view(error.what())=="Cannot bound mod CPU consumption");rejected=true;
+        }
+        CHECK(rejected);CHECK(channelMappings()==mappings);
+    };
+    // Warm the runtime before comparing handle counts; repeated rejected
+    // channels must not retain any handles or mapped mailbox after unwinding.
+    reject();DWORD handlesBefore{};CHECK(GetProcessHandleCount(GetCurrentProcess(),&handlesBefore));
+    for(unsigned attempt=0;attempt<32;++attempt)reject();
+    DWORD handlesAfter{};CHECK(GetProcessHandleCount(GetCurrentProcess(),&handlesAfter));
+    CHECK(handlesAfter<=handlesBefore);
+    CHECK(fixture::get(0).calls==0);
+    std::cout<<"PASS unavailable CPU hard cap rejects mod launch and releases the unstarted channel\n";
+}
+bool jobCpuControlAvailable() {
+    const auto job=CreateJobObjectW(nullptr,nullptr);CHECK(job);
+    JOBOBJECT_CPU_RATE_CONTROL_INFORMATION cpu{};
+    cpu.ControlFlags=JOB_OBJECT_CPU_RATE_CONTROL_ENABLE|JOB_OBJECT_CPU_RATE_CONTROL_HARD_CAP;cpu.CpuRate=5000;
+    const auto available=SetInformationJobObject(job,JobObjectCpuRateControlInformation,&cpu,sizeof(cpu));
+    const auto error=available?ERROR_SUCCESS:GetLastError();CHECK(CloseHandle(job));
+    if(available)return true;
+    // Wine 9.0 NtSetInformationJobObject returns STATUS_NOT_IMPLEMENTED for
+    // this information class. Never pretend its children have a Windows CPU
+    // hard cap, and never skip a real Windows configuration failure.
+    // https://github.com/wine-mirror/wine/blob/wine-9.0/dlls/ntdll/unix/sync.c
+    const auto ntdll=GetModuleHandleW(L"ntdll.dll");
+    if(ntdll&&GetProcAddress(ntdll,"wine_get_version")&&error==ERROR_CALL_NOT_IMPLEMENTED) {
+        std::cout<<"SKIP real isolated children: Wine does not implement JobObject CPU hard caps; "
+                    "resource admission and refusal contracts passed; run fault/resume scenarios on Windows\n";
+        return false;
+    }
+    throw std::runtime_error("JobObject CPU hard-cap preflight failed, Windows error="+std::to_string(error));
+}
+void watchdogDeadlines() {
+    using namespace nimby::mod_host;
+    CHECK(watchdogStamp(0)==1&&watchdogStamp(9999)==1&&watchdogStamp(10000)==2);
+    CHECK(watchdogStamp(UINT64_MAX)<uint64_t(std::numeric_limits<LONG64>::max()));
+    const auto began=watchdogStamp(1000ull*10000);
+    CHECK(!watchdogExpired(0,UINT64_MAX,5000));
+    CHECK(!watchdogExpired(began,began-1,5000));
+    CHECK(!watchdogExpired(began,began+5000,5000));
+    CHECK(watchdogExpired(began,began+5001,5000));
+    std::cout<<"PASS watchdog timestamp bounds, zero sentinel, future marker and exact deadline\n";
+}
 void actionWakeProcesses(const std::filesystem::path& exe,const std::filesystem::path& directory,
                          nimby::mod_host::LaunchOptions options) {
     const auto mappings=channelMappings();DWORD handlesBefore{};CHECK(GetProcessHandleCount(GetCurrentProcess(),&handlesBefore));
@@ -256,13 +309,6 @@ void actionWakeProcesses(const std::filesystem::path& exe,const std::filesystem:
 }
 void watchdogResume(const std::filesystem::path& exe,const std::filesystem::path& directory) {
     using namespace nimby::mod_host;
-    CHECK(watchdogStamp(0)==1&&watchdogStamp(9999)==1&&watchdogStamp(10000)==2);
-    CHECK(watchdogStamp(UINT64_MAX)<uint64_t(std::numeric_limits<LONG64>::max()));
-    const auto began=watchdogStamp(1000ull*10000);
-    CHECK(!watchdogExpired(0,UINT64_MAX,5000));
-    CHECK(!watchdogExpired(began,began-1,5000));
-    CHECK(!watchdogExpired(began,began+5000,5000));
-    CHECK(watchdogExpired(began,began+5001,5000));
     LaunchOptions options;options.targetPid=GetCurrentProcessId();options.memoryLimit=128*1024*1024;
     Worker healthy(exe,directory/L"host_fixture_0.dll",options);
     CHECK(fixture::wait(0,16));const auto baseline=fixture::get(0);
@@ -305,6 +351,9 @@ int wmain(int argc,wchar_t** argv) {
     if(argc==8)return nimby::mod_host::runChild(argc,argv);
     try {
         CHECK(argc==2||argc==3);IsolatedDiagnostics diagnostics;resourcePlans();rejectedBatch();const std::filesystem::path directory=argv[1];const auto exe=executable();
+        watchdogDeadlines();rejectedCpuControl(exe,directory);
+        if(argc==3&&std::wstring_view(argv[2])==L"--resource-rejection")return 0;
+        if(!jobCpuControlAvailable())return 77;
         if(argc==3&&std::wstring_view(argv[2])==L"--watchdog-resume") {watchdogResume(exe,directory);return 0;}
         nimby::mod_host::LaunchOptions options;options.targetPid=GetCurrentProcessId();
         SYSTEM_INFO machine{};GetSystemInfo(&machine);
