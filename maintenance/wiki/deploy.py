@@ -15,7 +15,7 @@ import urllib.request
 import uuid
 
 PUBLIC_ORIGIN = "https://wiki.nimbyrails-france.fr"
-DEFAULT_RELEASE = "20261008-153a1f0"
+DEFAULT_RELEASE = "20261008-5948781"
 CHECK_PAGES = {
     "/": "index.html",
     "/en/": "en/index.html",

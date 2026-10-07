@@ -1,7 +1,7 @@
 #!/bin/sh
 # Run in the CI build container (node:24-bookworm), never on the production host.
 set -eu
-commit=153a1f0baafa06801229aa7c0b2ad061f8277e68
+commit=5948781ee5889e84ecd1b530ca6284ebc2953b28
 checkout="$PWD/.ci/wiki-$commit"
 test ! -e "$checkout"
 command -v git >/dev/null
