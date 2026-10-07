@@ -223,10 +223,11 @@ class NrfModPlugin implements Plugin<Project> {
                     sdkMaxExclusive: mod.sdkMaxExclusive, rootFolder: root, gameSha256: mod.gameSha256,
                     channel: mod.version.contains('-') ? mod.version.split('-')[1].split('\\.')[0] : 'stable',
                     size: zip.length(), sha256: digest.digest().encodeHex().toString(), url: zip.name]
+                if (mod.containsKey('developmentStatus')) project.developmentStatus = mod.developmentStatus
                 String baseUrl = p.providers.gradleProperty('releaseBaseUrl').orElse('').get()
                 if (baseUrl) {
-                    String expected = "https://github.com/NimbyRails-France/${mod.id}/releases/download/v${mod.version}"
-                    if (baseUrl != expected) throw new GradleException("releaseBaseUrl must be ${expected}")
+                    List<String> expected = ReleaseRepositories.baseUrls(mod.id, mod.version)
+                    if (!expected.contains(baseUrl)) throw new GradleException("releaseBaseUrl must be ${expected.join(' or ')}")
                     project.url = baseUrl + '/' + zip.name
                 }
                 String json = JsonOutput.prettyPrint(JsonOutput.toJson(project)) + '\n'

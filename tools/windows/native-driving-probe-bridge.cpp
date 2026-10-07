@@ -1,3 +1,4 @@
+#include <platform/windows/bridge_installation.h>
 // Observation-only detour. No speed, dynamics, path or signal is modified.
 #include "native-driving-probe.hpp"
 #include "engine/binary_identity.h"
@@ -37,6 +38,8 @@ uintptr_t __fastcall observe(uintptr_t context,uintptr_t range){
 }
 extern "C" __declspec(dllexport) DWORD WINAPI NimbyInternal_Bootstrap(void* argument) noexcept {
  if(argument)return NIMBY_INVALID_ARGUMENT;
+    nimby::platform::windows::BridgeInstallation installation;
+    if(!installation)return installation.status();
  AcquireSRWLockExclusive(&initialization);
  struct Unlock{~Unlock(){ReleaseSRWLockExclusive(&initialization);}} unlock;
  if(shared)return NIMBY_ALREADY_INITIALIZED;

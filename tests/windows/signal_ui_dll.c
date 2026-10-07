@@ -22,6 +22,10 @@ int main(int argc,char** argv) {
     LOAD(NimbyUiPanelContextV1,context,"NimbyUi_PanelContextV1");
     LOAD(NimbyUiProviderAddV1,providerAdd,"NimbyUi_ProviderAddV1");
     LOAD(NimbyUiProviderRemoveV1,providerRemove,"NimbyUi_ProviderRemoveV1");
+    // Internal broker binding; deliberately absent from the child facade and
+    // public mod header. Exercise ownership through the actual resident DLL.
+    typedef uint32_t (__cdecl *ProviderWake)(uint64_t,uint64_t);
+    LOAD(ProviderWake,providerWake,"NimbyUi_ProviderWakeV1");
     LOAD(NimbyUiProviderObserveV1,providerObserve,"NimbyUi_ProviderObserveV1");
     LOAD(NimbyUiModPresentV1,present,"NimbyUi_ModPresentV1");
     LOAD(NimbyUiToolPanelPublishV1,publish,"NimbyUi_ToolPanelPublishV1");
@@ -53,12 +57,24 @@ int main(int argc,char** argv) {
     strcpy(provider.id,"tool-test");strcpy(provider.services[0],"repeat.v1");
     uint64_t providerToken=0;uint32_t loaded=0;
     CHECK(providerAdd(&provider,&providerToken)==NIMBY_OK&&providerToken);
+    CHECK(providerWake&&providerWake(providerToken,0)==NIMBY_INVALID_ARGUMENT);
+    CHECK(providerWake(0,1)==NIMBY_INVALID_ARGUMENT);
+    CHECK(providerWake(providerToken,(uint64_t)(uintptr_t)INVALID_HANDLE_VALUE)==NIMBY_INVALID_HANDLE);
+    DWORD handlesBefore=0,handlesBound=0,handlesAfter=0;
+    CHECK(GetProcessHandleCount(GetCurrentProcess(),&handlesBefore));
+    HANDLE actionEvent=CreateEventW(NULL,FALSE,FALSE,NULL);CHECK(actionEvent);
+    CHECK(providerWake(providerToken+100000,(uint64_t)(uintptr_t)actionEvent)==NIMBY_INVALID_HANDLE);
+    for(unsigned i=0;i<32;++i)CHECK(providerWake(providerToken,(uint64_t)(uintptr_t)actionEvent)==NIMBY_OK);
+    CHECK(GetProcessHandleCount(GetCurrentProcess(),&handlesBound)&&handlesBound==handlesBefore+2);
+    CHECK(CloseHandle(actionEvent)); // Binding owns a duplicate, not this value.
+    CHECK(GetProcessHandleCount(GetCurrentProcess(),&handlesBound)&&handlesBound==handlesBefore+1);
     CHECK(present("tool-test",9,&loaded)==NIMBY_OK&&loaded==1);
     CHECK(providerObserve(providerToken,"test-save",9,7)==NIMBY_OK);
     NimbyUiToolPanelV1 tool={0};tool.size=sizeof(tool);tool.version=1;tool.panel=owner;tool.signal=signal.id;
     strcpy(tool.origin,"repeat");strcpy(tool.service,"repeat.v1");strcpy(tool.message,"Preview");
     CHECK(publish(providerToken,&tool)==NIMBY_OK);
     CHECK(providerRemove(providerToken)==NIMBY_OK);
+    CHECK(GetProcessHandleCount(GetCurrentProcess(),&handlesAfter)&&handlesAfter==handlesBefore);
     CHECK(present("tool-test",9,&loaded)==NIMBY_OK&&loaded==0);
     CHECK(publish(providerToken,&tool)!=NIMBY_OK);
     NimbyUiValuesV1 values={0};values.size=sizeof(values);values.version=1;

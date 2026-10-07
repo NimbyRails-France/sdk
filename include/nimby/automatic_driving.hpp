@@ -12,7 +12,11 @@ public:
     static void publish(std::span<const SignalDrivingRule> rules,Milliseconds lease=Milliseconds{1000},bool maximumLineSpeed=false) {
         if(rules.size()>32768||lease.count()<100||lease.count()>5000)
             throw std::invalid_argument("Invalid driving rules lease or count");
-        const auto status=NimbyInternal_PublishDrivingRulesV2(rules.data(),static_cast<uint32_t>(rules.size()),static_cast<uint32_t>(lease.count()),maximumLineSpeed?NIMBY_DRIVING_MAXIMUM_LINE_SPEED:0);
+        // One stable address per consumer image; release cannot clear another
+        // DLL's publication. This is an identity token, never dereferenced.
+        static const unsigned char publisher=0;
+        const auto status=NimbyInternal_PublishDrivingRulesV3(rules.data(),static_cast<uint32_t>(rules.size()),static_cast<uint32_t>(lease.count()),maximumLineSpeed?NIMBY_DRIVING_MAXIMUM_LINE_SPEED:0,
+            static_cast<uint64_t>(reinterpret_cast<uintptr_t>(&publisher)));
         if(status!=NIMBY_OK)throw std::runtime_error("Native automatic driving unavailable, status="+std::to_string(status));
     }
     static void release() {publish({});}

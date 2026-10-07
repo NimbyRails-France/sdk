@@ -7,8 +7,8 @@
 #include <cstring>
 
 namespace nimby::runtime {
-// C ABI operations are serialized with unregister. A request cannot resurrect
-// a removed store, even if the native renderer retains an older frame.
+// Registries and stores own their locks. Slow import/export on one panel never
+// holds an endpoint-wide lock. Removed stores reject late retained operations.
 class SignalUiEndpoint {
 public:
     uint32_t numbers(uint64_t owner,const NimbyUiNumberSettingV1* fields,uint32_t count)noexcept {
@@ -72,6 +72,10 @@ public:
         });
     }
     uint32_t removeProvider(uint64_t token)noexcept {return boundary([&]{return host.removeProvider(token)?NIMBY_OK:NIMBY_INVALID_HANDLE;});}
+    // Internal resident binding; no mod-facing ABI accepts a notifier or handle.
+    uint32_t providerWake(uint64_t token,std::shared_ptr<const SignalActions::ActionWake> wake)noexcept {
+        return boundary([&]{return host.actions->setProviderWake(token,std::move(wake))?NIMBY_OK:NIMBY_INVALID_HANDLE;});
+    }
     uint32_t observeProvider(uint64_t token,const char* world,uint32_t length,uint64_t generation)noexcept {
         return boundary([&]() -> uint32_t {
             if(!world||!length||length>512||!generation)return NIMBY_INVALID_ARGUMENT;
@@ -131,13 +135,16 @@ public:
             return host.actions->publish(provider,p.panel,p.signal,std::string(text(p.origin)),std::string(text(p.service)),std::string(text(p.message)),std::move(buttons),std::move(inputs))?NIMBY_OK:NIMBY_INVALID_HANDLE;
         });
     }
-    uint32_t publishPreview(uint64_t provider,const NimbyUiSignalPreviewV1* source)noexcept {
+    uint32_t publishPreview(uint64_t provider,const NimbyUiSignalPreviewV1* source,uint64_t* publication=nullptr)noexcept {
+        if(publication)*publication=0;
         return boundary([&]() -> uint32_t {
             if(!source||source->size!=sizeof(*source)||source->version!=1||source->reserved||source->count>64)return NIMBY_INVALID_ARGUMENT;
-            if(!source->count)return host.actions->publishPreview(provider,0,0,{},{},{})?NIMBY_OK:NIMBY_INVALID_HANDLE;
-            if(source->signal>>48!=8)return NIMBY_INVALID_ARGUMENT;
-            return host.actions->publishPreview(provider,source->panel,source->signal,std::string(text(source->origin)),
-                std::string(text(source->service)),{source->positions,source->positions+source->count})?NIMBY_OK:NIMBY_INVALID_HANDLE;
+            if(source->count&&source->signal>>48!=8)return NIMBY_INVALID_ARGUMENT;
+            const auto result=source->count?host.actions->publishPreview(provider,source->panel,source->signal,std::string(text(source->origin)),
+                std::string(text(source->service)),{source->positions,source->positions+source->count}):host.actions->publishPreview(provider,0,0,{},{},{});
+            if(publication)*publication=result.publication;
+            return result.status==SignalActions::PreviewStatus::Published?NIMBY_OK:
+                result.status==SignalActions::PreviewStatus::Busy?NIMBY_RESOURCE_LIMIT:NIMBY_INVALID_HANDLE;
         });
     }
     uint32_t conditionalVisibility(uint64_t token,uint64_t mask) noexcept {
@@ -165,6 +172,15 @@ public:
     }
     // Copy resident UI values while checking the worker's session token. No
     // disk I/O on the native UI thread, and no STL objects across DLL boundaries.
+    uint32_t settingsRevision(uint64_t token,uint64_t session,uint64_t* revision) noexcept {
+        if(revision)*revision=0;
+        return boundary([&]() -> uint32_t {
+            if(!revision||!session)return NIMBY_INVALID_ARGUMENT;
+            const auto store=host.store(token);if(!store)return NIMBY_INVALID_HANDLE;
+            const auto value=store->settingsRevision(session);if(!value)return NIMBY_INVALID_HANDLE;
+            *revision=*value;return NIMBY_OK;
+        });
+    }
     uint32_t exportSettings(uint64_t token,uint64_t session,char* bytes,uint32_t capacity,uint32_t* written) noexcept {
         if(written)*written=0;
         return boundary([&]() -> uint32_t {
@@ -210,6 +226,25 @@ public:
             return NIMBY_OK;
         });
     }
+    uint32_t readBatch(uint64_t token,const uint64_t* ids,uint32_t count,
+                       NimbyUiReadBatchHeaderV1* header,NimbyUiReadBatchRowV1* rows) noexcept {
+        return boundary([&]() -> uint32_t {
+            if(!header||header->size!=sizeof(*header)||header->version!=1||count>16384||(!ids&&count)||(!rows&&count))return NIMBY_INVALID_ARGUMENT;
+            *header={};header->size=sizeof(*header);header->version=1;
+            const auto store=host.store(token);if(!store)return NIMBY_INVALID_HANDLE;
+            for(uint32_t i=0;i<count;++i)if(ids[i]>>48!=8)return NIMBY_INVALID_ARGUMENT;
+            const auto values=store->readBatch({ids,count});
+            if(values.fields.size()>64||values.rows.size()!=count)return NIMBY_INTERNAL_ERROR;
+            header->field_count=static_cast<uint32_t>(values.fields.size());
+            for(size_t i=0;i<values.fields.size();++i)copy(header->names[i],values.fields[i]);
+            for(uint32_t i=0;i<count;++i){
+                const auto& value=values.rows[i];auto& row=rows[i];row={};row.signal=ids[i];
+                row.status=value.status==SettingsStatus::Present?2:value.status==SettingsStatus::Absent?1:0;
+                row.values=value.values;
+            }
+            header->count=count;return NIMBY_OK;
+        });
+    }
 private:
     std::map<uint64_t,std::vector<SignalUiHost::SettingsCopy>> copies_;
     uint64_t copySerial_=0;
@@ -217,6 +252,7 @@ public:
     uint32_t beginCopy(uint64_t source,uint64_t* token)noexcept {
         if(token)*token=0;
         return boundary([&]() -> uint32_t {
+            std::lock_guard lock(copyMutex_);
             if(!token||source>>48!=8)return NIMBY_INVALID_ARGUMENT;
             if(copies_.size()>=16)return NIMBY_RESOURCE_LIMIT;
             auto copies=host.copySource(source);
@@ -227,6 +263,7 @@ public:
     // is finalized; the next signal observation imports the frozen values.
     uint32_t finishCopy(uint64_t token,const uint64_t* ids,uint32_t count)noexcept {
         return boundary([&]() -> uint32_t {
+            std::lock_guard lock(copyMutex_);
             if(count>64||(!ids&&count))return NIMBY_INVALID_ARGUMENT;
             auto found=copies_.find(token);if(found==copies_.end())return NIMBY_INVALID_HANDLE;
             auto copies=std::move(found->second);copies_.erase(found);
@@ -246,11 +283,11 @@ private:
         return {value,static_cast<size_t>(end-value)};
     }
     template<class F> uint32_t boundary(F&& operation) noexcept {
-        try {std::lock_guard lock(mutex_);return operation();}
+        try {return operation();}
         catch(const std::invalid_argument&){return NIMBY_INVALID_ARGUMENT;}
         catch(const std::length_error&){return NIMBY_RESOURCE_LIMIT;}
         catch(...){return NIMBY_INTERNAL_ERROR;}
     }
-    std::mutex mutex_;
+    std::mutex copyMutex_;
 };
 }

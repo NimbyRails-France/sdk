@@ -7,6 +7,30 @@
 int main(){try{
     using Store=nimby::SignalSettingsStore;
     {
+        Store revisions;constexpr nimby::SignalCheckbox boxes[]{{"active","Active","",false}};
+        revisions.configure({"revision","Revision","atlas",boxes});
+        CHECK(!revisions.settingsRevision(1));
+        const auto session=revisions.beginSession("empty");const auto initial=*revisions.settingsRevision(session);
+        CHECK(initial&&revisions.observeSignals(session,{}));CHECK(revisions.settingsRevision(session)==initial);
+        constexpr uint64_t source=0x8000000000011,target=0x8000000010011;
+        const std::array<Store::Signal,1> signals{{{source,"atlas"}}};
+        CHECK(revisions.observeSignals(session,signals));CHECK(revisions.settingsRevision(session)==initial);
+        const auto editor=revisions.selectSignal(session,source);
+        CHECK(revisions.setBoolean(editor,"active",true));const auto changed=*revisions.settingsRevision(session);CHECK(changed>initial);
+        CHECK(revisions.setBoolean(editor,"active",true));CHECK(revisions.settingsRevision(session)==changed);
+        revisions.suspendObservations();CHECK(revisions.settingsRevision(session)==changed);
+        CHECK(revisions.observeSignals(session,signals));CHECK(revisions.settingsRevision(session)==changed);
+        CHECK(revisions.queueCopies(*revisions.copySource(source),std::array{target}));
+        const auto queued=*revisions.settingsRevision(session);CHECK(queued>changed);
+        CHECK(revisions.observeSignals(session,signals));CHECK(revisions.settingsRevision(session)==queued);
+        auto saved=revisions.save(session);const auto restored=revisions.beginSession("empty",&saved);
+        CHECK(!revisions.settingsRevision(session));CHECK(*revisions.settingsRevision(restored)>queued);
+        const auto imported=*revisions.settingsRevision(restored);
+        CHECK(revisions.observeSignals(restored,{}));CHECK(*revisions.settingsRevision(restored)>imported);
+        const auto other=revisions.beginSession("other");CHECK(!revisions.settingsRevision(restored));CHECK(revisions.settingsRevision(other));
+        revisions.retire();CHECK(!revisions.settingsRevision(other));
+    }
+    {
         constexpr nimby::SignalCheckbox boxes[]{{"works","Works","",false},{"yellow","Yellow","",false},
             {"nrf.number.blocks.0","Blocks","",false},{"nrf.number.blocks.1","Blocks","",false},
             {"nrf.number.blocks.2","Blocks","",false}};
@@ -20,6 +44,10 @@ int main(){try{
         CHECK(store.frame(editor)->controls.size()==2&&store.frame(editor)->numbers.empty());
         CHECK(!store.setNumber(editor,"blocks",2));
         CHECK(store.setBoolean(editor,"works",true));
+        CHECK(store.setNumber(editor,"blocks",3));
+        const auto numbered=store.settingsRevision(epoch);
+        CHECK(store.setNumber(editor,"blocks",3)&&store.settingsRevision(epoch)==numbered);
+        CHECK(store.setNumber(editor,"blocks",2)&&store.settingsRevision(epoch)>numbered);
         CHECK(store.setNumber(editor,"blocks",3));
         auto frame=store.frame(editor);CHECK(frame&&frame->numbers.size()==1&&frame->numbers[0].value==3);
         struct OrderedUi {

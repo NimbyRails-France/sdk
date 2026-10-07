@@ -1,3 +1,4 @@
+#include <platform/windows/bridge_installation.h>
 #include <nimby/detail/diagnostics.hpp>
 // Dedicated, explicitly loaded bridge. DllMain never installs a hook.
 #include "platform/windows/runtime/clock_bridge.h"
@@ -67,7 +68,8 @@ double __fastcall post_update(uintptr_t sim,void* context,uintptr_t db,uint8_t f
     InterlockedIncrement64(reinterpret_cast<volatile LONG64*>(&shared->callbacks));
     if(InterlockedCompareExchange(&shared->state,nimby::clock_bridge::executing,nimby::clock_bridge::pending)
         ==nimby::clock_bridge::pending) {
-        try {shared->result=apply(sim,db);} catch(...) { nimby::detail::diagnostics::exception("sdk", __func__); shared->result=NIMBY_INTERNAL_ERROR;}
+        try {shared->result=nimby::platform::windows::bridgeRequestAlive(shared->lease)?apply(sim,db):NIMBY_DATA_UNAVAILABLE;}
+        catch(...) { nimby::detail::diagnostics::exception("sdk", __func__); shared->result=NIMBY_INTERNAL_ERROR;}
         InterlockedExchange(&shared->state,nimby::clock_bridge::complete);
     }
     return result;
@@ -75,6 +77,8 @@ double __fastcall post_update(uintptr_t sim,void* context,uintptr_t db,uint8_t f
 }
 extern "C" __declspec(dllexport) DWORD WINAPI NimbyInternal_Bootstrap(void* argument) noexcept {
     if(argument)return NIMBY_INVALID_ARGUMENT;
+    nimby::platform::windows::BridgeInstallation installation;
+    if(!installation)return installation.status();
     AcquireSRWLockExclusive(&initialization);
     struct Unlock {~Unlock(){ReleaseSRWLockExclusive(&initialization);}} unlock;
     if(enabled)return NIMBY_ALREADY_INITIALIZED;

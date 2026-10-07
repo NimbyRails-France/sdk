@@ -37,6 +37,7 @@ struct Api {
     int (*decide)(int,std::int64_t,int,std::int64_t,std::int64_t,const int*,int,int,int*)=nullptr;
     int (*decideType)(int,int,std::int64_t,int,std::int64_t,std::int64_t,std::int64_t,const int*,int,int,int*)=nullptr;
     int (*prepareNetwork)(int,const int64_t*,const int*,int64_t*,int*)=nullptr;
+    size_t networkLimit=Rules::maxSignals;
     int (*typeMetadata)(int,int,int,char*,int)=nullptr;
     int (*migrate)(int,const char*,const int*,int,std::int64_t*)=nullptr;
     int (*texture)(int,int,std::int64_t,std::int64_t,char*,int)=nullptr;
@@ -148,6 +149,11 @@ struct Api {
         }
         if(tool){id=text(0);title=text(1);diagnostic=text(3);return;}
         if(abi>=8)prepareNetwork=symbol<decltype(prepareNetwork)>("NRFKotlin_PrepareNetwork");
+        if(const auto limit=reinterpret_cast<int(*)()>(detail::native::symbol(module,"NRFKotlin_NetworkLimit"))){
+            const auto count=limit();check(count);
+            if(count<int(Rules::maxSignals)||count>int(Rules::maxLiveSignals))throw std::runtime_error("Invalid Kotlin network limit");
+            networkLimit=size_t(count);
+        }
         if(abi>=4){
             fallbackType=symbol<decltype(fallbackType)>("NRFKotlin_FallbackType");
             localDecision=symbol<decltype(localDecision)>("NRFKotlin_LocalDecision");
@@ -292,7 +298,7 @@ std::vector<Signal> Rules::prepareNetwork(std::span<const Signal> input) {
     std::vector<Signal> result(input.begin(),input.end());
     const auto prepare=api().prepareNetwork;
     if(!prepare||input.empty())return result;
-    if(input.size()>maxSignals)throw std::invalid_argument("Too many signals");
+    if(input.size()>api().networkLimit)throw std::invalid_argument("Too many signals for this Kotlin mod");
     std::vector<int64_t> identities(input.size()*4),masks(input.size());
     std::vector<int> fields(input.size()*9),statuses(input.size());
     for(size_t i=0;i<input.size();++i){const auto& signal=input[i];
@@ -314,7 +320,7 @@ std::vector<LiveSignalState> Rules::observe(const Snapshot& snapshot) {
     for(const auto& panel:api().panels)catalogues.push_back(panel.textureSet);
     std::vector<SignalApproachScope> approaches;
     for(const auto& type:api().types)if(type.approachBlocks)approaches.push_back({type.catalogue,type.approachBlocks});
-    return observeSignals(snapshot,catalogues,Rules::maxSignals,Milliseconds{1000},{},false,approaches);
+    return observeSignals(snapshot,catalogues,api().networkLimit,Milliseconds{1000},{},false,approaches);
 }
 Decision Rules::unknownDecision(){return {api().properties[2],api().properties[3]};}
 Decision Rules::invalidNetworkDecision(){return {api().properties[4],api().properties[5]};}
@@ -363,6 +369,7 @@ Plan Rules::plan(const Vehicle& v,const DrivingSettings& s,const DrivingInput& i
 void Rules::diagnose(const Snapshot& snapshot,const std::vector<LiveSignalState>& states,std::span<const Decision> decisions) {
     static unsigned recorded=0;
     static auto nextSummary=std::chrono::steady_clock::time_point{};
+    static auto nextFault=std::chrono::steady_clock::time_point{};
     unsigned faults=0;
     for(const auto& d:decisions)if(isFault(d))++faults;
     const bool fault=faults!=0;
@@ -376,7 +383,8 @@ void Rules::diagnose(const Snapshot& snapshot,const std::vector<LiveSignalState>
             " boundaries="+std::to_string(snapshot.getAllSignals().size())+
             " occupationsAvailable="+(snapshot.getAllOccupations().has_value()?"yes":"no")).c_str());
     }
-    if(!fault){recorded=0;return;}if(recorded>=128)return;
+    if(!fault){recorded=0;return;}if(recorded>=128||now<nextFault)return;
+    nextFault=now+std::chrono::seconds{1};
     try {
         const auto coverage=observeBlockCoverage(snapshot);
         std::ostringstream out;

@@ -115,6 +115,80 @@ typedef struct NimbyTrainDetails {
     uint32_t flags;
     int32_t passenger_count, order_index, order_mode;
 } NimbyTrainDetails;
+// Optional rich observations. Separate records preserve existing ABI sizes.
+// Predicted delay reproduces the native UI estimator; it is NOT elapsed time
+// since the planned arrival. Negative means predicted early, zero is on time.
+#define NIMBY_TRAIN_PREDICTED_DELAY_VALID 1u
+#define NIMBY_TRAIN_DATA_SERVICE 1u
+#define NIMBY_TRAIN_DATA_CHARACTERISTICS 2u
+#define NIMBY_TRAIN_DATA_TIMETABLES 4u
+#define NIMBY_TRAIN_DATA_TAGS 8u
+#define NIMBY_TRAIN_DATA_PASSENGERS 16u
+#define NIMBY_TRAIN_DATA_LOCATIONS 32u
+#define NIMBY_TRAIN_DATA_LINES 64u
+#define NIMBY_TRAIN_DATA_COMPOSITION 128u
+#define NIMBY_TRAIN_DATA_ALL 255u
+#define NIMBY_CHARACTERISTICS_MAX_SPEED_VALID 1u
+#define NIMBY_CHARACTERISTICS_LENGTH_VALID 2u
+#define NIMBY_CHARACTERISTICS_EMPTY_MASS_VALID 4u
+#define NIMBY_CHARACTERISTICS_CAPACITY_VALID 8u
+#define NIMBY_CHARACTERISTICS_CAR_COUNT_VALID 16u
+#define NIMBY_CHARACTERISTICS_ACCELERATION_VALID 32u
+#define NIMBY_CHARACTERISTICS_POWER_VALID 64u
+#define NIMBY_CHARACTERISTICS_TRACTIVE_FORCE_VALID 128u
+#define NIMBY_CHARACTERISTICS_COMPOSITION_VALID 256u
+typedef struct NimbyTrainCharacteristics {
+    uint32_t flags, car_count;
+    int32_t passenger_capacity;
+    uint32_t reserved;
+    double maximum_speed_mps, length_m, empty_mass_kg;
+    double maximum_acceleration_mps2, power_w, tractive_force_n;
+} NimbyTrainCharacteristics;
+typedef struct NimbyTrainMetadata {
+    uint64_t train_id;
+    uint32_t flags, reserved;
+    int64_t predicted_arrival_delay_us;
+    // Distinguish configured/as purchased from current simulation composition.
+    // Missing current data must NOT be replaced by configured characteristics.
+    NimbyTrainCharacteristics configured, current;
+} NimbyTrainMetadata;
+#define NIMBY_TRAIN_COMPOSITION_CONFIGURED 0u
+#define NIMBY_TRAIN_COMPOSITION_CURRENT 1u
+typedef struct NimbyTrainVehicle {
+    uint64_t train_id, model_id;
+    uint32_t index, composition;
+} NimbyTrainVehicle;
+// Only referenced models are captured. The name is explicitly the English
+// catalogue label; model IDs and resource codes are opaque stable keys.
+typedef struct NimbyVehicleModel {
+    uint64_t model_id;
+    char code_utf8[257], name_en_utf8[257], source_name_utf8[257];
+    uint8_t reserved[5];
+} NimbyVehicleModel;
+#define NIMBY_LINE_PARENT_VALID 1u
+#define NIMBY_LINE_KIND_VALID 2u
+#define NIMBY_LINE_NAME_VALID 4u
+typedef struct NimbyLineMetadata {
+    uint64_t line_id, parent_line_id; // parent=0 with PARENT_VALID means root.
+    uint32_t flags;
+    int32_t kind;
+    char name_utf8[257];
+    uint8_t reserved[7];
+} NimbyLineMetadata;
+// Tag IDs are opaque catalog keys, not entity IDs or memory addresses.
+// A reference may be known while its catalog name is unavailable.
+typedef struct NimbyTag {
+    uint64_t tag_id;
+    char name_utf8[257];
+    uint8_t reserved[7];
+} NimbyTag;
+typedef struct NimbyObjectTagsState {
+    uint64_t object_id; // train or line ID; tags are declared on THIS object.
+    uint32_t available, reserved;
+} NimbyObjectTagsState;
+typedef struct NimbyObjectTag {
+    uint64_t object_id, tag_id;
+} NimbyObjectTag;
 #define NIMBY_LINE_STOP_TIMES_VALID 1u
 typedef struct NimbyLineStop {
     uint64_t line_id, track_id, station_id; // station_id=0 for points outside a station.
@@ -251,6 +325,12 @@ NIMBY_API uint32_t __cdecl NimbyInternal_CaptureSnapshot(NimbySession session, N
 // Same capture, with the failing consistency stage (zero on success or before
 // capture begins). Diagnostic only: none of the read guards are relaxed.
 NIMBY_API uint32_t __cdecl NimbyInternal_CaptureSnapshotDiagnostic(NimbySession session, NimbySnapshot* out, uint32_t* stage) NIMBY_NOEXCEPT;
+// Tool-only network: fresh nodes, junctions, native lengths and signal positions,
+// plus session/clock. No trains, traffic, station names or visual catalogues.
+NIMBY_API uint32_t __cdecl NimbyInternal_CaptureNetworkSnapshotDiagnostic(NimbySession session, NimbySnapshot* out, uint32_t* stage) NIMBY_NOEXCEPT;
+// Explicit train data request. Rich metadata is omitted by all other scopes.
+NIMBY_API uint32_t __cdecl NimbyInternal_CaptureTrainDataSnapshotDiagnostic(NimbySession session, NimbySnapshot* out, uint32_t* stage) NIMBY_NOEXCEPT;
+NIMBY_API uint32_t __cdecl NimbyInternal_CaptureTrainDataSnapshotWithOptions(NimbySession session, uint32_t flags, NimbySnapshot* out, uint32_t* stage) NIMBY_NOEXCEPT;
 // Signalisation : presence globale et occupations conservees, details de service omis.
 NIMBY_API uint32_t __cdecl NimbyInternal_CaptureSignallingSnapshot(NimbySession session, NimbySnapshot* out, uint32_t* stage) NIMBY_NOEXCEPT;
 NIMBY_API uint32_t __cdecl NimbyInternal_CaptureSignallingFor(NimbySession session,const char* texture_set,NimbySnapshot* out,uint32_t* stage) NIMBY_NOEXCEPT;
@@ -276,6 +356,13 @@ NIMBY_API uint32_t __cdecl NimbyInternal_CopyTrains(NimbySnapshot snapshot, Nimb
 // Stop is current during a run stop, otherwise the active run's target stop.
 NIMBY_API uint32_t __cdecl NimbyInternal_CopyTrainServices(NimbySnapshot snapshot, NimbyTrainService* records, uint32_t capacity, uint32_t* required) NIMBY_NOEXCEPT;
 NIMBY_API uint32_t __cdecl NimbyInternal_CopyTrainDetails(NimbySnapshot snapshot, NimbyTrainDetails* records, uint32_t capacity, uint32_t* required) NIMBY_NOEXCEPT;
+NIMBY_API uint32_t __cdecl NimbyInternal_CopyTrainMetadata(NimbySnapshot snapshot, NimbyTrainMetadata* records, uint32_t capacity, uint32_t* required) NIMBY_NOEXCEPT;
+NIMBY_API uint32_t __cdecl NimbyInternal_CopyTrainVehicles(NimbySnapshot snapshot, NimbyTrainVehicle* records, uint32_t capacity, uint32_t* required) NIMBY_NOEXCEPT;
+NIMBY_API uint32_t __cdecl NimbyInternal_CopyVehicleModels(NimbySnapshot snapshot, NimbyVehicleModel* records, uint32_t capacity, uint32_t* required) NIMBY_NOEXCEPT;
+NIMBY_API uint32_t __cdecl NimbyInternal_CopyLines(NimbySnapshot snapshot, NimbyLineMetadata* records, uint32_t capacity, uint32_t* required) NIMBY_NOEXCEPT;
+NIMBY_API uint32_t __cdecl NimbyInternal_CopyTags(NimbySnapshot snapshot, NimbyTag* records, uint32_t capacity, uint32_t* required) NIMBY_NOEXCEPT;
+NIMBY_API uint32_t __cdecl NimbyInternal_CopyObjectTagsStates(NimbySnapshot snapshot, NimbyObjectTagsState* records, uint32_t capacity, uint32_t* required) NIMBY_NOEXCEPT;
+NIMBY_API uint32_t __cdecl NimbyInternal_CopyObjectTags(NimbySnapshot snapshot, NimbyObjectTag* records, uint32_t capacity, uint32_t* required) NIMBY_NOEXCEPT;
 // Complete line plan associated with the active run, including already passed stops.
 // Partial runs/loops may serve a subset; this is not a promised future itinerary.
 NIMBY_API uint32_t __cdecl NimbyInternal_CopyTrainLineStops(NimbySnapshot snapshot, uint64_t train_id, NimbyLineStop* records, uint32_t capacity, uint32_t* required) NIMBY_NOEXCEPT;

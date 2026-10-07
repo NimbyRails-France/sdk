@@ -36,18 +36,19 @@ class SignalNeighbour internal constructor(val id: Long, val indication: SignalI
  * Retourner null demande sa résolution ; un lien absent ou cyclique utilise
  * le repli du modèle courant. Les interprétations entre modèles restent dans le mod. */
 class SignalRuleContext internal constructor(
-    source: Signal, indication: SignalIndication?, private val options: List<Checkbox>
+    source: Signal, indication: SignalIndication?, private val options: List<Checkbox>, defaults: Map<String, Boolean>
 ) {
     val next: SignalNeighbour? = indication?.let { SignalNeighbour(source.nextSignal, it) }
     /** Normalisation commune : un profil absent utilise les valeurs déclarées,
      * un profil indisponible rend l'observation non fraîche. Aucun état de feu
      * ni consigne de conduite n'est choisi ici. Le statut reste consultable. */
-    val signal: Signal = source.copy(
-        settings = if (source.settingsStatus == SettingsStatus.Absent)
-            options.associate { it.name to it.defaultValue } else source.settings,
-        observation = if (source.settingsStatus == SettingsStatus.Unavailable)
+    val signal: Signal = run {
+        val settings = if(source.settingsStatus == SettingsStatus.Absent) defaults else source.settings
+        val observation = if(source.settingsStatus == SettingsStatus.Unavailable && source.observation.fresh)
             source.observation.copy(fresh = false).validatedApproach() else source.observation.validatedApproach()
-    )
+        if(settings === source.settings && observation === source.observation) source
+        else source.copy(settings = settings, observation = observation)
+    }
     val settings: Map<String, Boolean> get() = signal.settings
     val observation: Observation get() = signal.observation
     val block: Occupancy get() = observation.block
@@ -150,6 +151,7 @@ class SignalModel<A : Enum<A>, R : Enum<R>> @PublishedApi internal constructor(
     private val invalidNetwork: Indication<A, R>, private val aspects: List<A>, private val reasons: List<R>
 ) {
     val type: SignalType = builder.type()
+    private val defaultSettings = nimby.internal.SignalSettingsMask(type.checkboxes).defaults
     private val rule = requireNotNull(builder.rule) { "Déclarer rules pour ${type.id}" }
     private val image = requireNotNull(builder.image) { "Déclarer images pour ${type.id}" }
     private val animation = builder.animation
@@ -175,14 +177,15 @@ class SignalModel<A : Enum<A>, R : Enum<R>> @PublishedApi internal constructor(
         val reason = reasons.getOrNull(raw.reason and 65535) ?: return null
         return SignalIndication(this, aspect, reason)
     }
+    internal fun valid(raw: Decision) = (raw.aspect and 65535) < aspects.size && (raw.reason and 65535) < reasons.size
     internal fun fallback(tag: Int, invalid: Boolean) = encode(if (invalid) invalidNetwork else fallback, tag)
     internal fun evaluate(settings: Map<String, Boolean>, observation: Observation, tag: Int): Decision = encode(
         typedIsolated?.invoke(settings, observation,
             requireNotNull(aspects.getOrNull(observation.next)) { "Indication de diagnostic inconnue : ${observation.next}" })
             ?: isolated?.invoke(settings, observation) ?: rule(SignalRuleContext(
-                Signal(settings = settings, observation = observation, type = type.id), null, type.checkboxes)) ?: fallback, tag)
+                Signal(settings = settings, observation = observation, type = type.id), null, type.checkboxes, defaultSettings)) ?: fallback, tag)
     internal fun decide(signal: Signal, next: SignalIndication?, tag: Int) =
-        rule(SignalRuleContext(signal, next, type.checkboxes))?.let { encode(it, tag) }
+        rule(SignalRuleContext(signal, next, type.checkboxes, defaultSettings))?.let { encode(it, tag) }
     internal fun forced(aspect: Int, tag: Int) = aspects.getOrNull(aspect)?.let(force)?.let { encode(it, tag) }
     internal fun migrate(saved: Map<String, Boolean>) = migrate.invoke(saved)
     internal fun prepare(signal: Signal) = prepare.invoke(signal)
@@ -238,7 +241,7 @@ fun signalMod(id: String, title: String, block: SignalModelsBuilder.() -> Unit):
     fun owner(code: Int): SignalModel<*, *>? = models.getOrNull((code ushr 16) - 1)
     fun checked(raw: Decision): SignalModel<*, *> {
         require(raw.aspect ushr 16 == raw.reason ushr 16) { "Indication et motif de modèles différents" }
-        return requireNotNull(owner(raw.aspect)?.takeIf { it.read(raw) != null }) { "Décision inconnue" }
+        return requireNotNull(owner(raw.aspect)?.takeIf { it.valid(raw) }) { "Décision inconnue" }
     }
     val planner = builder.planner
     return object : SignallingMod() {

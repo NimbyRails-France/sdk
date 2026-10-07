@@ -9,10 +9,13 @@ import tarfile
 import tempfile
 import zipfile
 
+from release_metadata import development_metadata
+
 ROOT = pathlib.Path.cwd()
 PLAN = json.loads((ROOT / '.release-plan.json').read_text(encoding='utf-8'))
 VERSION = PLAN['version']
 REPO = os.environ['CI_REPO'].split('/')[-1]
+PROJECT_METADATA = development_metadata(ROOT) if REPO == 'sdk' else {}
 OUT = ROOT / 'dist/release'
 OUT.mkdir(parents=True, exist_ok=True)
 if any(OUT.iterdir()):
@@ -37,7 +40,8 @@ def write(name, data):
     (OUT / name).write_text(json.dumps(data, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
 
 def digest(path):
-    return hashlib.file_digest(path.open('rb'), 'sha256').hexdigest()
+    with path.open('rb') as stream:
+        return hashlib.file_digest(stream, 'sha256').hexdigest()
 
 def metadata(path):
     return dict(url=URL + path.name, sha256=digest(path), size=path.stat().st_size, version=VERSION)
@@ -72,7 +76,7 @@ if REPO == 'sdk':
     archive(stage, folder + '-windows-x64-mingw.zip')
     drop = WORK / (folder + '-drop-in')
     drop.mkdir()
-    for name in ('SDL3.dll', 'NimbyRailsFranceSDK.dll', 'NimbyRailsFranceTextureBridge-experimental-v4.dll', 'NimbySignalUiBridge-experimental-v1.dll', 'NimbyAutomaticDrivingBridge-v1.dll', 'NimbyRailsFranceClockBridge-0.7.1.dll', 'NimbyModMetadataBridge-v1.dll'):
+    for name in ('SDL3.dll', 'NimbyRailsFranceSDK.dll', 'NimbyRailsFranceModHost.exe', 'NimbyRailsFranceTextureBridge-experimental-v4.dll', 'NimbySignalUiBridge-experimental-v1.dll', 'NimbyAutomaticDrivingBridge-v1.dll', 'NimbyRailsFranceClockBridge-0.7.1.dll', 'NimbyModMetadataBridge-v1.dll'):
         source = ROOT / 'build/ci' / ('drop-in/' + name if name == 'SDL3.dll' else name)
         copy(source, drop / name)
     runtimes(drop)
@@ -87,7 +91,8 @@ if REPO == 'sdk':
     copy(drop, stage / 'loader')
     asset = archive(stage, folder + '-hub.zip')
     write('project.json', dict(id='sdk', name='NimbyRailsFranceSDK + NRF Loader', kind='sdk', loaderApi=1,
-        platform='windows-x64', channel=PLAN['channel'], rootFolder=folder, gameSha256=GAME, **metadata(asset)))
+        platform='windows-x64', channel=PLAN['channel'], rootFolder=folder, gameSha256=GAME,
+        **PROJECT_METADATA, **metadata(asset)))
     copy(OUT / 'project.json', OUT / 'project-windows-x64.json')
     kit = ROOT / 'build/kotlin-kit'
     runtime_licenses(kit)

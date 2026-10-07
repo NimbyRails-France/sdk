@@ -7,6 +7,7 @@
 #include <vector>
 #include <memory>
 #include <algorithm>
+#include <atomic>
 #include <nimby/detail/number_input_draft.hpp>
 
 namespace nimby {
@@ -27,7 +28,8 @@ public:
     struct Copy { uint64_t session;std::map<std::string,bool,std::less<>> values; };
     // Freeze effective values, including defaults and explicit false values.
     std::optional<Copy> copySource(uint64_t source) const {
-        std::lock_guard lock(mutex_);
+        std::unique_lock lock(mutex_,std::try_to_lock);
+        if(!lock)throw std::runtime_error("Signal settings busy; retry copying");
         if(!signals_.contains(source))return {};
         if(!observed_)throw std::runtime_error("Source signal settings temporarily unavailable");
         Copy copy{session_,{}};
@@ -41,6 +43,7 @@ public:
         if(!current(copy.session)||targets.size()>64)return false;
         for(auto id:targets)if(id>>48!=8)return false;
         if(values_.size()+pendingCopies_.size()+targets.size()>16384)return false;
+        if(!targets.empty())changed();
         for(auto id:targets)pendingCopies_[id]=copy.values;
         return true;
     }
@@ -48,7 +51,7 @@ public:
     // fields, even if the observation worker invalidates the session meanwhile.
     struct Control { Checkbox checkbox;bool value=false; };
     struct NumberControl {Number field;int value=0;std::shared_ptr<detail::NumberInputDraft> draft;};
-    struct Frame { Editor editor;std::string panelId,title;std::vector<Control> controls;bool available=true;std::vector<NumberControl> numbers; };
+    struct Frame { Editor editor;std::string panelId,title;std::vector<Control> controls;bool available=true;std::vector<NumberControl> numbers;uint64_t presentationRevision=0; };
 
     void configure(const SignalSettingsPanel& source) {
         Panel candidate;
@@ -65,26 +68,40 @@ public:
         }else if(!source.title.empty()||!source.textureSet.empty()||!source.checkboxes.empty())
             throw std::invalid_argument("Missing settings panel ID");
         std::lock_guard lock(mutex_);
+        if(retired_)throw std::logic_error("Settings panel removed");
         panel_=std::move(candidate);invalidate();
         numbers_.clear();
         configureNumbersLocked(source.numbers);
     }
     bool configureNumbers(std::span<const SignalNumber> fields){
-        std::lock_guard lock(mutex_);if(!sessionId_.empty())return false;
+        std::lock_guard lock(mutex_);if(retired_||!sessionId_.empty())return false;
         configureNumbersLocked(fields);return true;
     }
     Panel panel() const {std::lock_guard lock(mutex_);return panel_;}
-    bool knowsSignal(uint64_t signal)const {std::lock_guard lock(mutex_);return !sessionId_.empty()&&signals_.contains(signal);}
+    enum class SignalState { Known, Unknown, Busy };
+    uint64_t observationEpoch()const{return observationEpoch_.load(std::memory_order_acquire);}
+    SignalState signalState(uint64_t signal,bool requireObserved=false,std::string_view world={},uint64_t epoch=0)const {
+        std::unique_lock lock(mutex_,std::try_to_lock);
+        if(!lock)return SignalState::Busy;
+        return !retired_&&!sessionId_.empty()&&(!requireObserved||observed_)&&
+            (world.empty()||sessionId_==world)&&(!epoch||epoch==observationEpoch())&&signals_.contains(signal)
+            ?SignalState::Known:SignalState::Unknown;
+    }
+    bool knowsSignal(uint64_t signal,bool requireObserved=false)const{return signalState(signal,requireObserved)==SignalState::Known;}
     // Runtime context only; this does not serialize a profile or copy all values.
     std::optional<std::string> sessionIdentity(uint64_t expected)const {
         std::lock_guard lock(mutex_);if(!current(expected))return {};
         return sessionId_;
     }
+    std::optional<uint64_t> settingsRevision(uint64_t expected)const {
+        std::lock_guard lock(mutex_);if(!current(expected))return {};
+        return revision_;
+    }
     // Only before opening a session: changing layout rules in an active editor
     // would invalidate the correspondence between layout and interactive passes.
     bool conditionalVisibility(uint64_t mask) {
         std::lock_guard lock(mutex_);
-        if(!sessionId_.empty()||(panel_.checkboxes.size()<64&&(mask>>panel_.checkboxes.size())))return false;
+        if(retired_||!sessionId_.empty()||(panel_.checkboxes.size()<64&&(mask>>panel_.checkboxes.size())))return false;
         for(size_t i=0;i<panel_.checkboxes.size();++i)panel_.checkboxes[i].onlyWhenEnabled=(mask&(uint64_t{1}<<i))!=0;
         return true;
     }
@@ -94,7 +111,7 @@ public:
     uint64_t beginSession(std::string_view identity,const SavedSettings* saved=nullptr) {
         checkText(identity,512);
         std::lock_guard lock(mutex_);
-        if(panel_.id.empty())throw std::logic_error("Settings panel not configured");
+        if(retired_||panel_.id.empty())throw std::logic_error("Settings panel unavailable");
         std::map<uint64_t,std::map<std::string,bool,std::less<>>> candidate;
         if(saved){
             if(saved->sessionId!=identity||saved->panelId!=panel_.id||saved->signals.size()>16384)
@@ -110,9 +127,12 @@ public:
         invalidate();sessionId_=identity;values_=std::move(candidate);return session_;
     }
     void endSession(){std::lock_guard lock(mutex_);invalidate();}
+    // Unregister is permanent. An operation that retained this store before
+    // removal cannot reopen it after the owner disappears from the registry.
+    void retire(){std::lock_guard lock(mutex_);retired_=true;invalidate();}
     // A transient capture failure must disable reads/clicks without discarding
     // the user's values. The next complete observation can restore availability.
-    void suspendObservations(){std::lock_guard lock(mutex_);observed_=false;editor_={};}
+    void suspendObservations(){std::lock_guard lock(mutex_);invalidateObservation();observed_=false;editor_={};}
 
     // Caller supplies a complete, coherent set for this session. Unknown or
     // partial topology must not be passed as an empty list (which means deletion).
@@ -129,45 +149,60 @@ public:
         // Keep copies pending until their full IDs appear in this catalogue.
         for(auto i=pendingCopies_.begin();i!=pendingCopies_.end();){
             if(matching.contains(i->first)){
+                changed();
                 values_[i->first]=i->second;i=pendingCopies_.erase(i);
-            }else if(all.contains(i->first))i=pendingCopies_.erase(i);
+            }else if(all.contains(i->first)){changed();i=pendingCopies_.erase(i);}
             else ++i;
         }
         for(auto i=values_.begin();i!=values_.end();) {
-            if(!matching.contains(i->first))i=values_.erase(i);else ++i;
+            if(!matching.contains(i->first)){changed();i=values_.erase(i);}else ++i;
         }
+        // Suspension clears editor_, and a signal using only defaults has no
+        // values_ entry. Detect removed membership independently of both so a
+        // later busy frame cannot revive an actually deleted signal's panel.
+        if(!std::includes(matching.begin(),matching.end(),signals_.begin(),signals_.end())){invalidatePresentation();invalidateObservation();}
         if(!matching.contains(editor_.signal))editor_={};
         signals_=std::move(matching);observed_=true;return true;
     }
     Editor selectSignal(uint64_t session,uint64_t signal) {
-        std::lock_guard lock(mutex_);
+        std::unique_lock lock(mutex_,std::try_to_lock);if(!lock)return {};
         if(!current(session)||!observed_||!signals_.contains(signal)){editor_={};return {};}
         if(editor_.session!=session_||editor_.signal!=signal)editor_={session_,++selection_,signal};
         return editor_;
     }
     std::optional<Frame> frame(Editor editor) const {
-        std::lock_guard lock(mutex_);
+        std::unique_lock lock(mutex_,std::try_to_lock);if(!lock)return {};
         return frameLocked(editor);
     }
     bool accepts(Editor editor)const {
-        std::lock_guard lock(mutex_);
+        std::unique_lock lock(mutex_,std::try_to_lock);if(!lock)return false;
         return current(editor.session)&&observed_&&editor.signal&&editor==editor_&&signals_.contains(editor.signal);
     }
     // UI host selects and snapshots under one lock; it never guesses the
     // current session token or keeps a reference into mod-owned declarations.
-    std::optional<Frame> selectFrame(uint64_t signal) {
-        std::lock_guard lock(mutex_);
+    std::optional<Frame> selectFrame(uint64_t signal,bool* busy=nullptr) {
+        // The game's UI never waits behind a worker importing a large profile.
+        std::unique_lock lock(mutex_,std::try_to_lock);
+        if(busy)*busy=!lock;
+        if(!lock)return std::nullopt;
         if(sessionId_.empty()||!signals_.contains(signal)){editor_={};return std::nullopt;}
         if(editor_.session!=session_||editor_.signal!=signal)editor_={session_,++selection_,signal};
         // Last known controls remain visible during a transient read failure.
         // This presentation is not an observation and cannot authorize writes.
         return frameLocked(editor_,true);
     }
+    // A busy store is not an absent panel. The UI may retain its last copied
+    // shape, disabled, only until a value/structure/session mutation begins.
+    // This atomic is not permission to edit: every write still takes the store
+    // lock and checks the complete editor identity and observation state.
+    bool canRetainFrame(const Frame& frame)const noexcept {
+        return frame.presentationRevision&&frame.presentationRevision==presentationRevision_.load(std::memory_order_acquire);
+    }
 private:
     std::optional<Frame> frameLocked(Editor editor,bool presentationOnly=false) const {
         if(!current(editor.session)||(!observed_&&!presentationOnly)||!editor.signal||editor!=editor_||!signals_.contains(editor.signal))
             return std::nullopt;
-        Frame result{editor,panel_.id,panel_.title,{},observed_,{}};
+        Frame result{editor,panel_.id,panel_.title,{},observed_,{},presentationRevision_.load(std::memory_order_relaxed)};
         if(numberSignal_!=editor.signal){numberDrafts_.clear();numberSignal_=editor.signal;}
         const auto saved=values_.find(editor.signal);
         const auto valueOf=[&](std::string_view name){
@@ -197,7 +232,7 @@ private:
     }
 public:
     bool setNumber(Editor editor,std::string_view name,int value){
-        std::lock_guard lock(mutex_);
+        std::unique_lock lock(mutex_,std::try_to_lock);if(!lock)return false;
         if(!current(editor.session)||!observed_||editor!=editor_||!signals_.contains(editor.signal))return false;
         for(const auto& field:numbers_)if(field.name==name){
             if(value<0||uint32_t(value)>field.maximum)return false;
@@ -207,6 +242,14 @@ public:
                 if(!enabled)return false;
             }
             if(!values_.contains(editor.signal)&&values_.size()>=16384)throw std::length_error("Settings capacity exceeded");
+            const auto previous=values_.find(editor.signal);
+            bool identical=previous!=values_.end();
+            if(identical)for(uint32_t bit=0;bit<field.bits;++bit){
+                const auto found=previous->second.find(numberKey(field.name,bit));
+                if(found==previous->second.end()||found->second!=bool(value&(1<<bit))){identical=false;break;}
+            }
+            if(identical)return true;
+            changed();
             auto& saved=values_[editor.signal];
             for(uint32_t bit=0;bit<field.bits;++bit)saved[numberKey(field.name,bit)]=(value&(1<<bit))!=0;
             return true;
@@ -214,10 +257,13 @@ public:
         return false;
     }
     bool setBoolean(Editor editor,std::string_view name,bool value) {
-        std::lock_guard lock(mutex_);
+        std::unique_lock lock(mutex_,std::try_to_lock);if(!lock)return false;
         if(!current(editor.session)||!observed_||!editor.signal||editor!=editor_||!signals_.contains(editor.signal))return false;
         for(const auto& box:panel_.checkboxes)if(box.name==name){
             if(!values_.contains(editor.signal)&&values_.size()>=16384)throw std::length_error("Settings capacity exceeded");
+            if(const auto previous=values_.find(editor.signal);previous!=values_.end())
+                if(const auto field=previous->second.find(name);field!=previous->second.end()&&field->second==value)return true;
+            changed();
             values_[editor.signal][box.name]=value;return true;
         }
         return false;
@@ -233,6 +279,31 @@ public:
         if(entry!=values_.end())for(const auto& [name,value]:entry->second)
             if(result.booleans.contains(name))result.booleans[name]=value;
         return result;
+    }
+    struct SettingsBits {SettingsStatus status=SettingsStatus::Unavailable;uint64_t values{};};
+    struct SettingsBatch {std::vector<std::string> fields;std::vector<SettingsBits> rows;};
+    SettingsBatch readBatch(std::span<const uint64_t> signals) const {
+        std::lock_guard lock(mutex_);
+        SettingsBatch batch;batch.rows.resize(signals.size());
+        std::vector<const Checkbox*> fields;fields.reserve(panel_.checkboxes.size());
+        for(const auto& field:panel_.checkboxes)fields.push_back(&field);
+        std::sort(fields.begin(),fields.end(),[](const auto* a,const auto* b){return a->name<b->name;});
+        uint64_t defaults{};batch.fields.reserve(fields.size());
+        for(size_t i=0;i<fields.size();++i){batch.fields.push_back(fields[i]->name);if(fields[i]->defaultValue)defaults|=uint64_t{1}<<i;}
+        if(retired_||sessionId_.empty()||!observed_)return batch;
+        for(size_t i=0;i<signals.size();++i){auto& row=batch.rows[i];
+            row.status=signals_.contains(signals[i])?SettingsStatus::Present:SettingsStatus::Absent;
+            if(row.status!=SettingsStatus::Present)continue;
+            row.values=defaults;
+            const auto saved=values_.find(signals[i]);if(saved==values_.end())continue;
+            for(const auto& [name,value]:saved->second){
+                const auto field=std::lower_bound(batch.fields.begin(),batch.fields.end(),name);
+                if(field==batch.fields.end()||*field!=name)continue;
+                const auto mask=uint64_t{1}<<std::distance(batch.fields.begin(),field);
+                if(value)row.values|=mask;else row.values&=~mask;
+            }
+        }
+        return batch;
     }
     SavedSettings save(uint64_t expectedSession=0) const {
         std::lock_guard lock(mutex_);
@@ -262,16 +333,22 @@ private:
         if((text.empty()&&!allowEmpty)||text.size()>limit||text.find('\0')!=std::string_view::npos)
             throw std::invalid_argument("Invalid settings text");
     }
-    bool current(uint64_t session)const{return session && session==session_ && !sessionId_.empty();}
-    void invalidate(){++session_;editor_={};sessionId_.clear();observed_=false;signals_.clear();values_.clear();pendingCopies_.clear();numberDrafts_.clear();numberSignal_=0;}
+    bool current(uint64_t session)const{return !retired_&&session && session==session_ && !sessionId_.empty();}
+    void invalidatePresentation(){presentationRevision_.fetch_add(1,std::memory_order_release);}
+    void invalidateObservation(){observationEpoch_.fetch_add(1,std::memory_order_release);}
+    void changed(){invalidatePresentation();if(!++revision_)++revision_;}
+    void invalidate(){changed();invalidateObservation();++session_;editor_={};sessionId_.clear();observed_=false;signals_.clear();values_.clear();pendingCopies_.clear();numberDrafts_.clear();numberSignal_=0;}
     mutable std::mutex mutex_;
     Panel panel_;
     std::vector<Number> numbers_;
     mutable uint64_t numberSignal_=0;
     mutable std::map<std::string,std::shared_ptr<detail::NumberInputDraft>> numberDrafts_;
     uint64_t session_=0,selection_=0;
+    uint64_t revision_=0;
+    std::atomic<uint64_t> presentationRevision_{1};
+    std::atomic<uint64_t> observationEpoch_{1};
     std::string sessionId_;
-    bool observed_=false;
+    bool observed_=false,retired_=false;
     Editor editor_;
     std::set<uint64_t> signals_;
     std::map<uint64_t,std::map<std::string,bool,std::less<>>> values_;

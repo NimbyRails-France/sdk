@@ -56,6 +56,10 @@ NIMBY_API uint32_t __cdecl NimbyInternal_PublishDrivingRules(const NimbySignalDr
     uint32_t count,uint32_t lease_ms) NIMBY_NOEXCEPT;
 NIMBY_API uint32_t __cdecl NimbyInternal_PublishDrivingRulesV2(const NimbySignalDrivingRule* rules,
     uint32_t count,uint32_t lease_ms,uint32_t options) NIMBY_NOEXCEPT;
+// Complete replacement scoped to publisher. Disjoint publishers coexist;
+// conflicting IDs fail without changing either active batch.
+NIMBY_API uint32_t __cdecl NimbyInternal_PublishDrivingRulesV3(const NimbySignalDrivingRule* rules,
+    uint32_t count,uint32_t lease_ms,uint32_t options,uint64_t publisher) NIMBY_NOEXCEPT;
 NIMBY_API uint32_t __cdecl NimbyInternal_PublishTrainConstraints(const NimbyTrainConstraint* rules,
     uint32_t count,uint32_t lease_ms,uint64_t publisher) NIMBY_NOEXCEPT;
 NIMBY_API uint32_t __cdecl NimbyInternal_ReadTrainConstraint(uint64_t train,NimbyTrainConstraintStatus* out) NIMBY_NOEXCEPT;

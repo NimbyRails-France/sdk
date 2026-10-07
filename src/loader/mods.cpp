@@ -17,8 +17,9 @@ void Mods::scan(const std::filesystem::path& directory, Log log) {
         if(!folder.is_directory(error)||folder.path().filename().native().starts_with(fs::path::value_type('.')))continue;
         std::ifstream input(folder.path()/"nrf-mod.ini",std::ios::binary);
         if(!input)continue;
-        const auto name=manifest_library(input,platform::mod_library_suffix(),platform::mod_library_case_insensitive());
-        if(name.empty()){log("ERROR: invalid NRF mod library manifest");continue;}
+        ManifestError manifestError{};
+        const auto name=manifest_library(input,platform::mod_library_suffix(),platform::mod_library_case_insensitive(),&manifestError);
+        if(name.empty()){log((std::string("ERROR: ")+manifest_error_message(manifestError)).c_str());continue;}
         paths.push_back(folder.path()/name);
     }
     if(error)log("ERROR: cannot scan NRF mod directory");

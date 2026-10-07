@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.24)
-project(NimbyRailsFranceSDK VERSION 0.8.0 LANGUAGES C CXX)
+project(NimbyRailsFranceSDK VERSION 0.9.0 LANGUAGES C CXX)
 
 # Root orchestration only. Platform implementation and dependencies are selected
 # once here, never injected into the shared engine or Kotlin-facing API.

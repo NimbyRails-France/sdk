@@ -4,6 +4,125 @@ import java.nio.file.Path
 import kotlin.test.*
 
 class NativeClientTest {
+    @Test fun exactNetworkReuseNeverHidesDynamicChangesOrUnavailableGeometry() {
+        val library = com.sun.jna.NativeLibrary.getInstance(fixture().toString())
+        val change = library.getFunction("Fixture_NetworkRevision")
+        fun revision(value: Int) = change.invokeVoid(arrayOf(value))
+        NimbyClient.open(fixture(), 44).use { client -> try {
+            revision(0); val original = client.capture(0x5000000000001L)
+            revision(1); val dynamic = client.capture(0x5000000000001L)
+            assertSame(original.nodes, dynamic.nodes)
+            assertEquals(1, dynamic.signals.first().textureState); assertEquals("textures/changed.svg", dynamic.signals.first().texturePath)
+            assertEquals(1L, dynamic.occupations?.single()?.trackId); assertEquals(1L, dynamic.reservations?.single()?.trackId)
+            assertEquals(listOf(1L), dynamic.selectedPath)
+            revision(2); val changed = client.capture(0x5000000000001L)
+            assertNotSame(original.nodes, changed.nodes); assertEquals(777.0, changed.nodes.last().y)
+            assertEquals(199998.0, original.nodes.last().y); assertEquals(0, original.signals.first().textureState)
+            revision(3); assertTrue(client.capture().nodes.isEmpty())
+            revision(0); val recovered = client.capture()
+            assertNotSame(original.nodes, recovered.nodes); assertEquals(original.nodes, recovered.nodes)
+        } finally { revision(0) } }
+    }
+    @Test fun richQueriesAreOptInTypedAndKeepMaterialSeparateFromMovement() {
+        val library = com.sun.jna.NativeLibrary.getInstance(fixture().toString())
+        fun counter(name: String) = library.getFunction(name).invokeInt(emptyArray())
+        NimbyClient.open(fixture(), 42).use { client ->
+            val before = counter("Fixture_RichReads"); val captures = counter("Fixture_TrainDataCaptures")
+            val ordinary = client.capture(); assertNull(ordinary.lines); assertNull(ordinary.trainMetadata)
+            assertEquals(before, counter("Fixture_RichReads")); assertEquals(captures, counter("Fixture_TrainDataCaptures"))
+            val base = client.captureTrainData()
+            assertEquals(33, counter("Fixture_LastTrainFlags")); assertNull(base.lines); assertNull(base.metadata(TrainId(-1))?.configured)
+            val material = client.captureTrainData(query = TrainQuery(includeService = false, includeLocations = false, includeCharacteristics = true))
+            assertEquals(2, counter("Fixture_LastTrainFlags")); assertTrue(material.services.isEmpty()); assertTrue(material.tracks.isEmpty())
+            val observed = assertNotNull(material.metadata(TrainId(-1)))
+            assertEquals(144.0, observed.configured?.maximumSpeedKmh); assertEquals(126.0, observed.current?.maximumSpeedKmh)
+            assertEquals(200.0, observed.configured?.lengthM); assertNull(observed.current?.lengthM)
+            assertEquals(500, observed.configured?.passengerCapacity); assertNull(observed.current?.passengerCapacity)
+            assertNull(material.trains.single().speedKmh) // A material maximum never fills missing movement speed.
+            assertTrue(material.nodes.isEmpty()); assertTrue(material.signals.isEmpty()); assertNull(material.occupations)
+        }
+    }
+    @Test fun catalogsIncludeUnassignedLinesAndInheritanceFailsClosedWithoutDroppingDeclaredTags() {
+        val data = NimbyClient.open(fixture(), 42).use { it.captureTrainData(query = TrainQuery(includeTags = true)) }
+        assertEquals(7, data.lines?.size); assertEquals(2, data.tags?.size)
+        assertEquals(LineType.Depot, data.line(LineId(91))?.type)
+        assertEquals(listOf(TagId(8), TagId(7)), data.tagsForLine(LineId(92))?.map { it.id })
+        assertNull(data.tagsForLine(LineId(93))); assertNull(data.tagsForLine(LineId(94))); assertNull(data.tagsForLine(LineId(96)))
+        assertEquals(listOf(Tag(TagId(999), null)), data.tagsForLine(LineId(97)))
+        val train = assertNotNull(data.train(TrainId(-1)))
+        assertEquals(-1.5, train.metadata?.predictedArrivalDelaySeconds)
+        assertEquals(listOf(TagId(7), TagId(999)), train.metadata?.declaredTags?.map { it.id })
+        assertEquals(TimetableId(61), train.details?.timetable?.id); assertEquals(TimetableShiftId(TimetableId(61),71), train.details?.shift)
+        val deep = data.copy(lines = List(258) { Line(LineId(it + 1L), null, null, if(it == 257) null else LineId(it + 2L), true, emptyList()) })
+        assertNull(deep.tagsForLine(LineId(1))); assertEquals(emptyList(), deep.tagsForLine(LineId(3)))
+    }
+    @Test fun legacyLibraryKeepsNewCatalogsAndCharacteristicsUnknown() {
+        val legacy = Path.of(requireNotNull(System.getProperty("nrf.fixture.legacy")))
+        val data = NimbyClient.open(legacy,42).use { it.captureTrainData(query = TrainQuery(includeTags = true, includeCharacteristics = true)) }
+        assertEquals("Train test", data.trains.single().name); assertNull(data.lines); assertNull(data.tags); assertNull(data.trainMetadata)
+    }
+    @Test fun richServiceAndDetailsKeepValidityAndUseSnapshotIndexes() {
+        val copied = NimbyClient.open(fixture(), 42).use { it.capture() }
+        val row = assertNotNull(copied.train(-1))
+        assertEquals("Train test", row.train.name)
+        val service = assertNotNull(row.service)
+        assertEquals(TrainState.SignalWait, service.state); assertEquals(TrainAlert.SignalWait, service.alertState)
+        assertEquals(false, service.hidden); assertEquals(true, service.onNetwork)
+        assertEquals(9L, service.locationTrackId); assertEquals(94L, service.stopTrackId)
+        assertEquals(true, service.isDepotLine); assertEquals(-6.0, service.arrivalRemainingSeconds)
+        assertEquals(0.0, service.departureRemainingSeconds)
+        assertEquals(java.time.Instant.ofEpochSecond(1233), service.arrival)
+        assertEquals(java.time.Instant.ofEpochSecond(1234), service.departure)
+        assertEquals(java.time.Instant.ofEpochSecond(1235), service.dispatchRetry)
+        val details = assertNotNull(row.details)
+        assertEquals(0, details.passengers); assertEquals(61L, details.scheduleId); assertEquals(71L, details.shiftId)
+        assertEquals(0, details.orderIndex); assertEquals(true, details.isMothballed)
+        val unknown = assertNotNull(copied.service(1))
+        assertNull(unknown.state); assertNull(unknown.hidden); assertNull(unknown.alertState); assertNull(unknown.locationTrackId)
+        assertNull(unknown.lineKind); assertNull(unknown.arrivalRemainingSeconds); assertNull(unknown.dispatchRetry)
+        assertNull(copied.details(1)?.orderIndex); assertNull(copied.details(1)?.orderMode)
+        assertNull(copied.train(0x5000000000001L)); assertNull(row.stopStation) // ID known, station row unavailable.
+        assertEquals(92L, service.stopStationId)
+    }
+    @Test fun serviceDatesNormalizeSignedFractionalMicrosecondsWithoutInventingCalendars() {
+        val service = Service(1, null, null, null, 0, gameEpochSeconds = 1000, arrivalTimeUs = -1, departureTimeUs = 0)
+        assertEquals(java.time.Instant.ofEpochSecond(999, 999999000), service.arrival)
+        assertEquals(java.time.Instant.ofEpochSecond(1000), service.departure)
+        assertNull(service.copy(gameEpochSeconds = null).arrival)
+        assertNull(service.copy(gameEpochSeconds = Long.MAX_VALUE, arrivalTimeUs = 1_000_000).arrival)
+        assertEquals(4_294_967_295L, LineStop(1, 2, null, 0, Int.MIN_VALUE, Int.MAX_VALUE).plannedDwellSeconds)
+    }
+    @Test fun largeMapBuffersCanBeReusedWithoutChangingEarlierObservations() {
+        val first = NimbyClient.open(fixture(), 44).use { client ->
+            val before = client.capture()
+            repeat(3) {
+                val next = client.capture()
+                assertSame(before.nodes, next.nodes) // Fresh bytes match exactly; no 100k-row rebuild.
+                assertEquals(100000, next.nodes.size)
+                assertEquals(16384, next.trains.size)
+                assertEquals(8192, next.signals.size)
+                assertEquals(199998.0, next.nodes.last().y)
+                assertEquals(0x8000000002000L, next.signals.last().id)
+                assertEquals("textures/large-map.svg", next.signals.last().texturePath)
+                assertEquals("System:Restricted", next.signals.first().specificState)
+                assertEquals("Train test", before.trains.first().name)
+                assertEquals(before, next)
+            }
+            before
+        }
+        assertEquals(100000, first.nodes.size)
+        assertEquals("textures/large-map.svg", first.signals.first().texturePath)
+        assertFails { (first.nodes as MutableList).clear() }
+    }
+    @Test fun absurdTableSizeIsRejectedAndItsSnapshotReleased() {
+        val library = com.sun.jna.NativeLibrary.getInstance(fixture().toString())
+        NimbyClient.open(fixture(), 45).use { client ->
+            val released = library.getFunction("Fixture_Released")
+            val before = released.invokeInt(emptyArray())
+            assertFailsWith<IllegalArgumentException> { client.capture() }
+            assertEquals(before + 1, released.invokeInt(emptyArray()))
+        }
+    }
     @Test fun nativeTrackMetricsRemainOwnedAfterSessionClose() {
         val metric = NimbyClient.open(fixture(),42).use { it.capture().trackMetrics!!.single() }
         assertEquals(TrackMetric(9,1234.5),metric)
@@ -26,6 +145,30 @@ class NativeClientTest {
         assertFailsWith<IllegalArgumentException> { metric.fraction(1235.0) }
     }
     private fun fixture() = Path.of(requireNotNull(System.getProperty("nrf.fixture")) { "Native fixture was not built" })
+    @Test fun compositionQueryCopiesReferencedModelsAndPreservesIndependentEmptyProfile() {
+        val snapshot = NimbyClient.open(fixture(), 42).use { client ->
+            assertNull(client.captureTrainData().train(-1)?.metadata?.configured?.composition)
+            client.captureTrainData(query = TrainQuery(includeService = false, includeLocations = false, includeComposition = true))
+        }
+        val metadata = assertNotNull(snapshot.train(-1)?.metadata)
+        val vehicles = assertNotNull(metadata.configured?.composition)
+        assertEquals(listOf(0, 1), vehicles.map { it.index })
+        assertEquals("metro", vehicles.first().model.code)
+        assertEquals("Metro vehicle", vehicles.first().model.nameEnglish)
+        assertEquals("Base game", vehicles.first().model.sourceName)
+        assertEquals(VehicleModelId(999), vehicles.last().modelId); assertNull(vehicles.last().model.code)
+        assertEquals(emptyList(), metadata.current?.composition)
+        assertNull(metadata.configured?.maximumSpeedMps)
+        assertEquals(listOf(VehicleModelId(101)), snapshot.vehicleModels?.map { it.id })
+    }
+    @Test fun malformedCompositionDoesNotEraseIndependentCurrentVehicles() {
+        val rows = TrainCompositions(null, true)
+        rows.add(1, 10, 0, 0); rows.add(1, 11, 0, 0); rows.add(1, 12, 0, 1)
+        rows.finish(); assertNull(rows.forTrain(1, 0))
+        assertEquals(VehicleModelId(12), rows.forTrain(1, 1)?.single()?.modelId)
+        assertEquals(emptyList(), rows.forTrain(2, 1))
+        assertNull(TrainCompositions(null, false).also { it.finish() }.forTrain(1, 0))
+    }
     @Test fun targetedDrivingOwnsValuesAndKeepsIndependentValidity() {
         val observed = NimbyClient.open(fixture(), 42).use { client ->
             val value = assertNotNull(client.readTrain(0x5000000000001))

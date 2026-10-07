@@ -54,14 +54,16 @@ Get-ChildItem -LiteralPath "$sdkRoot/docs" -Recurse -File -Filter *.md | ForEach
     New-Item -ItemType Directory -Path (Split-Path $target) -Force | Out-Null
     Copy-Item -LiteralPath $_.FullName -Destination $target -Force
 }
-@'
+$kitReadme = @'
 # NRF Kotlin SDK
 
-Create your own project with [the official Kotlin guide](https://wiki.nimbyrails-france.fr/commencer/installation).
+Create your own project with [the official Kotlin guide](https://wiki.nimbyrails-france.fr/version/{SDK_EDITION}/commencer/installation).
 Configure `NRF_KOTLIN_SDK` or `nrfSdkDir` to point at this kit.
 The kit includes the Gradle plugin, Kotlin API, native adapter and diagnostics.
-All tutorials and Kotlin API documentation live on [the wiki](https://wiki.nimbyrails-france.fr/).
-'@ | Set-Content -LiteralPath "$Destination/README.md" -Encoding UTF8
+All tutorials and Kotlin API documentation live in [this SDK's wiki edition](https://wiki.nimbyrails-france.fr/version/{SDK_EDITION}).
+'@
+$sdkEdition = ($sdkVersion.Split('-')[0].Split('.')[0..1] -join '.')
+$kitReadme.Replace('{SDK_EDITION}', $sdkEdition) | Set-Content -LiteralPath "$Destination/README.md" -Encoding UTF8
 if(!$ArchiveDirectory){$ArchiveDirectory=Join-Path $sdkRoot 'dist'}
 $archive=Join-Path $ArchiveDirectory "NimbyRailsFranceSDK-kotlin-$sdkVersion-windows-x64.zip"
 New-Item -ItemType Directory -Path (Split-Path $archive) -Force | Out-Null

@@ -1,3 +1,4 @@
+#include <platform/windows/bridge_installation.h>
 // Qualification of native delta grouping, restricted to an explicit track and
 // the next manual signal placement. It does not issue commands from a new thread.
 #include "construction-batch-protocol.hpp"
@@ -96,6 +97,8 @@ uint64_t execute(uint64_t command,uint64_t output,uint64_t context) {
 }
 extern "C" __declspec(dllexport) DWORD WINAPI NimbyInternal_Bootstrap(void* argument) noexcept {
     if(argument)return NIMBY_INVALID_ARGUMENT;
+    nimby::platform::windows::BridgeInstallation installation;
+    if(!installation)return installation.status();
     AcquireSRWLockExclusive(&initialization);
     struct Unlock {~Unlock(){ReleaseSRWLockExclusive(&initialization);}} unlock;
     if(enabled)return NIMBY_ALREADY_INITIALIZED;

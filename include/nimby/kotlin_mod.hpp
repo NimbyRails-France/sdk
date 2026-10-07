@@ -27,6 +27,7 @@ struct Rules {
     using Signal=kotlin::Signal;using Vehicle=kotlin::Vehicle;using DrivingSettings=kotlin::DrivingSettings;
     using Constraint=kotlin::Constraint;using DrivingInput=kotlin::DrivingInput;using Plan=kotlin::Plan;
     static constexpr std::size_t maxSignals=512;
+    static constexpr std::size_t maxLiveSignals=4096;
     static inline std::string textureSet,controlId;
     static std::optional<Decision> forcedDecision(int aspect);
     static std::optional<Decision> forcedDecision(std::string_view catalogue,int aspect);

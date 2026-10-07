@@ -1,4 +1,5 @@
 #include <engine/automatic_controller.h>
+#include <engine/driving_publishers.h>
 #include <cassert>
 int main(){
     using namespace nimby::engine::automatic;
@@ -27,4 +28,26 @@ int main(){
     commitIntegration(state,{},restricted,0,0,0.01,11,10,true,true);
     assert(!state.memory.stopped.signal); // Invalid elapsed ticks invalidate proof.
     assert(prepareRules(nullptr,0,100,0,sorted)&&sorted.empty());
+    DrivingPublishers<NimbySignalDrivingRule> owners;
+    const NimbySignalDrivingRule first{a,0,10,0,NIMBY_DRIVING_STOP},second{b,-1,10,0,NIMBY_DRIVING_CLEAR};
+    assert(owners.publish(1,{first},1000)==NIMBY_OK);
+    const auto initial=owners;
+    auto prepared=initial;
+    assert(prepared.publish(1,{second},1500)==NIMBY_OK);
+    assert(owners.sameVersion(initial)&&!owners.sameVersion(prepared));
+    assert(owners.owner(a)==1&&owners.owner(b)==0&&!owners.fresh(a,1100));
+    auto heartbeat=initial;assert(heartbeat.publish(1,{first},2000)==NIMBY_OK);
+    assert(!owners.sameOwnerVersion(heartbeat,1)&&!owners.fresh(a,1100));
+    assert(owners.publish(2,{second},500)==NIMBY_OK&&owners.rows().size()==2);
+    assert(owners.publish(2,{first},2000)==NIMBY_RESOURCE_LIMIT);
+    assert(owners.fresh(a,600)&&!owners.fresh(b,600)&&owners.owner(b)==2);
+    assert(owners.publish(1,{first},2000)==NIMBY_OK&&!owners.fresh(b,600));
+    assert(owners.publish(3,{},3000)==NIMBY_OK&&owners.rows().size()==2);
+    assert(owners.publish(2,{},3000)==NIMBY_OK&&owners.rows().size()==1&&owners.owner(a)==1);
+    // A publisher flood exhausts only bounded slots, leaving A renewable.
+    for(uint64_t token=2;token<=64;++token)assert(owners.publish(token,{},3000,NIMBY_DRIVING_MAXIMUM_LINE_SPEED)==NIMBY_OK);
+    assert(owners.publish(65,{second},3000)==NIMBY_RESOURCE_LIMIT);
+    assert(owners.publish(1,{first},4000)==NIMBY_OK&&owners.fresh(a,3500));
+    assert(owners.publish(64,{},3000)==NIMBY_OK);
+    assert(owners.publish(65,{second},3000)==NIMBY_OK);
 }

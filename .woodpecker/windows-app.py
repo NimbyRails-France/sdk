@@ -15,6 +15,7 @@ import sys
 import zipfile
 
 from toolchain import install
+from release_metadata import development_metadata
 
 ROOT = pathlib.Path.cwd()
 PLAN = json.loads((ROOT / '.release-plan.json').read_text())
@@ -25,6 +26,7 @@ SKIP_TESTS = (PLAN['publish'] and PLAN['channel'] == 'alpha' and
               'Release-Validation: skip-tests' in os.environ.get('CI_COMMIT_MESSAGE', '').splitlines())
 REPO = os.environ['CI_REPO'].split('/')[-1]
 assert REPO in ('hub', 'tco')
+PROJECT_METADATA = development_metadata(ROOT) if REPO == 'tco' else {}
 PRODUCT = 'NRFHub' if REPO == 'hub' else 'NimbyTco'
 MAIN = 'fr.nimby.hub.MainKt' if REPO == 'hub' else 'fr.nimby.tco.MainKt'
 OUT = ROOT / 'dist/release'
@@ -149,9 +151,9 @@ else:
         if content.testzip():
             raise ValueError('Corrupt TCO archive')
     manifest = dict(id='tco', kind='tco', name='Nimby TCO', rootFolder=root_folder,
-                    sdkMin='0.8.0-alpha.1', sdkMaxExclusive='0.9.0',
+                    sdkMin='0.9.0-alpha.1', sdkMaxExclusive='0.10.0',
                     gameSha256=['fff49ac21720abfc824c2b4f68b862727630eb0db71cfe1f9ea8f685d0db10ae'],
-                    **metadata(archive))
+                    **PROJECT_METADATA, **metadata(archive))
     for name in ('project.json', 'project-windows-x64.json'):
         write(name, manifest)
 assets = sorted(OUT.iterdir())

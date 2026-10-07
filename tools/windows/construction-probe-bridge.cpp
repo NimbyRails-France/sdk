@@ -1,3 +1,4 @@
+#include <platform/windows/bridge_installation.h>
 // Observes commands issued by the normal editor. Never creates a command,
 // changes a payload or invokes an executor independently of its original call.
 #include "construction-probe.hpp"
@@ -73,6 +74,8 @@ struct Hook {uint64_t rva;void* callback;void** original;std::array<unsigned cha
 }
 extern "C" __declspec(dllexport) DWORD WINAPI NimbyInternal_Bootstrap(void* argument) noexcept {
     if(argument)return NIMBY_INVALID_ARGUMENT;
+    nimby::platform::windows::BridgeInstallation installation;
+    if(!installation)return installation.status();
     AcquireSRWLockExclusive(&initialization);
     struct Unlock{~Unlock(){ReleaseSRWLockExclusive(&initialization);}} unlock;
     if(enabled)return NIMBY_ALREADY_INITIALIZED;

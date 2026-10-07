@@ -1,5 +1,25 @@
 #include <nimby/signalling_control.hpp>
+#include <nimby/automatic_driving.hpp>
+#include <nimby/detail/live_texture_tracking.hpp>
 #include <cassert>
+#include <iostream>
+
+namespace {
+uint32_t trainReleaseStatus=NIMBY_OK,textureReleaseStatus=NIMBY_OK,drivingReleaseStatus=NIMBY_OK;
+unsigned trainReleases=0,textureReleases=0,drivingReleases=0;
+uint64_t trainPublisher=0,lastTrainReleasePublisher=0;
+}
+// Exercise the real control/texture/driving wrappers with deterministic failures.
+uint32_t __cdecl NimbyInternal_PublishTrainConstraints(const NimbyTrainConstraint*,uint32_t count,uint32_t,uint64_t publisher) noexcept {
+    if(count){trainPublisher=publisher;return NIMBY_OK;}
+    ++trainReleases;lastTrainReleasePublisher=publisher;return trainReleaseStatus;
+}
+uint32_t __cdecl NimbyInternal_ClearOwnedTextures(uint32_t,uint64_t,const uint64_t*,uint32_t) noexcept {
+    ++textureReleases;return textureReleaseStatus;
+}
+uint32_t __cdecl NimbyInternal_PublishDrivingRulesV3(const NimbySignalDrivingRule*,uint32_t,uint32_t,uint32_t,uint64_t) noexcept {
+    ++drivingReleases;return drivingReleaseStatus;
+}
 struct Rules {
     struct Decision {int aspect,reason;};
     static std::optional<Decision> forcedDecision(int aspect){if(aspect<0||aspect>3)return {};return Decision{aspect,99};}
@@ -44,4 +64,43 @@ int main(){
     typed.decisions[signal]={102,299};typed.lease.signals[signal]={102,299};
     r.operation=NIMBY_CONTROL_READ_SIGNAL;
     assert(typed.handle(r,out)==NIMBY_OK&&out.aspect==2&&out.reason==99&&out.active==2);
+
+    // A failed train release cannot prevent texture cleanup. Its ownership
+    // remains pending until a later successful release, without reviving leases.
+    control.lease.trains[train]={train,0,1,10,0,0};
+    control.publishTrains();assert(control.publishedTrains&&trainPublisher==control.publisher);
+    std::vector<uint64_t> owned{signal};
+    const auto restore=[&] {
+        std::unique_lock unlocked(control.mutex,std::try_to_lock);
+        assert(unlocked.owns_lock()); // Independent output RPCs run outside it.
+        assert(control.lease.trains.empty()&&!control.game&&control.observedAt==0);
+        nimby::detail::restoreTrackedTextures(owned,[](auto){return true;},
+            [](auto batch){nimby::SignalTextures::inGame().restore(batch);},[](auto){});
+    };
+    trainReleaseStatus=NIMBY_RESOURCE_LIMIT;
+    bool rejected=false;
+    try {control.invalidateAndCleanup(restore);}catch(const nimby::Exception& error){rejected=error.code()==nimby::ErrorCode::ResourceLimit;}
+    assert(rejected&&textureReleases==1&&owned.empty()&&control.publishedTrains);
+    assert(lastTrainReleasePublisher==trainPublisher&&trainReleases==1);
+
+    // The reverse failure preserves pending texture IDs while the successful
+    // train release stays complete; its next cleanup must not resend that RPC.
+    trainReleaseStatus=NIMBY_OK;textureReleaseStatus=NIMBY_RESOURCE_LIMIT;owned={signal};
+    control.invalidateAndCleanup(restore);
+    assert(!control.publishedTrains&&trainReleases==2&&textureReleases==2&&owned.size()==1);
+    textureReleaseStatus=NIMBY_OK;control.invalidateAndCleanup(restore);
+    assert(trainReleases==2&&textureReleases==3&&owned.empty());
+
+    // Stop uses the same independent cleanup but releases automatic signal
+    // rules. Preserve the first failure if both channels are unavailable.
+    control.lease.trains[train]={train,0,2,10,0,0};control.publishTrains();
+    trainReleaseStatus=NIMBY_RESOURCE_LIMIT;drivingReleaseStatus=NIMBY_IO_ERROR;
+    rejected=false;
+    try {control.invalidateAndCleanup([]{nimby::AutomaticDriving::release();});}
+    catch(const nimby::Exception& error){rejected=error.code()==nimby::ErrorCode::ResourceLimit;}
+    assert(rejected&&drivingReleases==1&&control.publishedTrains&&trainReleases==3);
+    trainReleaseStatus=NIMBY_OK;drivingReleaseStatus=NIMBY_OK;
+    control.invalidateAndCleanup([]{nimby::AutomaticDriving::release();});
+    assert(!control.publishedTrains&&drivingReleases==2&&trainReleases==4);
+    std::cout<<"PASS control overlays and independent cleanup with transient failures\n";
 }

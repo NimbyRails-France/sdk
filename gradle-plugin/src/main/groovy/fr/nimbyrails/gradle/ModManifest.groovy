@@ -20,6 +20,8 @@ final class ModManifest {
         check(m.sdkMaxExclusive, VERSION, 'sdkMaxExclusive')
         if (compareVersions(m.sdkMin, m.sdkMaxExclusive) >= 0) throw new GradleException('Invalid SDK version range')
         if (m.language != 'kotlin-native') throw new GradleException('language must be kotlin-native')
+        if (m.containsKey('developmentStatus') && !(m.developmentStatus in ['in-development', 'stable']))
+            throw new GradleException('developmentStatus must be in-development or stable when present')
         if (!(m.name instanceof String) || !m.name.trim()) throw new GradleException('name is required')
         if (!(m.gameSha256 instanceof List) || m.gameSha256.isEmpty()) throw new GradleException('gameSha256 must list supported game binaries')
         m.gameSha256.each { check(it, '[a-fA-F0-9]{64}', 'gameSha256') }

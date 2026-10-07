@@ -33,6 +33,7 @@
 #include "MinHook.h"
 #include "buffer.h"
 #include "trampoline.h"
+#include "thread_snapshot.h"
 
 #ifndef ARRAYSIZE
     #define ARRAYSIZE(A) (sizeof(A)/sizeof((A)[0]))
@@ -75,12 +76,7 @@ typedef struct _HOOK_ENTRY
 } HOOK_ENTRY, *PHOOK_ENTRY;
 
 // Suspended threads for Freeze()/Unfreeze().
-typedef struct _FROZEN_THREADS
-{
-    LPDWORD pItems;         // Data heap
-    UINT    capacity;       // Size of allocated data heap, items
-    UINT    size;           // Actual number of data items
-} FROZEN_THREADS, *PFROZEN_THREADS;
+typedef MH_THREAD_LIST FROZEN_THREADS, *PFROZEN_THREADS;
 
 //-------------------------------------------------------------------------
 // Global Variables:
@@ -260,7 +256,7 @@ static VOID ProcessThreadIPs(HANDLE hThread, UINT pos, UINT action)
 }
 
 //-------------------------------------------------------------------------
-static BOOL EnumerateThreads(PFROZEN_THREADS pThreads)
+static BOOL EnumerateThreadsToolhelp(PFROZEN_THREADS pThreads)
 {
     BOOL succeeded = FALSE;
 
@@ -322,6 +318,28 @@ static BOOL EnumerateThreads(PFROZEN_THREADS pThreads)
     }
 
     return succeeded;
+}
+
+//-------------------------------------------------------------------------
+static BOOL EnumerateThreads(PFROZEN_THREADS pThreads)
+{
+    /* Resolve all PSS functions together. Older Windows versions retain the
+     * upstream Toolhelp path; a partial PSS result never reaches Freeze(). */
+    HMODULE kernel = GetModuleHandleW(L"kernel32.dll");
+    MH_THREAD_SNAPSHOT_API api = {0};
+    if (kernel)
+    {
+        api.capture = (DWORD (WINAPI*)(HANDLE, PSS_CAPTURE_FLAGS, DWORD, HPSS*))GetProcAddress(kernel, "PssCaptureSnapshot");
+        api.freeSnapshot = (DWORD (WINAPI*)(HANDLE, HPSS))GetProcAddress(kernel, "PssFreeSnapshot");
+        api.createMarker = (DWORD (WINAPI*)(const PSS_ALLOCATOR*, HPSSWALK*))GetProcAddress(kernel, "PssWalkMarkerCreate");
+        api.freeMarker = (DWORD (WINAPI*)(HPSSWALK))GetProcAddress(kernel, "PssWalkMarkerFree");
+        api.walk = (DWORD (WINAPI*)(HPSS, PSS_WALK_INFORMATION_CLASS, HPSSWALK, void*, DWORD))GetProcAddress(kernel, "PssWalkSnapshot");
+    }
+    api.allocate = HeapAlloc;
+    api.reallocate = HeapReAlloc;
+    api.free = HeapFree;
+    return MHEnumerateThreads(&api, g_hHeap, GetCurrentProcessId(), GetCurrentThreadId(), pThreads,
+        EnumerateThreadsToolhelp);
 }
 
 //-------------------------------------------------------------------------

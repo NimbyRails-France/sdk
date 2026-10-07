@@ -42,3 +42,47 @@ Tests automatisés : catalogue synthétique, structures invalides ou instables,
 version inconnue, contrat de copie et immuabilité, disparition des textures
 indisponibles ou périmées dans le TCO. `--verify-textures` permet de répéter
 le test réel ; `--screenshot <fichier.png>` enregistre l'affichage.
+
+## Lecture ciblée qualifiée — 2026-10-03
+
+Sur le même exécutable Windows 1.19, RVA `0x241780` et son helper
+`0x2416b0` calculent la clé du nom du jeu de textures. La transcription
+portable reproduit les multiplications 64 × 64, lectures little-endian,
+blocs de 64 puis 16 octets et traitement des queues. Comparaison avec la
+fonction machine pure exécutée uniquement dans un processus de test :
+1 030 entrées concordantes, dont les frontières de taille. Les branches
+C++ 128 bits et multiplication décomposée concordent aussi sur 10 000
+entrées aléatoires. Par exemple, `sfr_bal_a_v1` donne `9a2356c6eddee8f5`.
+Le chemin Linux conserve le lecteur complet historique ; son hash n'est
+pas qualifié par ces preuves Windows.
+
+Une requête nommée relit uniquement les buckets correspondants, les
+identités et liens traversés, puis les noms/fichiers des jeux demandés.
+Les descripteurs globaux, racines et têtes des buckets sont revérifiés.
+Les ressources sans lien ne sont plus des dépendances de la capture BAL
+ou de la publication d'un lot. Une chaîne corrompue dans un bucket demandé
+reste nécessairement une dépendance : elle peut cacher la clé cherchée ou
+un doublon. Les lectures facultatives des signaux frontières distinguent
+une clé absente, autorisant le repli natif, d'une clé présente illisible,
+qui reste inconnue. Aucun cache temporel n'est utilisé.
+
+Validation en lecture seule sur la carte ouverte : les 112 jeux et leurs
+240 fichiers concordent exactement entre lecture complète et lectures
+ciblées, et leurs 112 clés correspondent au hash calculé. Sur 64 essais
+entrelacés par mode, tous disponibles :
+
+| Catalogue | Lectures mémoire | Octets lus | p50 | p95 | p99 |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Complet | 1 186 | 93 776 | 1 529,9 µs | 1 979,5 µs | 2 960,4 µs |
+| Un modèle BAL | 78 | 4 338 | 97,6 µs | 138,6 µs | 185,2 µs |
+| Trois modèles SFR | 162 | 10 332 | 208,0 µs | 305,7 µs | 584,3 µs |
+
+Ces durées mesurent le lecteur de catalogue, pas la capture SDK complète.
+La machine exécutait aussi les validations de développement ; avec 64
+échantillons, le p99 par rang supérieur correspond au maximum. Les tests
+synthétiques et le test de l'ABI de capture vérifient notamment qu'un
+catalogue étranger illisible n'est pas lu, que les fichiers demandés
+instables sont refusés et que l'API de catalogue complet reste stricte.
+Les mesures brutes et programmes de qualification sont conservés dans
+`.validation/sdk-isolation/live-catalog-profile.jsonl`,
+`live-catalog-profile.cpp` et `texture-hash-research/` du workspace.

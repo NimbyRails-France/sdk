@@ -9,7 +9,10 @@ class NumberSetting(val name: String, val label: String, val maximum: Int,
         require(maximum in 1..65535 && defaultValue in 0..maximum)
     }
     internal val bits = (1..16).first { maximum < (1 shl it) }
-    internal fun key(bit: Int) = "nrf.number.$name.$bit"
+    // La déclaration est immuable. Réutiliser ses clés évite de créer jusqu'à
+    // seize chaînes par signal à chaque observation, sans conserver de valeur.
+    private val keys = Array(bits) { "nrf.number.$name.$it" }
+    internal fun key(bit: Int) = keys[bit]
     internal fun storage() = (0 until bits).map {
         Checkbox(key(it), label, "", defaultValue and (1 shl it) != 0)
     }

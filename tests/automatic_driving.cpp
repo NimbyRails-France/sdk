@@ -95,6 +95,60 @@ void checkConsumerInstructions(const TestSpeeds& speeds){
  // Native lookahead already removed the target: measured movement releases it.
  memory={};crossed(memory,warnings,499,501);
  crossed(memory,{},999.99,1000.1);assert(memory.stops.empty());
+ // A reopened target permits a real movement. The native wrapper can miss
+ // its post-integration commit when another callback owns the state lock.
+ // The next scan no longer contains that passed target; reconcile only its
+ // release from the two observed heads, never invent a received instruction.
+ memory={};crossed(memory,warnings,499,501);
+ p=plan(memory,ahead,clear,999,100,vmax,.5,true);
+ assert(p.active&&p.ceiling>=speeds.approachMps&&memory.stops.size()==1);
+ // Native motion advances 999 -> 1001 here, without a crossed() commit.
+ p=plan(memory,{},clear,1001,100,vmax,.5,true);
+ std::cerr<<"missed_commit_release ceiling="<<p.ceiling<<" retained="<<memory.stops.size()<<'\n';
+ assert(!p.active&&p.ceiling==vmax&&memory.stops.empty());
+ // Remaining still on the target never proves passage, even if it is clear.
+ memory={};crossed(memory,warnings,499,501);
+ plan(memory,ahead,clear,1000,100,vmax,.5,true);
+ p=plan(memory,{},closed,1000,100,vmax,.5,true);
+ assert(p.active&&p.ceiling==0&&memory.stops.size()==1);
+ // A first observation alone has no earlier head to prove missed movement.
+ memory={};crossed(memory,warnings,499,501);
+ p=plan(memory,{},clear,1001,100,vmax,.5,true);
+ assert(p.active&&p.ceiling==0&&memory.stops.size()==1);
+ // Refresh the same target's route position BEFORE deciding it was passed.
+ memory={};crossed(memory,warnings,499,501);
+ plan(memory,ahead,clear,999,100,vmax,.5,true);
+ const std::vector<Ahead> rerouted{{s,2000}};
+ p=plan(memory,rerouted,clear,1001,100,vmax,.5,true);
+ assert(p.active&&memory.stops.size()==1&&memory.stops.front().position==2000);
+ assert(std::abs(p.ceiling-envelope(0,999,.5))<1e-9);
+ // Progress which remains before the target cannot release it; stale data
+ // also cannot use its visible reopening to grant movement through it.
+ memory={};crossed(memory,warnings,499,501);
+ plan(memory,ahead,clear,990,100,vmax,.5,true);
+ p=plan(memory,ahead,clear,999,100,vmax,.5,false);
+ assert(p.active&&memory.stops.size()==1&&std::abs(p.ceiling-envelope(0,1,.5))<1e-9);
+ p=plan(memory,ahead,clear,1000,100,vmax,.5,false);
+ assert(p.active&&p.ceiling==0&&memory.stops.size()==1);
+ // Reconciliation consumes a passed stop only, preserving a further stop
+ // and a separately received speed limit when publication becomes stale.
+ memory={};crossed(memory,warnings,499,501);
+ memory.stops.push_back({s+0x10000,1600,0,speeds.approachMps});
+ memory.held.push_back({0,speeds.heldMps,0,false});
+ plan(memory,ahead,clear,999,100,vmax,.5,true);
+ p=plan(memory,{},clear,1001,100,vmax,.5,false);
+ assert(p.active&&memory.stops.size()==1&&memory.stops.front().signal==s+0x10000);
+ assert(memory.held.size()==1&&std::abs(p.ceiling-std::min(speeds.heldMps,envelope(0,599,.5)))<1e-9);
+ // Invalid observations cannot overwrite the anchor; the existing backward
+ // reset discards the old route rather than replaying its missing passage.
+ memory={};crossed(memory,warnings,499,501);
+ plan(memory,ahead,clear,999,100,vmax,.5,true);
+ assert(!plan(memory,{},clear,std::numeric_limits<double>::quiet_NaN(),100,vmax,.5,true).active);
+ assert(memory.lastHead==999&&memory.stops.size()==1);
+ p=plan(memory,{},clear,998,100,vmax,.5,true);
+ assert(!p.active&&memory.stops.empty());
+ memory={};p=plan(memory,{},clear,1001,100,vmax,.5,true);
+ assert(!p.active&&memory.stops.empty()); // New motion starts with new memory.
  // A native step ending precisely on the source cannot latch it yet. The
  // next step can confirm it even if the native scan no longer lists it.
  memory={};crossed(memory,warnings,499,500);assert(memory.stops.empty());

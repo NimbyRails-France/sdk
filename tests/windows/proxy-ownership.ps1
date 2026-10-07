@@ -8,11 +8,11 @@ New-Item -ItemType Directory -Path $source | Out-Null
 $dlls = @('NimbyRailsFranceSDK.dll','libwinpthread-1.dll',
     'NimbyRailsFranceTextureBridge-experimental-v4.dll','NimbySignalUiBridge-experimental-v1.dll',
     'NimbyAutomaticDrivingBridge-v1.dll','NimbyConstructionBridge-experimental-v1.dll',
-    'NimbyRailsFranceClockBridge-0.7.1.dll','NimbyModMetadataBridge-v1.dll')
+    'NimbyRailsFranceClockBridge-0.7.1.dll','NimbyModMetadataBridge-v1.dll','NimbyRailsFranceModHost.exe')
 $packaging = [IO.File]::ReadAllText("$PSScriptRoot/../../tools/windows/package-drop-in.ps1")
-$packagedNames = @([regex]::Matches($packaging, "'([A-Za-z0-9_.-]+\.dll)'") | ForEach-Object { $_.Groups[1].Value } | Sort-Object -Unique)
+$packagedNames = @([regex]::Matches($packaging, "'([A-Za-z0-9_.-]+\.(?:dll|exe))'") | ForEach-Object { $_.Groups[1].Value } | Sort-Object -Unique)
 foreach($name in $packagedNames) {
-    if($name -ne 'SDL3.dll' -and $name -notin $dlls) { throw "Add ownership/recovery tests for newly packaged DLL: $name" }
+    if($name -ne 'SDL3.dll' -and $name -notin $dlls) { throw "Add ownership/recovery tests for newly packaged binary: $name" }
 }
 foreach($name in $dlls + @('SDL3.dll')) { [IO.File]::WriteAllText((Join-Path $source $name), "fixture $name") }
 $exeFixture = Join-Path $root 'exe.fixture'
@@ -45,6 +45,17 @@ function Run($game, $action, $success = $true, $runner = $installer) {
     $output = & powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File $runner -Action $action -GameDirectory $game -SourceDirectory $source 2>&1
     $ErrorActionPreference = 'Stop'
     if(($LASTEXITCODE -eq 0) -ne $success) { throw "Unexpected $action result: $output" }
+}
+# An incomplete package must fail before any installed bytes change.
+$game = NewGame
+$before = Snapshot $game
+$hostSource = Join-Path $source 'NimbyRailsFranceModHost.exe'
+Rename-Item -LiteralPath $hostSource -NewName 'NimbyRailsFranceModHost.exe.absent'
+try {
+    Run $game Install $false
+    if((Snapshot $game) -ne $before) { throw 'Missing mod host changed the game installation' }
+} finally {
+    Rename-Item -LiteralPath ($hostSource + '.absent') -NewName 'NimbyRailsFranceModHost.exe'
 }
 # Fresh installs own their DLLs; shared installs retain all pre-existing bytes.
 foreach($shared in @($false,$true)) {
@@ -141,5 +152,5 @@ Run $game Install
 Run $game Remove $false $partialRemove
 Run $game Remove
 if((Snapshot $game) -ne $before) { throw 'Legacy restoration cannot resume' }
-Write-Output 'PASS: all 8 payload DLLs, ownership, reuse, mismatches, rollback, reinstall, removal and unrelated files'
+Write-Output "PASS: all $($dlls.Count) payload binaries, ownership, reuse, mismatches, rollback, reinstall, removal and unrelated files"
 Write-Output "Fixtures and evidence: $root"

@@ -9,6 +9,8 @@ import zipfile
 ROOT = pathlib.Path.cwd()
 KIT = ROOT / 'build/kotlin-kit'
 VERSION = (ROOT / 'VERSION').read_text().strip()
+major, minor, _ = VERSION.split('-', 1)[0].split('.')
+SDK_MAX_EXCLUSIVE = f'{major}.{int(minor) + 1}.0'
 KOTLIN = pathlib.Path(os.environ['NRF_KOTLIN_HOME'])
 
 
@@ -54,7 +56,7 @@ consumer = ROOT / 'build/ci-consumer'
 copy(ROOT / 'verification/packaged-mod', consumer)
 (consumer / 'mod.json').write_text(json.dumps(dict(id='sdk-contract', name='SDK package contract', modId='SdkContract',
     module='SdkContractMod', language='kotlin-native', version='1.0.0', sdkMin=VERSION,
-    sdkMaxExclusive='0.9.0', gameSha256=['fff49ac21720abfc824c2b4f68b862727630eb0db71cfe1f9ea8f685d0db10ae'])))
+    sdkMaxExclusive=SDK_MAX_EXCLUSIVE, gameSha256=['fff49ac21720abfc824c2b4f68b862727630eb0db71cfe1f9ea8f685d0db10ae'])))
 run('sh', ROOT / 'gradle-plugin/gradlew', '-p', consumer, 'packageMod',
     '-PnrfSdkDir=' + str(KIT), '-PnrfWineRunner=' + str(ROOT / '.woodpecker/wine-run.py'),
     '-Pkotlin.native.home=' + str(KOTLIN), '--no-daemon', '--max-workers=2', '--console=plain')

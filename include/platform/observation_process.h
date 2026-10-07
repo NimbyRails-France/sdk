@@ -10,8 +10,9 @@
 namespace nimby::platform {
 // One owned, read-only connection to a game process. The backend validates the
 // executable before publishing metadata. No OS handle escapes this interface.
-// Observation's registry mutex serializes all calls and destruction; this class
-// does not create threads or add a second lock. Never copy a process connection.
+// Observation serializes calls per session and retains the connection for any
+// in-flight operation. Other sessions never share this operation lock. This
+// class does not create threads. Never copy a process connection.
 class ObservationProcess {
 public:
     ObservationProcess();

@@ -3,6 +3,7 @@
 #include "platform/windows/unique_handle.h"
 #include "platform/windows/runtime/clock_bridge.h"
 #include "platform/windows/runtime/construction_bridge.h"
+#include "platform/windows/runtime/mod_host_client.h"
 #include "engine/calendar_update.h"
 #include <tlhelp32.h>
 #include <bit>
@@ -52,9 +53,11 @@ bool readProcess(void* context,uint64_t address,void* output,size_t size) {
 
 uint32_t ObservationProcess::setClock(int64_t utc_seconds,NimbySimulationClock& output) noexcept {
     auto& session=*this; auto* out=&output;
-    if(session.pid==GetCurrentProcessId()) {
-        // Never suspend our own process. The bridge applies the same calendar
-        // translation at the simulation boundary before the UI copy is made.
+    if(session.pid==GetCurrentProcessId() || mod_host::client::target()) {
+        // Isolated workers are disposable. They must never suspend the game:
+        // abrupt process termination would bypass the resume transaction.
+        // The native bridge applies changes at the simulation boundary.
+        if(mod_host::client::target()&&session.pid!=mod_host::client::target())return NIMBY_INVALID_ARGUMENT;
         engine::LiveState state{};
         if(!engine::resolve_live_state(readProcess,&session,session.base,true,profile(),state))return NIMBY_DATA_UNAVAILABLE;
         uint32_t interventions{};
@@ -112,8 +115,8 @@ uint32_t ObservationProcess::setClockAndRecalculate(int64_t utc,NimbySimulationC
     return nimby::clock_bridge::change(session.impl_->process.get(),session.pid,state.simulation,session.binary,utc,*out,*count);
 }
 uint32_t ObservationProcess::construction(const NimbyConstructionRequest* request,uint64_t token,NimbyConstructionResult& result) noexcept {
-    // A Kotlin tool runs on its mod observation worker inside the game. The
-    // transport bootstraps locally there; only external tools need injection.
+    // The transport asks the game broker to bootstrap for isolated workers;
+    // only independently launched diagnostic tools need remote injection.
     if(!alive())return NIMBY_PROCESS_EXITED;
     return construction_bridge::exchange(impl_->process.get(),pid,binary,request,token,result);
 }

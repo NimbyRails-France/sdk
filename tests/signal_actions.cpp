@@ -3,7 +3,113 @@
 #include <iostream>
 #include <functional>
 
+namespace {
+struct CountingWake final:nimby::runtime::SignalActions::ActionWake {
+    mutable size_t calls=0;
+    void notify()const noexcept override{++calls;}
+};
+struct RemovingWake final:nimby::runtime::SignalActions::ActionWake {
+    nimby::runtime::SignalUiEndpoint& endpoint;uint64_t provider;
+    mutable uint32_t status=NIMBY_INTERNAL_ERROR;
+    RemovingWake(nimby::runtime::SignalUiEndpoint& value,uint64_t token):endpoint(value),provider(token){}
+    void notify()const noexcept override{status=endpoint.removeProvider(provider);}
+};
+void actionWakeContract(){
+    using namespace nimby::runtime;
+    constexpr uint64_t signal=0x8000000000042;
+    SignalUiEndpoint endpoint;
+    const auto owner=endpoint.host.add({"wake","Wake","atlas",{}});
+    const auto store=endpoint.host.store(owner);const auto session=store->beginSession("world");
+    const nimby::SignalSettingsStore::Signal row{signal,"atlas"};
+    assert(store->observeSignals(session,{&row,1}));
+    std::vector<SignalActions::Action> declared;
+    declared.emplace_back("repeat","Repeat","first","repeat.v1");
+    declared.emplace_back("second","Second","other","repeat.v1");
+    assert(endpoint.host.actions->configure(owner,std::move(declared)));
+    assert(endpoint.host.actions->panelContext(owner,{"world",1}));
+    auto actions=endpoint.host.actions;
+    const auto first=actions->addProvider("first",{"repeat.v1"});
+    const auto other=actions->addProvider("other",{"repeat.v1"});
+    const auto wake=std::make_shared<CountingWake>(),otherWake=std::make_shared<CountingWake>();
+    assert(endpoint.providerWake(first,wake)==NIMBY_OK);
+    assert(endpoint.providerWake(other,otherWake)==NIMBY_OK);
+    assert(endpoint.providerWake(0,wake)==NIMBY_INVALID_HANDLE);
+    assert(actions->observeProvider(first,{"world",1})&&actions->observeProvider(other,{"world",1}));
+    const auto frame=endpoint.host.prepare(1,signal);assert(frame.actions.size()==2);
+    const auto initial=frame.actions[0],peer=frame.actions[1];
+    assert(initial.provider==first&&peer.provider==other);
+    assert(actions->click(initial)&&wake->calls==1&&otherWake->calls==0);
+    assert(!actions->click(initial)&&wake->calls==1); // Duplicate intent does not wake.
+    assert(actions->poll(first));assert(!actions->poll(first));
+    assert(actions->click(peer)&&otherWake->calls==1&&wake->calls==1);
+    assert(actions->poll(other));
+    auto disabled=initial;disabled.enabled=false;
+    assert(!actions->click(disabled)&&wake->calls==1);
+    assert(!actions->click(initial,SignalActions::Clock::now()+SignalActions::workerLease)&&wake->calls==1);
+    assert(actions->suspendProvider(first));
+    assert(!actions->click(initial)&&wake->calls==1);
+    assert(actions->observeProvider(first,{"world",1}));
+    assert(!actions->click(initial)&&wake->calls==1); // The prior epoch never revives.
+    auto fresh=endpoint.host.prepare(2,signal).actions[0];
+    assert(actions->click(fresh)&&wake->calls==2);
+    assert(actions->observeProvider(first,{"another",2}));
+    assert(!actions->poll(first)&&!actions->click(fresh)&&wake->calls==2);
+    assert(actions->observeProvider(first,{"world",1}));
+    std::vector<SignalActions::Button> buttons;buttons.emplace_back("apply","Apply",true);
+    std::vector<SignalActions::NumberInput> inputs;inputs.emplace_back("spacing","Spacing",100,3,1000,true);
+    assert(actions->publish(first,owner,signal,"repeat","repeat.v1","",std::move(buttons),std::move(inputs)));
+    auto numeric=endpoint.host.prepare(3,signal);
+    const auto input=*std::find_if(numeric.actions.begin(),numeric.actions.end(),[](const auto& value){return value.input.has_value();});
+    const auto before=wake->calls;
+    assert(!actions->click(input)&&!actions->editNumber(input,2)&&wake->calls==before);
+    assert(actions->beginNumberEdit(input)&&wake->calls==before); // No committed integer yet.
+    assert(actions->editNumber(input,200)&&actions->editNumber(input,300)&&wake->calls==before+2);
+    const auto edited=actions->poll(first);assert(edited&&edited->selection.value==300&&!actions->poll(first));
+    assert(endpoint.removeProvider(first)==NIMBY_OK);
+    assert(endpoint.providerWake(first,wake)==NIMBY_INVALID_HANDLE);
+    assert(!actions->click(fresh)&&wake->calls==before+2);
+    const auto restarted=actions->addProvider("first",{"repeat.v1"});assert(restarted!=first);
+    assert(actions->observeProvider(restarted,{"world",1}));
+    assert(!actions->click(fresh)&&wake->calls==before+2);
+    const auto restartFrame=endpoint.host.prepare(4,signal);
+    const auto current=*std::find_if(restartFrame.actions.begin(),restartFrame.actions.end(),[&](const auto& value){return value.provider==restarted;});
+    assert(actions->click(current)&&wake->calls==before+2); // No inherited wake binding.
+    assert(actions->poll(restarted));
+    // Reentrant SDK retirement proves notify runs after the action mutex is
+    // released. It removes the intent too, without invoking any mod callback.
+    const auto removing=std::make_shared<RemovingWake>(endpoint,restarted);
+    assert(endpoint.providerWake(restarted,removing)==NIMBY_OK);
+    assert(actions->click(current)&&removing->status==NIMBY_OK);
+    assert(!actions->poll(restarted)&&otherWake->calls==1);
+}
+void fullActionQueueDoesNotWake(){
+    using namespace nimby::runtime;
+    constexpr uint64_t signal=0x8000000000043;
+    SignalUiEndpoint endpoint;const auto actions=endpoint.host.actions;
+    const auto provider=actions->addProvider("queue",{"service"});
+    const auto wake=std::make_shared<CountingWake>();assert(endpoint.providerWake(provider,wake)==NIMBY_OK);
+    assert(actions->observeProvider(provider,{"world",1}));
+    for(unsigned panel=0;panel<5;++panel){
+        const auto owner=endpoint.host.add({"queue-"+std::to_string(panel),"Queue","atlas",{}});
+        const auto store=endpoint.host.store(owner);const auto session=store->beginSession("world");
+        const nimby::SignalSettingsStore::Signal row{signal,"atlas"};assert(store->observeSignals(session,{&row,1}));
+        std::vector<SignalActions::Action> definitions;
+        for(unsigned i=0;i<16;++i)definitions.push_back({"action-"+std::to_string(i),"Action","queue","service"});
+        assert(actions->configure(owner,std::move(definitions)));
+        assert(actions->panelContext(owner,{"world",1}));
+    }
+    const auto frame=endpoint.host.prepare(1,signal);assert(frame.actions.size()==80);
+    for(size_t i=0;i<64;++i)assert(actions->click(frame.actions[i]));
+    assert(wake->calls==64&&!actions->click(frame.actions[64])&&wake->calls==64);
+    for(size_t i=0;i<64;++i)assert(actions->poll(provider));
+    assert(!actions->poll(provider));
+    assert(actions->click(frame.actions[64])&&wake->calls==65);
+}
+}
+
 int main(){
+    actionWakeContract();
+    fullActionQueueDoesNotWake();
     using namespace nimby::runtime;
     SignalUiEndpoint endpoint;
     constexpr uint64_t signal=0x8000000000001;
@@ -209,7 +315,8 @@ int main(){
     textUi.replacement.reset();drawText(63);
     assert(endpoint.pollProviderV2(token,&valueEvent)==NIMBY_OK&&valueEvent.value==725);
     // A closed menu is also a presentation: suspension must not reopen it.
-    assert(endpoint.host.actions->publish(token,owner,signal,"repeat","repeat.v1","",{{"repeat","Repeat",true}}));
+    std::vector<SignalActions::Button> reopenButtons;reopenButtons.emplace_back("repeat","Repeat",true);
+    assert(endpoint.host.actions->publish(token,owner,signal,"repeat","repeat.v1","",std::move(reopenButtons)));
     assert(endpoint.suspendProvider(token)==NIMBY_OK);
     frame=endpoint.host.prepare(9,signal);assert(frame.actions.size()==1&&!frame.actions.front().enabled);
     assert(endpoint.observeProvider(token,"world",5,2)==NIMBY_OK);

@@ -1,9 +1,9 @@
 #include <nimby/detail/diagnostics.hpp>
+#include <nimby/detail/observation.h>
 #include <windows.h>
 #include <stdint.h>
 #include <bit>
 #include "engine/binary_identity.h"
-#include "loader/mods.h"
 
 namespace {
 HMODULE self{};
@@ -19,7 +19,9 @@ Shutdown shutdown_sdk{};
 SRWLOCK lock=SRWLOCK_INIT;
 bool attempted=false;
 bool initialized=false;
-nimby::loader::Mods mods;
+using StartMods = uint32_t (__cdecl*)(const wchar_t*);
+using StopMods = uint32_t (__cdecl*)();
+StopMods stop_mods{};
 
 void log(const char* text) noexcept {
     nimby::detail::diagnostics::write("loader", text && (text[0]=='E' || text[0]=='R') ? "ERROR" : "INFO", text);
@@ -80,8 +82,15 @@ void initialize_sdk() noexcept {
         // As with the other resident bridges, hooks and native allocations must
         // survive every mod unload. The module remains until process exit.
     }
-    if ((initialized || status == NIMBY_ALREADY_INITIALIZED) && sibling_path(L"NRFMods", path))
-        mods.start(path, log);
+    if ((initialized || status == NIMBY_ALREADY_INITIALIZED) && sibling_path(L"NRFMods", path)) {
+        const auto start_mods=std::bit_cast<StartMods>(GetProcAddress(sdk,"NimbyInternal_StartModHosts"));
+        stop_mods=std::bit_cast<StopMods>(GetProcAddress(sdk,"NimbyInternal_StopModHosts"));
+        const auto result=start_mods&&stop_mods?start_mods(path):NIMBY_HOOKS_UNAVAILABLE;
+        if(result==NIMBY_RESOURCE_LIMIT)
+            log("ERROR: insufficient isolated-mod resources; no mod batch remains active. See SDK loader log; close other applications or enable fewer mods.");
+        else if(result!=NIMBY_OK)
+            log("ERROR: isolated mod hosts unavailable; no mod batch remains active");
+    }
 }
 }
 
@@ -105,7 +114,7 @@ extern "C" void __cdecl Proxy_SDL_Quit() noexcept {
     AcquireSRWLockExclusive(&lock);
     const bool resolved=resolve_original();
     const DWORD last_error=GetLastError();
-    const bool mods_stopped = mods.stop(log);
+    const bool mods_stopped = !stop_mods || stop_mods()==NIMBY_OK;
     if(mods_stopped && initialized && shutdown_sdk) {
         if(shutdown_sdk()==NIMBY_OK) { initialized=false; attempted=false; log("OK: SDK stopped before SDL_Quit"); }
         else log("ERROR: SDK shutdown failed; module retained");

@@ -4,6 +4,7 @@
 #include <nimby/detail/platform/host.hpp>
 #include <limits>
 #include <platform/tool_windows.h>
+#include "train_observation.hpp"
 
 namespace nimby::kotlin {
 using ToolCall=int(*)(int,int64_t*,int,double*,int,char*,int);
@@ -13,13 +14,15 @@ inline std::unique_ptr<detail::ObservationSession>& toolReader(){static auto* p=
 struct ToolFrame {
     GameSession game;
     Snapshot::Ptr captured;
+    Snapshot::Ptr trainCaptured;
+    uint32_t trainFlags=0;
 };
 inline thread_local ToolFrame* currentTool=nullptr;
 inline std::unique_ptr<platform::ToolWindows> toolWindows;
 struct ToolScope {
     ToolFrame frame;
     ToolFrame* previous;
-    explicit ToolScope(const GameSession& game):frame{game,{}},previous(currentTool){currentTool=&frame;}
+    explicit ToolScope(const GameSession& game):frame{game,{},{}},previous(currentTool){currentTool=&frame;}
     ~ToolScope(){currentTool=previous;}
 };
 inline detail::ObservationSession& toolConnection(){
@@ -29,9 +32,37 @@ inline detail::ObservationSession& toolConnection(){
 inline int toolCall(int op,int64_t* ints,int size,double* nums,int numCount,char* text,int textSize)noexcept {
     try {
         if(!currentTool)return NIMBY_INVALID_HANDLE;
-        if(size<0||numCount<0||textSize<0||size>4000000||numCount>1000000||textSize>8192||
+        if(size<0||numCount<0||textSize<0||size>4000000||numCount>1000000||textSize>(op>=20&&op<=31?65536:8192)||
            (!ints&&size)||(!nums&&numCount)||(!text&&textSize))return NIMBY_INVALID_ARGUMENT;
         auto& frame=*currentTool;
+        if(op>=20&&op<=31){
+            // Only explicit rich-data calls enter here. BAL/idle ticks never
+            // pay for complete network and train-service captures.
+            if(op==20&&(size!=5||numCount||textSize||ints[0]<0||ints[0]>NIMBY_TRAIN_DATA_ALL))return NIMBY_INVALID_ARGUMENT;
+            if(op==22&&(size!=5||numCount||textSize!=trainData::nameBytes||uint64_t(ints[0])>>48!=5))return NIMBY_INVALID_ARGUMENT;
+            if(op==24&&(size!=2||numCount||textSize))return NIMBY_INVALID_ARGUMENT;
+            uint32_t requested=op==20?uint32_t(ints[0]):op==22?NIMBY_TRAIN_DATA_TIMETABLES|NIMBY_TRAIN_DATA_LOCATIONS:op==24?NIMBY_TRAIN_DATA_LINES:0;
+            if(requested&NIMBY_TRAIN_DATA_TIMETABLES)requested|=NIMBY_TRAIN_DATA_SERVICE;
+            if(requested&NIMBY_TRAIN_DATA_TAGS)requested|=NIMBY_TRAIN_DATA_LINES;
+            if((op==20||op==22||op==24)&&(!frame.trainCaptured||(frame.trainFlags&requested)!=requested)){
+                const auto flags=frame.trainFlags|requested;
+                frame.trainCaptured=toolConnection().captureTrainData(flags);frame.trainFlags=flags;
+                if(!frame.trainCaptured->getGameSession()||*frame.trainCaptured->getGameSession()!=frame.game){frame.trainCaptured.reset();frame.trainFlags=0;return NIMBY_DATA_UNAVAILABLE;}
+            }
+            if(!frame.trainCaptured)return NIMBY_DATA_UNAVAILABLE;
+            if(op==20){
+                ints[0]=int64_t(frame.trainCaptured->getAllTrains().size());ints[1]=trainData::capturedAt(*frame.trainCaptured);ints[2]=frame.trainCaptured->getAge().count();
+                const auto clock=frame.trainCaptured->getSimulationClock();
+                ints[3]=clock?std::chrono::floor<std::chrono::seconds>(clock->getDateTimeUtc()).time_since_epoch().count():trainData::unknown;
+                ints[4]=clock?clock->getElapsedTime().count():0;return NIMBY_OK;
+            }
+            if(op==21)return trainData::trains(*frame.trainCaptured,ints,size,nums,numCount,text,textSize);
+            if(op==22)return trainData::planHeader(*frame.trainCaptured,ints,size,numCount,text,textSize);
+            if(op==23)return trainData::stops(*frame.trainCaptured,ints,size,numCount,text,textSize);
+            if(op==28)return trainData::characteristics(*frame.trainCaptured,ints,size,nums,numCount,textSize);
+            if(op>=29)return trainData::compositions(*frame.trainCaptured,op,ints,size,numCount,text,textSize);
+            return trainData::catalogue(*frame.trainCaptured,op,ints,size,numCount,text,textSize);
+        }
         if(op==10||op==11){
             if(size!=(op==10?2:3)||numCount||textSize)return NIMBY_INVALID_ARGUMENT;
             const auto snapshot=toolConnection().capture(SnapshotScope::Session);
@@ -39,6 +70,7 @@ inline int toolCall(int op,int64_t* ints,int size,double* nums,int numCount,char
             if(op==10){const auto clock=snapshot->getSimulationClock();if(!clock)return NIMBY_DATA_UNAVAILABLE;
                 ints[0]=std::chrono::floor<std::chrono::seconds>(clock->getDateTimeUtc()).time_since_epoch().count();ints[1]=clock->getElapsedTime().count();return NIMBY_OK;}
             if(ints[1]<0||ints[1]>1||ints[0]<-62135596800LL||ints[0]>253402300799LL)return NIMBY_INVALID_ARGUMENT;
+            frame.captured.reset();frame.trainCaptured.reset();frame.trainFlags=0; // A mutation can recalculate trains even before a reported failure.
             const auto utc=std::chrono::sys_seconds{std::chrono::seconds{ints[0]}};
             const auto changed=ints[1]?toolConnection().setSimulationDateTimeAndRecalculateTrains(utc):
                 SimulationTimeChange{toolConnection().setSimulationDateTime(utc),0};
@@ -60,9 +92,13 @@ inline int toolCall(int op,int64_t* ints,int size,double* nums,int numCount,char
         }
         if(op==1){
             if(size!=3)return NIMBY_INVALID_ARGUMENT;
-            frame.captured=toolConnection().capture();
-            if(!frame.captured->getGameSession()||*frame.captured->getGameSession()!=frame.game){frame.captured.reset();return NIMBY_DATA_UNAVAILABLE;}
-            if(!frame.captured->getTrackMetrics())return NIMBY_DATA_UNAVAILABLE;
+            frame.trainCaptured.reset();frame.trainFlags=0;
+            frame.captured.reset();
+            // Every explicit request is fresh, including revalidation after a
+            // construction PREPARE. Unused traffic and display data stay unread.
+            auto captured=toolConnection().capture(SnapshotScope::NetworkTopology);
+            if(!captured->getGameSession()||*captured->getGameSession()!=frame.game||!captured->getTrackMetrics())return NIMBY_DATA_UNAVAILABLE;
+            frame.captured=std::move(captured);
             ints[0]=static_cast<int64_t>(frame.captured->getAllTrackNodes().size());
             ints[1]=static_cast<int64_t>(frame.captured->getAllTrackJunctions().size());
             ints[2]=static_cast<int64_t>(frame.captured->getAllSignals().size());return NIMBY_OK;
@@ -73,6 +109,9 @@ inline int toolCall(int op,int64_t* ints,int size,double* nums,int numCount,char
                 const auto rows=frame.captured->getAllTrackNodes();
                 if(size!=int(rows.size()*3)||numCount!=int(rows.size()))return NIMBY_INVALID_ARGUMENT;
                 std::unordered_map<uint64_t,double> lengths;
+                // The capture already owns the complete metric table. Allocate
+                // its lookup once instead of repeatedly rehashing a large map.
+                lengths.reserve(frame.captured->getTrackMetrics()->size());
                 for(const auto& row:*frame.captured->getTrackMetrics())lengths.emplace(row.track_id,row.length_m);
                 for(size_t i=0;i<rows.size();++i){const auto& row=rows[i];
                     ints[i*3]=int64_t(row.getId());ints[i*3+1]=int64_t(row.getLinkAId().value_or(0));ints[i*3+2]=int64_t(row.getLinkBId().value_or(0));

@@ -6,11 +6,11 @@ suspendus ; les dossiers de plateforme sont conservés. Le SDK fournit les obser
 le contrat de chargement. Les règles de signalisation et les ressources restent
 dans les mods.
 
-Cette branche développe la version **0.8.0**. Un paquet construit localement
+Cette branche développe la version **0.9.0-alpha.1**. Un paquet construit localement
 n'est pas une release publiée.
 
 La documentation des créateurs de mods est désormais maintenue dans le
-[wiki officiel](https://wiki.nimbyrails-france.fr) : parcours débutant, exemples compilables,
+[wiki officiel — édition 0.9](https://wiki.nimbyrails-france.fr/version/0.9) : parcours débutant, exemples compilables,
 référence des types et fonctions Kotlin. `docs/` conserve les notes techniques
 de maintenance et les liens de transition des anciens guides.
 
@@ -20,7 +20,7 @@ Pour contribuer au noyau : [architecture](docs/architecture.md) et
 ## Créer un mod Kotlin
 
 1. Installer un JDK 21 et extraire le kit Kotlin du SDK.
-2. Créer son propre projet avec le [guide pas à pas](https://wiki.nimbyrails-france.fr/commencer/installation).
+2. Créer son propre projet avec le [guide pas à pas](https://wiki.nimbyrails-france.fr/version/0.9/commencer/installation).
 3. Configurer `NRF_KOTLIN_SDK` ou la propriété Gradle `nrfSdkDir`.
 4. Ouvrir le projet dans IntelliJ IDEA et exécuter `build`.
 5. Ajouter le projet dans le profil développeur du Hub pour l'essayer en jeu.
@@ -29,11 +29,12 @@ Le fichier de compilation du mod contient uniquement :
 
 ```kotlin
 plugins {
-    id("fr.nimbyrails.mod") version "0.8.0-alpha.1"
+    id("fr.nimbyrails.mod")
 }
 ```
 
-Le plugin Gradle livré avec le SDK gère Kotlin/Native, le pont précompilé,
+Le guide configure la version du plugin dans `settings.gradle.kts` à partir du
+kit sélectionné. Le plugin Gradle livré avec le SDK gère Kotlin/Native, le pont précompilé,
 les tests, la vérification du chargement et le paquet. Le projet du mod ne
 requiert aucun script PowerShell, CMake, compilateur C++ ou dossier `tools`.
 

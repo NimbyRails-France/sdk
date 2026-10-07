@@ -10,15 +10,15 @@ Les chemins sont relatifs à la racine du SDK.
 
 | Domaine | Implémentation commune | Rôle Windows restant |
 | --- | --- | --- |
-| Sessions et captures | `src/runtime/observation.cpp`, `include/platform/observation_process.h` | Ouverture, identité, lecture, suspension et écritures du processus |
+| Sessions et captures | `src/runtime/observation.cpp`, `include/platform/observation_process.h`, `include/runtime/observation_epoch.h` | Ouverture, identité et lectures ; autorité d'époque interprocessus |
 | Cycle de vie | `src/runtime/runtime.cpp`, `include/platform/runtime.h` | `DllMain`, bootstrap, identité de l'hôte et MinHook |
 | Réseau et trains | `src/engine/network.cpp`, `trains.cpp`, `signal_texture_states.cpp`, lecteurs dans `include/engine/detail/` | Données de profil, aucun parcours du réseau dupliqué dans Windows |
-| Commandes de textures | `include/runtime/texture_table.h`, `texture_commands.h` | Mapping, événements, verrous, publication `Interlocked` et raccordement dans `texture_dispatch.h` |
+| Commandes de textures | `include/runtime/texture_table.h`, `texture_commands.h`, `texture_publications.h` | Lecture des gardes natives de monde, hook sans mutex de producteur, transports RPC et Mailbox |
 | API de textures | `src/runtime/texture_client.cpp`, `include/platform/texture_connection.h` | Ressources, chargement du bridge, sérialisation et attente |
 | Conduite automatique | `include/engine/automatic_driving.h`, `automatic_controller.h`, `physical_view.h` | Capture des paramètres natifs, appels originaux, portée des callbacks, synchronisation et télémétrie |
 | Commande de conduite ciblée | `include/engine/driving_command.h` | Hook, lecture des paramètres et publication de l'état |
-| Calendrier | `include/engine/calendar_update.h`, `simulation_clock.h`, `src/engine/trains.cpp` | Suspension/reprise ; intervention native avec l'ABI et l'allocateur du jeu |
-| Mods | `src/loader/mods.cpp`, `include/loader/manifest.h` | Extension, casse, chargement et résolution des exports dans `src/platform/windows/mods.cpp` |
+| Calendrier | `include/engine/calendar_update.h`, `simulation_clock.h`, `src/engine/trains.cpp` | Translation externe avec suspension/reprise ; pont natif pour le jeu et les mods isolés, sans suspension par un worker |
+| Mods | `src/loader/mods.cpp`, `include/loader/manifest.h` | Chargement dans un worker par mod, Job Objects, surveillance et canaux dédiés dans `src/platform/windows/runtime/mod_host.cpp` |
 | Moniteur de recherche | `include/research/train_monitor_model.h` | Fenêtres Win32, accès mémoire, écritures expérimentales, chaînes MSVC ; offsets dans `include/platform/windows/research/train_monitor_layout.h` |
 | Étude de signalisation | `tools/signalling-study.cpp` | Adaptateur de chargement dans `include/nimby/detail/platform/windows/native_library.hpp` |
 | Consommateurs C++ et Kotlin | Façades `include/nimby/detail/platform/`, adaptateurs et plugin Gradle communs | Processus, bibliothèques, chemins, remplacement atomique et choix des binaires |
@@ -44,8 +44,12 @@ C++ communes : ses tailles et ses barrières de publication sont un contrat.
 - `proxy/main.cpp` et `proxy/SDL3.def` portent les exports PE de SDL, son cycle de
   vie, le verrou du chargeur et la conservation de `GetLastError`.
 - `runtime/signal_ui_bridge.cpp` adapte l'ABI de l'éditeur au modèle commun
-  `SignalUiEndpoint`. Ses clients et ceux de la conduite chargent et initialisent
-  les DLL dans le processus.
+  `SignalUiEndpoint`. Le SDK du jeu charge les ponts ; les workers isolés passent
+  par des façades RPC et ne chargent pas leurs hooks dans leur propre processus.
+- `runtime/mod_host.cpp` applique l'admission de tout le lot, les budgets fixes
+  par worker, les délais de cycle de vie et le retrait des propriétaires. Une
+  saturation de canal est débitée au mod concerné, jamais à un seau de jetons
+  collectif consommable par le premier producteur.
 - Les clients d'horloge et de textures gèrent des protocoles IPC Windows avec
   des récupérations différentes. Un délai expiré n'autorise pas à effacer toute
   commande en cours.
@@ -66,6 +70,8 @@ Sous Windows, la casse reste ignorée et les valeurs entre guillemets acceptées
 Les dossiers sans manifeste sont ignorés. Le parseur accepte UTF-8/ASCII avec
 BOM UTF-8 facultatif, ainsi que les manifestes UTF-16 avec BOM de Windows.
 Les noms de bibliothèques restent limités au jeu de caractères ASCII autorisé.
+La lecture est bornée à 64 Kio, BOM compris, avant allocation et décodage complets ;
+elle ne s'appuie pas seulement sur une taille de fichier testée avant ouverture.
 
 ## Validation et portabilité
 
@@ -74,7 +80,9 @@ données artificielles. Ils ne remplacent pas une campagne dans le jeu. Les nouv
 tests sont déclarés pour les deux plateformes dans `cmake/PortableTests.cmake` ;
 leur exécution Linux reste à faire dans la VM.
 
-Vérifications locales du 22 septembre 2026, sous Windows x64 :
+Les chiffres ci-dessous sont les vérifications historiques du 22 septembre 2026,
+sous Windows x64 ; ils ne décrivent pas le nombre actuel de tests ni les campagnes
+de qualification des candidats plus récents :
 
 | Vérification | Résultat |
 | --- | --- |

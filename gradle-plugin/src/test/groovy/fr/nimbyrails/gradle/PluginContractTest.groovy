@@ -104,6 +104,7 @@ class PluginContractTest {
         assertEquals(canonical.text, new File(archive.parentFile, 'project.json').text)
         def manifest = new JsonSlurper().parse(canonical)
         assertEquals('beta', manifest.channel)
+        assertFalse(manifest.containsKey('developmentStatus'))
         assertEquals('1.0.0-beta.2', manifest.version)
         assertEquals('linux-x64', manifest.platform)
         assertEquals('IndependentMod.so', manifest.module)
@@ -113,5 +114,43 @@ class PluginContractTest {
         assertTrue(runner(root, 'hubManifest', '-x', 'modArchive',
             '-PreleaseBaseUrl=https://github.com/NimbyRails-France/independent/releases/download/v1.0.0').buildAndFail()
             .output.contains('releaseBaseUrl must be ' + base))
+    }
+    @Test void developmentStatusSurvivesBothGeneratedManifestsWithoutChangingChannel() {
+        File root = project('linux_x64')
+        File mod = new File(root, 'mod.json')
+        def data = new JsonSlurper().parse(mod)
+        data.version = '1.0.0-alpha.1'
+        File archive = new File(root, 'build/gradle-linux/distributions/Independent-1.0.0-alpha.1-linux-x64.zip')
+        archive.parentFile.mkdirs()
+        archive.bytes = [0, 1, 127] as byte[]
+        ['stable', 'in-development'].each { status ->
+            data.developmentStatus = status
+            mod.text = JsonOutput.toJson(data)
+            runner(root, 'hubManifest', '-x', 'modArchive').build()
+            File canonical = new File(archive.parentFile, 'project-linux-x64.json')
+            assertEquals(canonical.text, new File(archive.parentFile, 'project.json').text)
+            def manifest = new JsonSlurper().parse(canonical)
+            assertEquals(status, manifest.developmentStatus)
+            assertEquals('alpha', manifest.channel)
+            assertEquals(data.version, manifest.version)
+        }
+    }
+    @Test void renamedOfficialRepositoryKeepsTheProjectIdentityInGeneratedManifest() {
+        File root = project('linux_x64')
+        File mod = new File(root, 'mod.json')
+        def data = new JsonSlurper().parse(mod)
+        data.id = 'signal-placement'
+        mod.text = JsonOutput.toJson(data)
+        File archive = new File(root, 'build/gradle-linux/distributions/Independent-1.0.0-linux-x64.zip')
+        archive.parentFile.mkdirs()
+        archive.bytes = [0, 1, 127] as byte[]
+        String base = 'https://github.com/NimbyRails-France/ba-signal-placement/releases/download/v1.0.0'
+        runner(root, 'hubManifest', '-x', 'modArchive', "-PreleaseBaseUrl=${base}").build()
+        def manifest = new JsonSlurper().parse(new File(archive.parentFile, 'project-linux-x64.json'))
+        assertEquals('signal-placement', manifest.id)
+        assertEquals(base + '/' + archive.name, manifest.url)
+        String wrong = 'https://github.com/NimbyRails-France/bb-timechange/releases/download/v1.0.0'
+        assertTrue(runner(root, 'hubManifest', '-x', 'modArchive', "-PreleaseBaseUrl=${wrong}")
+            .buildAndFail().output.contains('releaseBaseUrl must be '))
     }
 }

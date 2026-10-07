@@ -29,4 +29,15 @@ class ModManifestTest {
             assertThrows(GradleException) { read(valid() + change) }
         }
     }
+    @Test void developmentStatusIsOptionalAndIndependentOfReleaseChannel() {
+        assertFalse(read(valid()).containsKey('developmentStatus'))
+        ['in-development', 'stable'].each { status ->
+            ['1.2.3', '1.2.3-alpha.1', '1.2.3-beta.2'].each { version ->
+                assertEquals(status, read(valid() + [version: version, developmentStatus: status]).developmentStatus)
+            }
+        }
+        [null, '', 'alpha', 'development', true, 1, ['stable'], [value: 'stable']].each { status ->
+            assertThrows(GradleException) { read(valid() + [developmentStatus: status]) }
+        }
+    }
 }

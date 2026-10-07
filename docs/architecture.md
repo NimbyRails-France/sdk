@@ -5,9 +5,10 @@ Windows x64 est la plateforme de référence. Le développement et la publicatio
 Linux sont suspendus ; ses dossiers restent séparés pour organiser le code.
 
 Depuis 0.8.0, le client public C++ est retiré. Les outils utilisent `NimbyClient`
-en Kotlin/JVM et les mods implémentent `SignallingMod` en Kotlin/Native.
+en Kotlin/JVM et les mods utilisent les API Kotlin/Native de signalisation ou
+d'outils (`SignallingMod`, `toolMod`).
 Le pont précompilé possède une `detail::ObservationSession` native privée,
-synchrone et sans cache. `ObservationLoop` reste responsable de la cadence du
+synchrone, qui ne rejoue pas une ancienne capture. `ObservationLoop` reste responsable de la cadence du
 mod : il n'y a plus de deuxième worker de rafraîchissement dans une classe cliente.
 `detail/observation_values.hpp` conserve les copies et conversions nécessaires
 au moteur natif. Ces fichiers ne constituent pas une API pour les consommateurs.
@@ -82,36 +83,71 @@ le nouveau runtime passe toujours le profil explicite de sa connexion.
 ne contient pas de handle système. Chaque implémentation détient ses ressources
 dans un objet privé, détruit avec la session.
 
-`runtime/observation.cpp` possède les sessions et captures et sérialise leur accès
-par son mutex de registre. Le processus sert à lire les octets ; le runtime
-construit les enregistrements, traite les erreurs et expose les copies à l'ABI.
+`src/runtime/observation.cpp` possède les sessions et captures. Le mutex de registre
+protège les recherches, insertions et retraits de handles ; il n'est pas conservé
+pendant l'ouverture du processus, les lectures distantes, la construction des
+enregistrements ou leur copie vers l'appelant. Une référence partagée maintient
+l'objet en vie après la recherche. Chaque session sérialise ses propres opérations
+avec son verrou, sans retenir celui d'une autre session.
 
 Une capture possède ses données et reste indépendante du processus et des autres
 captures. La fermeture d'une session ne libère pas automatiquement ses captures.
 Les identifiants sont croissants et ne sont pas réutilisés après libération.
-Les plafonds existants sont de huit sessions et seize captures conservées ; ils
-ne représentent pas un budget global de mémoire en octets.
+Le registre accepte **32 sessions ouvertes** et chaque session **16 captures
+retenues**, y compris une capture en préparation. La fermeture retire le handle
+sans attendre une lecture en cours ; cette lecture ne peut plus publier son
+résultat. Les captures déjà publiées restent à libérer explicitement, même après
+la fermeture. Les plafonds par session ne constituent donc ni une limite globale
+du nombre de captures historiques, ni un budget mémoire en octets.
+
+Les sessions d'un même processus cible partagent l'identité du monde et l'ordre
+des observations. Les tickets empêchent une capture ancienne achevée en retard
+de faire reculer cette identité. Pour les mods isolés, le SDK dans le jeu fournit
+l'autorité commune aux workers. Les contrôles de racines, de version et de temps
+ne figent pas la simulation et ne rendent pas ses lectures atomiques.
 
 ## Textures : logique commune et transport
 
-`runtime/texture_table.h` possède la table ordonnée, l'expiration, les remplacements
-et le calcul de phase. `runtime/texture_commands.h` traite une `Mailbox` composée
-de valeurs : requête, état et réponse. Le temps monotone est fourni à l'appel ;
-la phase animée utilise explicitement le temps de simulation.
+`include/runtime/texture_table.h` possède la table ordonnée, l'expiration, les
+remplacements et le calcul de phase. `texture_publications.h` gère les versions
+immuables et la propriété des commandes. La préparation, la copie et la fusion
+se font hors du verrou de publication ; une courte section critique vérifie la
+version attendue puis échange la version visible. Les destructions restent sur
+le producteur, après libération de ce verrou.
+
+Le callback de rendu épingle la version visible par des opérations atomiques,
+recherche le signal et copie sa commande. Ce chemin SDK n'attend aucun mutex de
+producteur, n'alloue rien et ne détruit aucun ancien tableau. Au plus huit versions
+retirées sont retenues par ce mécanisme ; un lecteur suspendu peut provoquer un refus de
+publication plutôt qu'une rétention illimitée. Le tableau courant reste visible
+pendant la contention, sous réserve de son monde et de son bail.
+
+La publication valide un lot entier avant mutation : 4096 commandes par lot et
+par propriétaire, 64 propriétaires et 65536 commandes vivantes au total. Le
+nettoyage ne retire que les commandes de son propriétaire ; un ID absent ou
+repris par un autre propriétaire est déjà nettoyé pour l'appelant. Un retrait
+invalide ses préparations en vol sans annuler celles des autres propriétaires.
+Le bail utilise le temps monotone ; la phase animée utilise le temps de simulation.
 
 `src/runtime/texture_client.cpp` conserve les validations de l'API, la résolution
 du catalogue et la cohérence du monde. Il dépend de `platform::TextureConnection`.
 
-Le transport Windows conserve son format partagé existant dans
-`platform/windows/runtime/texture_bridge.h`. `texture_dispatch.h` copie les
-champs utiles vers le modèle commun, exécute la commande, puis recopie le résultat.
-Les événements, mappings, champs `Interlocked` et noms de DLL restent Windows.
-Le verrou de table est acquis avant l'appel ; le résultat est publié avant de
-libérer la requête. `volatile` seul ne constitue pas une synchronisation.
+Les mods isolés passent par un canal de courtier par mod ; le courtier attribue
+le propriétaire. Le protocole historique `Mailbox` reste disponible pour les
+diagnostics externes : `texture_commands.h` et `texture_dispatch.h` raccordent
+ses valeurs au transport. Les événements, mappings, barrières `Interlocked` et
+noms de DLL restent Windows. La sérialisation d'une requête de transport ne
+constitue pas un verrou du rendu ; `volatile` seul ne synchronise rien.
 
-Le test commun `texture_runtime` couvre notamment 100 000 entrées, l'expiration,
-les changements de monde et les commandes invalides. `windows_texture_dispatch`
-vérifie le raccordement au transport sans lancer le jeu.
+Le pont valide le monde observé, y compris les transitions détectables à racines
+réutilisées. Une commande expirée, un monde invalide ou une ressource illisible
+rend la main au rendu natif. Ce repli n'est pas une garantie d'indication rouge ;
+le rendu et les permissions de conduite restent des contrats distincts.
+
+`texture_runtime` couvre les calculs de table, dont un cas de 100 000 entrées qui
+n'est pas le plafond d'admission du pont. `texture_publications`, les tests natifs
+de publication et de monde, et les tests RPC couvrent concurrence, propriétaires,
+retraits et expiration. Ils ne remplacent pas les mesures de rendu dans le jeu.
 
 ## Calendrier et conduite
 
@@ -121,14 +157,34 @@ Une écriture échouée peut être partielle : son annulation est tentée avant 
 des écritures précédentes, dans l'ordre inverse. Un échec reste un échec même
 si l'annulation semble réussir ; le client doit relire l'horloge.
 
-Windows possède la suspension/reprise du processus, la vérification de son
-identité et `WriteProcessMemory`. Un garde reprend le processus sur les sorties
-d'erreur. Linux ne fournit pas encore cette opération et retourne son erreur
-explicite. Partager la transaction ne lui donne pas implicitement cette capacité.
+Le chemin externe de translation de calendrier Windows possède la suspension et
+la reprise du processus, la vérification de son identité et `WriteProcessMemory`.
+Un garde tente la reprise sur les sorties d'erreur. Les appels depuis le jeu et
+les mods isolés utilisent au contraire le pont d'horloge au point de mise à jour
+natif : tuer un worker ne doit jamais laisser le jeu suspendu. Le recalcul des
+trains et la construction passent aussi par leurs commandes natives bornées,
+avec expiration et validation du demandeur. Voir [l'horloge](simulation-clock.md).
+Linux ne fournit pas encore ces opérations ; partager les calculs ne lui donne
+pas implicitement cette capacité.
 
 `engine/automatic_controller.h` porte les états de trains, valide les publications,
 prépare les décisions et engage les mouvements réellement effectués.
 `engine/driving_command.h` borne les commandes ciblées et calcule leurs paramètres.
+
+Sous Windows, `runtime/driving_state.h` sépare les publications immuables et les
+états mutables par train. Les hooks épinglent la publication visible ; seuls les
+producteurs prennent le verrou de remplacement. Le garde d'un train couvre son
+intégration native et la validation de son mouvement, avec emprunt réentrant sur
+le même thread. Les autres trains n'acquièrent pas ce garde. Les emplacements
+restent stables pendant la vie du monde ; un changement de génération native ou
+de mouvement réinitialise l'état concerné.
+
+Chaque source de consigne possède aussi une incarnation interne. Retirer puis
+republier le même identifiant, même avec le même propriétaire, invalide les
+instructions retenues de son incarnation précédente. Une publication reçue
+pendant un mouvement ne peut ainsi ressusciter un passage retiré. Les gardes de
+monde, les baux et les permissions natives restent nécessaires. Les plafonds de
+mémoire et les refus sont détaillés dans [les règles de concurrence](memory-and-performance.md#concurrence).
 
 `engine/physical_view.h` contient le calcul de couverture observée et sa fraîcheur.
 La plateforme fournit le temps monotone. Les conventions d'appel des hooks et
@@ -137,7 +193,20 @@ les captures de registres natifs restent dans le backend concerné.
 ## Mods et diagnostics
 
 `src/loader/mods.cpp` assure découverte, tri et cycle de vie. `include/loader/manifest.h`
-analyse les manifestes. Les backends fournissent nommage, chargement et exports.
+analyse les manifestes après lecture bornée à 64 Kio, BOM compris. Sous Windows,
+chaque mod admis est chargé dans son propre `NimbyRailsFranceModHost.exe`, supervisé
+par `runtime/mod_host.cpp`. Les captures sont construites dans le worker ; les
+services du jeu utilisent son canal dédié et des identifiants de propriétaire vérifiés.
+Un crash ou un callback bloqué entraîne l'arrêt du worker concerné et le retrait
+de ses ressources, sans exécuter son nettoyage fautif dans le jeu.
+
+L'admission du lot entier et les quotas CPU, mémoire et requêtes sont décrits dans
+[les règles de ressources](memory-and-performance.md). Ces limites sont fixées
+au démarrage ; un voisin ne peut pas emprunter le quota d'un autre mod. Le
+matériel et le code des ponts dans le jeu restent partagés : l'isolation n'est
+pas une garantie de latence nulle, ni une frontière de sécurité contre du code
+volontairement hostile disposant des droits de l'utilisateur.
+
 `include/research/train_monitor_model.h` partage les lectures et validations du moniteur ;
 `tools/signalling-study.cpp` utilise les adaptateurs communs de bibliothèques.
 Voir [l'audit Windows](windows-audit.md) pour les responsabilités restantes et la

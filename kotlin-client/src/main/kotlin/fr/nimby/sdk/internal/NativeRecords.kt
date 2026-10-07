@@ -4,7 +4,7 @@ import com.sun.jna.Pointer
 internal fun Pointer.utf8(offset: Long, size: Int): String {
     val bytes = getByteArray(offset, size)
     val end = bytes.indexOf(0).let { if (it < 0) size else it }
-    return bytes.copyOf(end).toString(Charsets.UTF_8)
+    return String(bytes, 0, end, Charsets.UTF_8)
 }
 internal class NimbySdkVersion(private val p: Pointer) {
     companion object { const val SIZE = 20 }
@@ -64,6 +64,63 @@ internal class NimbyTrainDetails(private val p: Pointer) {
     val passengerCount: Int get() = p.getInt(28L)
     val orderIndex: Int get() = p.getInt(32L)
     val orderMode: Int get() = p.getInt(36L)
+}
+internal class NimbyTrainCharacteristics(private val p: Pointer) {
+    companion object { const val SIZE = 64 }
+    val flags: Int get() = p.getInt(0L)
+    val carCount: Int get() = p.getInt(4L)
+    val passengerCapacity: Int get() = p.getInt(8L)
+    val maximumSpeedMps: Double get() = p.getDouble(16L)
+    val lengthM: Double get() = p.getDouble(24L)
+    val emptyMassKg: Double get() = p.getDouble(32L)
+    val maximumAccelerationMps2: Double get() = p.getDouble(40L)
+    val powerW: Double get() = p.getDouble(48L)
+    val tractiveForceN: Double get() = p.getDouble(56L)
+}
+internal class NimbyTrainMetadata(private val p: Pointer) {
+    companion object { const val SIZE = 152 }
+    val trainId: Long get() = p.getLong(0L)
+    val flags: Int get() = p.getInt(8L)
+    val predictedArrivalDelayUs: Long get() = p.getLong(16L)
+    val configured: NimbyTrainCharacteristics get() = NimbyTrainCharacteristics(p.share(24L, 64L))
+    val current: NimbyTrainCharacteristics get() = NimbyTrainCharacteristics(p.share(88L, 64L))
+}
+internal class NimbyTrainVehicle(private val p: Pointer) {
+    companion object { const val SIZE = 24 }
+    val trainId: Long get() = p.getLong(0L)
+    val modelId: Long get() = p.getLong(8L)
+    val index: Int get() = p.getInt(16L)
+    val composition: Int get() = p.getInt(20L)
+}
+internal class NimbyVehicleModel(private val p: Pointer) {
+    companion object { const val SIZE = 784 }
+    val modelId: Long get() = p.getLong(0L)
+    val codeUtf8: String get() = p.utf8(8L, 257)
+    val nameEnUtf8: String get() = p.utf8(265L, 257)
+    val sourceNameUtf8: String get() = p.utf8(522L, 257)
+}
+internal class NimbyLineMetadata(private val p: Pointer) {
+    companion object { const val SIZE = 288 }
+    val lineId: Long get() = p.getLong(0L)
+    val parentLineId: Long get() = p.getLong(8L)
+    val flags: Int get() = p.getInt(16L)
+    val kind: Int get() = p.getInt(20L)
+    val nameUtf8: String get() = p.utf8(24L, 257)
+}
+internal class NimbyTag(private val p: Pointer) {
+    companion object { const val SIZE = 272 }
+    val tagId: Long get() = p.getLong(0L)
+    val nameUtf8: String get() = p.utf8(8L, 257)
+}
+internal class NimbyObjectTagsState(private val p: Pointer) {
+    companion object { const val SIZE = 16 }
+    val objectId: Long get() = p.getLong(0L)
+    val available: Int get() = p.getInt(8L)
+}
+internal class NimbyObjectTag(private val p: Pointer) {
+    companion object { const val SIZE = 16 }
+    val objectId: Long get() = p.getLong(0L)
+    val tagId: Long get() = p.getLong(8L)
 }
 internal class NimbyLineStop(private val p: Pointer) {
     companion object { const val SIZE = 40 }
@@ -190,4 +247,9 @@ internal class NimbySignalExtensionField(private val p: Pointer) {
     val booleanValue: Int get() = p.getInt(20L)
     val typeName: String get() = p.utf8(24L, 257)
     val fieldName: String get() = p.utf8(281L, 257)
+}
+internal class NimbySignalCaptureScope(private val p: Pointer) {
+    companion object { const val SIZE = 264 }
+    val textureSet: String get() = p.utf8(0L, 257)
+    val approachBlocks: Int get() = p.getInt(260L)
 }

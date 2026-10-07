@@ -16,12 +16,13 @@ public:
         auto store=std::make_shared<SignalSettingsStore>();store->configure(panel);
         if(panel.id.empty())throw std::invalid_argument("Missing signal panel");
         std::lock_guard lock(mutex_);
-        if(owners_.size()>=16)throw std::length_error("Too many signal panels");
-        for(const auto& [token,owner]:owners_){(void)token;
-            if(owner->panel().id==panel.id)throw std::invalid_argument("Signal panel already registered");
-        }
+        if(owners_.size()>=512)throw std::length_error("Too many signal panels");
+        for(const auto& [token,id]:identities_){(void)token;
+            if(id==panel.id)throw std::invalid_argument("Signal panel already registered");}
         const auto token=++generation_;actions->addPanel(token,store);
-        owners_.emplace(token,std::move(store));return token;
+        try{identities_.emplace(token,std::string(panel.id));owners_.emplace(token,std::move(store));}
+        catch(...){identities_.erase(token);actions->removePanel(token);throw;}
+        return token;
     }
     std::shared_ptr<SignalSettingsStore> store(Token token) const {
         std::lock_guard lock(mutex_);const auto found=owners_.find(token);
@@ -29,24 +30,40 @@ public:
     }
     struct SettingsCopy {std::shared_ptr<SignalSettingsStore> store;SignalSettingsStore::Copy values;};
     std::vector<SettingsCopy> copySource(uint64_t source)const {
-        std::lock_guard lock(mutex_);std::vector<SettingsCopy> copies;
-        for(const auto& [token,store]:owners_)if(auto copy=store->copySource(source))copies.push_back({store,std::move(*copy)});
+        std::vector<std::shared_ptr<SignalSettingsStore>> stores;
+        {std::lock_guard lock(mutex_);for(const auto& [token,store]:owners_)stores.push_back(store);}
+        std::vector<SettingsCopy> copies;
+        for(const auto& store:stores)if(auto copy=store->copySource(source))copies.push_back({store,std::move(*copy)});
         return copies;
     }
     bool remove(Token token) {
-        std::lock_guard lock(mutex_);const auto found=owners_.find(token);
-        if(found==owners_.end())return false;
-        // A frame already being drawn retains owned labels, but its editor
-        // token is invalidated before the owner disappears from the registry.
-        found->second->endSession();catalogs_.erase({false,token});actions->removePanel(token);owners_.erase(found);return true;
+        std::shared_ptr<SignalSettingsStore> store;
+        decltype(catalogs_)::node_type retiredCatalog;
+        {std::lock_guard lock(mutex_);const auto found=owners_.find(token);
+         if(found==owners_.end())return false;
+         store=std::move(found->second);owners_.erase(found);identities_.erase(token);retiredCatalog=catalogs_.extract({false,token});}
+        // Never wait for one store while holding the shared registry lock.
+        // Old frames and already-admitted calls retain a permanently retired
+        // store after this operation returns; no old editor can write to it.
+        store->retire();actions->removePanel(token);return true;
     }
     bool translations(bool provider,Token token,std::shared_ptr<const detail::Translations> catalog) {
-        std::lock_guard lock(mutex_);
-        if(provider?!actions->hasProvider(token):!owners_.contains(token))return false;
-        catalogs_[{provider,token}]=std::move(catalog);return true;
+        {
+            std::lock_guard lock(mutex_);
+            if(provider?!actions->hasProvider(token):!owners_.contains(token))return false;
+            catalogs_[{provider,token}].swap(catalog);
+        }
+        // The replaced catalogue can own thousands of strings. Its last
+        // reference is released only after unlocking the shared registry.
+        return true;
     }
     bool removeProvider(Token token) {
-        std::lock_guard lock(mutex_);catalogs_.erase({true,token});return actions->removeProvider(token);
+        // Revoke the provider before taking the host lock. A translation
+        // admitted earlier is removed below; any later admission is rejected.
+        const bool removed=actions->removeProvider(token);
+        decltype(catalogs_)::node_type retiredCatalog;
+        {std::lock_guard lock(mutex_);retiredCatalog=catalogs_.extract({true,token});}
+        return removed;
     }
     struct Frame {
         uint64_t invocation=0;
@@ -55,14 +72,28 @@ public:
         std::shared_ptr<SignalActions> registry;
         std::vector<SignalActions::Selection> actions;
         std::vector<std::shared_ptr<detail::NumberInputDraft>> drafts;
+        std::string language;
     };
-    Frame prepare(uint64_t invocation,uint64_t signal,std::string_view language={}) const {
-        Frame frame{invocation,{},{},{},{}};
+    Frame prepare(uint64_t invocation,uint64_t signal,std::string_view language={},const Frame* previous=nullptr) const {
+        Frame frame{invocation,{},{},{},{},std::string(language)};
         frame.registry=actions;
         if(!invocation)return frame;
         std::lock_guard lock(mutex_);
         for(const auto& [token,owner]:owners_){
-            auto controls=owner->selectFrame(signal);
+            bool busy=false;
+            auto controls=owner->selectFrame(signal,&busy);
+            // Omitting the scroll group for even one busy frame destroys its
+            // native scroll/focus state. Keep only this selected signal's last
+            // copied controls, never a cache of every signal visited. Real
+            // absence/removal and a changed store revision do not use fallback.
+            if(busy&&previous&&previous->language==language){
+                const auto old=std::find_if(previous->panels.begin(),previous->panels.end(),[&](const auto& panel){
+                    return panel.owner==token&&panel.store==owner&&panel.controls.editor.signal==signal;
+                });
+                if(old!=previous->panels.end()&&owner->canRetainFrame(old->controls)){
+                    controls=old->controls;controls->available=false;
+                }
+            }
             if(controls){
                 const auto translate=[&](bool provider,Token owner,std::string& text){
                     const auto found=catalogs_.find({provider,owner});
@@ -75,6 +106,9 @@ public:
                 for(auto& field:controls->numbers)translate(false,token,field.field.label);
                 auto buttons=actions->prepare(token,controls->editor);
                 for(auto& button:buttons){
+                    // Recovery between layout and interaction must not turn a
+                    // retained, unobserved frame into an actionable one.
+                    if(!controls->available)button.enabled=false;
                     const bool provider=button.revision!=0;const auto owner=provider?button.provider:token;
                     translate(provider,owner,button.action.label);
                     if(button.input)translate(provider,owner,button.input->label);
@@ -140,6 +174,7 @@ private:
     mutable std::mutex mutex_;
     Token generation_=0;
     std::map<Token,std::shared_ptr<SignalSettingsStore>> owners_;
+    std::map<Token,std::string> identities_;
     std::map<std::pair<bool,Token>,std::shared_ptr<const detail::Translations>> catalogs_;
 };
 
@@ -149,9 +184,9 @@ class SignalUiPresentation {
 public:
     template<class Ui> bool layout(const SignalUiHost& host,uint64_t invocation,
                                    uint64_t signal,Ui& ui,std::string_view language={}) {
-        pending_.reset();
-        auto frame=host.prepare(invocation,signal,language);
-        if(!frame.invocation||frame.panels.empty())return false;
+        auto frame=host.prepare(invocation,signal,language,pending_?&*pending_:retained_?&*retained_:nullptr);
+        pending_.reset();retained_.reset();
+        if(!frame.invocation||frame.panels.empty()){drafts_.clear();return false;}
         pending_=std::move(frame);
         std::map<std::string,std::shared_ptr<detail::NumberInputDraft>> retained;
         pending_->drafts.resize(pending_->actions.size());
@@ -172,6 +207,7 @@ public:
         auto frame=std::move(*pending_);
         pending_.reset();
         drawFrame(frame,ui,[&](auto& content){failedWrites_=SignalUiHost::interactive(frame,signal,content);});
+        retained_=std::move(frame);
         return true;
     }
     size_t takeFailedWrites(){const auto count=failedWrites_;failedWrites_=0;return count;}
@@ -209,6 +245,7 @@ private:
     }
     size_t failedWrites_=0;
     std::optional<SignalUiHost::Frame> pending_;
+    std::optional<SignalUiHost::Frame> retained_;
     std::map<std::string,std::shared_ptr<detail::NumberInputDraft>> drafts_;
 };
 }

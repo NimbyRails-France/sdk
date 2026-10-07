@@ -29,8 +29,8 @@ int main() {
     texture.flags=NIMBY_SIGNAL_TEXTURE_REFERENCE_VALID;texture.selected_index=10;texture.state_count=16;
     std::strcpy(texture.relative_path_utf8,"imgs/ca/sem_bal/tex10.svg");
     fixture.signal_textures={texture,texture};
-    registry().snapshots.emplace(123,std::move(fixture));
-    registry().snapshots.emplace(124,Snapshot{});
+    registry().snapshots.emplace(123,std::make_shared<const Snapshot>(std::move(fixture)));
+    registry().snapshots.emplace(124,std::make_shared<const Snapshot>());
     uint32_t count=99;
     CHECK(NimbyInternal_CopySignalStates(123,nullptr,0,&count)==NIMBY_OK&&count==2);
     NimbySignalState output[2];std::memset(output,0x5a,sizeof output);

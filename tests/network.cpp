@@ -8,13 +8,22 @@
 #include <cstring>
 #include <map>
 #include <vector>
+#include <chrono>
 using namespace nimby::engine;
 struct Memory {
     std::map<uint64_t,std::vector<unsigned char>> regions;
     uint64_t fail{},replace_header{},changing_slots{},changing_motion{},changing_station{},changing_service{},changing_presence{},changing_identity{};unsigned header_reads{},reads{},slot_reads{};
     uint64_t changing_metric{},changing_metric_identity{};
+    uint64_t metric_block{},failed_metric_row{};size_t metric_block_size{};
+    unsigned metric_block_reads{},metric_prefix_reads{};bool fail_metric_verification{};
+    uint64_t changing_attachment{},attachment_after_children{};
     uint64_t changing_retired_motion{},changing_retired_model{};size_t retired_flag_offset{};unsigned retired_model_reads{};
     uint64_t changing_head{};TrainPosition latest_head{};
+    uint64_t changing_pool_on_track{},pool_target{};unsigned pool_track_reads{};size_t pool_target_offset{};
+    uint64_t watched_table{};size_t watched_table_size{};unsigned watched_table_reads{};uint64_t watched_table_bytes{};
+    uint64_t change_after_plan{},different_shared_stop{};size_t change_after_plan_offset{};
+    uint64_t watched_record{},changing_record{};size_t record_size{};unsigned record_reads{},changing_record_reads{};
+    std::vector<uint64_t> forbiddenAddresses;unsigned forbiddenReads{};
     template<class T> void put(uint64_t base,size_t off,T value) {
         auto& b=regions[base];if(b.size()<off+sizeof value)b.resize(off+sizeof value);
         std::memcpy(b.data()+off,&value,sizeof value);
@@ -22,10 +31,30 @@ struct Memory {
 };
 bool read(void* ctx,uint64_t address,void* out,size_t size) {
     auto& m=*static_cast<Memory*>(ctx);++m.reads;
+    if(std::find(m.forbiddenAddresses.begin(),m.forbiddenAddresses.end(),address)!=m.forbiddenAddresses.end()) {++m.forbiddenReads;return false;}
+    if(size==0x90)++m.metric_prefix_reads;
+    if(address==m.metric_block&&size==m.metric_block_size&&++m.metric_block_reads==2&&m.fail_metric_verification)return false;
+    if(address==m.failed_metric_row&&size==0x90)return false;
+    if(address==m.watched_record&&size==m.record_size)++m.record_reads;
+    if(address==m.watched_table&&size==m.watched_table_size){++m.watched_table_reads;m.watched_table_bytes+=size;}
     if(address==m.fail)return false;
     auto i=m.regions.upper_bound(address);if(i==m.regions.begin())return false;--i;
     if(address-i->first>i->second.size()||size>i->second.size()-(address-i->first))return false;
     std::memcpy(out,i->second.data()+address-i->first,size);
+    if(address==m.watched_table&&size==m.watched_table_size&&m.watched_table_reads==3&&m.change_after_plan){
+        m.regions.at(m.change_after_plan)[m.change_after_plan_offset]^=1;
+        // Include an in-place edit when it affects the table being returned.
+        if(m.change_after_plan==address)static_cast<unsigned char*>(out)[m.change_after_plan_offset]^=1;
+    }
+    if(address==m.watched_table&&size==m.watched_table_size&&m.watched_table_reads==2&&m.attachment_after_children){
+        auto changed=m.regions.upper_bound(m.attachment_after_children);--changed;
+        changed->second[m.attachment_after_children-changed->first]^=1;
+    }
+    if(address==m.changing_attachment&&size==0x30)static_cast<unsigned char*>(out)[0]^=1;
+    if(address==m.different_shared_stop&&size==0x158)static_cast<unsigned char*>(out)[0x110]^=1;
+    if(address==m.changing_pool_on_track&&(size==0x4e8||size==0xd8)&&++m.pool_track_reads==2)
+        m.regions.at(m.pool_target)[m.pool_target_offset]^=1;
+    if(address==m.changing_record&&size==m.record_size&&++m.changing_record_reads==2)static_cast<unsigned char*>(out)[0]^=1;
     // The bulk Motion read and the later per-train validation can straddle a
     // simulation tick. Change only the head in the second complete record.
     if(address==m.changing_head && size==0x638){
@@ -37,6 +66,12 @@ bool read(void* ctx,uint64_t address,void* out,size_t size) {
     }
     if(address==m.changing_metric&&size==0x90)static_cast<unsigned char*>(out)[0x88]^=1;
     if(address==m.changing_metric_identity&&size==0x90)static_cast<unsigned char*>(out)[0]^=1;
+    if(address==m.metric_block&&size==m.metric_block_size&&m.metric_block_reads==2){
+        if(m.changing_metric>=address&&m.changing_metric-address+0x90<=size)
+            static_cast<unsigned char*>(out)[m.changing_metric-address+0x88]^=1;
+        if(m.changing_metric_identity>=address&&m.changing_metric_identity-address+0x90<=size)
+            static_cast<unsigned char*>(out)[m.changing_metric_identity-address]^=1;
+    }
     if(address==m.changing_motion && size==0x638)static_cast<unsigned char*>(out)[0x4b0]=1;
     if(address==m.changing_station && size==0x28)static_cast<unsigned char*>(out)[0]^=1;
     if(address==m.changing_service && size==0x638)static_cast<unsigned char*>(out)[0x4d0]^=1;
@@ -91,6 +126,146 @@ int main() {
     m.put(gb,0x30,int32_t(3));m.put(gb,0x40,track);m.put(gb,0x48,0.5);m.put(gb,0x50,int8_t(-1));
     Network out;
     {
+        // Tool topology retains the complete network used by the planner,
+        // including both signal directions and every branch attachment. It
+        // does not dereference station names, platform labels or signal filters.
+        auto topology=m;
+        const uint64_t branch=track+0x10000,secondSignal=signal+0x10000,children=0x340000000,filter=0x340001000;
+        topology.put(tb,0x88,1234.5);
+        topology.put(tb,0x4e8,branch);topology.put(tb,0x4e8+16,track);topology.put(tb,0x4e8+0x88,500.);
+        topology.put(tb,0x4e8+0x3f0,track);topology.put(tb,0x4e8+0x3f8,.6);topology.put(tb,0x4e8+0x400,int32_t(-1));
+        topology.put(tb,0x408,children);topology.put(tb,0x410,children+8);topology.put(tb,0x418,children+8);topology.put(children,0,branch);
+        topology.put(gb,0xc8,secondSignal);topology.put(gb,0xc8+0x30,int32_t(4));topology.put(gb,0xc8+0x40,branch);
+        topology.put(gb,0xc8+0x48,.25);topology.put(gb,0xc8+0x50,int8_t(1));
+        topology.put(gb,0x78,filter);topology.put(gb,0x80,filter+8);topology.put(gb,0x88,filter+8);topology.put(filter,0,uint64_t(123));
+        auto fullMemory=topology;Network full,reduced;
+        if(!read_network(read,&fullMemory,state,true,full)||!read_network(read,&topology,state,true,reduced,NetworkScope::Topology))return 340;
+        if(full.tracks.size()!=2||reduced.tracks.size()!=2||full.signals.size()!=2||reduced.signals.size()!=2||full.junctions.size()!=1||reduced.junctions.size()!=1)return 341;
+        for(size_t i=0;i<full.tracks.size();++i){const auto& a=full.tracks[i];const auto& b=reduced.tracks[i];
+            if(a.id!=b.id||a.links[0]!=b.links[0]||a.links[1]!=b.links[1]||a.native_length_m!=b.native_length_m)return 342;
+        }
+        for(size_t i=0;i<full.signals.size();++i){const auto& a=full.signals[i];const auto& b=reduced.signals[i];
+            if(a.id!=b.id||a.track_id!=b.track_id||a.fraction!=b.fraction||a.direction!=b.direction||a.kind!=b.kind||b.filter_available)return 343;
+        }
+        const auto& a=full.junctions.front();const auto& b=reduced.junctions.front();
+        if(a.branch_track_id!=b.branch_track_id||a.main_track_id!=b.main_track_id||a.main_fraction!=b.main_fraction||
+           a.main_direction!=b.main_direction||a.branch_direction!=b.branch_direction)return 344;
+        if(!reduced.stations.empty()||!reduced.platforms.empty())return 345;
+        topology.forbiddenAddresses={state.database+0x80,sb,filter,tb+0xa8};
+        if(!read_network(read,&topology,state,true,reduced,NetworkScope::Topology)||topology.forbiddenReads)return 346;
+        topology.put(gb,0x48,.75);
+        if(!read_network(read,&topology,state,true,reduced,NetworkScope::Topology)||reduced.signals.front().fraction!=.75||full.signals.front().fraction!=.5)return 347;
+        for(double invalid:{0.,-1.,std::nan(""),double(INFINITY)}){
+            auto unknown=topology;unknown.put(tb,0x88,invalid);
+            if(!read_network(read,&unknown,state,true,reduced,NetworkScope::Topology)||reduced.tracks.front().native_length_m!=0)return 348;
+        }
+        auto metricChanged=topology;metricChanged.metric_block=tb;metricChanged.metric_block_size=2*0x4e8;metricChanged.changing_metric=tb;
+        if(!read_network(read,&metricChanged,state,true,reduced,NetworkScope::Topology)||reduced.tracks.front().native_length_m!=0)return 349;
+        for(const auto address:{state.database,state.database+0x380,state.root+0x540}){
+            auto replaced=topology;replaced.replace_header=address;
+            if(read_network(read,&replaced,state,true,reduced,NetworkScope::Topology)||!reduced.tracks.empty()||!reduced.signals.empty())return 350;
+        }
+        auto staleReference=topology;staleReference.put(gb,0x40,track+1);
+        if(read_network(read,&staleReference,state,true,reduced,NetworkScope::Topology))return 351;
+        auto deleted=topology;deleted.put(gb,0,uint64_t(0));
+        if(!read_network(read,&deleted,state,true,reduced,NetworkScope::Topology)||reduced.signals.size()!=1||reduced.signals.front().id!=secondSignal)return 352;
+    }
+    {
+        // A 102,400-slot track pool contains unrelated unreadable backing
+        // regions. Train data reads just five unique referenced prefixes,
+        // regardless of the 128 trains sharing their current line plan.
+        auto targeted=m;
+        constexpr uint64_t table=0x410000000,tracksBase=0x420000000;
+        constexpr unsigned blockCount=100,blockSize=1024;
+        targeted.put(state.database,4,uint32_t(10));targeted.put(state.database,8,uint32_t(blockSize));
+        targeted.put(state.database,16,uint32_t(blockSize-1));targeted.put(state.database,24,table);
+        targeted.put(state.database,32,table+blockCount*8);targeted.put(state.database,40,table+blockCount*8);
+        for(unsigned i=0;i<blockCount;++i)targeted.put(table,i*8,tracksBase+uint64_t(i)*0x1000000);
+        const std::array<unsigned,5> indexes{0,100,30000,70000,99999};
+        std::array<uint64_t,5> ids{},addresses{};
+        for(size_t i=0;i<indexes.size();++i){
+            const auto index=indexes[i];ids[i]=track+uint64_t(index)*0x10000;
+            addresses[i]=tracksBase+uint64_t(index/blockSize)*0x1000000+(index%blockSize)*0x4e8;
+            targeted.regions[addresses[i]].resize(0xd8);targeted.put(addresses[i],0,ids[i]);
+            targeted.put(addresses[i],0x80,50.f);targeted.put(addresses[i],0x84,30.f);targeted.put(addresses[i],0xd0,station);
+        }
+        targeted.put(sb,0x40,uint8_t(0));std::memcpy(targeted.regions[sb].data()+0x20,"Depot",6);
+        targeted.put(sb,0x30,uint64_t(5));targeted.put(sb,0x38,uint64_t(15));
+        std::vector<Train> selected(128);
+        for(auto& train:selected){
+            train.positioned=true;train.position={ids[0],.5,1};
+            train.service.flags=NIMBY_SERVICE_LOCATION_VALID|NIMBY_SERVICE_STOP_VALID;
+            train.service.location_track_id=ids[1];train.service.stop_track_id=ids[2];
+            train.service.line_id=0x4000000000001;train.line_stops_available=true;
+            train.line_stops={{train.service.line_id,ids[3],station,0,0,0,0},{train.service.line_id,ids[4],station,1,0,0,0}};
+        }
+        targeted.fail=gb;targeted.watched_record=addresses[0];targeted.record_size=0xd8;
+        targeted.watched_table=table;targeted.watched_table_size=blockCount*8;
+        Network result;
+        if(!read_train_network(read,&targeted,state,true,selected,result)||result.tracks.size()!=5||
+           result.stations.size()!=1||result.stations[0].name!="Depot"||result.tracks[0].limit_mps!=30||
+           !result.signals.empty()||!result.junctions.empty()||!result.platforms.empty())return 300;
+        if(targeted.record_reads!=2||targeted.watched_table_reads!=2||targeted.reads>45)return 301;
+        std::printf("train network: 102400 pool slots, 128 trains, 5 referenced tracks, %u process reads\n",targeted.reads);
+        for(const auto address:addresses){
+            auto missing=targeted;missing.fail=address;
+            if(!read_train_network(read,&missing,state,true,selected,result)||result.tracks.size()!=4)return 302;
+            auto generation=targeted;generation.put(address,0,uint64_t(0));
+            if(!read_train_network(read,&generation,state,true,selected,result)||result.tracks.size()!=4)return 303;
+            auto changing=targeted;changing.changing_record=address;changing.changing_record_reads=0;
+            if(!read_train_network(read,&changing,state,true,selected,result)||result.tracks.size()!=4)return 304;
+        }
+        for(const auto changed:{state.database,table}){
+            auto replacement=targeted;replacement.changing_pool_on_track=addresses[0];replacement.pool_target=changed;
+            if(!read_train_network(read,&replacement,state,true,selected,result)||!result.tracks.empty())return 305;
+        }
+        auto stationGone=targeted;stationGone.put(sb,0,station+1);
+        if(!read_train_network(read,&stationGone,state,true,selected,result)||result.tracks.size()!=5||!result.stations.empty())return 306;
+        auto stationPool=targeted;stationPool.replace_header=state.database+0x80;
+        if(!read_train_network(read,&stationPool,state,true,selected,result)||!result.stations.empty())return 307;
+        auto rootChanged=targeted;rootChanged.changing_pool_on_track=addresses[0];rootChanged.pool_target=state.root;
+        rootChanged.pool_target_offset=0x680;
+        if(read_train_network(read,&rootChanged,state,true,selected,result))return 308;
+        if(read_train_network(read,&targeted,state,false,selected,result))return 309;
+        auto empty=targeted;empty.fail=state.database;
+        if(!read_train_network(read,&empty,state,true,{},result)||!result.tracks.empty()||!result.stations.empty())return 310;
+        // Oversized optional references are bounded before any memory reads.
+        auto bounded=targeted;bounded.reads=0;
+        Train many;many.service.line_id=0x4000000000001;many.line_stops_available=true;
+        for(unsigned i=0;i<40000;++i)many.line_stops.push_back({many.service.line_id,track+uint64_t(i)*0x10000,0,i,0,0,0});
+        if(!read_train_network(read,&bounded,state,true,std::span(&many,1),result)||result.tracks.size()!=3||
+           bounded.reads>32810)return 318;
+    }
+    {
+        auto automatic=m;const uint64_t cache=0x330000000,table=cache-0x1000,text=cache+0x1000;
+        const auto header=state.database+0x430;
+        automatic.regions[header].resize(48);automatic.put(header,4,uint32_t(1));automatic.put(header,8,uint32_t(2));
+        automatic.put(header,16,uint32_t(1));automatic.put(header,24,table);automatic.put(header,32,table+8);automatic.put(header,40,table+8);
+        automatic.put(table,0,cache);automatic.regions[cache].resize(0xf8*2);automatic.put(cache,0,station);
+        const std::string name="Long automatic station name";
+        automatic.regions[text]=std::vector<unsigned char>(name.begin(),name.end());automatic.regions[text].push_back(0);
+        automatic.put(cache,8,text);automatic.put(cache,0x18,uint64_t(name.size()));automatic.put(cache,0x20,uint64_t(63));
+        Train train;train.positioned=true;train.position={track,.5,1};Network result;
+        const auto capture=[&](Memory& memory){return read_train_network(read,&memory,state,true,std::span(&train,1),result);};
+        if(!capture(automatic)||result.stations.size()!=1||result.stations[0].name!=name)return 311;
+        auto missing=automatic;missing.fail=text;
+        if(!capture(missing)||result.stations.size()!=1||!result.stations[0].name.empty())return 312;
+        auto oldGeneration=automatic;oldGeneration.put(cache,0,station+1);
+        if(!capture(oldGeneration)||result.stations.size()!=1||!result.stations[0].name.empty())return 313;
+        auto changed=automatic;changed.changing_slots=text;
+        if(!capture(changed)||result.stations.size()!=1||!result.stations[0].name.empty())return 314;
+        for(const auto replaced:{header,table}){
+            auto edited=automatic;edited.replace_header=replaced;
+            if(!capture(edited)||result.stations.size()!=1||!result.stations[0].name.empty())return 315;
+        }
+        auto stationChanged=automatic;stationChanged.changing_record=sb;stationChanged.record_size=0x48;
+        if(!capture(stationChanged)||!result.stations.empty())return 316;
+        // Explicit service/line station references survive an unavailable rail.
+        train.positioned=false;train.service.flags=NIMBY_SERVICE_STOP_VALID;train.service.stop_station_id=station;
+        automatic.fail=tb;
+        if(!capture(automatic)||!result.tracks.empty()||result.stations.size()!=1)return 317;
+    }
+    {
         // Optional native length must survive independently from map coordinates.
         auto metric=m;metric.put(tb,0x88,1234.5);Network measured;
         if(!read_network(read,&metric,state,true,measured)||measured.tracks[0].native_length_m!=1234.5)return 230;
@@ -99,13 +274,55 @@ int main() {
             if(!read_network(read,&metric,state,true,measured)||measured.tracks[0].native_length_m!=0)return 231;
         }
         metric=m;metric.put(tb,0x88,1234.5);metric.changing_metric=tb;
+        metric.metric_block=tb;metric.metric_block_size=2*0x4e8;
         if(!read_network(read,&metric,state,true,measured)||measured.tracks[0].native_length_m!=0)return 232;
-        metric.changing_metric=0;metric.changing_metric_identity=tb;
+        metric.changing_metric=0;metric.changing_metric_identity=tb;metric.metric_block_reads=0;
         if(!read_network(read,&metric,state,true,measured)||measured.tracks[0].native_length_m!=0)return 233;
         // The existing scoped signalling reader does not pay for a metric scan.
         metric.changing_metric_identity=0;
-        if(!read_network(read,&metric,state,true,measured,true)||measured.tracks[0].native_length_m!=0)return 234;
+        if(!read_network(read,&metric,state,true,measured,NetworkScope::Signalling)||measured.tracks[0].native_length_m!=0)return 234;
         static_assert(gameLayout(LiveStateProfile::Linux119).track_metric_offset==0);
+    }
+    {
+        // Verify real pool traversal at map scale: lengths require one second
+        // read per block, not one syscall per track. A changed row affects
+        // only itself; a failed optional block still preserves readable rows.
+        auto large=m;constexpr unsigned blockSize=1024,blockCount=4,count=blockSize*blockCount;
+        constexpr uint64_t metricBase=0x400000000;const auto table=metricBase-0x1000;
+        large.put(state.database,4,uint32_t(10));large.put(state.database,8,uint32_t(blockSize));
+        large.put(state.database,16,uint32_t(blockSize-1));large.put(state.database,24,table);large.put(state.database,32,table+blockCount*8);
+        large.put(state.database,40,table+blockCount*8);
+        for(unsigned b=0;b<blockCount;++b){
+            const auto block=metricBase+uint64_t(b)*0x1000000;large.put(table,b*8,block);
+            large.regions[block].assign(blockSize*0x4e8,0);
+            for(unsigned row=0;row<blockSize;++row){
+                const auto i=b*blockSize+row;const auto offset=size_t(row)*0x4e8;
+                large.put(block,offset,track+uint64_t(i)*0x10000);
+                large.put(block,offset+0x80,50.f);large.put(block,offset+0x84,30.f);
+                large.put(block,offset+0x88,1000.+i);
+            }
+        }
+        large.metric_block=metricBase;large.metric_block_size=blockSize*0x4e8;
+        Network measured;
+        if(!read_network(read,&large,state,true,measured)||measured.tracks.size()!=count)return 320;
+        for(unsigned i=0;i<count;++i)if(measured.tracks[i].native_length_m!=1000.+i)return 321;
+        if(large.metric_prefix_reads||large.metric_block_reads!=2||large.reads>=100)return 322;
+        std::printf("full network metrics: %u tracks, %u process reads, %u per-row metric reads\n",count,large.reads,large.metric_prefix_reads);
+        const auto reset=[&](Memory& fixture){fixture.reads=fixture.metric_prefix_reads=fixture.metric_block_reads=0;};
+        for(bool identity:{false,true}){
+            auto changed=large;reset(changed);
+            (identity?changed.changing_metric_identity:changed.changing_metric)=metricBase+7*0x4e8;
+            if(!read_network(read,&changed,state,true,measured))return 323;
+            for(unsigned i=0;i<count;++i)if(measured.tracks[i].native_length_m!=(i==7?0.:1000.+i))return 324;
+        }
+        auto unreadable=large;reset(unreadable);unreadable.fail_metric_verification=true;
+        unreadable.failed_metric_row=metricBase+11*0x4e8;
+        if(!read_network(read,&unreadable,state,true,measured)||unreadable.metric_prefix_reads!=blockSize)return 325;
+        for(unsigned i=0;i<count;++i)if(measured.tracks[i].native_length_m!=(i==11?0.:1000.+i))return 326;
+        auto replaced=large;reset(replaced);replaced.replace_header=state.database;
+        if(read_network(read,&replaced,state,true,measured)||!measured.tracks.empty())return 327;
+        auto signalling=large;reset(signalling);
+        if(!read_network(read,&signalling,state,true,measured,NetworkScope::Signalling)||signalling.metric_block_reads!=1||signalling.metric_prefix_reads)return 328;
     }
     {
         auto scoped=m;scoped.put(gb,0x30,int32_t(4));scoped.put(gb,0x38,uint64_t(77));
@@ -122,14 +339,77 @@ int main() {
         if(!read_signalling_network(read,&scoped,state,99,local)||!local.tracks.empty()||!local.signals.empty())return 224;
     }
     {
+        // Empty signal filters are independent of indirect tag arrays. Verify
+        // them per block while retaining per-signal validity and fallback.
+        auto filters=m;constexpr unsigned count=4096;
+        constexpr uint64_t base=0x600000000,table=base-0x1000;
+        const auto header=state.database+0x380;
+        filters.put(header,4,uint32_t(12));filters.put(header,8,uint32_t(count));filters.put(header,16,uint32_t(count-1));
+        filters.put(header,24,table);filters.put(header,32,table+8);filters.put(header,40,table+8);filters.put(table,0,base);
+        filters.regions[base].resize(count*0xc8);
+        for(unsigned i=0;i<count;++i){
+            const auto offset=size_t(i)*0xc8;
+            filters.put(base,offset,signal+uint64_t(i)*0x10000);filters.put(base,offset+0x30,int32_t(4));
+            filters.put(base,offset+0x40,track);filters.put(base,offset+0x48,.5);filters.put(base,offset+0x50,int8_t(-1));
+            filters.put(base,offset+0x70,uint32_t(i%2));
+        }
+        filters.metric_block=base;filters.metric_block_size=count*0xc8;Network captured;
+        if(!read_network(read,&filters,state,true,captured)||captured.signals.size()!=count||filters.reads>=100)return 329;
+        for(unsigned i=0;i<count;++i)if(!captured.signals[i].filter_available||captured.signals[i].filter_default_ignored!=bool(i%2))return 330;
+        std::printf("full network filters: %u signals, %u process reads\n",count,filters.reads);
+        for(bool identity:{false,true}){
+            auto changed=filters;changed.metric_block_reads=0;
+            (identity?changed.changing_metric_identity:changed.changing_metric)=base+7*0xc8;
+            if(!read_network(read,&changed,state,true,captured))return 331;
+            for(unsigned i=0;i<count;++i)if(captured.signals[i].filter_available!=(i!=7))return 332;
+        }
+        auto unreadable=filters;unreadable.metric_block_reads=0;unreadable.fail_metric_verification=true;
+        unreadable.fail=base+11*0xc8+0x70;
+        if(!read_network(read,&unreadable,state,true,captured))return 333;
+        for(unsigned i=0;i<count;++i)if(captured.signals[i].filter_available!=(i!=11))return 334;
+    }
+    {
+        // Thousands of signals share the same track-pool descriptors. The
+        // capture must scale by unique records, while detecting a descriptor
+        // or block-table replacement during the read itself.
+        Memory large;
+        large.put(state.module_base+0xb81998,0,state.root);
+        large.put(state.root,0x540,state.database);large.put(state.root,0x5c0,state.copy);large.put(state.root,0x680,state.simulation);
+        constexpr unsigned count=4096;
+        constexpr uint64_t tracksBase=0x400000000,signalsBase=0x500000000;
+        auto largePool=[&](uint64_t offset,uint64_t block,size_t stride){
+            const auto header=state.database+offset,table=block-0x1000;
+            large.regions[header].resize(48);large.put(header,4,uint32_t(12));large.put(header,8,uint32_t(count));large.put(header,16,uint32_t(count-1));
+            large.put(header,24,table);large.put(header,32,table+8);large.put(header,40,table+8);large.put(table,0,block);
+            large.regions[block].resize(count*stride);
+        };
+        largePool(0,tracksBase,0x4e8);largePool(0x380,signalsBase,0xc8);
+        const auto tid=[&](unsigned i){return track+uint64_t(i)*0x10000;};
+        for(unsigned i=0;i<count;++i){
+            const auto t=size_t(i)*0x4e8,s=size_t(i)*0xc8;
+            large.put(tracksBase,t,tid(i));large.put(tracksBase,t+8,i?tid(i-1):uint64_t(0));
+            large.put(tracksBase,t+16,i+1<count?tid(i+1):uint64_t(0));
+            large.put(signalsBase,s,signal+uint64_t(i)*0x10000);large.put(signalsBase,s+0x30,int32_t(4));large.put(signalsBase,s+0x38,uint64_t(77));
+            large.put(signalsBase,s+0x40,tid(i));large.put(signalsBase,s+0x48,.5);large.put(signalsBase,s+0x50,int8_t(-1));
+        }
+        Network captured;const SignallingScope scope{77,2};
+        if(!read_signalling_network(read,&large,state,std::span(&scope,1),captured)||captured.signals.size()!=count||captured.tracks.size()!=count)return 290;
+        std::printf("signalling capture: %u signals, %u process reads\n",count,large.reads);
+        if(large.reads>count*3)return 291;
+        for(auto target:{state.database,tracksBase-0x1000}){
+            auto changed=large;changed.changing_pool_on_track=tracksBase;changed.pool_target=target;
+            if(read_signalling_network(read,&changed,state,std::span(&scope,1),captured))return 292;
+        }
+    }
+    {
         auto minimal=m;minimal.fail=sb;
         Network signalling;
         if(read_network(read,&minimal,state,true,signalling))return 214;
-        if(!read_network(read,&minimal,state,true,signalling,true)||
+        if(!read_network(read,&minimal,state,true,signalling,NetworkScope::Signalling)||
            signalling.tracks.size()!=1||signalling.signals.size()!=1||
            !signalling.stations.empty()||!signalling.platforms.empty())return 215;
         minimal.fail=tb;
-        if(read_network(read,&minimal,state,true,signalling,true))return 216;
+        if(read_network(read,&minimal,state,true,signalling,NetworkScope::Signalling))return 216;
     }
     {
         // Accelerated-world regression: multi-model capture must retain two
@@ -284,6 +564,32 @@ int main() {
         if(!read_network(read,&jm,state,true,jn)||jn.junctions.size()!=1||
            jn.junctions[0].branch_direction!=-1||jn.junctions[0].main_direction!=-1)return 97;
     }
+    {
+        // Many branches share one parent's vector. Read that vector twice,
+        // then validate every object after all indirect data was collected.
+        auto joined=m;constexpr unsigned count=128;
+        constexpr uint64_t base=0x700000000,table=base-0x1000,children=0x710000000;
+        joined.put(state.database,4,uint32_t(8));joined.put(state.database,8,uint32_t(256));joined.put(state.database,16,uint32_t(255));
+        joined.put(state.database,24,table);joined.put(state.database,32,table+8);joined.put(state.database,40,table+8);joined.put(table,0,base);
+        joined.regions[base].resize(256*0x4e8);joined.put(base,0,track);
+        joined.put(base,0x408,children);joined.put(base,0x410,children+count*8);joined.put(base,0x418,children+count*8);
+        for(unsigned i=1;i<=count;++i){
+            const auto offset=size_t(i)*0x4e8,id=track+uint64_t(i)*0x10000;
+            joined.put(base,offset,id);joined.put(base,offset+0x10,track);joined.put(base,offset+0x3f0,track);
+            joined.put(base,offset+0x3f8,.4);joined.put(base,offset+0x400,int32_t(1));joined.put(children,(i-1)*8,id);
+        }
+        joined.watched_table=children;joined.watched_table_size=count*8;Network captured;
+        if(!read_network(read,&joined,state,true,captured)||captured.junctions.size()!=count||joined.watched_table_reads!=2||joined.reads>=count*3)return 338;
+        std::printf("shared track junctions: %u branches, %u process reads\n",count,joined.reads);
+        auto branch=joined;branch.watched_table_reads=0;branch.changing_attachment=base+7*0x4e8;
+        if(!read_network(read,&branch,state,true,captured)||captured.junctions.size()!=count-1)return 339;
+        auto parent=joined;parent.watched_table_reads=0;parent.attachment_after_children=base+0x408;
+        if(!read_network(read,&parent,state,true,captured)||!captured.junctions.empty())return 340;
+        auto list=joined;list.watched_table_reads=0;list.changing_slots=children;list.slot_reads=0;
+        if(!read_network(read,&list,state,true,captured)||!captured.junctions.empty())return 341;
+        auto duplicate=joined;duplicate.watched_table_reads=0;duplicate.put(children,8,track+0x10000);
+        if(!read_network(read,&duplicate,state,true,captured)||captured.junctions.size()!=count-2)return 342;
+    }
     const uint64_t nameBlock=0x300050000,nameText=0x300060000;
     pool(0x430,nameBlock,0xf8,station);
     std::memcpy(m.regions[nameBlock].data()+8,"Tours",6);
@@ -346,6 +652,15 @@ int main() {
     m.put(tb,0x1b0,points);m.put(tb,0x1b8,points+32);
     m.put(points,0,0.0);m.put(points,8,0.0);m.put(points,16,0.0);m.put(points,24,10.0);
     if(!read_network(read,&m,state,true,out)||std::strcmp(out.platforms[0].name_utf8,"14S"))return 92;
+    {
+        auto endpoints=m;endpoints.watched_table=points;endpoints.watched_table_size=32;
+        if(!read_network(read,&endpoints,state,true,out)||endpoints.watched_table_reads!=2||std::strcmp(out.platforms[0].name_utf8,"14S"))return 335;
+        endpoints.changing_slots=points;endpoints.slot_reads=0;
+        if(!read_network(read,&endpoints,state,true,out)||out.platforms[0].flags)return 336;
+        auto hole=m;hole.regions[points].resize(16);hole.put(points+64,0,0.);hole.put(points+64,8,10.);
+        hole.put(tb,0x1b8,points+80);
+        if(!read_network(read,&hole,state,true,out)||std::strcmp(out.platforms[0].name_utf8,"14S"))return 337;
+    }
     m.put(points,24,-10.0);
     if(!read_network(read,&m,state,true,out)||std::strcmp(out.platforms[0].name_utf8,"14N"))return 93;
     m.put(points,16,20.0);
@@ -601,5 +916,67 @@ int main() {
     m.changing_presence=0;m.changing_identity=motionBlock;
     if(!read_trains(read,&m,state,true,trains)||trains[0].service.flags)return 205;
     m.changing_identity=0;
+    {
+        // Many trains share one immutable line plan in a capture. The public
+        // per-train results remain owned copies, with the existing total budget.
+        auto large=m;
+        constexpr uint32_t trainCount=256,stopCount=2048;
+        constexpr uint64_t models=0x710000000,motions=0x720000000,stops=0x730000000;
+        auto sharedPool=[&](uint64_t header,uint64_t block,size_t stride){
+            large.regions[header].resize(48);
+            large.put(header,4,uint32_t(8));large.put(header,8,trainCount);large.put(header,16,trainCount-1);
+            large.put(header,24,block-0x1000);large.put(header,32,block-0x1000+8);large.put(header,40,block-0x1000+8);
+            large.put(block-0x1000,0,block);large.regions[block].resize(stride*trainCount);
+        };
+        sharedPool(state.database+0x200,models,0x178);sharedPool(state.simulation+0xa0,motions,0x638);
+        for(uint32_t i=0;i<trainCount;++i){
+            const auto id=train+(uint64_t(i)<<16);
+            large.put(models,i*0x178,id);large.put(models,i*0x178+0x28,uint64_t(15));
+            large.put(motions,i*0x638,id);large.put(motions,i*0x638+0x5d0,uint8_t(1));
+            large.put(motions,i*0x638+0x5a8,line);large.put(motions,i*0x638+0x5c8,int32_t(i));
+        }
+        large.put(lineBlock,0x118,stops);large.put(lineBlock,0x120,stops+stopCount*0x158);large.put(lineBlock,0x128,stops+stopCount*0x158);
+        large.regions[stops].resize(stopCount*0x158);
+        for(uint32_t i=0;i<stopCount;++i){
+            large.put(stops,i*0x158+0x78,track);large.put(stops,i*0x158+0x110,station);
+            large.put(stops,i*0x158+0xb8,int32_t(i*10));large.put(stops,i*0x158+0xbc,int32_t(i*10+5));
+        }
+        large.watched_table=stops;large.watched_table_size=stopCount*0x158;
+        const auto started=std::chrono::steady_clock::now();
+        if(!read_trains(read,&large,state,true,trains)||trains.size()!=trainCount)return 257;
+        const auto elapsed=std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now()-started).count();
+        for(const auto& value:trains)if(!value.line_stops_available||value.line_stops.size()!=stopCount||
+            value.line_stops.back().departure_offset_seconds!=20475)return 258;
+        std::printf("Shared line: trains=%u stops=%u full_plan_reads=%u bytes=%llu elapsed_us=%lld\n",trainCount,stopCount,
+            large.watched_table_reads,static_cast<unsigned long long>(large.watched_table_bytes),static_cast<long long>(elapsed));
+        if(large.watched_table_reads>3)return 259;
+        for(const auto [changed,offset]:std::array<std::pair<uint64_t,size_t>,2>{{
+            {stops,(stopCount-1)*0x158+0x110},{lineBlock,0}}}){
+            auto edited=large;edited.watched_table_reads=0;edited.change_after_plan=changed;edited.change_after_plan_offset=offset;
+            if(!read_trains(read,&edited,state,true,trains)||trains.size()!=trainCount)return 260;
+            for(const auto& value:trains)if(value.line_stops_available||!value.line_stops.empty()||
+                (value.service.flags&(NIMBY_SERVICE_STOP_VALID|NIMBY_SERVICE_LINE_VALID)))return 261;
+        }
+        auto inconsistent=large;inconsistent.watched_table_reads=0;inconsistent.different_shared_stop=stops+0x158;
+        if(!read_trains(read,&inconsistent,state,true,trains))return 262;
+        for(const auto& value:trains)if(value.line_stops_available||value.service.flags&NIMBY_SERVICE_STOP_VALID)return 263;
+        // A same-slot, different-generation line must not reuse cached data.
+        auto generation=large;generation.watched_table_reads=0;generation.put(motions,0x638+0x5a8,line+1);
+        if(!read_trains(read,&generation,state,true,trains)||trains[1].line_stops_available||
+           trains[1].service.flags&NIMBY_SERVICE_LINE_VALID||!trains[0].line_stops_available)return 264;
+        const auto earlier=trains[0].line_stops;
+        generation.put(stops,(stopCount-1)*0x158+0x110,station+1);generation.watched_table_reads=0;
+        if(!read_trains(read,&generation,state,true,trains)||!trains[0].line_stops_available||
+           trains[0].line_stops.back().station_id!=station+1||earlier.back().station_id!=station)return 265;
+        // The shared read must not turn the existing per-train copy quota into
+        // an unbounded N(trains) * N(stops) output allocation.
+        auto budgeted=large;constexpr size_t manyStops=8192;
+        budgeted.put(lineBlock,0x120,stops+manyStops*0x158);budgeted.put(lineBlock,0x128,stops+manyStops*0x158);
+        budgeted.regions[stops].resize(manyStops*0x158);
+        for(size_t i=stopCount;i<manyStops;++i){budgeted.put(stops,i*0x158+0x78,track);budgeted.put(stops,i*0x158+0x110,station);}
+        if(!read_trains(read,&budgeted,state,true,trains))return 266;
+        size_t copied=0,available=0;for(const auto& value:trains){copied+=value.line_stops.size();available+=value.line_stops_available;}
+        if(copied!=1048576||available!=128||!(trains.back().service.flags&NIMBY_SERVICE_STOP_VALID))return 267;
+    }
     std::puts("Synthetic network: full ID joins, pool replacement, read failure, unknown version, invalid position and limits rejected.");
 }

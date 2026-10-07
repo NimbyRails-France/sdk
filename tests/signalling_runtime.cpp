@@ -60,6 +60,7 @@ struct TypedRules : Rules {
     static Decision invalidNetworkDecision(const Signal& signal) { return -int(signal.id); }
 };
 struct AnimatedRules : Rules {
+    static constexpr size_t maxLiveSignals=4096;
     static inline std::int64_t duration=250;
     static std::optional<nimby::detail::SignalAnimation> animation(Decision) {
         return nimby::detail::SignalAnimation{"on.svg","off.svg",duration};
@@ -71,6 +72,40 @@ struct AnimatedRules : Rules {
 }
 int main() {
     try {
+        {
+            // Cleanup can be transiently unavailable while thousands of IDs
+            // rotate. Do not keep admitting new IDs into an unbounded backlog.
+            std::vector<uint64_t> owned;std::unordered_set<uint64_t> ids;
+            for(uint64_t id=1;id<=4096;++id)CHECK(nimby::detail::trackLiveTexture(id,owned,ids));
+            size_t attempts=0;std::unordered_set<uint64_t> retired;
+            const auto fail=[&](std::span<const uint64_t> batch){++attempts;CHECK(batch.size()<=4096);throw std::runtime_error("Transient transport failure");};
+            for(int rotation=0;rotation<4;++rotation){
+                nimby::detail::restoreTrackedTextures(owned,[](auto){return true;},fail,[&](auto id){retired.insert(id);});
+                for(uint64_t id=4097+rotation*4096;id<=8192+rotation*4096;++id)CHECK(!nimby::detail::trackLiveTexture(id,owned,ids));
+                CHECK(owned.size()==4096&&retired.empty());
+                CHECK(nimby::detail::trackLiveTexture(1,owned,ids)); // An existing lease can still renew.
+            }
+            CHECK(attempts==4);
+            nimby::detail::restoreTrackedTextures(owned,[](auto){return true;},[](auto batch){CHECK(batch.size()<=4096);},[&](auto id){retired.insert(id);ids.erase(id);});
+            CHECK(owned.empty()&&retired.size()==4096);
+            for(uint64_t id=20001;id<=24096;++id)CHECK(nimby::detail::trackLiveTexture(id,owned,ids));
+            CHECK(owned.size()==4096);
+        }
+        {
+            // Recover oversized pending lists left by the earlier algorithm.
+            // A failed first chunk must not prevent successful later cleanup.
+            std::vector<uint64_t> owned;for(uint64_t id=1;id<=10000;++id)owned.push_back(id);
+            std::unordered_set<uint64_t> peer{20001,20002};size_t calls=0,retired=0;
+            nimby::detail::restoreTrackedTextures(owned,[](auto){return true;},[&](auto batch){
+                CHECK(batch.size()<=4096);for(auto id:batch)CHECK(!peer.contains(id));
+                if(++calls==1)throw std::runtime_error("First chunk uncertain");
+            },[&](auto){++retired;});
+            CHECK(calls==3&&retired==5904&&owned.size()==4096&&peer.size()==2);
+            nimby::detail::restoreTrackedTextures(owned,[](auto id){return id%2==0;},[](auto){},[](auto){});
+            CHECK(owned.size()==2048);for(auto id:owned)CHECK(id%2==1);
+            nimby::detail::restoreTrackedTextures(owned,[](auto){return true;},[](auto){},[](auto){});
+            CHECK(owned.empty());
+        }
         const auto blink=nimby::detail::signalAnimation<AnimatedRules>(1,500);
         CHECK(blink.first=="on.svg"&&blink.alternate=="off.svg"&&blink.everyMs==250);
         AnimatedRules::duration=750;
@@ -78,6 +113,16 @@ int main() {
         AnimatedRules::duration=99;
         try { nimby::detail::signalAnimation<AnimatedRules>(1,500);CHECK(false); } catch(const std::invalid_argument&) {}
         CHECK(nimby::detail::signalAnimation<Rules>(1,500).everyMs==0); // Existing image callback.
+        std::vector<AnimatedRules::Signal> largeNetwork;
+        for(uint64_t id=1;id<=4096;++id)largeNetwork.push_back({id,id==4096?0:id+1,id==4096?7:0});
+        const auto liveLarge=nimby::SignallingRuntime<AnimatedRules>::evaluateLiveNetwork(largeNetwork);
+        CHECK(liveLarge.signals.values().size()==4096);
+        for(const auto& row:liveLarge.signals.values())CHECK(row.result.decision==7);
+        // The live evaluator must not call texture() before the urgent driving
+        // publication. AnimatedRules throws if that redundant callback occurs.
+        largeNetwork.push_back({4097,0,7});
+        try {nimby::SignallingRuntime<AnimatedRules>::evaluateLiveNetwork(largeNetwork);CHECK(false);}catch(const std::invalid_argument&){}
+        CHECK(sizeof(nimby::SignallingRuntime<AnimatedRules>::NetworkRequest)==sizeof(Runtime::NetworkRequest));
         Runtime::SignalRequest signal; signal.observation.value=3;
         CHECK(Runtime::evaluate(signal).texturePath.view()=="known.svg");
         signal.simulationMs=-1;

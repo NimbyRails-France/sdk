@@ -1,3 +1,4 @@
+#include <platform/windows/bridge_installation.h>
 // Native integration experiment. Replaces function inputs, never train speed.
 // Commands are bounded to one full train ID and expire on simulated and wall time.
 #include "platform/windows/runtime/driving_bridge.h"
@@ -59,6 +60,8 @@ uintptr_t __fastcall integrate(uintptr_t result,uintptr_t network,uintptr_t path
 }
 extern "C" __declspec(dllexport) DWORD WINAPI NimbyInternal_Bootstrap(void* argument) noexcept {
  if(argument)return NIMBY_INVALID_ARGUMENT;
+    nimby::platform::windows::BridgeInstallation installation;
+    if(!installation)return installation.status();
  AcquireSRWLockExclusive(&initialization);struct Unlock{~Unlock(){ReleaseSRWLockExclusive(&initialization);}} unlock;
  if(shared)return NIMBY_ALREADY_INITIALIZED;
  std::array<wchar_t,32768> executable{};NimbyBinaryInfo identity{};

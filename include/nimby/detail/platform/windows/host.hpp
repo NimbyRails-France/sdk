@@ -26,6 +26,7 @@ inline Discovery discoverProcess() {
     return {NIMBY_OK,found};
 }
 inline bool hostedByGame() {
+    if(native::modHostTarget())return true;
     wchar_t path[32768]{};
     const auto length = GetModuleFileNameW(nullptr, path, 32768);
     if (!length || length >= 32768) return false;
@@ -33,8 +34,13 @@ inline bool hostedByGame() {
     return _wcsicmp(name ? name+1 : path, L"NIMBYRails.exe") == 0;
 }
 inline uint32_t currentProcessId() noexcept {
-    return GetCurrentProcessId();
+    const auto target=native::modHostTarget();
+    return target?target:GetCurrentProcessId();
 }
+struct ModWork {
+    ModWork(){native::modHostPulse(2);}
+    ~ModWork(){native::modHostPulse(3);}
+};
 inline std::filesystem::path stateDirectory() {
         wchar_t root[32768]{};
         const auto n=GetEnvironmentVariableW(L"LOCALAPPDATA",root,32768);

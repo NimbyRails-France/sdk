@@ -5,21 +5,22 @@ en UTC, indépendamment du fuseau d'affichage du jeu. Les dates avant 1970
 sont acceptées. Les captures déjà retournées sont des copies indépendantes.
 
 ```kotlin
-import fr.nimby.sdk.NimbyClient
+import fr.nimby.sdk.Nimby
 import java.nio.file.Path
 import java.time.Instant
 
-NimbyClient.open(Path.of(library), pid).use { client ->
-    val clock = client.capture().clock
+Nimby.connect(Path.of(library), pid).use { game ->
+    val clock = game.clock.read()
     println(clock?.toInstant()) // null : horloge indisponible
-    val result = client.setSimulationDateTimeAndRecalculateTrains(
-        Instant.parse("1940-08-14T16:48:00Z"))
+    val result = game.clock.set(
+        Instant.parse("1940-08-14T16:48:00Z"), recalculateTrains = true)
     println("${result.clock.toInstant()} / ${result.interventions}")
 }
 ```
 
 Cet exemple effectue une mutation explicite. Pour simplement lire l'heure,
-ne conserver que `capture().clock`. `epochSeconds` représente l'origine
+ne conserver que `game.clock.read()`, qui ne capture pas le réseau. Réutiliser
+`snapshot.clock` si une capture utile a déjà été faite. `epochSeconds` représente l'origine
 calendaire signée ; `ticks` compte les centièmes de seconde simulée.
 
 `setSimulationDateTime(Instant)` conserve la phase sous-seconde native : demander
@@ -33,7 +34,7 @@ L'ancien exemple C++ auto-observer et ses commandes ne sont plus distribués.
 ## Portée expérimentale
 
 Deux opérations sont disponibles. L'IHM utilise désormais
-`setSimulationDateTimeAndRecalculateTrains(Instant)`, qui renvoie
+`game.clock.set(Instant, recalculateTrains = true)`, qui renvoie
 `SimulationTimeChange { clock, interventions }`. Le moteur exécute l'équivalent
 du bouton **All trains intervention**, à la nouvelle date : services remis à
 zéro, voyageurs transférés, trains replacés à leur prochaine destination et
@@ -75,12 +76,21 @@ contrôlées. Les modifications des horloges et des services des deux copies
 sont préparées avant toute écriture, puis écrites et relues avant de reprendre le jeu.
 Depuis le développement du kit 0.8, un appel depuis le processus du jeu utilise
 la passerelle d'horloge et applique la translation au point de mise à jour natif,
-sans suspendre son propre processus. `ToolContext.clock()` et
-`changeTime(utcSeconds, recalculateTrains)` exposent ces opérations aux `toolMod`.
-Le formulaire Time Change propose uniquement le changement avec interventions
+sans suspendre son propre processus. Les mods isolés passent aussi par cette
+passerelle : leur arrêt brutal ne peut donc pas laisser le jeu suspendu.
+Le SDK du jeu charge le pont et le worker attend au plus une seconde pour la
+requête native ; une demande encore en attente est annulée. Le pont refuse les
+demandes expirées ou provenant d'un worker mort avant de commencer la mutation.
+`ToolContext.clock()` et `changeTime(GameDateTime(...), recalculateTrains)`
+exposent ces opérations aux `toolMod`, sans conversion manuelle des dates.
+La surcharge `changeTime(utcSeconds, recalculateTrains)` reste disponible.
+Le formulaire BB Timechange propose uniquement le changement avec interventions
 sur les trains et exige une confirmation qui en explique les effets. Le SDK
-conserve les deux modes. Ce parcours est compilé et testé sur fixtures, mais son
-utilisation depuis un mod dans une partie réelle reste à valider.
+conserve les deux modes. Ce parcours est compilé et testé sur fixtures.
+La recette du 3 octobre 2026 a vérifié le traitement backend, 927 interventions,
+la relecture de l’horloge et l’affichage de la nouvelle date. Elle n’a pas validé
+le clic Appliquer de l’interface BB Timechange : ce parcours UI reste à qualifier
+séparément.
 Les sessions d'observation ordinaires restent en lecture seule.
 
 Si une écriture échoue, la restauration de toutes les valeurs touchées est tentée avant la

@@ -57,7 +57,7 @@ def render(items):
                     image = f'<img src="data:{mime};base64,{data}" alt="État {state["index"]}">'
             cards.append(f'<article>{image}<strong>Index {state["index"]}</strong><code>{html.escape(state["relativePath"])}</code></article>')
         cards.append('</div>')
-    return '<!doctype html><meta charset="utf-8"><title>SFR · Catalogue des textures</title><style>body{font:16px system-ui;background:#101b2b;color:#e5eefb;padding:32px}.grid{display:flex;flex-wrap:wrap;gap:14px}article{width:180px;padding:14px;background:#20324b;display:grid;gap:12px}img{width:96px;height:96px;object-fit:contain}code{overflow-wrap:anywhere}</style><h1>Signalisation française réaliste</h1><p>Index dans le mod ; la signification ferroviaire doit être définie séparément.</p>'+''.join(cards)
+    return '<!doctype html><meta charset="utf-8"><title>AB · Catalogue des textures</title><style>body{font:16px system-ui;background:#101b2b;color:#e5eefb;padding:32px}.grid{display:flex;flex-wrap:wrap;gap:14px}article{width:180px;padding:14px;background:#20324b;display:grid;gap:12px}img{width:96px;height:96px;object-fit:contain}code{overflow-wrap:anywhere}</style><h1>AB Signalisation lumineuse</h1><p>Index dans le mod ; la signification ferroviaire doit être définie séparément.</p>'+''.join(cards)
 
 
 if __name__ == '__main__':

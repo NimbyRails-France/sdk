@@ -103,6 +103,8 @@ public:
         return result;
     }
 
+    const SignalTopology& getSignalTopology() const noexcept { return topology_; }
+
 private:
     SignalTopology topology_;
     std::unordered_map<Id, Signal> signals_;

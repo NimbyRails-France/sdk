@@ -5,6 +5,18 @@ $currentVersion=(Get-Content -LiteralPath "$root/VERSION" -Raw).Trim()
 if(!$Version){$Version=$currentVersion}
 if(!$OutputRoot){$OutputRoot=Join-Path $root 'dist'}
 if($Version -notmatch '^\d+\.\d+\.\d+(?:-(?:alpha|beta)\.[1-9]\d*)?$' -or $Version -ne $currentVersion){throw 'Package version must match VERSION'}
+$developmentStatus=$null
+$policyPath=Join-Path $root 'release-channels.json'
+if(Test-Path -LiteralPath $policyPath){
+    $policy=Get-Content -LiteralPath $policyPath -Raw -Encoding UTF8 | ConvertFrom-Json
+    if($policy -isnot [pscustomobject]){throw 'release-channels.json must contain a JSON object'}
+    if($null -ne $policy.PSObject.Properties['developmentStatus']){
+        $developmentStatus=$policy.developmentStatus
+        if($developmentStatus -isnot [string] -or $developmentStatus -cnotin @('in-development','stable')){
+            throw 'developmentStatus must be in-development or stable when present'
+        }
+    }
+}
 if(!$LocalBuild -and (Test-Path -LiteralPath "$SdkRoot/bin/NimbyConstructionBridge-experimental-v1.dll")){
     throw 'The construction qualification bridge belongs to local developer kits, not public releases.'
 }
@@ -29,6 +41,7 @@ $metadata = [ordered]@{
     sha256 = (Get-FileHash -LiteralPath $asset -Algorithm SHA256).Hash.ToLowerInvariant()
     gameSha256 = @('fff49ac21720abfc824c2b4f68b862727630eb0db71cfe1f9ea8f685d0db10ae')
 }
+if($null -ne $developmentStatus){$metadata.developmentStatus=$developmentStatus}
 $metadata | ConvertTo-Json -Depth 3 | Set-Content -LiteralPath "$OutputRoot/project.json" -Encoding UTF8
 $metadata | ConvertTo-Json -Depth 3 | Set-Content -LiteralPath "$OutputRoot/project-windows-x64.json" -Encoding UTF8
 if($LocalBuild) { Write-Output $asset; return }

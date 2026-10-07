@@ -30,6 +30,12 @@ add_library(NimbyRailsFranceSDK SHARED
     src/runtime/texture_client.cpp
     src/platform/windows/runtime/texture_bridge_client.cpp
     src/platform/windows/runtime/signal_ui_bridge_client.cpp
+    src/platform/windows/runtime/mod_host.cpp
+    src/platform/windows/runtime/mod_host_ui.cpp
+    src/platform/windows/runtime/mod_host_driving.cpp
+    src/platform/windows/runtime/mod_host_textures.cpp
+    src/platform/windows/runtime/mod_host_epoch.cpp
+    src/platform/windows/runtime/mod_host_tools.cpp
     src/engine/live_state.cpp
     src/engine/driving.cpp
     src/engine/network.cpp src/engine/trains.cpp src/engine/signal_texture_states.cpp
@@ -41,6 +47,12 @@ target_include_directories(NimbyRailsFranceSDK
     PUBLIC "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>" "$<INSTALL_INTERFACE:include>")
 target_link_libraries(NimbyRailsFranceSDK PRIVATE nimby_build bcrypt nimby_hook_backend)
 set_target_properties(NimbyRailsFranceSDK PROPERTIES PREFIX "" EXPORT_NAME SDK)
+add_executable(NimbyRailsFranceModHost src/platform/windows/mod_host_main.cpp)
+target_link_libraries(NimbyRailsFranceModHost PRIVATE NimbyRailsFranceSDK nimby_build)
+if(MINGW)
+    target_link_options(NimbyRailsFranceModHost PRIVATE -municode -static-libgcc -static-libstdc++)
+endif()
+install(TARGETS NimbyRailsFranceModHost RUNTIME DESTINATION bin)
 # NimbyRailsFranceSDK::SDK is reserved for the installed package consumed by examples.
 if(MINGW)
     # Exceptions stay inside the C ABI. GCC/C++ runtimes are embedded;
@@ -73,7 +85,7 @@ endif()
 add_dependencies(NimbyRailsFranceLoader NimbyRailsFranceSDK)
 add_library(NimbyRailsFranceClockBridge SHARED src/platform/windows/runtime/clock_bridge.cpp src/platform/windows/engine/binary_identity.cpp src/engine/network.cpp src/engine/trains.cpp src/engine/signal_texture_states.cpp src/engine/live_state.cpp)
 if(MINGW)
-    add_library(NimbyRailsFranceTextureBridge SHARED src/platform/windows/runtime/texture_bridge.cpp src/platform/windows/engine/binary_identity.cpp)
+    add_library(NimbyRailsFranceTextureBridge SHARED src/platform/windows/runtime/texture_bridge.cpp src/platform/windows/engine/binary_identity.cpp src/engine/live_state.cpp)
     target_include_directories(NimbyRailsFranceTextureBridge PRIVATE include)
     target_link_libraries(NimbyRailsFranceTextureBridge PRIVATE nimby_build nimby_minhook bcrypt)
     target_link_options(NimbyRailsFranceTextureBridge PRIVATE -static-libgcc -static-libstdc++)
@@ -134,7 +146,7 @@ if(MINGW)
     target_link_options(nimby_clock_bridge_probe PRIVATE -municode)
     target_link_options(NimbyRailsFranceClockBridge PRIVATE -static-libgcc -static-libstdc++)
 endif()
-add_library(NimbyRailsProxy SHARED src/platform/windows/proxy/main.cpp src/platform/windows/proxy/SDL3.def src/platform/windows/engine/binary_identity.cpp src/loader/mods.cpp src/platform/windows/mods.cpp)
+add_library(NimbyRailsProxy SHARED src/platform/windows/proxy/main.cpp src/platform/windows/proxy/SDL3.def src/platform/windows/engine/binary_identity.cpp)
 target_include_directories(NimbyRailsProxy PRIVATE include)
 target_link_libraries(NimbyRailsProxy PRIVATE nimby_build bcrypt)
 set_target_properties(NimbyRailsProxy PROPERTIES PREFIX "" OUTPUT_NAME "SDL3"
@@ -143,11 +155,13 @@ if(MINGW)
     target_compile_options(NimbyRailsProxy PRIVATE -fno-exceptions -fno-rtti)
     target_link_options(NimbyRailsProxy PRIVATE -static-libgcc -static-libstdc++)
 endif()
-add_dependencies(NimbyRailsProxy NimbyRailsFranceSDK)
+add_dependencies(NimbyRailsProxy NimbyRailsFranceSDK NimbyRailsFranceModHost)
 add_custom_target(nimby_dropin_runtime ALL
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
     "$<TARGET_FILE:NimbyRailsFranceSDK>" "$<TARGET_FILE_DIR:NimbyRailsProxy>")
 add_dependencies(nimby_dropin_runtime NimbyRailsProxy NimbyRailsFranceSDK)
+add_custom_command(TARGET nimby_dropin_runtime POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy_if_different
+    "$<TARGET_FILE:NimbyRailsFranceModHost>" "$<TARGET_FILE_DIR:NimbyRailsProxy>")
 add_custom_command(TARGET nimby_dropin_runtime POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy_if_different
     "$<TARGET_FILE:nimby_automatic_driving_bridge>" "$<TARGET_FILE_DIR:NimbyRailsProxy>")
 if(MINGW)

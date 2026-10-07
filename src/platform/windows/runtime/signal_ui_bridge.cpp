@@ -1,3 +1,4 @@
+#include <platform/windows/bridge_installation.h>
 #include <nimby/detail/diagnostics.hpp>
 // Experimental resident renderer for the verified NIMBY Rails binary.
 // Registration does not enable a panel: a real session and a complete observed
@@ -17,11 +18,18 @@ uint64_t base{};
 bool enabled=false;
 SRWLOCK initialization=SRWLOCK_INIT;
 nimby::runtime::SignalUiEndpoint endpoint;
+class ProviderEvent final:public nimby::runtime::SignalActions::ActionWake {
+    HANDLE event_{};
+public:
+    explicit ProviderEvent(HANDLE event):event_(event){}
+    ~ProviderEvent()override{CloseHandle(event_);}
+    void notify()const noexcept override{SetEvent(event_);}
+};
 namespace preview=nimby::platform::windows::signal_preview;
 preview::ViewportDraw originalViewport{};
 // Native pointers never cross into the common registry or into mod code.
 SRWLOCK previewLock=SRWLOCK_INIT;
-uint64_t previewRoot{},previewDatabase{},previewSimulation{};
+uint64_t previewRoot{},previewDatabase{},previewSimulation{},previewPublication{};
 uint64_t selectedSignal{};
 std::chrono::steady_clock::time_point selectedUntil{};
 bool readMemory(void*,uint64_t at,void* out,size_t bytes) {
@@ -45,10 +53,11 @@ void render(uint64_t capture,uint64_t declaration) {
         }
         const auto drawn=nimby::runtime::draw_signal_settings_panels(readMemory,nullptr,base,capture,declaration,endpoint.host,presentation,textInputClock,
             language);
-        AcquireSRWLockExclusive(&previewLock);
-        selectedSignal=drawn?nimby::engine::SignalUi::editorSignal(readMemory,nullptr,capture).value_or(0):0;
-        selectedUntil=std::chrono::steady_clock::now()+std::chrono::milliseconds(250);
-        ReleaseSRWLockExclusive(&previewLock);
+        const auto selected=drawn?nimby::engine::SignalUi::editorSignal(readMemory,nullptr,capture).value_or(0):0;
+        if(TryAcquireSRWLockExclusive(&previewLock)){
+            selectedSignal=selected;selectedUntil=std::chrono::steady_clock::now()+std::chrono::milliseconds(250);
+            ReleaseSRWLockExclusive(&previewLock);
+        }
         if(presentation.takeFailedWrites())OutputDebugStringA("NIMBY SDK: signal checkbox write rejected by storage failure\n");
     }catch(...) { nimby::detail::diagnostics::exception("sdk", __func__); 
         // Never unwind a C++ exception into the game's native UI.
@@ -61,17 +70,21 @@ void renderViewport(uint64_t renderer,uint64_t camera,uint64_t scene,uint64_t co
     try {
         nimby::platform::windows::signal_preview::BorrowedFrame frame(readMemory,nullptr);
         std::optional<nimby::runtime::SignalActions::Preview> value;
-        uint64_t expectedRoot{},expectedDatabase{},expectedSimulation{};
+        uint64_t expectedRoot{},expectedDatabase{},expectedSimulation{},expectedPublication{},selected{};
         {
-            AcquireSRWLockShared(&previewLock);
+            if(!TryAcquireSRWLockShared(&previewLock))return;
             struct Unlock{~Unlock(){ReleaseSRWLockShared(&previewLock);}} unlock;
             if(std::chrono::steady_clock::now()>=selectedUntil)return;
-            value=endpoint.host.actions->preview(selectedSignal);
+            selected=selectedSignal;expectedPublication=previewPublication;
             expectedRoot=previewRoot;expectedDatabase=previewDatabase;expectedSimulation=previewSimulation;
         }
+        value=endpoint.host.actions->preview(selected);
         struct Trace {uint64_t root{},source{};size_t requested{},submitted{};};
         thread_local Trace last;
-        if(!value){last={};return;}
+        // Publication retries run outside previewLock. A serial binds the
+        // borrowed native roots to the exact owned drawing; a racing commit
+        // skips this frame instead of mixing worlds or waiting in the renderer.
+        if(!value||value->publication!=expectedPublication){last={};return;}
         uint64_t root{},db{},simulation{},drawDb{},rules{},routes{};
         const auto databaseRef=context+0x428,schedule=context+0x890;
         if(!frame.get(base+0xb81998,root)||root!=expectedRoot||!root||!frame.get(root+0x540,db)||db!=expectedDatabase||
@@ -99,12 +112,26 @@ void renderViewport(uint64_t renderer,uint64_t camera,uint64_t scene,uint64_t co
 UI_EXPORT NimbyUi_NumberSettingsV1(uint64_t owner,const NimbyUiNumberSettingV1* fields,uint32_t count) noexcept {return endpoint.numbers(owner,fields,count);}
 UI_EXPORT NimbyUi_SettingsCopyBeginV1(uint64_t source,uint64_t* token) noexcept {return endpoint.beginCopy(source,token);}
 UI_EXPORT NimbyUi_SettingsCopyFinishV1(uint64_t token,const uint64_t* ids,uint32_t count) noexcept {return endpoint.finishCopy(token,ids,count);}
+UI_EXPORT NimbyUi_SettingsRevisionV1(uint64_t owner,uint64_t session,uint64_t* revision) noexcept {return endpoint.settingsRevision(owner,session,revision);}
 UI_EXPORT NimbyUi_RegisterV1(const NimbyUiPanelV1* panel,uint64_t* owner) noexcept {return endpoint.add(panel,owner);}
 UI_EXPORT NimbyUi_TranslationsV1(uint32_t kind,uint64_t token,const char* json,uint32_t bytes) noexcept {return endpoint.translations(kind,token,json,bytes);}
 UI_EXPORT NimbyUi_RemoveV1(uint64_t owner) noexcept {return endpoint.remove(owner);}
 UI_EXPORT NimbyUi_ActionsV1(uint64_t owner,const NimbyUiActionV1* actions,uint32_t count) noexcept {return endpoint.actions(owner,actions,count);}
 UI_EXPORT NimbyUi_PanelContextV1(uint64_t owner,uint64_t session,uint64_t generation) noexcept {return endpoint.panelContext(owner,session,generation);}
 UI_EXPORT NimbyUi_ProviderAddV1(const NimbyUiProviderV1* provider,uint64_t* token) noexcept {return endpoint.addProvider(provider,token);}
+// Called only by the resident broker for its freshly-created provider. The
+// child facade deliberately exposes no way to bind a handle in this process.
+UI_EXPORT NimbyUi_ProviderWakeV1(uint64_t token,uint64_t parentEvent) noexcept {
+    if(!token||!parentEvent)return NIMBY_INVALID_ARGUMENT;
+    if(reinterpret_cast<HANDLE>(parentEvent)==INVALID_HANDLE_VALUE)return NIMBY_INVALID_HANDLE;
+    HANDLE duplicate{};
+    if(!DuplicateHandle(GetCurrentProcess(),reinterpret_cast<HANDLE>(parentEvent),GetCurrentProcess(),
+            &duplicate,EVENT_MODIFY_STATE,FALSE,0))return NIMBY_INVALID_HANDLE;
+    try {
+        auto wake=std::make_shared<ProviderEvent>(duplicate);duplicate=nullptr;
+        return endpoint.providerWake(token,std::move(wake));
+    }catch(...){if(duplicate)CloseHandle(duplicate);return NIMBY_INTERNAL_ERROR;}
+}
 UI_EXPORT NimbyUi_ProviderRemoveV1(uint64_t token) noexcept {return endpoint.removeProvider(token);}
 UI_EXPORT NimbyUi_ProviderObserveV1(uint64_t token,const char* world,uint32_t length,uint64_t generation) noexcept {return endpoint.observeProvider(token,world,length,generation);}
 UI_EXPORT NimbyUi_ProviderSuspendV1(uint64_t token) noexcept {return endpoint.suspendProvider(token);}
@@ -115,13 +142,18 @@ UI_EXPORT NimbyUi_ToolPanelPublishV1(uint64_t provider,const NimbyUiToolPanelV1*
 UI_EXPORT NimbyUi_ToolPanelPublishV2(uint64_t provider,const NimbyUiToolPanelV2* panel) noexcept {return endpoint.publishToolPanelV2(provider,panel);}
 UI_EXPORT NimbyUi_SignalPreviewPublishV1(uint64_t provider,const NimbyUiSignalPreviewV1* value) noexcept {
     if(!enabled||!originalViewport)return NIMBY_HOOKS_UNAVAILABLE;
-    AcquireSRWLockExclusive(&previewLock);
-    struct Unlock{~Unlock(){ReleaseSRWLockExclusive(&previewLock);}} unlock;
     preview::BorrowedFrame frame(readMemory,nullptr);
     uint64_t root{},db{},sim{};
     if(value&&value->count&&(!frame.get(base+0xb81998,root)||!root||!frame.get(root+0x540,db)||!db||!frame.get(root+0x680,sim)||!sim))return NIMBY_DATA_UNAVAILABLE;
-    const auto result=endpoint.publishPreview(provider,value);
-    if(result==NIMBY_OK&&value&&value->count){previewRoot=root;previewDatabase=db;previewSimulation=sim;}
+    uint64_t publication{};
+    const auto result=endpoint.publishPreview(provider,value,&publication);
+    if(result==NIMBY_OK&&value&&value->count){
+        AcquireSRWLockExclusive(&previewLock);
+        // Only assignments occur under this lock. Out-of-order RPC completion
+        // cannot replace the roots of a newer publication with older roots.
+        if(publication>previewPublication){previewRoot=root;previewDatabase=db;previewSimulation=sim;previewPublication=publication;}
+        ReleaseSRWLockExclusive(&previewLock);
+    }
     return result;
 }
 UI_EXPORT NimbyUi_ConditionalVisibilityV1(uint64_t owner,uint64_t mask) noexcept {return endpoint.conditionalVisibility(owner,mask);}
@@ -129,11 +161,14 @@ UI_EXPORT NimbyUi_BeginV1(uint64_t owner,const char* identity,uint32_t length,ui
 UI_EXPORT NimbyUi_ObserveV1(uint64_t owner,uint64_t session,const NimbyUiSignalV1* signals,uint32_t count) noexcept {return endpoint.observe(owner,session,signals,count);}
 UI_EXPORT NimbyUi_SuspendV1(uint64_t owner) noexcept {return endpoint.suspend(owner);}
 UI_EXPORT NimbyUi_ReadV1(uint64_t owner,uint64_t signal,NimbyUiValuesV1* values) noexcept {return endpoint.read(owner,signal,values);}
+UI_EXPORT NimbyUi_ReadBatchV1(uint64_t owner,const uint64_t* signals,uint32_t count,NimbyUiReadBatchHeaderV1* header,NimbyUiReadBatchRowV1* rows) noexcept {return endpoint.readBatch(owner,signals,count,header,rows);}
 UI_EXPORT NimbyUi_ExportV1(uint64_t owner,uint64_t session,char* bytes,uint32_t capacity,uint32_t* written) noexcept {return endpoint.exportSettings(owner,session,bytes,capacity,written);}
 UI_EXPORT NimbyUi_BeginSavedV1(uint64_t owner,const char* identity,uint32_t identityLength,const char* bytes,uint32_t length,uint64_t* session) noexcept {return endpoint.beginSaved(owner,identity,identityLength,bytes,length,session);}
 
 extern "C" __declspec(dllexport) DWORD WINAPI NimbyInternal_Bootstrap(void* argument) noexcept {
     if(argument)return NIMBY_INVALID_ARGUMENT;
+    nimby::platform::windows::BridgeInstallation installation;
+    if(!installation)return installation.status();
     AcquireSRWLockExclusive(&initialization);
     struct Unlock{~Unlock(){ReleaseSRWLockExclusive(&initialization);}} unlock;
     if(enabled)return NIMBY_ALREADY_INITIALIZED;

@@ -64,7 +64,11 @@ void startObservations(const nimby::Mod& mod) {
     // This client is worker-owned. Opening the current PID performs the SDK's
     // binary identity checks; never discover/attach another game from a DLL host.
     auto connection = std::make_shared<std::unique_ptr<nimby::detail::ObservationSession>>();
-    observations().start([connection, mod, observe=mod.observe, panel=mod.signalSettings, scope=mod.observationScope, textureSet=mod.observationTextureSet] {
+    // Tools already use Session scope and capture their requested network on
+    // demand. Wake only that lightweight loop; signal loops retain their own
+    // cadence. No Mod layout or Kotlin declaration change is needed.
+    nimby::detail::ObservationLoopAccess::start(observations(),[connection, mod, observe=mod.observe, panel=mod.signalSettings, scope=mod.observationScope, textureSet=mod.observationTextureSet] {
+        nimby::detail::platform::ModWork work;
         connectSettings(panel,mod.translationsJson);
         connectServices(mod);
         if (!*connection) connection->reset(new nimby::detail::ObservationSession(currentProcessId()));
@@ -90,12 +94,13 @@ void startObservations(const nimby::Mod& mod) {
             }
         }
     }, [lost=mod.observationLost] {
+        nimby::detail::platform::ModWork work;
         nimby::detail::signalSettingsStore().suspendObservations();
         settingsBridge().suspend();
         for(auto& panel:additionalPanels())panel.client->suspend();
         services().suspend();
         if(lost)lost();
-    }, nimby::Milliseconds{mod.observationIntervalMs});
+    }, nimby::Milliseconds{mod.observationIntervalMs},mod.observationScope==nimby::SnapshotScope::Session);
 }
 void releaseReader() {
     std::lock_guard guard(readerMutex);
@@ -161,6 +166,7 @@ nimby::BlockReader nimby::readBlocks() {
     }
 }
 
+NRF_MOD_EXPORT NRFMod_HostProtocolV1(void*) noexcept { return 1; }
 NRF_MOD_EXPORT NRFMod_StartV1(void* reserved) noexcept {
     if (reserved) return NIMBY_INVALID_ARGUMENT;
     Guard guard(true);

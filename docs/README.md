@@ -6,7 +6,7 @@ dans le [dépôt wiki](https://github.com/NimbyRails-France/wiki), pour le site
 le client `Nimby.connect`, les exemples et la référence Kotlin synchronisée.
 Ce dossier conserve les contrats internes, rapports et notes de maintenance.
 
-Documentation de la branche **0.8.0**, pour Windows x64. Les guides décrivent
+Documentation de la branche **0.9.0-alpha.1**, pour Windows x64. Les guides décrivent
 les contrats du code de cette branche ; ils ne constituent pas une annonce
 de publication.
 
@@ -28,8 +28,11 @@ de publication.
 Suivre le [parcours Kotlin/JVM du wiki](https://wiki.nimbyrails-france.fr/lire/connexion). Le client public C++ et ses exemples ont été retirés.
 Les références C++ restantes documentent les composants internes du SDK.
 
-La [construction expérimentale](construction.md) est disponible uniquement dans
-un kit de qualification séparé ; elle n’est pas distribuée par le Hub.
+La [construction expérimentale](construction.md) fait partie des builds alpha
+Windows concernés et des kits locaux du Hub développeur. Les API Kotlin
+permettent de préparer, poser, consulter le résultat et annuler une série en
+solo. Les limites de qualification restent décrites dans son contrat ; cela
+ne vaut pas annonce de publication ni validation du multijoueur.
 
 ## Références par domaine
 
@@ -61,7 +64,8 @@ pas le contrat public, et leurs résultats ne valident pas une nouvelle version.
 
 La [recherche sur la construction des signaux](research/signal-construction.md)
 suit les commandes natives, leur résultat et l'annulation pour le projet de
-pose Kotlin. Cette capacité n'est pas encore disponible dans l'API.
+pose Kotlin. Ce rapport historique complète le contrat public actuel ; les
+adresses et protocoles internes ne sont pas nécessaires à un mod outil.
 
 - [Commandes de recette SDK + mod](recipe-commands.md) : controle temporaire, contraintes par train, horloge et contrats de validation.
 

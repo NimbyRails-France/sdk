@@ -11,6 +11,7 @@ struct Mailbox {
     uint64_t request_signal=0, request_hash=0, request_expiry=0;
     uint64_t request_database=0, request_simulation=0, active_count=0, result_expiry=0;
     uint32_t request_index=0, request_alternate_index=0, request_half_period_ms=0;
+    uint64_t request_generation=0,result_generation=0;
 };
 // Called with exclusive ownership of the table. No game memory is modified.
 inline uint32_t execute(Mailbox& shared,Table& commands,uint64_t now) noexcept {
@@ -20,6 +21,9 @@ inline uint32_t execute(Mailbox& shared,Table& commands,uint64_t now) noexcept {
                             shared.expected_simulation==shared.request_simulation;
             const auto id=shared.request_signal;
             if(shared.operation==1){
+                const auto at=commands.lower(id);
+                if(same&&at<commands.count()&&commands.entries[at].signal==id&&commands.entries[at].owner&&commands.entries[at].expires>now)
+                    return NIMBY_RESOURCE_LIMIT;
                 if(shared.request_half_period_ms && (shared.request_half_period_ms<100 || shared.request_half_period_ms>10000))
                     return NIMBY_INVALID_ARGUMENT;
                 const nimby::texture_bridge::Command command{id,shared.request_hash,shared.request_expiry,
@@ -30,6 +34,8 @@ inline uint32_t execute(Mailbox& shared,Table& commands,uint64_t now) noexcept {
                 shared.expected_simulation=shared.request_simulation;
                 shared.signal=id;shared.expires=command.expires;
             }else if(shared.operation==2){
+                const auto at=commands.lower(id);
+                if(same&&at<commands.count()&&commands.entries[at].signal==id&&commands.entries[at].owner)return NIMBY_RESOURCE_LIMIT;
                 if(!same||!commands.erase(id))result=NIMBY_INVALID_ARGUMENT;
                 else {shared.signal=id;shared.expires=0;}
             }else if(shared.operation==3){

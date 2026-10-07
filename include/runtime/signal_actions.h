@@ -2,9 +2,10 @@
 #include <nimby/signal_settings_store.hpp>
 #include <algorithm>
 #include <chrono>
-#include <deque>
+#include <list>
 #include <memory>
 #include <cmath>
+#include <thread>
 #include <nimby/detail/signal_ui_bridge.h>
 
 namespace nimby::runtime {
@@ -15,6 +16,12 @@ class SignalActions {
 public:
     using Token=uint64_t;
     using Clock=std::chrono::steady_clock;
+    // Resident SDK notification only: never a mod callback. It may signal an
+    // owned OS event, but must not wait, allocate or execute worker code.
+    struct ActionWake {
+        virtual ~ActionWake()=default;
+        virtual void notify()const noexcept=0;
+    };
     struct Action {std::string id,label,provider,service;};
     struct NumberInput {std::string id,label;int32_t value=0,minimum=0,maximum=0;bool enabled=true;bool operator==(const NumberInput&)const=default;};
     // A UI intent waits for the next worker capture. Neither deadline grants
@@ -48,25 +55,77 @@ public:
         Context context;
         std::vector<NimbyUiPreviewPositionV1> positions;
         Clock::time_point expires;
+        uint64_t storeEpoch=0,publication=0;
     };
+    enum class PreviewStatus { Published, Invalid, Busy };
+    struct PreviewResult {
+        PreviewStatus status;
+        uint64_t publication=0;
+        explicit operator bool()const{return status==PreviewStatus::Published;}
+    };
+    struct PreviewRetry {
+        Clock::time_point until=Clock::now()+std::chrono::milliseconds(2);
+        unsigned remaining=4096;
+        bool operator()(){
+            if(!remaining--||Clock::now()>=until)return false;
+            std::this_thread::yield();return true;
+        }
+    };
+    struct PreviewClock {Clock::time_point operator()()const{return Clock::now();}};
 
     // A copied, expiring drawing request. Ownership and session are checked
     // both at publication and at rendering; a stopped mod cannot leave ghosts.
-    bool publishPreview(Token provider,Token panel,uint64_t signal,std::string origin,std::string service,
-            std::vector<NimbyUiPreviewPositionV1> positions,Clock::time_point now=Clock::now()) {
+    template<class Retry=PreviewRetry,class Now=PreviewClock>
+    PreviewResult publishPreview(Token provider,Token panel,uint64_t signal,std::string origin,std::string service,
+            std::vector<NimbyUiPreviewPositionV1> positions,Clock::time_point now=Clock::now(),Retry retry={},Now clock={}) {
         if(positions.size()>64)throw std::length_error("Too many preview positions");
         for(const auto& p:positions)if(p.track>>48!=1||!std::isfinite(p.fraction)||p.fraction<=0||p.fraction>=1||
             (p.direction!=1&&p.direction!=-1)||p.reserved)throw std::invalid_argument("Invalid preview position");
-        std::lock_guard lock(mutex_);
-        const auto owner=providers_.find(provider);if(owner==providers_.end())return false;
-        if(positions.empty()){if(preview_&&preview_->provider==provider)preview_.reset();return true;}
-        Preview next{provider,panel,owner->second.epoch,signal,std::move(origin),std::move(service),owner->second.context,std::move(positions),now+std::chrono::seconds(2)};
-        if(!validPreviewLocked(next,now))return false;
-        preview_=std::move(next);return true;
+        const auto started=clock();
+        std::optional<Preview> next;
+        uint64_t requestRevision=0;
+        for(;;){
+            {
+                std::unique_lock lock(mutex_,std::try_to_lock);
+                // Without the first registry snapshot we have no owner epoch
+                // or cancellation ticket. Defer to a fresh worker tick rather
+                // than crossing an unseen clear/suspend while trying to enter.
+                if(!lock&&!next)return {PreviewStatus::Busy};
+                if(lock){
+                    const auto owner=providers_.find(provider);
+                    if(owner==providers_.end())return {PreviewStatus::Invalid};
+                    if(!next){
+                        if(positions.empty()){
+                            ++owner->second.previewRevision;
+                            if(preview_&&preview_->provider==provider)preview_.reset();
+                            return {PreviewStatus::Published};
+                        }
+                        const auto consumer=panels_.find(panel);
+                        if(consumer==panels_.end())return {PreviewStatus::Invalid};
+                        next=Preview{provider,panel,owner->second.epoch,signal,std::move(origin),std::move(service),owner->second.context,
+                            std::move(positions),now+std::chrono::seconds(2),consumer->second.store->observationEpoch(),0};
+                        requestRevision=owner->second.previewRevision;
+                    }
+                    // A retry retains its original owner/session and expiry.
+                    // Suspension, deletion/readdition or a new session cannot
+                    // turn a previously pending drawing into a fresh request.
+                    if(requestRevision!=owner->second.previewRevision)return {PreviewStatus::Invalid};
+                    const auto state=previewStateLocked(*next,now+(clock()-started));
+                    if(state==SignalSettingsStore::SignalState::Unknown)return {PreviewStatus::Invalid};
+                    if(state==SignalSettingsStore::SignalState::Known){
+                        ++owner->second.previewRevision;next->publication=++serial_;const auto publication=next->publication;
+                        preview_=std::move(*next);return {PreviewStatus::Published,publication};
+                    }
+                }
+            }
+            // Never hold the action/store/render lock while waiting. Both a
+            // wall-clock budget and an attempt cap bound worker-side retries.
+            if(!retry())return {PreviewStatus::Busy};
+        }
     }
     std::optional<Preview> preview(uint64_t selectedSignal,Clock::time_point now=Clock::now())const {
-        std::lock_guard lock(mutex_);
-        if(!preview_||preview_->signal!=selectedSignal||!validPreviewLocked(*preview_,now))return {};
+        std::unique_lock lock(mutex_,std::try_to_lock);
+        if(!lock||!preview_||preview_->signal!=selectedSignal||previewStateLocked(*preview_,now)!=SignalSettingsStore::SignalState::Known)return {};
         const auto& owner=providers_.at(preview_->provider);
         const auto panel=owner.panels.find({preview_->panel,preview_->signal});
         if(panel!=owner.panels.end()&&panel->second.edited)return {};
@@ -78,13 +137,33 @@ public:
         std::set<std::string> unique;
         for(const auto& service:services){checkText(service);if(!unique.insert(service).second)throw std::invalid_argument("Duplicate service");}
         std::lock_guard lock(mutex_);
-        if(providers_.size()>=64)throw std::length_error("Too many mod providers");
+        if(providers_.size()>=512)throw std::length_error("Too many mod providers");
         for(const auto& [token,p]:providers_)if(p.id==id)throw std::invalid_argument("Mod provider already loaded");
         const auto token=++serial_;
         providers_.emplace(token,Provider{std::move(id),std::move(unique),{},{},1,{},{}});return token;
     }
     bool hasProvider(Token token)const{std::lock_guard lock(mutex_);return providers_.contains(token);}
-    bool removeProvider(Token token){std::lock_guard lock(mutex_);if(preview_&&preview_->provider==token)preview_.reset();return providers_.erase(token)!=0;}
+    bool setProviderWake(Token token,std::shared_ptr<const ActionWake> wake){
+        {
+            std::lock_guard lock(mutex_);const auto p=providers_.find(token);if(p==providers_.end())return false;
+            p->second.wake.swap(wake);
+        }
+        // Replacement/removal cannot destroy an OS resource while another
+        // caller holds the registry. A queued click retains its own reference.
+        return true;
+    }
+    bool removeProvider(Token token){
+        decltype(providers_)::node_type retired;
+        std::optional<Preview> retiredPreview;
+        {
+            std::lock_guard lock(mutex_);
+            if(preview_&&preview_->provider==token){retiredPreview=std::move(preview_);preview_.reset();}
+            retired=providers_.extract(token);
+        }
+        // Detach ownership atomically, then release the copied presentations,
+        // events and drawing outside the registry used by every UI frame.
+        return !retired.empty();
+    }
     bool present(std::string_view id)const {
         std::lock_guard lock(mutex_);
         return std::any_of(providers_.begin(),providers_.end(),[&](const auto& p){return p.second.id==id;});
@@ -92,30 +171,58 @@ public:
     bool observeProvider(Token token,Context context,Clock::time_point now=Clock::now()) {
         if(!context)return false;
         checkText(context.world,512);
-        std::lock_guard lock(mutex_);const auto it=providers_.find(token);if(it==providers_.end())return false;
-        auto& p=it->second;
-        if(p.context!=context)p.panels.clear();
-        if(p.context!=context||now>=p.expires){++p.epoch;p.queue.clear();if(preview_&&preview_->provider==token)preview_.reset();}
-        p.context=std::move(context);p.expires=now+workerLease;return true;
+        std::map<std::pair<Token,uint64_t>,Presentation> retiredPresentations;
+        std::list<Event> retiredEvents;
+        std::optional<Preview> retiredPreview;
+        {
+            std::lock_guard lock(mutex_);const auto it=providers_.find(token);if(it==providers_.end())return false;
+            auto& p=it->second;
+            if(p.context!=context)retiredPresentations.swap(p.panels);
+            if(p.context!=context||now>=p.expires){
+                ++p.epoch;retiredEvents.splice(retiredEvents.end(),p.queue);
+                if(preview_&&preview_->provider==token){retiredPreview=std::move(preview_);preview_.reset();}
+            }
+            p.context=std::move(context);p.expires=now+workerLease;
+        }
+        return true;
     }
     bool suspendProvider(Token token) {
-        std::lock_guard lock(mutex_);const auto it=providers_.find(token);if(it==providers_.end())return false;
-        // Retain presentation, including an explicitly closed menu. Suspension
-        // revokes commands; it must not recreate the initial Repeat button.
-        it->second.expires={};it->second.queue.clear();++it->second.epoch;
-        if(preview_&&preview_->provider==token)preview_.reset();
+        std::list<Event> retiredEvents;
+        std::optional<Preview> retiredPreview;
+        {
+            std::lock_guard lock(mutex_);const auto it=providers_.find(token);if(it==providers_.end())return false;
+            // Retain presentation, including an explicitly closed menu. Suspension
+            // revokes commands; it must not recreate the initial Repeat button.
+            it->second.expires={};++it->second.epoch;
+            retiredEvents.splice(retiredEvents.end(),it->second.queue);
+            if(preview_&&preview_->provider==token){retiredPreview=std::move(preview_);preview_.reset();}
+        }
         return true;
     }
     void addPanel(Token owner,std::shared_ptr<SignalSettingsStore> store) {
         std::lock_guard lock(mutex_);panels_.emplace(owner,Panel{std::move(store),{}, {}});
     }
     void removePanel(Token owner){
-        std::lock_guard lock(mutex_);panels_.erase(owner);
-        if(preview_&&preview_->panel==owner)preview_.reset();
-        for(auto& [token,p]:providers_){
-            std::erase_if(p.panels,[&](const auto& item){return item.first.first==owner;});
-            std::erase_if(p.queue,[&](const auto& e){return e.selection.panel==owner;});
+        decltype(panels_)::node_type retiredPanel;
+        std::multimap<std::pair<Token,uint64_t>,Presentation> retiredPresentations;
+        std::list<Event> retiredEvents;
+        std::optional<Preview> retiredPreview;
+        {
+            std::lock_guard lock(mutex_);retiredPanel=panels_.extract(owner);
+            if(preview_&&preview_->panel==owner){retiredPreview=std::move(preview_);preview_.reset();}
+            for(auto& [token,p]:providers_){
+                for(auto i=p.panels.begin();i!=p.panels.end();){
+                    if(i->first.first==owner)retiredPresentations.insert(p.panels.extract(i++));
+                    else ++i;
+                }
+                for(auto i=p.queue.begin();i!=p.queue.end();){
+                    if(i->selection.panel==owner){auto retired=i++;retiredEvents.splice(retiredEvents.end(),p.queue,retired);}
+                    else ++i;
+                }
+            }
         }
+        // Node transfers allocate nothing after revocation and keep every
+        // other panel's event order. Release owned data after unlocking.
     }
     bool configure(Token owner,std::vector<Action> actions) {
         if(actions.size()>16)throw std::length_error("Too many signal actions");
@@ -195,20 +302,28 @@ public:
         std::lock_guard lock(mutex_);return validLocked(s,now);
     }
     bool click(const Selection& s,Clock::time_point now=Clock::now()) {
-        std::lock_guard lock(mutex_);if(s.input||!validLocked(s,now))return false;
-        auto& queue=providers_.at(s.provider).queue;
-        if(queue.size()>=64)return false;
-        // Double clicks before consumption are one intent. Construction itself
-        // still needs its own prepare/commit ticket and never auto-retries.
-        if(std::any_of(queue.begin(),queue.end(),[&](const auto& e){const auto& v=e.selection;
-            return v.panel==s.panel&&v.editor==s.editor&&v.action.id==s.action.id;}))return false;
-        queue.push_back({++serial_,s,now+intentLifetime});return true;
+        std::shared_ptr<const ActionWake> wake;
+        {
+            std::lock_guard lock(mutex_);if(s.input||!validLocked(s,now))return false;
+            auto& provider=providers_.at(s.provider);auto& queue=provider.queue;
+            if(queue.size()>=64)return false;
+            // Double clicks before consumption are one intent. Construction itself
+            // still needs its own prepare/commit ticket and never auto-retries.
+            if(std::any_of(queue.begin(),queue.end(),[&](const auto& e){const auto& v=e.selection;
+                return v.panel==s.panel&&v.editor==s.editor&&v.action.id==s.action.id;}))return false;
+            queue.push_back({++serial_,s,now+intentLifetime});wake=provider.wake;
+        }
+        // Removal may retire this provider now. The owned event remains valid;
+        // at worst its former worker wakes to an empty, revalidated queue.
+        if(wake)wake->notify();
+        return true;
     }
     // An edit blocks action buttons immediately, including later rows in the
     // same UI frame. Only the worker's next publication can enable them again.
     bool beginNumberEdit(const Selection& s,Clock::time_point now=Clock::now()) {
         std::lock_guard lock(mutex_);if(!s.input||!validLocked(s,now))return false;
         auto& provider=providers_.at(s.provider);
+        ++provider.previewRevision;
         provider.panels.at({s.panel,s.editor.signal}).edited=true;
         if(preview_&&preview_->provider==s.provider)preview_.reset();
         // An empty draft has no integer event. Still cancel an earlier command
@@ -218,17 +333,23 @@ public:
         return true;
     }
     bool editNumber(const Selection& s,int32_t value,Clock::time_point now=Clock::now()) {
-        std::lock_guard lock(mutex_);if(!s.input||!validLocked(s,now))return false;
-        auto& provider=providers_.at(s.provider);auto& panel=provider.panels.at({s.panel,s.editor.signal});
-        auto input=std::find_if(panel.inputs.begin(),panel.inputs.end(),[&](const auto& n){return n.id==s.action.id;});
-        if(input==panel.inputs.end()||value<input->minimum||value>input->maximum)return false;
-        auto pending=std::find_if(provider.queue.begin(),provider.queue.end(),[&](const auto& e){const auto& v=e.selection;
-            return v.input&&v.panel==s.panel&&v.editor==s.editor&&v.action.id==s.action.id;});
-        if(pending==provider.queue.end()&&provider.queue.size()>=64)return false;
-        input->value=value;panel.edited=true;auto changed=s;changed.value=value;
-        if(preview_&&preview_->provider==s.provider)preview_.reset();
-        if(pending!=provider.queue.end()){pending->selection=std::move(changed);pending->expires=now+intentLifetime;}
-        else provider.queue.push_back({++serial_,std::move(changed),now+intentLifetime});
+        std::shared_ptr<const ActionWake> wake;
+        {
+            std::lock_guard lock(mutex_);if(!s.input||!validLocked(s,now))return false;
+            auto& provider=providers_.at(s.provider);auto& panel=provider.panels.at({s.panel,s.editor.signal});
+            auto input=std::find_if(panel.inputs.begin(),panel.inputs.end(),[&](const auto& n){return n.id==s.action.id;});
+            if(input==panel.inputs.end()||value<input->minimum||value>input->maximum)return false;
+            auto pending=std::find_if(provider.queue.begin(),provider.queue.end(),[&](const auto& e){const auto& v=e.selection;
+                return v.input&&v.panel==s.panel&&v.editor==s.editor&&v.action.id==s.action.id;});
+            if(pending==provider.queue.end()&&provider.queue.size()>=64)return false;
+            input->value=value;panel.edited=true;auto changed=s;changed.value=value;
+            ++provider.previewRevision;
+            if(preview_&&preview_->provider==s.provider)preview_.reset();
+            if(pending!=provider.queue.end()){pending->selection=std::move(changed);pending->expires=now+intentLifetime;}
+            else provider.queue.push_back({++serial_,std::move(changed),now+intentLifetime});
+            wake=provider.wake;
+        }
+        if(wake)wake->notify();
         return true;
     }
     std::optional<Event> poll(Token provider,Clock::time_point now=Clock::now()) {
@@ -241,15 +362,19 @@ public:
         return {};
     }
 private:
-    struct Provider {std::string id;std::set<std::string> services;Context context;Clock::time_point expires;Token epoch;std::deque<Event> queue;std::map<std::pair<Token,uint64_t>,Presentation> panels;};
+    // One list node per user intent, never per frame/tick. Splicing lets a
+    // panel retire its queued intents without allocating during cleanup.
+    struct Provider {std::string id;std::set<std::string> services;Context context;Clock::time_point expires;Token epoch;std::list<Event> queue;std::map<std::pair<Token,uint64_t>,Presentation> panels;uint64_t previewRevision=0;std::shared_ptr<const ActionWake> wake{};};
     struct Panel {std::shared_ptr<SignalSettingsStore> store;Context context;std::vector<Action> actions;bool active=false;};
-    bool validPreviewLocked(const Preview& preview,Clock::time_point now)const {
+    SignalSettingsStore::SignalState previewStateLocked(const Preview& preview,Clock::time_point now)const {
+        using State=SignalSettingsStore::SignalState;
         const auto p=providers_.find(preview.provider);const auto panel=panels_.find(preview.panel);
         if(p==providers_.end()||panel==panels_.end()||!panel->second.active||!preview.context||p->second.epoch!=preview.epoch||
             now>=preview.expires||now>=p->second.expires||p->second.context!=preview.context||panel->second.context!=preview.context||
-            !p->second.services.contains(preview.service)||panel->second.store->read(preview.signal).status!=SettingsStatus::Present)return false;
-        return std::any_of(panel->second.actions.begin(),panel->second.actions.end(),[&](const auto& a){
-            return a.id==preview.origin&&a.service==preview.service&&a.provider==p->second.id;});
+            !p->second.services.contains(preview.service))return State::Unknown;
+        if(!std::any_of(panel->second.actions.begin(),panel->second.actions.end(),[&](const auto& a){
+            return a.id==preview.origin&&a.service==preview.service&&a.provider==p->second.id;}))return State::Unknown;
+        return panel->second.store->signalState(preview.signal,true,preview.context.world,preview.storeEpoch);
     }
     bool validLocked(const Selection& s,Clock::time_point now)const {
         const auto p=providers_.find(s.provider);const auto panel=panels_.find(s.panel);

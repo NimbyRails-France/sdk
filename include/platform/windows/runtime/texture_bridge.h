@@ -5,7 +5,7 @@
 #include "runtime/texture_table.h"
 #include <algorithm>
 namespace nimby::texture_bridge {
-constexpr uint32_t version=4;
+constexpr uint32_t version=5;
 constexpr auto filename=L"NimbyRailsFranceTextureBridge-experimental-v4.dll";
 struct alignas(8) Shared {
     uint32_t protocol=version,size=sizeof(Shared);
@@ -21,7 +21,8 @@ struct alignas(8) Shared {
     uint64_t request_database=0,request_simulation=0,active_count=0,result_expiry=0;
     uint32_t request_index=0;
     uint32_t request_alternate_index=0, request_half_period_ms=0;
+    uint64_t request_generation=0,result_generation=0;
 
 };
-inline std::wstring name(DWORD pid){return L"Local\\NimbyRailsFranceSDK.TexturePreview.v4."+std::to_wstring(pid);}
+inline std::wstring name(DWORD pid){return L"Local\\NimbyRailsFranceSDK.TexturePreview.v5."+std::to_wstring(pid);}
 }

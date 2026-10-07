@@ -29,7 +29,7 @@ $constructionStage = Join-Path $gameRoot 'NimbyConstructionBridge.NimbySDK.tmp'
 $manifestStage = Join-Path $gameRoot 'NimbyRailsFranceSDK-install.tmp'
 # Optional for older archives, included by current SDK packages. The manifest
 # may name only these exact files; ownership still requires their recorded hash.
-$extraNames = @('NimbyRailsFranceClockBridge-0.7.1.dll', 'NimbyModMetadataBridge-v1.dll')
+$extraNames = @('NimbyRailsFranceClockBridge-0.7.1.dll', 'NimbyModMetadataBridge-v1.dll', 'NimbyRailsFranceModHost.exe')
 $extraBridges = @($extraNames | ForEach-Object { @{
     name=$_; path=(Join-Path $gameRoot $_); stage=(Join-Path $gameRoot ($_+'.NimbySDK.tmp')); hash=$null; copied=$false
 } })
@@ -200,6 +200,7 @@ foreach($extra in $extraBridges) {
 foreach($extra in $extraBridges) {
     $extra.source=Join-Path $sourceRoot $extra.name
     if(Test-Path -LiteralPath $extra.source) { $extra.hash=Hash $extra.source }
+    elseif($extra.name -eq 'NimbyRailsFranceModHost.exe') { throw 'SDK package incomplete: isolated mod host is missing' }
 }
 $proxySource = Join-Path $sourceRoot 'SDL3.dll'
 $sdkSource = Join-Path $sourceRoot 'NimbyRailsFranceSDK.dll'

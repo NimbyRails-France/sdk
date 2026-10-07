@@ -3,6 +3,7 @@
 #include <nimby/detail/diagnostics.hpp>
 #include <nimby/detail/translations.hpp>
 #include <platform/windows/game_language.h>
+#include <platform/windows/runtime/mod_host_client.h>
 #include <nimby/detail/observation_values.hpp>
 #include <charconv>
 #include <cstring>
@@ -10,6 +11,7 @@
 #include <mutex>
 #include <thread>
 #include <optional>
+#include <algorithm>
 
 namespace nimby::platform::windows {
 // Windows-owned tool forms. The UI thread never calls Kotlin or reads/writes
@@ -26,14 +28,19 @@ public:
     }
     ~ToolWindows(){stop();}
     void observe(const GameSession& game) {
+        bool changed=false;
         {std::lock_guard lock(mutex_);
-            if(!game_||*game_!=game){game_=game;events_.clear();for(auto& s:states_){s.sequence=++sequence_;s.ready=false;s.content={};++s.revision;}}
+            if(!game_||*game_!=game){changed=true;game_=game;events_.clear();for(auto& s:states_){s.sequence=++sequence_;s.ready=false;s.content={};++s.revision;}}
             observed_=GetTickCount64();
         }
         if(!thread_.joinable())thread_=std::jthread([this](std::stop_token stop){run(stop);});
+        if(changed)uiWake_.signal();
     }
-    void invalidate(){std::lock_guard lock(mutex_);game_.reset();events_.clear();for(auto& s:states_){s.ready=false;++s.revision;}}
-    void stop(){if(thread_.joinable()){thread_.request_stop();thread_.join();}}
+    void invalidate(){
+        {std::lock_guard lock(mutex_);game_.reset();events_.clear();for(auto& s:states_){s.ready=false;++s.revision;}}
+        uiWake_.signal();
+    }
+    void stop(){if(thread_.joinable()){thread_.request_stop();uiWake_.signal();thread_.join();}}
     std::optional<Event> poll(){
         std::lock_guard lock(mutex_);
         while(!events_.empty()){
@@ -44,26 +51,56 @@ public:
         return {};
     }
     bool publish(std::string_view id,uint64_t sequence,const GameSession& game,Content content) {
-        std::lock_guard lock(mutex_);
-        if(!game_||*game_!=game)return false;
-        for(size_t i=0;i<definitions_.size();++i)if(definitions_[i].id==id){auto& s=states_[i];
-            if(s.sequence!=sequence)return false;
-            s.content=std::move(content);s.ready=true;++s.revision;return true;}
-        return false;
+        bool published=false;
+        {
+            std::lock_guard lock(mutex_);
+            if(!game_||*game_!=game)return false;
+            for(size_t i=0;i<definitions_.size();++i)if(definitions_[i].id==id){auto& s=states_[i];
+                if(s.sequence!=sequence)return false;
+                s.content=std::move(content);s.ready=true;++s.revision;published=true;break;}
+        }
+        if(published)uiWake_.signal();
+        return published;
     }
 private:
     friend struct ToolWindowsTest;
+    struct UiWake {
+        HANDLE event=CreateEventW(nullptr,FALSE,FALSE,nullptr);
+        ~UiWake(){if(event)CloseHandle(event);}
+        void signal()const noexcept {if(event)SetEvent(event);}
+    } uiWake_;
     struct State {Content content;uint64_t sequence{},revision{};bool ready=false;};
     struct View {ToolWindows* owner{};size_t index{};HWND window{},message{};std::vector<HWND> children,inputs,labels,buttons;uint64_t revision=~uint64_t{},sequence{};Content content;std::string language;int scroll{},contentHeight{};};
     std::vector<Definition> definitions_;std::vector<State> states_;std::vector<View> views_;
     std::optional<detail::Translations> translations_;
     std::mutex mutex_;std::optional<GameSession> game_;std::deque<Event> events_;
     uint64_t sequence_=0,observed_=0;std::jthread thread_;HMODULE module_{};std::wstring className_;HWND gameWindow_{};
+    DWORD gamePid_{};uint64_t languageChecked_{};std::string language_;
+    // SDK-local notifier only: never execute a Kotlin callback on the UI
+    // thread. This event belongs to this child, not another provider/process.
+    void (*wake_)() noexcept=mod_host::client::wakeLocal;
     static std::wstring wide(std::string_view text){
         const auto n=MultiByteToWideChar(CP_UTF8,MB_ERR_INVALID_CHARS,text.data(),int(text.size()),nullptr,0);
-        if(n<=0)return {};std::wstring out(size_t(n),L'\0');MultiByteToWideChar(CP_UTF8,MB_ERR_INVALID_CHARS,text.data(),int(text.size()),out.data(),n);return out;
+        if(n<=0)return {};
+        std::wstring out(size_t(n),L'\0');MultiByteToWideChar(CP_UTF8,MB_ERR_INVALID_CHARS,text.data(),int(text.size()),out.data(),n);return out;
     }
     static bool read(void*,uint64_t address,void* out,size_t size){SIZE_T got{};return ReadProcessMemory(GetCurrentProcess(),reinterpret_cast<void*>(address),out,size,&got)&&got==size;}
+    bool acceptsForeground(HWND window)const {
+        DWORD pid{};GetWindowThreadProcessId(window,&pid);
+        // Reopening the shortcut while one of this mod's forms has focus is
+        // allowed, but unrelated foreground applications never open a form.
+        return pid&&((gamePid_&&pid==gamePid_)||std::any_of(views_.begin(),views_.end(),
+            [&](const auto& view){return window==view.window||IsChild(view.window,window);}));
+    }
+    const std::string& language() {
+        const auto now=GetTickCount64();
+        if(now-languageChecked_<500)return language_;
+        languageChecked_=now;
+        const auto value=mod_host::client::target()?mod_host::client::language():
+            gameLanguage(read,nullptr,reinterpret_cast<uint64_t>(GetModuleHandleW(nullptr)));
+        if(value)language_=*value;
+        return language_;
+    }
     std::wstring translated(std::string_view text,std::string_view language){
         return wide(detail::Translations::resolve(translations_?&*translations_:nullptr,text,language));
     }
@@ -94,18 +131,25 @@ private:
         if(bounds.top<0)scrollTo(view,view.scroll+int(bounds.top)-8);
         else if(bounds.bottom>client.bottom)scrollTo(view,view.scroll+int(bounds.bottom-client.bottom)+8);
     }
+    bool enqueueOpen(size_t index){
+        {
+            std::lock_guard lock(mutex_);if(index>=states_.size()||!freshLocked())return false;
+            auto& s=states_[index];s.sequence=++sequence_;s.ready=false;s.content={};++s.revision;
+            std::erase_if(events_,[&](const auto& event){return event.index==index;});
+            events_.push_back({index,s.sequence,*game_,"open",{}});
+        }
+        wake_();
+        return true;
+    }
     void open(size_t index){
-        std::lock_guard lock(mutex_);if(!freshLocked())return;
-        auto& s=states_[index];s.sequence=++sequence_;s.ready=false;s.content={};++s.revision;
-        std::erase_if(events_,[&](const auto& event){return event.index==index;});
-        events_.push_back({index,s.sequence,*game_,"open",{}});
+        if(!enqueueOpen(index))return;
         ShowWindow(views_[index].window,SW_SHOWNORMAL);SetForegroundWindow(views_[index].window);
     }
     void update(View& view){
         State state;bool fresh;
         {std::lock_guard lock(mutex_);state=states_[view.index];fresh=freshLocked();}
         if(!fresh){ShowWindow(view.window,SW_HIDE);return;}
-        refresh(view,state,gameLanguage(read,nullptr,reinterpret_cast<uint64_t>(GetModuleHandleW(nullptr))).value_or(""));
+        refresh(view,state,language());
     }
     void refresh(View& view,const State& state,const std::string& language){
         const bool changed=view.revision!=state.revision;
@@ -150,7 +194,7 @@ private:
             y+=height+8;
         }
         view.contentHeight=y+16;
-        MONITORINFO monitor{sizeof monitor};GetMonitorInfoW(MonitorFromWindow(view.window,MONITOR_DEFAULTTONEAREST),&monitor);
+        MONITORINFO monitor{};monitor.cbSize=sizeof monitor;GetMonitorInfoW(MonitorFromWindow(view.window,MONITOR_DEFAULTTONEAREST),&monitor);
         const int height=std::min(view.contentHeight+40,std::max(120,int(monitor.rcWork.bottom-monitor.rcWork.top)-32));
         RECT position{};GetWindowRect(view.window,&position);
         const int x=std::clamp(int(position.left),int(monitor.rcWork.left),std::max(int(monitor.rcWork.left),int(monitor.rcWork.right)-552));
@@ -167,12 +211,15 @@ private:
             }
             values.emplace_back(input.id,value);
         }
-        std::lock_guard lock(mutex_);auto& s=states_[view.index];
-        if(!freshLocked()||!s.ready||s.sequence!=view.sequence||s.revision!=view.revision)return;
-        s.ready=false; // Reject repeat clicks until the worker publishes its reply.
-        s.sequence=++sequence_; // Every request has its own response token.
-        std::erase_if(events_,[&](const auto& event){return event.index==view.index;});
-        events_.push_back({view.index,s.sequence,*game_,view.content.buttons[button].id,std::move(values)});
+        {
+            std::lock_guard lock(mutex_);auto& s=states_[view.index];
+            if(!freshLocked()||!s.ready||s.sequence!=view.sequence||s.revision!=view.revision)return;
+            s.ready=false; // Reject repeat clicks until the worker publishes its reply.
+            s.sequence=++sequence_; // Every request has its own response token.
+            std::erase_if(events_,[&](const auto& event){return event.index==view.index;});
+            events_.push_back({view.index,s.sequence,*game_,view.content.buttons[button].id,std::move(values)});
+        }
+        wake_();
         for(auto b:view.buttons)EnableWindow(b,FALSE);
     }
     static LRESULT CALLBACK procedure(HWND window,UINT message,WPARAM w,LPARAM l){
@@ -183,7 +230,7 @@ private:
             if(message==WM_SIZE){scrollTo(*view,view->scroll);return 0;}
             if(message==WM_MOUSEWHEEL){scrollTo(*view,view->scroll-int(static_cast<short>(HIWORD(w)))/WHEEL_DELTA*48);return 0;}
             if(message==WM_VSCROLL){
-                SCROLLINFO info{sizeof info,SIF_ALL};GetScrollInfo(window,SB_VERT,&info);int position=view->scroll;
+                SCROLLINFO info{};info.cbSize=sizeof info;info.fMask=SIF_ALL;GetScrollInfo(window,SB_VERT,&info);int position=view->scroll;
                 switch(LOWORD(w)){case SB_LINEUP:position-=32;break;case SB_LINEDOWN:position+=32;break;
                     case SB_PAGEUP:position-=int(info.nPage);break;case SB_PAGEDOWN:position+=int(info.nPage);break;
                     case SB_THUMBTRACK:position=info.nTrackPos;break;case SB_TOP:position=0;break;case SB_BOTTOM:position=info.nMax;break;}
@@ -194,7 +241,8 @@ private:
         return DefWindowProcW(window,message,w,l);
     }
     void run(std::stop_token stop)noexcept {try{
-        EnumWindows(+[](HWND window,LPARAM arg)->BOOL{DWORD pid{};GetWindowThreadProcessId(window,&pid);if(pid==GetCurrentProcessId()&&IsWindowVisible(window)&&!GetWindow(window,GW_OWNER)){*reinterpret_cast<HWND*>(arg)=window;return FALSE;}return TRUE;},reinterpret_cast<LPARAM>(&gameWindow_));
+        gamePid_=mod_host::client::target();if(!gamePid_)gamePid_=GetCurrentProcessId();
+        EnumWindows(+[](HWND window,LPARAM arg)->BOOL{auto& tools=*reinterpret_cast<ToolWindows*>(arg);DWORD pid{};GetWindowThreadProcessId(window,&pid);if(pid==tools.gamePid_&&IsWindowVisible(window)&&!GetWindow(window,GW_OWNER)){tools.gameWindow_=window;return FALSE;}return TRUE;},reinterpret_cast<LPARAM>(this));
         if(!gameWindow_)throw std::runtime_error("Game window unavailable");
         GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS|GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,reinterpret_cast<LPCWSTR>(&procedure),&module_);
         className_=L"NRF.Tool."+std::to_wstring(reinterpret_cast<uintptr_t>(this));
@@ -211,11 +259,14 @@ private:
         }
         while(!stop.stop_requested()){
             MSG msg{};while(PeekMessageW(&msg,nullptr,0,0,PM_REMOVE)){
-                if(msg.message==WM_HOTKEY){DWORD pid{};GetWindowThreadProcessId(GetForegroundWindow(),&pid);if(pid==GetCurrentProcessId()&&msg.wParam>=1&&msg.wParam<=views_.size())open(size_t(msg.wParam-1));}
+                if(msg.message==WM_HOTKEY){if(acceptsForeground(GetForegroundWindow())&&msg.wParam>=1&&msg.wParam<=views_.size())open(size_t(msg.wParam-1));}
                 else{bool handled=false;for(auto& view:views_)if(IsWindowVisible(view.window)&&IsDialogMessageW(view.window,&msg)){showFocus(view);handled=true;break;}if(!handled){TranslateMessage(&msg);DispatchMessageW(&msg);}}
             }
             for(auto& view:views_)update(view);
-            MsgWaitForMultipleObjects(0,nullptr,FALSE,50,QS_ALLINPUT);
+            // Worker publications can repaint immediately. The same bounded
+            // timeout still checks freshness/language, and a failed event
+            // creation preserves the previous polling behavior.
+            MsgWaitForMultipleObjects(uiWake_.event?1:0,uiWake_.event?&uiWake_.event:nullptr,FALSE,50,QS_ALLINPUT);
         }
     }catch(...){detail::diagnostics::exception("mods","Tool windows");}
         for(size_t i=0;i<views_.size();++i){UnregisterHotKey(nullptr,int(i+1));if(views_[i].window)DestroyWindow(views_[i].window);}

@@ -7,20 +7,27 @@ namespace nimby::detail::diagnostics {
 // Kernel32-only sink: usable even by the SDL proxy built without exceptions.
 // Called only from normal runtime entry points, never DllMain. A named mutex
 // serializes writes/rotation across processes sharing a component/module log.
-// Waits are bounded; a diagnostic failure cannot stop or delay the game forever.
+// Contended diagnostics are dropped, never waited on by an observation worker.
 inline void write(const char* component,const char* level,const char* message) noexcept {
     const auto saved=GetLastError();
     static SRWLOCK local=SRWLOCK_INIT;
     static char previous[2048]{};
     static ULONGLONG when=0,repeated=0;
+    static ULONGLONG burstAt=0,omitted=0;
+    static unsigned burst=0;
     static volatile LONG64 concurrent=0;
     if(!TryAcquireSRWLockExclusive(&local)){InterlockedIncrement64(&concurrent);SetLastError(saved);return;}
     const auto now=GetTickCount64();
     if(!message)message="";
-    const auto length=std::strlen(message);
+    const auto length=strnlen(message,65537);
     if(length<sizeof previous&&std::strcmp(message,previous)==0&&now-when<30000) {
         ++repeated;ReleaseSRWLockExclusive(&local);SetLastError(saved);return;
     }
+    // Also bound changing exception text: alternating/unique messages must not
+    // defeat duplicate suppression and force constant disk writes/rotation.
+    if(now-burstAt>=1000){burstAt=now;burst=0;}
+    if(burst>=16){++omitted;ReleaseSRWLockExclusive(&local);SetLastError(saved);return;}
+    ++burst;
     wchar_t root[4096]{},path[4096]{},module[4096]{},part[128]{};
     HANDLE file=INVALID_HANDLE_VALUE,mutex=nullptr;bool owned=false;
     do {
@@ -46,7 +53,7 @@ inline void write(const char* component,const char* level,const char* message) n
         for(auto* c=name;*c;++c)if(!((*c>=L'a'&&*c<=L'z')||(*c>=L'A'&&*c<=L'Z')||(*c>=L'0'&&*c<=L'9')||*c==L'-'||*c==L'_'))*c=L'_';
         wchar_t key[300]=L"Local\\NRF.Diagnostics.";lstrcatW(key,part);lstrcatW(key,L".");lstrcatW(key,name);
         mutex=CreateMutexW(nullptr,FALSE,key);if(!mutex)break;
-        const auto wait=WaitForSingleObject(mutex,50);
+        const auto wait=WaitForSingleObject(mutex,0);
         if(wait!=WAIT_OBJECT_0&&wait!=WAIT_ABANDONED)break;
         owned=true;
         lstrcpyW(path,root);lstrcatW(path,L"\\");lstrcatW(path,name);lstrcatW(path,L".log");
@@ -70,6 +77,11 @@ inline void write(const char* component,const char* level,const char* message) n
             utc.wYear,utc.wMonth,utc.wDay,utc.wHour,utc.wMinute,utc.wSecond,utc.wMilliseconds,GetCurrentProcessId(),GetCurrentThreadId(),component,level);
         DWORD written{};
         const auto missed=InterlockedExchange64(&concurrent,0);
+        if(omitted) {
+            char summary[96]{};std::snprintf(summary,sizeof summary,"Diagnostic flood omitted: %llu events\r\n",omitted);
+            WriteFile(file,stamp,DWORD(std::strlen(stamp)),&written,nullptr);WriteFile(file,summary,DWORD(std::strlen(summary)),&written,nullptr);
+            omitted=0;
+        }
         if(missed) {
             char summary[96]{};std::snprintf(summary,sizeof summary,"Concurrent diagnostics omitted: %lld\r\n",missed);
             WriteFile(file,stamp,DWORD(std::strlen(stamp)),&written,nullptr);WriteFile(file,summary,DWORD(std::strlen(summary)),&written,nullptr);
@@ -84,7 +96,9 @@ inline void write(const char* component,const char* level,const char* message) n
         if(count<length)while(count&&(static_cast<unsigned char>(message[count])&0xc0)==0x80)--count;
         const bool success=WriteFile(file,message,DWORD(count),&written,nullptr)!=FALSE&&written==count;
         if(count<length)WriteFile(file," [truncated]",12,&written,nullptr);
-        WriteFile(file,"\r\n",2,&written,nullptr);FlushFileBuffers(file);
+        // Close publishes the append to other readers. Durability flushing on
+        // every exception stalls the worker on physical storage unnecessarily.
+        WriteFile(file,"\r\n",2,&written,nullptr);
         if(success){previous[0]=0;if(length<sizeof previous)std::memcpy(previous,message,length+1);when=now;repeated=0;}
     } while(false);
     if(file!=INVALID_HANDLE_VALUE)CloseHandle(file);

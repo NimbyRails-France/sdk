@@ -31,6 +31,6 @@ install(DIRECTORY docs/ DESTINATION share/doc/NimbyRailsFranceSDK
 install(FILES README.md DESTINATION .)
 add_custom_target(sdk-dev-install
     COMMAND ${CMAKE_COMMAND} --install "${CMAKE_BINARY_DIR}" --prefix "${CMAKE_INSTALL_PREFIX}"
-    DEPENDS NimbyRailsFranceSDK NimbyRailsFranceLoader
+    DEPENDS NimbyRailsFranceSDK NimbyRailsFranceLoader NimbyRailsFranceModHost
     COMMENT "Install the SDK package for independent consumers (TCO)"
     VERBATIM)

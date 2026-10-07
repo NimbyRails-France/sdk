@@ -2,6 +2,30 @@
 
 ## [Unreleased]
 
+## [0.9.0-alpha.1] - 2026-10-08
+
+- Isole mieux les mods défectueux pour limiter les perturbations sur le jeu et les autres mods lorsqu'un mod se bloque ou s'arrête.
+- Améliore la réactivité des signaux et de leur affichage, notamment dans les grandes parties et à vitesse de simulation élevée.
+- Corrige certains ralentissements de trains sans signal de mod sur leur parcours, ainsi que des consignes d'arrêt qui pouvaient persister après le franchissement d'un signal.
+- Simplifie l'accès aux données des trains et des lignes pour les créateurs de mods : horaires, estimations de retard, tags, voyageurs, composition et caractéristiques du matériel, dont la vitesse maximale.
+- Améliore la réactivité des outils de pose de signaux et de changement d'heure, ainsi que la gestion des aperçus et des actions interrompues.
+- Facilite la création d'outils grâce à des informations de parcours, de distance et de sens de circulation directement exploitables.
+- Propose une documentation française et anglaise réécrite pour le SDK 0.9, avec des guides de création de signaux et d'outils, des exemples prêts à utiliser et une référence complète des fonctionnalités disponibles.
+
+Version alpha pour Windows x64. Mettre à jour ensemble le SDK, son kit Kotlin et les mods compatibles, puis redémarrer le jeu.
+
+English:
+
+- Improves isolation of faulty mods to limit disruption to the game and other mods when a mod hangs or stops.
+- Improves signal responsiveness and visual updates, particularly in large games and at high simulation speeds.
+- Fixes some slowdowns affecting trains with no mod signal on their route, as well as stop instructions that could remain active after a train passed a signal.
+- Makes train and line data easier for mod creators to use: timetables, estimated delays, tags, passengers, composition and rolling-stock characteristics, including maximum speed.
+- Improves the responsiveness of signal placement and time-changing tools, along with the handling of previews and interrupted actions.
+- Makes tool creation easier with ready-to-use route, distance and travel-direction information.
+- Provides rewritten French and English documentation for SDK 0.9, with signal and tool creation guides, ready-to-use examples and a complete reference of available features.
+
+Windows x64 alpha. Update the SDK, its Kotlin kit and compatible mods together, then restart the game.
+
 ## [0.8.0-alpha.8] - 2026-09-29
 
 - Affiche les réglages numériques conditionnels immédiatement sous leur case d'activation, notamment le compteur de cantons sous « Vert CLI Travaux ». Conserve le même ordre pendant les passes de disposition et d'interaction.

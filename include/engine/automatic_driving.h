@@ -14,10 +14,10 @@ inline bool indicationVisible(double position,double head) {
  return std::isfinite(position)&&std::isfinite(head)&&position>=head&&position-head<=signalVisibilityM;
 }
 struct Target {uint64_t signal;double position,speed,reopenedSpeed;bool followTarget=false;
- Ahead cancelAt{};};
-struct HeldLimit {double start,speed,end;bool hasEnd=false;};
+ Ahead cancelAt{};uint64_t source=0;};
+struct HeldLimit {double start,speed,end;bool hasEnd=false;uint64_t source=0;};
 struct Memory {std::vector<Target> stops;std::vector<HeldLimit> held;double lastHead=-1;
- std::optional<RestrictedMode> sight;StopProof stopped;};
+ std::optional<RestrictedMode> sight;StopProof stopped;bool observedHead=false;};
 inline bool valid(const NimbySignalDrivingRule& r){
  if(!(r.signal>>48==8&&std::isfinite(r.speed_mps)&&(r.speed_mps==-1||r.speed_mps>=0)&&
  std::isfinite(r.reopened_speed_mps)&&r.reopened_speed_mps>=0&&r.signals_ahead<=2&&(r.flags&~255u)==0))return false;
@@ -63,7 +63,7 @@ inline double envelope(double target,double distance,double braking,double respo
 }
 // A planned indication is provisional. Only an actual native movement across
 // its position can turn it into a retained instruction.
-struct Passage { Ahead source,target; NimbySignalDrivingRule instruction; Ahead next{}; };
+struct Passage { Ahead source,target; NimbySignalDrivingRule instruction; Ahead next{};uint64_t publisher=0; };
 inline std::vector<Passage> passages(std::span<const Ahead> ahead,std::span<const NimbySignalDrivingRule> rules) {
  std::vector<Passage> result;
  for(size_t i=0;i<ahead.size();++i)if(const auto* r=rule(rules,ahead[i].signal)) {
@@ -101,12 +101,12 @@ inline void crossed(Memory& memory,std::span<const Passage> observed,double befo
    const auto found=std::find_if(memory.stops.begin(),memory.stops.end(),[&](const auto& t){return t.signal==p.target.signal;});
    if(found==memory.stops.end())memory.stops.push_back({p.target.signal,p.target.position,0,r.reopened_speed_mps,
      (r.flags&NIMBY_DRIVING_FOLLOW_TARGET)!=0,
-     (r.flags&NIMBY_DRIVING_CANCEL_AT_NEXT_CLEAR)?p.next:Ahead{}});
+     (r.flags&NIMBY_DRIVING_CANCEL_AT_NEXT_CLEAR)?p.next:Ahead{},p.source.signal});
   }
   if(r.speed_mps>0 && (r.flags&NIMBY_DRIVING_HOLD_TO_CLEAR)) {
    // Keep the strictest encountered limit, not a less restrictive earlier one.
-   if(memory.held.empty())memory.held.push_back({p.target.position,r.speed_mps,0,false});
-   else if(r.speed_mps<memory.held.front().speed)memory.held={{p.target.position,r.speed_mps,0,false}};
+   if(memory.held.empty())memory.held.push_back({p.target.position,r.speed_mps,0,false,p.source.signal});
+   else if(r.speed_mps<memory.held.front().speed)memory.held={{p.target.position,r.speed_mps,0,false,p.source.signal}};
   }
  }
 }
@@ -140,7 +140,9 @@ inline Plan plan(Memory& memory,std::span<const Ahead> ahead,std::span<const Nim
  double head,double length,double vmax,double braking,bool fresh,const SightClearance& clearance={}){
  if(!std::isfinite(head)||!std::isfinite(length)||length<=0||!std::isfinite(braking)||braking<=0||!std::isfinite(vmax)||vmax<=0)return {};
  if(head+0.01<memory.lastHead)memory={};
- memory.lastHead=head;
+ const double previousHead=memory.lastHead;
+ const bool advanced=memory.observedHead&&head>previousHead;
+ memory.lastHead=head;memory.observedHead=true;
  // A short native lookahead can omit the exit when the mode begins. Bind it
  // once it becomes observable; absence alone never releases the restriction.
  if(memory.sight&&!memory.sight->endSignal)
@@ -185,6 +187,17 @@ inline Plan plan(Memory& memory,std::span<const Ahead> ahead,std::span<const Nim
   // instruction to an unrelated signal after a path update.
   const auto at=std::find_if(ahead.begin(),ahead.end(),[&](const auto& a){return a.signal==stop.signal;});
   if(at!=ahead.end())stop.position=at->position;
+ }
+ // Native movement can finish while the post-integration commit cannot take
+ // its lock. The next head observation then proves that a retained target was
+ // crossed, even if the scanner has dropped it. Refresh route positions first:
+ // the same signal may now be farther ahead. This only releases known stops;
+ // it never reconstructs received instructions from an uncommitted lookahead.
+ // Motion replacement/backward progress resets Memory in the adapter/above.
+ if(advanced)std::erase_if(memory.stops,[&](const auto& stop){
+  return previousHead<=stop.position+1e-6&&head>stop.position+1e-6;
+ });
+ for(const auto& stop:memory.stops){
   // Keep the received stop instruction outside the visibility horizon. A
   // remote reopening must not change the driver's retained approach curve.
   const auto* current=indicationVisible(stop.position,head)?rule(rules,stop.signal):nullptr;

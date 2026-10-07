@@ -91,6 +91,8 @@ data class DrivingRule(
 
 /** Une seule implémentation Kotlin suffit. Le SDK fournit DLL, exports et boucle de lecture. */
 abstract class SignallingMod : GameMod() {
+    private val networkSchema by lazy { nimby.internal.SignalNetworkSchema(signalTypes) }
+    internal fun prepareCheckedNetwork(input: List<Signal>) = networkSchema.prepare(this, input)
     /** Pure transformation of effective settings in this observed network.
      * Never persists derived values or changes topology/observations. */
     open fun prepareNetwork(signals: List<Signal>): List<Signal> = signals
@@ -138,50 +140,38 @@ abstract class SignallingMod : GameMod() {
 
 /** Résolution des liens, commune aux mods et aux tests, sans récursion profonde. */
 /** Validated preparation shared by the native adapter and the offline resolver. */
-fun SignallingMod.prepareObservedNetwork(input: List<Signal>): List<Signal> {
-    require(input.size <= 512)
-    val types = signalTypes
-    validateSignalTypes(types)
-    val knownTypes = types.map { it.id }.toSet()
-    val normalized = input.map { signal ->
-        if (signal.type.isEmpty()) signal.copy(type = types.first().id)
-        else signal.also { require(it.type in knownTypes) { "Type de signal inconnu : ${it.type}" } }
-    }
-    require(normalized.map { it.id }.toSet().size == normalized.size && normalized.none { it.id == 0L })
-    val signals = prepareNetwork(normalized)
-    require(signals.size == normalized.size && signals.indices.all { i ->
-        signals[i].id == normalized[i].id && signals[i].nextSignal == normalized[i].nextSignal &&
-            signals[i].type == normalized[i].type && signals[i].observation == normalized[i].observation &&
-            (signals[i].settingsStatus == normalized[i].settingsStatus ||
-                (normalized[i].settingsStatus == SettingsStatus.Absent && signals[i].settingsStatus == SettingsStatus.Present))
-    }) { "Network preparation may only change effective settings" }
-    return signals
-}
+const val maximumSignalNetworkSize: Int = 4096
+fun SignallingMod.prepareObservedNetwork(input: List<Signal>): List<Signal> = prepareCheckedNetwork(input)
 
 fun SignallingMod.evaluateNetwork(input: List<Signal>): List<Decision> {
     val signals = prepareObservedNetwork(input)
-    val index = signals.mapIndexed { i, signal -> signal.id to i }.toMap()
-    require(index.size == signals.size && signals.none { it.id == 0L })
+    val index = HashMap<Long, Int>(signals.size)
+    signals.forEachIndexed { i, signal -> index[signal.id] = i }
+    val downstream = IntArray(signals.size) { index[signals[it].nextSignal] ?: -1 }
     val results = arrayOfNulls<Decision>(signals.size)
-    val state = IntArray(signals.size)
+    val state = ByteArray(signals.size)
+    val pending = IntArray(signals.size)
     for (start in signals.indices) {
-        if (state[start] == 2) continue
-        val pending = mutableListOf<Int>()
+        if (state[start].toInt() == 2) continue
+        var pendingCount = 0
         var current = start
-        while (state[current] != 2) {
-            if (state[current] == 1) {
-                pending.forEach { results[it] = invalidNetworkDecision(signals[it].type); state[it] = 2 }
+        while (state[current].toInt() != 2) {
+            if (state[current].toInt() == 1) {
+                for (p in 0 until pendingCount) {
+                    val i = pending[p]; results[i] = invalidNetworkDecision(signals[i].type); state[i] = 2
+                }
                 break
             }
             val local = decide(signals[current], null)
             if (local != null) { results[current] = local; state[current] = 2; break }
-            val next = index[signals[current].nextSignal]
-            if (next == null) { results[current] = invalidNetworkDecision(signals[current].type); state[current] = 2; break }
-            state[current] = 1; pending.add(current); current = next
+            val next = downstream[current]
+            if (next < 0) { results[current] = invalidNetworkDecision(signals[current].type); state[current] = 2; break }
+            state[current] = 1; pending[pendingCount++] = current; current = next
         }
-        for (i in pending.asReversed()) {
-            if (state[i] == 2) continue
-            results[i] = decide(signals[i], results[index.getValue(signals[i].nextSignal)]) ?: invalidNetworkDecision(signals[i].type)
+        for (p in pendingCount - 1 downTo 0) {
+            val i = pending[p]
+            if (state[i].toInt() == 2) continue
+            results[i] = decide(signals[i], results[downstream[i]]) ?: invalidNetworkDecision(signals[i].type)
             state[i] = 2
         }
     }

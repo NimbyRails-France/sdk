@@ -51,6 +51,8 @@ jobs:
       - name: Build, test and verify Windows packages
         run: |
           python3 .woodpecker/test-github-release.py
+          python3 .woodpecker/test-release-metadata.py
+          python3 .woodpecker/test-sdk-package.py
           sh .woodpecker/build.sh
           python3 .woodpecker/package.py
       - name: Preserve verified packages and release plan

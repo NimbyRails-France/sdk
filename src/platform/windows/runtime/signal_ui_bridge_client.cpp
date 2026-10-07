@@ -8,13 +8,28 @@
 #include <cstring>
 #include <filesystem>
 #include <mutex>
+#include <atomic>
+#include <nimby/detail/mod_host.h>
+#include <platform/windows/bridge_installation.h>
 
 // Same-process SDK loader. Called outside DllMain, before registering a mod's
 // panel. Never searches for another game or loads from the working directory.
 extern "C" NIMBY_API uint32_t __cdecl NimbyInternal_EnsureSignalUiBridge() noexcept {
+    if(NimbyInternal_ModHostTarget()){
+        uint64_t arguments[8]{};uint32_t written{};
+        return NimbyInternal_ModHostCall(1,arguments,nullptr,0,nullptr,0,&written);
+    }
     try {
         static std::mutex mutex;
-        std::lock_guard lock(mutex);
+        static std::atomic<bool> ready{false};
+        if(ready.load(std::memory_order_acquire))return NIMBY_OK;
+        std::unique_lock lock(mutex,std::try_to_lock);
+        if(!lock.owns_lock())return NIMBY_RESOURCE_LIMIT;
+        // Successful bootstrap pins the bridge for the life of this game.
+        // Repeated registrations do not rehash either binary under this lock.
+        if(ready.load(std::memory_order_relaxed))return NIMBY_OK;
+        nimby::platform::windows::BridgeInstallation installation;
+        if(!installation)return installation.status();
         std::array<wchar_t,32768> executable{},sdkPath{},residentPath{};
         auto length=GetModuleFileNameW(nullptr,executable.data(),static_cast<DWORD>(executable.size()));
         if(!length||length>=executable.size())return NIMBY_IO_ERROR;
@@ -47,6 +62,7 @@ extern "C" NIMBY_API uint32_t __cdecl NimbyInternal_EnsureSignalUiBridge() noexc
         const auto bootstrap=std::bit_cast<Bootstrap>(GetProcAddress(module,"NimbyInternal_Bootstrap"));
         if(!bootstrap)return NIMBY_INVALID_BINARY;
         const auto status=bootstrap(nullptr);
-        return status==NIMBY_ALREADY_INITIALIZED?NIMBY_OK:status;
+        if(status==NIMBY_OK||status==NIMBY_ALREADY_INITIALIZED){ready.store(true,std::memory_order_release);return NIMBY_OK;}
+        return status;
     }catch(...){ nimby::detail::diagnostics::exception("sdk", __func__); return NIMBY_INTERNAL_ERROR;}
 }

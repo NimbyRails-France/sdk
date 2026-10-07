@@ -1,12 +1,15 @@
+#include <platform/windows/bridge_installation.h>
 // Experimental single-player construction endpoint for the fingerprinted game.
 // Native allocation, deep copies, commands, result finalization and undo remain
 // owned by NIMBY Rails. This module never allocates a game object in an SDK pool.
 #include "platform/windows/runtime/construction_bridge.h"
+#include "platform/windows/runtime/construction_operation.h"
 #include "engine/construction.h"
 #include "engine/binary_identity.h"
 #include "platform/windows/signal_position.h"
 #include <MinHook.h>
 #include <array>
+#include <bit>
 #include <atomic>
 #include <cstring>
 #include <nimby/detail/signal_ui_bridge.h>
@@ -27,14 +30,7 @@ SRWLOCK initialization=SRWLOCK_INIT,operationLock=SRWLOCK_INIT;
 std::atomic<uint64_t> revision{1};
 thread_local bool authorizedExecution=false;
 struct Guard {Guard(){AcquireSRWLockExclusive(&operationLock);}~Guard(){ReleaseSRWLockExclusive(&operationLock);}};
-struct Identity {uint64_t owner{},stamp{},sequence{};bool operator==(const Identity&) const=default;};
-struct Operation {
-    uint64_t token{},root{},simulation{},editor{},context{},preparedRevision{},command{},history{};
-    Identity identity{};
-    NimbyConstructionRequest request{};
-    NimbyConstructionResult result{};
-    bool waiting{},undo{},executed{},authorized{},singleCommand{};
-} operation;
+Operation operation;
 uint64_t nextToken=1;
 
 bool read(uint64_t address,void* out,size_t size) {
@@ -62,11 +58,11 @@ uint64_t object(uint64_t pool,uint64_t id,size_t stride){
 void finish(uint32_t state,uint32_t reason=0){
     operation.result.state=state;operation.result.reason=reason;
     shared->result=operation.result;
-    InterlockedExchange(&shared->state,complete);
+    completeResponse(*shared,GetTickCount64());
 }
 void reject(uint32_t reason){
     shared->result={sizeof(NimbyConstructionResult),1,NIMBY_CONSTRUCTION_REJECTED,0,shared->request.token,reason,0,{}};
-    InterlockedExchange(&shared->state,complete);
+    completeResponse(*shared,GetTickCount64());
 }
 
 bool validTargets(uint64_t db,const NimbyConstructionRequest& request){
@@ -91,7 +87,8 @@ uint64_t create(uint64_t command,uint64_t output,uint64_t context){
     const auto db=get<uint64_t>(context+0x428);
     // A ticket is consumed on the simulation thread, before the first mutation.
     // Invalid commands become the game's own missing-track no-op result.
-    if(!authorizedExecution||!sessionMatches()||!validTargets(db,operation.request)){
+    if(!authorizedExecution||!nimby::platform::windows::bridgeRequestAlive(operation.lease)||
+       !sessionMatches()||!validTargets(db,operation.request)){
         const auto previous=get<uint64_t>(command+0x60);put<uint64_t>(command+0x60,0);
         const auto result=originalCreate(command,output,context);put(command+0x60,previous);
         operation.result.reason=2;return result;
@@ -102,8 +99,8 @@ uint64_t create(uint64_t command,uint64_t output,uint64_t context){
     uint64_t settingsToken{};
     NimbyUiSettingsCopyFinishV1 finishSettings{};
     if(const auto bridge=GetModuleHandleW(L"NimbySignalUiBridge-experimental-v1.dll")){
-        const auto begin=reinterpret_cast<NimbyUiSettingsCopyBeginV1>(GetProcAddress(bridge,"NimbyUi_SettingsCopyBeginV1"));
-        finishSettings=reinterpret_cast<NimbyUiSettingsCopyFinishV1>(GetProcAddress(bridge,"NimbyUi_SettingsCopyFinishV1"));
+        const auto begin=std::bit_cast<NimbyUiSettingsCopyBeginV1>(GetProcAddress(bridge,"NimbyUi_SettingsCopyBeginV1"));
+        finishSettings=std::bit_cast<NimbyUiSettingsCopyFinishV1>(GetProcAddress(bridge,"NimbyUi_SettingsCopyFinishV1"));
         if(!begin||!finishSettings||begin(operation.request.source_signal,&settingsToken)!=NIMBY_OK){
             const auto previous=get<uint64_t>(command+0x60);put<uint64_t>(command+0x60,0);
             const auto result=originalCreate(command,output,context);put(command+0x60,previous);
@@ -131,7 +128,7 @@ uint64_t undo(uint64_t command,uint64_t output,uint64_t context){
     Guard guard;
     if(!operation.waiting||!operation.undo||operation.command!=command)return originalUndo(command,output,context);
     operation.executed=true;
-    if(!authorizedExecution||!sessionMatches()){
+    if(!authorizedExecution||!nimby::platform::windows::bridgeRequestAlive(operation.lease)||!sessionMatches()){
         // Keep the original history entry when rejecting. Only this newly owned
         // command's copy is cleared, through the matching native destructor/init.
         native<void(*)(uint64_t)>(0x320ec0)(command+0x20);
@@ -207,28 +204,31 @@ void ui(uint64_t editor,uint64_t layout,uint64_t context,uint64_t view,uint64_t 
     }
     if(InterlockedCompareExchange(&shared->state,executing,pending)!=pending)return;
     const auto request=shared->request;
-    if(GetTickCount64()>=shared->expires||!nimby::engine::construction::valid(request)){
+    if(GetTickCount64()>=shared->expires||!nimby::platform::windows::bridgeRequestAlive(shared->lease)||
+       !nimby::engine::construction::valid(request)){
         shared->result={sizeof(NimbyConstructionResult),1,NIMBY_CONSTRUCTION_REJECTED,0,request.token,1,0,{}};
-        InterlockedExchange(&shared->state,complete);return;
+        completeResponse(*shared,GetTickCount64());return;
     }
     const auto tn=get<uint64_t>(context+0x258),db=get<uint64_t>(tn+0x428),currentRoot=root();
     const bool noPending=get<uint64_t>(context+0x238)==get<uint64_t>(context+0x240)&&
         !native<uint8_t(*)(uint64_t,int)>(0x73ec90)(context,3);
     if(!currentRoot||!db||!noPending){
         shared->result={sizeof(NimbyConstructionResult),1,NIMBY_CONSTRUCTION_REJECTED,0,request.token,4,0,{}};
-        InterlockedExchange(&shared->state,complete);return;
+        completeResponse(*shared,GetTickCount64());return;
     }
     if(request.action==NIMBY_CONSTRUCTION_PREPARE){
-        operation={};operation.token=nextToken++;operation.root=currentRoot;
-        operation.simulation=get<uint64_t>(currentRoot+0x680);
-        operation.editor=editor;operation.context=context;operation.preparedRevision=revision.load();
-        operation.request=request;
-        operation.result={sizeof(NimbyConstructionResult),1,NIMBY_CONSTRUCTION_READY,0,operation.token,0,0,{}};
-        if(!object(db+0x380,request.source_signal,0xc8)){reject(5);return;}
+        const Preparation next{currentRoot,get<uint64_t>(currentRoot+0x680),editor,context,revision.load(),
+            object(db+0x380,request.source_signal,0xc8)!=0};
+        const auto reason=prepareOperation(operation,nextToken,next,request,shared->lease,GetTickCount64(),
+            nimby::platform::windows::bridgeRequesterAlive);
+        if(reason){reject(reason);return;}
         finish(NIMBY_CONSTRUCTION_READY);return;
     }
-    if(request.token!=operation.token||editor!=operation.editor||context!=operation.context||
+    if(request.token!=operation.token||
+       !nimby::platform::windows::sameBridgeRequester(operation.lease,shared->lease)||
+       editor!=operation.editor||context!=operation.context||
        !sessionMatches()||revision.load()!=operation.preparedRevision){reject(2);return;}
+    operation.lease=shared->lease;
     operation.executed=false;operation.authorized=false;operation.result.reason=0;
     if(request.action==NIMBY_CONSTRUCTION_CREATE){
         if(operation.result.state!=NIMBY_CONSTRUCTION_READY||request.source_signal!=operation.request.source_signal||!validTargets(db,request)){reject(5);return;}
@@ -254,6 +254,8 @@ void ui(uint64_t editor,uint64_t layout,uint64_t context,uint64_t view,uint64_t 
 
 extern "C" __declspec(dllexport) DWORD WINAPI NimbyInternal_Bootstrap(void* argument) noexcept {
     if(argument)return NIMBY_INVALID_ARGUMENT;
+    nimby::platform::windows::BridgeInstallation installation;
+    if(!installation)return installation.status();
     AcquireSRWLockExclusive(&initialization);
     struct Unlock{~Unlock(){ReleaseSRWLockExclusive(&initialization);}} unlock;
     if(enabled)return NIMBY_ALREADY_INITIALIZED;

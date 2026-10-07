@@ -26,7 +26,7 @@
 namespace nimby {
 using Id = std::uint64_t;
 using Milliseconds = std::chrono::milliseconds;
-enum class SnapshotScope { Complete, Signalling, Session };
+enum class SnapshotScope { Complete, Signalling, Session, TrainData, NetworkTopology };
 
 enum class ErrorCode : std::uint32_t {
     Ok = 0, InvalidArgument = 1, IoError = 2, InvalidBinary = 3,
@@ -145,6 +145,60 @@ public:
 private:
     NimbyTrainDetails data_;
 };
+class TrainMetadata {
+public:
+    explicit TrainMetadata(const NimbyTrainMetadata& data):data_(data){}
+    Id getTrainId() const noexcept{return data_.train_id;}
+    const NimbyTrainCharacteristics& getConfiguredCharacteristics() const noexcept{return data_.configured;}
+    const NimbyTrainCharacteristics& getCurrentCharacteristics() const noexcept{return data_.current;}
+    std::optional<int64_t> getPredictedArrivalDelayUs() const noexcept {
+        return data_.flags&NIMBY_TRAIN_PREDICTED_DELAY_VALID?std::optional<int64_t>{data_.predicted_arrival_delay_us}:std::nullopt;
+    }
+    std::optional<double> getPredictedArrivalDelaySeconds() const noexcept {
+        const auto value=getPredictedArrivalDelayUs();return value?std::optional<double>{double(*value)/1000000}:std::nullopt;
+    }
+private:
+    NimbyTrainMetadata data_;
+};
+class Line {
+public:
+    explicit Line(const NimbyLineMetadata& data):data_(data){}
+    Id getId() const noexcept{return data_.line_id;}
+    bool hasParentInformation() const noexcept{return data_.flags&NIMBY_LINE_PARENT_VALID;}
+    std::optional<Id> getParentId() const noexcept{return hasParentInformation()?detail::reference(data_.parent_line_id):std::nullopt;}
+    std::optional<std::string> getName() const{return data_.flags&NIMBY_LINE_NAME_VALID?std::optional<std::string>{data_.name_utf8}:std::nullopt;}
+    std::optional<int32_t> getKind() const noexcept{return data_.flags&NIMBY_LINE_KIND_VALID?std::optional<int32_t>{data_.kind}:std::nullopt;}
+private:
+    NimbyLineMetadata data_;
+};
+class TrainVehicle {
+public:
+    explicit TrainVehicle(const NimbyTrainVehicle& data):data_(data){}
+    Id getTrainId() const noexcept{return data_.train_id;}
+    Id getModelId() const noexcept{return data_.model_id;}
+    uint32_t getIndex() const noexcept{return data_.index;}
+    uint32_t getComposition() const noexcept{return data_.composition;}
+private:
+    NimbyTrainVehicle data_;
+};
+class VehicleModel {
+public:
+    explicit VehicleModel(const NimbyVehicleModel& data):data_(data){}
+    Id getId() const noexcept{return data_.model_id;}
+    std::string_view getCode() const noexcept{return data_.code_utf8;}
+    std::string_view getNameEnglish() const noexcept{return data_.name_en_utf8;}
+    std::string_view getSourceName() const noexcept{return data_.source_name_utf8;}
+private:
+    NimbyVehicleModel data_;
+};
+class Tag {
+public:
+    explicit Tag(const NimbyTag& data):data_(data){}
+    Id getId() const noexcept{return data_.tag_id;}
+    std::string getName() const{return data_.name_utf8;}
+private:
+    NimbyTag data_;
+};
 class LineStop {
 public:
     explicit LineStop(const NimbyLineStop& data) : data_(data) {}
@@ -190,19 +244,28 @@ public:
     std::optional<Id> getLocationStationId() const { return valid(NIMBY_SERVICE_LOCATION_VALID)?detail::reference(data_.location_station_id):std::nullopt; }
     std::optional<Id> getLineId() const { return valid(NIMBY_SERVICE_RUN_VALID)?detail::reference(data_.line_id):std::nullopt; }
     std::optional<std::string> getLineName() const { return valid(NIMBY_SERVICE_LINE_VALID)&&data_.line_name_utf8[0]?std::optional<std::string>{data_.line_name_utf8}:std::nullopt; }
+    std::optional<int32_t> getLineKind() const { return valid(NIMBY_SERVICE_LINE_VALID)?std::optional<int32_t>{data_.line_kind}:std::nullopt; }
     std::optional<Id> getStopStationId() const { return valid(NIMBY_SERVICE_STOP_VALID)?detail::reference(data_.stop_station_id):std::nullopt; }
     std::optional<Id> getStopTrackId() const { return valid(NIMBY_SERVICE_STOP_VALID)?detail::reference(data_.stop_track_id):std::nullopt; }
     std::optional<int32_t> getStopIndex() const { return valid(NIMBY_SERVICE_RUN_VALID)?std::optional<int32_t>{data_.stop_index}:std::nullopt; }
     std::optional<int64_t> getGameTimeUs() const { return valid(NIMBY_SERVICE_CLOCK_VALID)?std::optional<int64_t>{data_.game_time_us}:std::nullopt; }
     std::optional<int64_t> getDepartureTimeUs() const { return valid(NIMBY_SERVICE_DEPARTURE_VALID)?std::optional<int64_t>{data_.departure_time_us}:std::nullopt; }
     std::optional<int64_t> getArrivalTimeUs() const { return valid(NIMBY_SERVICE_ARRIVAL_VALID)?std::optional<int64_t>{data_.arrival_time_us}:std::nullopt; }
-    std::optional<int64_t> getGameCalendarSeconds() const { return valid(NIMBY_SERVICE_CALENDAR_VALID|NIMBY_SERVICE_CLOCK_VALID)?std::optional<int64_t>{data_.game_epoch_seconds+data_.game_time_us/1000000}:std::nullopt; }
-    std::optional<int64_t> getDepartureCalendarSeconds() const { return valid(NIMBY_SERVICE_CALENDAR_VALID|NIMBY_SERVICE_DEPARTURE_VALID)?std::optional<int64_t>{data_.game_epoch_seconds+data_.departure_time_us/1000000}:std::nullopt; }
-    std::optional<int64_t> getArrivalCalendarSeconds() const { return valid(NIMBY_SERVICE_CALENDAR_VALID|NIMBY_SERVICE_ARRIVAL_VALID)?std::optional<int64_t>{data_.game_epoch_seconds+data_.arrival_time_us/1000000}:std::nullopt; }
+    std::optional<int64_t> getDispatchTimeUs() const { return valid(NIMBY_SERVICE_COOLDOWN_VALID)?std::optional<int64_t>{data_.dispatch_time_us}:std::nullopt; }
+    std::optional<int64_t> getGameEpochSeconds() const { return valid(NIMBY_SERVICE_CALENDAR_VALID)?std::optional<int64_t>{data_.game_epoch_seconds}:std::nullopt; }
+    std::optional<int64_t> getGameCalendarSeconds() const { return valid(NIMBY_SERVICE_CALENDAR_VALID|NIMBY_SERVICE_CLOCK_VALID)?calendarSeconds(data_.game_time_us):std::nullopt; }
+    std::optional<int64_t> getDepartureCalendarSeconds() const { return valid(NIMBY_SERVICE_CALENDAR_VALID|NIMBY_SERVICE_DEPARTURE_VALID)?calendarSeconds(data_.departure_time_us):std::nullopt; }
+    std::optional<int64_t> getArrivalCalendarSeconds() const { return valid(NIMBY_SERVICE_CALENDAR_VALID|NIMBY_SERVICE_ARRIVAL_VALID)?calendarSeconds(data_.arrival_time_us):std::nullopt; }
     std::optional<double> getDepartureRemainingSeconds() const { return valid(NIMBY_SERVICE_CLOCK_VALID|NIMBY_SERVICE_DEPARTURE_VALID)?std::optional<double>{data_.departure_remaining_seconds}:std::nullopt; }
     std::optional<double> getArrivalRemainingSeconds() const { return valid(NIMBY_SERVICE_CLOCK_VALID|NIMBY_SERVICE_ARRIVAL_VALID)?std::optional<double>{data_.arrival_remaining_seconds}:std::nullopt; }
     std::optional<double> getDispatchRemainingSeconds() const { return valid(NIMBY_SERVICE_CLOCK_VALID|NIMBY_SERVICE_COOLDOWN_VALID)?std::optional<double>{data_.dispatch_remaining_seconds}:std::nullopt; }
 private:
+    std::optional<int64_t> calendarSeconds(int64_t microseconds) const {
+        const auto seconds=std::chrono::floor<std::chrono::seconds>(std::chrono::microseconds{microseconds}).count();
+        const auto epoch=data_.game_epoch_seconds;
+        if((seconds>0&&epoch>INT64_MAX-seconds)||(seconds<0&&epoch<INT64_MIN-seconds))return std::nullopt;
+        return epoch+seconds;
+    }
     bool valid(uint32_t flags) const { return (data_.flags&flags)==flags; }
     NimbyTrainService data_;
 };
@@ -551,6 +614,29 @@ private:
 };
 
 namespace detail {
+// Immutable snapshots build relation indexes only when a caller requests the
+// relation. Repeated per-track/per-train queries then visit matching rows, not
+// the whole world. Concurrent readers share the completed index safely.
+class RelationIndex {
+    mutable std::once_flag once_;
+    mutable std::unordered_map<Id,std::vector<size_t>> groups_;
+public:
+    template<class T,class Key>
+    std::vector<T> select(const std::vector<T>& rows,Id id,Key key) const {
+        std::call_once(once_,[&]{
+            std::unordered_map<Id,std::vector<size_t>> groups;
+            for(size_t i=0;i<rows.size();++i)if(const auto group=key(rows[i]))groups[group].push_back(i);
+            groups_=std::move(groups);
+        });
+        std::vector<T> result;
+        const auto found=groups_.find(id);
+        if(found!=groups_.end()){
+            result.reserve(found->second.size());
+            for(auto i:found->second)result.push_back(rows[i]);
+        }
+        return result;
+    }
+};
 template<class T> struct Table {
     std::vector<T> rows;
     std::unordered_map<Id, std::size_t> index;
@@ -614,6 +700,26 @@ public:
     std::span<const Train> getAllTrains() const noexcept { return trains_.rows; }
     std::optional<Train> getTrainById(Id id) const { return trains_.find(id); }
     std::optional<TrainDetails> getTrainDetailsById(Id id) const { return details_.find(id); }
+    std::optional<TrainMetadata> getTrainMetadataById(Id id) const {return trainMetadata_.find(id);}
+    std::optional<std::span<const TrainVehicle>> getAllTrainVehicles() const noexcept {
+        return vehicles_?std::optional<std::span<const TrainVehicle>>{*vehicles_}:std::nullopt;
+    }
+    std::optional<std::span<const VehicleModel>> getAllVehicleModels() const noexcept {
+        return modelsAvailable_?std::optional<std::span<const VehicleModel>>{models_.rows}:std::nullopt;
+    }
+    std::optional<VehicleModel> getVehicleModelById(Id id) const {return models_.find(id);}
+    std::optional<std::span<const Line>> getAllLines() const noexcept {
+        return linesAvailable_?std::optional<std::span<const Line>>{lines_.rows}:std::nullopt;
+    }
+    std::optional<Line> getLineById(Id id) const {return lines_.find(id);}
+    std::optional<std::span<const Tag>> getAllTags() const noexcept {
+        return tagsAvailable_?std::optional<std::span<const Tag>>{tags_.rows}:std::nullopt;
+    }
+    std::optional<Tag> getTagById(Id id) const {return tags_.find(id);}
+    std::optional<std::span<const Id>> getTagIdsForObject(Id id) const noexcept {
+        const auto found=objectTags_.find(id);
+        return found==objectTags_.end()?std::nullopt:std::optional<std::span<const Id>>{found->second};
+    }
     std::optional<std::span<const LineStop>> getLineStopsForTrain(Id id) const {
         const auto it=line_stops_.find(id);
         return it==line_stops_.end()?std::nullopt:std::optional<std::span<const LineStop>>{it->second};
@@ -666,7 +772,7 @@ public:
         return station ? getStationById(*station) : std::nullopt;
     }
     std::vector<Signal> getSignalsForTrack(Id id) const {
-        auto rows=filter(signals_.rows, [id](const Signal& v) { return v.getTrackId() == id; });
+        auto rows=signalsByTrack_.select(signals_.rows,id,[](const Signal& v) { return v.getTrackId(); });
         std::sort(rows.begin(),rows.end(),[](const Signal& a,const Signal& b) {
             return a.getFraction()!=b.getFraction() ? a.getFraction()<b.getFraction() : a.getId()<b.getId();
         });
@@ -674,8 +780,8 @@ public:
     }
     SignalTopology getSignalTopology() const { return SignalTopology{signals_.rows,nodes_.rows,junctions_.rows}; }
     std::vector<Train> getTrainsOnTrack(Id id) const {
-        return filter(trains_.rows, [id](const Train& v) {
-            auto position = v.getPosition(); return position && position->getTrackId() == id;
+        return trainsByTrack_.select(trains_.rows,id,[](const Train& v) {
+            auto position = v.getPosition(); return position ? position->getTrackId() : Id{};
         });
     }
     // Raw section detail; use getPlatformOccupationsForStation for grouped platforms.
@@ -724,7 +830,7 @@ public:
         return result;
     }
     std::vector<Track> getTracksForStation(Id id) const {
-        return filter(tracks_.rows, [id](const Track& v) { return v.getStationId() == id; });
+        return tracksByStation_.select(tracks_.rows,id,[](const Track& v) { return v.getStationId().value_or(0); });
     }
     std::optional<std::vector<Id>> getPathTrackIdsForTrain(Id id) const {
         const auto it = paths_.find(id);
@@ -739,22 +845,22 @@ public:
     std::optional<std::vector<TrackUsage>> getReservationsForTrain(Id id) const {
         const auto& rows = reservations_;
         if (!rows) return std::nullopt;
-        return filter(*rows, [id](const TrackUsage& v) { return v.getTrainId() == id; });
+        return reservationsByTrain_.select(*rows,id,[](const TrackUsage& v) { return v.getTrainId(); });
     }
     std::optional<std::vector<TrackUsage>> getReservationsForTrack(Id id) const {
         const auto& rows = reservations_;
         if (!rows) return std::nullopt;
-        return filter(*rows, [id](const TrackUsage& v) { return v.getTrackId() == id; });
+        return reservationsByTrack_.select(*rows,id,[](const TrackUsage& v) { return v.getTrackId(); });
     }
     std::optional<std::vector<TrackUsage>> getOccupationsForTrain(Id id) const {
         const auto& rows = occupations_;
         if (!rows) return std::nullopt;
-        return filter(*rows, [id](const TrackUsage& v) { return v.getTrainId() == id; });
+        return occupationsByTrain_.select(*rows,id,[](const TrackUsage& v) { return v.getTrainId(); });
     }
     std::optional<std::vector<TrackUsage>> getOccupationsForTrack(Id id) const {
         const auto& rows = occupations_;
         if (!rows) return std::nullopt;
-        return filter(*rows, [id](const TrackUsage& v) { return v.getTrackId() == id; });
+        return occupationsByTrack_.select(*rows,id,[](const TrackUsage& v) { return v.getTrackId(); });
     }
 
 private:
@@ -767,6 +873,14 @@ private:
     detail::Table<Train> trains_;
     detail::Table<TrainService> services_;
     detail::Table<TrainDetails> details_;
+    detail::Table<TrainMetadata> trainMetadata_;
+    std::optional<std::vector<TrainVehicle>> vehicles_;
+    detail::Table<VehicleModel> models_;
+    bool modelsAvailable_=false;
+    detail::Table<Line> lines_;
+    detail::Table<Tag> tags_;
+    bool linesAvailable_=false,tagsAvailable_=false;
+    std::unordered_map<Id,std::vector<Id>> objectTags_;
     std::unordered_map<Id,std::vector<LineStop>> line_stops_;
     detail::Table<Track> tracks_;
     std::unordered_map<Id,std::vector<Platform>> station_platforms_;
@@ -782,19 +896,17 @@ private:
     std::unordered_map<Id, std::vector<Id>> paths_;
     std::optional<std::vector<TrackUsage>> reservations_, occupations_;
     std::unordered_map<Id,std::vector<Id>> occupant_ids_,reservation_ids_;
-    template<class T, class Predicate>
-    static std::vector<T> filter(const std::vector<T>& rows, Predicate predicate) {
-        std::vector<T> result;
-        for (const auto& row : rows) if (predicate(row)) result.push_back(row);
-        return result;
-    }
-    static Ptr capture(NimbySession session, SnapshotScope scope,const char* textureSet=nullptr,std::span<const NimbySignalCaptureScope> signalScopes={}) {
+    detail::RelationIndex signalsByTrack_,trainsByTrack_,tracksByStation_;
+    detail::RelationIndex reservationsByTrain_,reservationsByTrack_,occupationsByTrain_,occupationsByTrack_;
+    static Ptr capture(NimbySession session, SnapshotScope scope,const char* textureSet=nullptr,std::span<const NimbySignalCaptureScope> signalScopes={},uint32_t trainFlags=NIMBY_TRAIN_DATA_ALL) {
         // Age includes the native capture, registry contention and copy-out.
         // A slow capture must not be presented as a brand-new observation.
         const auto started=std::chrono::steady_clock::now();
         detail::NativeSnapshot native;
         uint32_t stage{};
         const auto captureStatus=scope==SnapshotScope::Session ? NimbyInternal_CaptureSessionSnapshot(session,&native.value,&stage) :
+            scope==SnapshotScope::NetworkTopology ? NimbyInternal_CaptureNetworkSnapshotDiagnostic(session,&native.value,&stage) :
+            scope==SnapshotScope::TrainData ? NimbyInternal_CaptureTrainDataSnapshotWithOptions(session,trainFlags,&native.value,&stage) :
             !signalScopes.empty() ? NimbyInternal_CaptureSignallingScope(session,signalScopes.data(),static_cast<uint32_t>(signalScopes.size()),&native.value,&stage) :
             textureSet ? NimbyInternal_CaptureSignallingFor(session,textureSet,&native.value,&stage) : scope==SnapshotScope::Signalling
             ? NimbyInternal_CaptureSignallingSnapshot(session, &native.value, &stage)
@@ -821,21 +933,95 @@ private:
         if(clockStatus==NIMBY_OK)result->clock_=SimulationClock{clock};
         else if(clockStatus!=NIMBY_DATA_UNAVAILABLE)detail::check(clockStatus,"GetSimulationClock");
         if(scope==SnapshotScope::Session)return result;
+        if(scope==SnapshotScope::NetworkTopology){
+            // The tool contract contains these four tables only. Do not copy
+            // unrelated empty tables or build train/display indexes for it.
+            result->signals_=detail::table<Signal,NimbySignal>(
+                [&](auto* out,auto cap,auto* count){return NimbyInternal_CopySignals(native.value,out,cap,count);},
+                [](const NimbySignal& row){return row.id;},"CopySignals");
+            result->nodes_=detail::table<TrackNode,NimbyTrackNode>(
+                [&](auto* out,auto cap,auto* count){return NimbyInternal_CopyTrackNodes(native.value,out,cap,count);},
+                [](const NimbyTrackNode& row){return row.id;},"CopyTrackNodes");
+            result->junctions_=detail::table<TrackJunction,NimbyTrackJunction>(
+                [&](auto* out,auto cap,auto* count){return NimbyInternal_CopyTrackJunctions(native.value,out,cap,count);},
+                [](const NimbyTrackJunction& row){return row.branch_track_id;},"CopyTrackJunctions");
+            result->trackMetrics_=detail::copyRecords<NimbyTrackMetric>(
+                [&](auto* out,auto cap,auto* count){return NimbyInternal_CopyTrackMetrics(native.value,out,cap,count);},"CopyTrackMetrics");
+            return result;
+        }
         result->trains_ = detail::table<Train, NimbyTrain>(
             [&](auto* out, auto capacity, auto* count) { return NimbyInternal_CopyTrains(native.value, out, capacity, count); },
             [](const NimbyTrain& row) { return row.id; }, "CopyTrains");
+        if(scope!=SnapshotScope::TrainData||(trainFlags&(NIMBY_TRAIN_DATA_SERVICE|NIMBY_TRAIN_DATA_TIMETABLES|NIMBY_TRAIN_DATA_LOCATIONS)))
         result->services_ = detail::table<TrainService, NimbyTrainService>(
             [&](auto* out, auto capacity, auto* count) { return NimbyInternal_CopyTrainServices(native.value, out, capacity, count); },
             [](const NimbyTrainService& row) { return row.train_id; }, "CopyTrainServices");
+        if(scope!=SnapshotScope::TrainData||(trainFlags&(NIMBY_TRAIN_DATA_SERVICE|NIMBY_TRAIN_DATA_TIMETABLES|NIMBY_TRAIN_DATA_PASSENGERS)))
         result->details_ = detail::table<TrainDetails, NimbyTrainDetails>(
             [&](auto* out, auto capacity, auto* count) { return NimbyInternal_CopyTrainDetails(native.value, out, capacity, count); },
             [](const NimbyTrainDetails& row) { return row.train_id; }, "CopyTrainDetails");
+        if(scope==SnapshotScope::TrainData){
+            if(trainFlags&(NIMBY_TRAIN_DATA_SERVICE|NIMBY_TRAIN_DATA_TIMETABLES|NIMBY_TRAIN_DATA_CHARACTERISTICS|NIMBY_TRAIN_DATA_COMPOSITION))
+            result->trainMetadata_=detail::table<TrainMetadata,NimbyTrainMetadata>(
+                [&](auto* out,auto capacity,auto* count){return NimbyInternal_CopyTrainMetadata(native.value,out,capacity,count);},
+                [](const NimbyTrainMetadata& row){return row.train_id;},"CopyTrainMetadata");
+            if(trainFlags&(NIMBY_TRAIN_DATA_LINES|NIMBY_TRAIN_DATA_TAGS)){
+            const auto lines=detail::copyRecords<NimbyLineMetadata>(
+                [&](auto* out,auto capacity,auto* count){return NimbyInternal_CopyLines(native.value,out,capacity,count);},"CopyLines");
+            if(lines){
+                result->linesAvailable_=true;result->lines_.rows.reserve(lines->size());result->lines_.index.reserve(lines->size());
+                for(const auto& row:*lines){result->lines_.index.emplace(row.line_id,result->lines_.rows.size());result->lines_.rows.emplace_back(row);}
+            }
+            }
+            if(trainFlags&NIMBY_TRAIN_DATA_TAGS){
+            const auto tags=detail::copyRecords<NimbyTag>(
+                [&](auto* out,auto capacity,auto* count){return NimbyInternal_CopyTags(native.value,out,capacity,count);},"CopyTags");
+            if(tags){
+                result->tagsAvailable_=true;result->tags_.rows.reserve(tags->size());result->tags_.index.reserve(tags->size());
+                for(const auto& row:*tags){result->tags_.index.emplace(row.tag_id,result->tags_.rows.size());result->tags_.rows.emplace_back(row);}
+            }
+            const auto states=detail::copyRecords<NimbyObjectTagsState>(
+                [&](auto* out,auto capacity,auto* count){return NimbyInternal_CopyObjectTagsStates(native.value,out,capacity,count);},"CopyObjectTagsStates");
+            const auto links=detail::copyRecords<NimbyObjectTag>(
+                [&](auto* out,auto capacity,auto* count){return NimbyInternal_CopyObjectTags(native.value,out,capacity,count);},"CopyObjectTags");
+            if(states&&links){
+                result->objectTags_.reserve(states->size());
+                for(const auto& row:*states)if(row.available==1)result->objectTags_.try_emplace(row.object_id);
+                for(const auto& row:*links){const auto found=result->objectTags_.find(row.object_id);if(found!=result->objectTags_.end())found->second.push_back(row.tag_id);}
+            }
+            }
+            if(trainFlags&NIMBY_TRAIN_DATA_COMPOSITION){
+                const auto vehicles=detail::copyRecords<NimbyTrainVehicle>(
+                    [&](auto* out,auto cap,auto* count){return NimbyInternal_CopyTrainVehicles(native.value,out,cap,count);},"CopyTrainVehicles");
+                if(vehicles){
+                    result->vehicles_.emplace();result->vehicles_->reserve(vehicles->size());
+                    for(const auto& row:*vehicles)result->vehicles_->emplace_back(row);
+                }
+                const auto models=detail::copyRecords<NimbyVehicleModel>(
+                    [&](auto* out,auto cap,auto* count){return NimbyInternal_CopyVehicleModels(native.value,out,cap,count);},"CopyVehicleModels");
+                if(models){
+                    result->modelsAvailable_=true;result->models_.rows.reserve(models->size());result->models_.index.reserve(models->size());
+                    for(const auto& row:*models){result->models_.index.emplace(row.model_id,result->models_.rows.size());result->models_.rows.emplace_back(row);}
+                }
+            }
+        }
+        if(scope!=SnapshotScope::TrainData||(trainFlags&(NIMBY_TRAIN_DATA_LOCATIONS|NIMBY_TRAIN_DATA_TIMETABLES))){
         result->tracks_ = detail::table<Track, NimbyTrack>(
             [&](auto* out, auto capacity, auto* count) { return NimbyInternal_CopyTracks(native.value, out, capacity, count); },
             [](const NimbyTrack& row) { return row.id; }, "CopyTracks");
         result->stations_ = detail::table<Station, NimbyStation>(
             [&](auto* out, auto capacity, auto* count) { return NimbyInternal_CopyStations(native.value, out, capacity, count); },
             [](const NimbyStation& row) { return row.id; }, "CopyStations");
+        }
+        if(scope==SnapshotScope::TrainData){
+            if(trainFlags&NIMBY_TRAIN_DATA_TIMETABLES)for(const auto& train:result->trains_.rows){
+                auto stops=detail::copyRecords<NimbyLineStop>([&](auto* out,auto cap,auto* count){
+                    return NimbyInternal_CopyTrainLineStops(native.value,train.getId(),out,cap,count);
+                },"CopyTrainLineStops");
+                if(stops){auto& rows=result->line_stops_[train.getId()];rows.reserve(stops->size());for(const auto& row:*stops)rows.emplace_back(row);}
+            }
+            return result;
+        }
         auto platforms=detail::copyRecords<NimbyPlatform>([&](auto* out,auto capacity,auto* count){
             return NimbyInternal_CopyPlatforms(native.value,out,capacity,count);
         },"CopyPlatforms");

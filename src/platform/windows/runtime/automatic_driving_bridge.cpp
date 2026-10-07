@@ -2,14 +2,18 @@
 // Native mechanics only: national indications are translated to numeric rules by mods.
 #include <engine/automatic_driving.h>
 #include <engine/automatic_controller.h>
+#include <engine/driving_publishers.h>
 #include <engine/binary_identity.h>
 #include <platform/windows/runtime/automatic_driving_status.h>
 #include <platform/windows/runtime/physical_route.h>
+#include <platform/windows/runtime/driving_state.h>
+#include <platform/windows/bridge_installation.h>
 #include <MinHook.h>
 #include <windows.h>
 #include <array>
 #include <unordered_map>
 #include <cstring>
+#include <utility>
 namespace {
 using namespace nimby::engine::automatic;
 using Integrate=uintptr_t(__fastcall*)(uintptr_t,uintptr_t,uintptr_t,uintptr_t,uintptr_t,double,double,double,double,double,double,int64_t,uintptr_t);
@@ -19,21 +23,102 @@ using Occupancy=uint8_t(__fastcall*)(uintptr_t,uintptr_t,double,double);
 using Step=uint32_t(__fastcall*)(uintptr_t,uintptr_t,uintptr_t,uintptr_t,double,uintptr_t);
 Integrate nativeIntegrate{};Scan nativeScan{},nativePermissionRange{};Check nativeCheck{};Occupancy nativeOccupancy{},nativeReservation{};
 Step nativeStep{};
-SRWLOCK initialization=SRWLOCK_INIT,stateLock=SRWLOCK_INIT;
-uintptr_t base{},session{};uint64_t expiry{};
-volatile LONG active=0;
+SRWLOCK initialization=SRWLOCK_INIT;
+uintptr_t base{};
 bool installed=false;
-uint32_t drivingOptions=0;
 nimby::automatic_status::Shared* telemetry{};
-std::vector<NimbySignalDrivingRule> rules;
-struct RuntimeTrain : Train {nimby::windows::automatic::PhysicalRoute physicalRoute;};
-std::unordered_map<uint64_t,RuntimeTrain> trains;
-std::unordered_map<uint64_t,NimbyTrainConstraint> constraints;
-uint64_t constraintExpiry=0,constraintOwner=0;
+using nimby::windows::automatic::Publication;
+using nimby::windows::automatic::Publications;
+using nimby::windows::automatic::RuntimeTrain;
+using nimby::windows::automatic::TrainAccess;
+using nimby::windows::automatic::TrainWorld;
+using nimby::windows::automatic::SourceLifetime;
+using nimby::windows::automatic::lifetime;
+using nimby::windows::automatic::pruneReleased;
+using nimby::windows::automatic::rememberSources;
+Publications publications;
 bool readBytes(uintptr_t address,void* value,size_t size){SIZE_T got{};return address>=0x10000&&ReadProcessMemory(GetCurrentProcess(),reinterpret_cast<void*>(address),value,size,&got)&&got==size;}
 template<class T> bool read(uintptr_t address,T& value){return readBytes(address,&value,sizeof value);}
+LONG reserveSample(volatile LONG& count,LONG maximum) noexcept {
+ auto observed=InterlockedCompareExchange(&count,0,0);
+ while(observed<maximum){const auto previous=InterlockedCompareExchange(&count,observed+1,observed);
+  if(previous==observed)return observed;
+  observed=previous;}
+ return -1;
+}
+void recordIntegration(uint64_t id,double head,double beforeSpeed,uintptr_t presence,uintptr_t result,
+ double ceiling,double braking,double distance,double target,double chosenCeiling,double chosenBraking,
+ double chosenDistance,double chosenTarget,uint32_t reason,const RuntimeTrain* state=nullptr){
+ if(!telemetry)return;
+ const auto n=reserveSample(telemetry->count,4096);if(n<0)return;
+ auto& sample=telemetry->samples[n];sample.train=id;sample.before=beforeSpeed;sample.headBefore=head;
+ sample.nativeCeiling=ceiling;sample.ceiling=chosenCeiling;sample.nativeBraking=braking;sample.braking=chosenBraking;
+ sample.nativeDistance=distance;sample.nativeTarget=target;sample.chosenDistance=chosenDistance;sample.chosenTarget=chosenTarget;
+ sample.observedAtMs=GetTickCount64();sample.reason=reason;
+ if(state&&state->memory.sight){const auto view=state->view.at(head,sample.observedAtMs);
+  sample.restrictedSource=state->memory.sight->source;sample.freeDistance=view.distanceM;sample.visibilityVerified=view.verified?1u:0u;}
+ read(presence+0x28,sample.after);read(presence+0x20,sample.headAfter);read(result+0x30,sample.ticks);
+ InterlockedExchange(&sample.ready,1);
+}
 uintptr_t currentSession(){uintptr_t root{},sim{};return read(base+0xb81998,root)&&read(root+0x680,sim)?sim:0;}
-struct Lock {Lock(){AcquireSRWLockExclusive(&stateLock);}~Lock(){ReleaseSRWLockExclusive(&stateLock);}};
+// Hooks never acquire the publication lock. Only an SDK publication may
+// yield briefly to another publisher; native steps never take this lock.
+// One retry budget (4096 attempts or 2 ms, whichever comes first) covers all
+// locks/optimistic commits in this publication; it never encloses native calls
+// or allocations. Each train independently guards only its own mutable state.
+// Neither the original lease deadline nor its owner/version checks are reset.
+struct PublicationBudget {
+ LARGE_INTEGER frequency{},started{};unsigned attempts=0;
+ PublicationBudget(){QueryPerformanceFrequency(&frequency);}
+ bool retry() noexcept {
+  if(++attempts>4096||!frequency.QuadPart)return false;
+  LARGE_INTEGER now{};QueryPerformanceCounter(&now);
+  if(!started.QuadPart)started=now;
+  else if(now.QuadPart-started.QuadPart>=frequency.QuadPart/500)return false; // 2 ms observed wall time; OS descheduling is not bounded here.
+  if(attempts%16==0)SwitchToThread();else YieldProcessor();
+  return true;
+ }
+};
+struct PublicationLock {
+ bool acquired=false;
+ explicit PublicationLock(PublicationBudget& budget) noexcept {
+  do {acquired=TryAcquireSRWLockExclusive(&publications.writers)!=FALSE;}
+  while(!acquired&&budget.retry());
+ }
+ explicit operator bool()const noexcept{return acquired;}
+ ~PublicationLock(){if(acquired)ReleaseSRWLockExclusive(&publications.writers);}
+};
+const auto& rules(const Publication& value){return value.rules.rows();}
+bool freshRule(const Publication& value,uint64_t signal,uint64_t now){return value.rules.fresh(signal,now);}
+bool freshConstraint(const Publication& value,uint64_t train,uint64_t now){return value.constraints.fresh(train,now);}
+const NimbyTrainConstraint* constraint(const Publication& value,uint64_t id){
+ const auto& rows=value.constraints.rows();
+ const auto at=std::lower_bound(rows.begin(),rows.end(),id,[](const auto& row,uint64_t key){return row.train<key;});
+ return at!=rows.end()&&at->train==id?&*at:nullptr;
+}
+bool freshTrain(const Publication& value,const Train& train,double head,uint64_t now){
+ const auto expired=[&](uint64_t signal){return value.rules.contains(signal)&&!value.rules.fresh(signal,now);};
+ for(const auto& row:train.ahead)if(indicationVisible(row.position,head)&&expired(row.signal))return false;
+ for(const auto& row:train.memory.stops)if(expired(row.source))return false;
+ for(const auto& row:train.memory.held)if(expired(row.source))return false;
+ if(train.memory.sight&&expired(train.memory.sight->source))return false;
+ for(const auto& row:train.boundary)if(expired(row.source.signal))return false;
+ return true;
+}
+uint32_t trainOptions(const Publication& value,const Train* train,uint64_t now){
+ uint32_t options=value.rules.soleOptions(now);
+ if(train)for(const auto& row:train->ahead)options|=value.rules.options(row.signal,now);
+ return options;
+}
+void synchronizeTrain(RuntimeTrain& train,const Publication& value,uint64_t id,double head){
+ pruneReleased(train,value);
+ const auto serial=lifetime(value.constraintLifetimes,id);
+ if(train.constraintLifetime!=serial){train.controlled={};train.constraintLifetime=serial;}
+ if(freshConstraint(value,id,GetTickCount64())){
+  if(const auto command=constraint(value,id))train.controlled.accept(*command,head);
+  else train.controlled={};
+ }else train.controlled={};
+}
 // The worker's occupancy map is scoped to this native step, not the integrator's
 // Network object. Never keep a worker context pointer between callbacks/threads.
 // Qualified caller RVA 0x44b367 passes four pointers, extra mass and tick budget
@@ -48,6 +133,12 @@ struct StepScope {
 };
 uint32_t __fastcall stepMotion(uintptr_t context,uintptr_t train,uintptr_t motion,uintptr_t service,double mass,uintptr_t budget){
  StepScope scope(context,motion);
+ Publications::View view(publications);uint64_t id{};
+ if(view->active()&&view->session==currentSession()&&read(motion,id)&&id>>48==5){
+  if(view->world&&(view->world->isManaged(id)||constraint(*view,id))){
+   TrainAccess access(*view,id,motion);return nativeStep(context,train,motion,service,mass,budget);
+  }
+ }
  return nativeStep(context,train,motion,service,mass,budget);
 }
 // Permission traversal is synchronous on the calling simulation thread. This
@@ -146,26 +237,26 @@ uintptr_t __fastcall permissionRange(uintptr_t context,uintptr_t range) {
  return nativePermissionRange(context,range);
 }
 uintptr_t __fastcall scan(uintptr_t context,uintptr_t range){
- if(InterlockedCompareExchange(&active,0,0)){
+ Publications::View snapshot(publications);const auto& publication=*snapshot;
+ if(publication.active()){
   uintptr_t motionRef{},motion{},nativeContext{},simulation{},offsetRef{},signalPtr{};
   uint64_t id{},signal{};int kind{};double offset{},part{},head{};
   if(read(context+0x18,motionRef)&&read(motionRef,motion)&&read(motion,id)&&id>>48==5&&
      read(context+0x10,nativeContext)&&read(nativeContext+0x18,simulation)&&
      read(context,offsetRef)&&read(offsetRef,offset)&&read(range+0x18,part)&&read(range+0x20,kind)&&
      read(motion+0x3c0,head)&&std::isfinite(offset)&&offset>=0&&std::isfinite(part)&&part>=0&&std::isfinite(head)){
-   Lock lock;
-   if(simulation==session&&session!=0){
-    if(trains.size()>=8192&&!trains.contains(id))trains.clear();
-    auto& train=trains[id];
+   const bool managedSource=kind==6&&read(range+0x28,signalPtr)&&read(signalPtr,signal)&&publication.rules.contains(signal);
+   if(publication.world&&(managedSource||constraint(publication,id)))publication.world->markManaged(id);
+   if(!publication.world||!publication.world->isManaged(id))return nativeScan(context,range);
+   TrainAccess access(publication,id,motion);
+   if(access.state&&simulation==publication.session&&publication.session==currentSession()){
+    auto& train=*access.state;
     if(train.motion!=motion||head+0.01<train.memory.lastHead){
-     auto previous=train.controlled;const bool replaced=train.motion!=0;
-     train={};train.motion=motion;
+     auto previous=train.controlled;const bool replaced=train.motion!=0;const auto revision=train.routeRevision+1;
+     train={};train.motion=motion;train.routeRevision=revision;
      if(replaced&&previous.instruction.revision){train.controlled=previous;train.controlled.completed=train.controlled.cancelled=true;}
     }
-    if(GetTickCount64()<constraintExpiry){
-     if(const auto command=constraints.find(id);command!=constraints.end())train.controlled.accept(command->second,head);
-     else train.controlled={};
-    }else train.controlled={};
+    synchronizeTrain(train,publication,id,head);
     const bool restricted=train.memory.sight||(train.controlled.instruction.revision&&!train.controlled.completed&&train.controlled.instruction.mode==1);
     if(offset==0){
      train.ahead.clear();train.managed=false;train.view={head,0,200,GetTickCount64(),true};
@@ -195,202 +286,242 @@ uintptr_t __fastcall scan(uintptr_t context,uintptr_t range){
      if(read(signalPtr+0x30,signalKind)&&signalKind==4&&train.ahead.size()<128){
       const double position=head+offset+part;
       if(train.ahead.empty()||train.ahead.back().signal!=signal)train.ahead.push_back({signal,position});
-      if(rule(rules,signal))train.managed=true;
+      if(rule(rules(publication),signal))train.managed=true;
       if(telemetry)InterlockedIncrement64(&telemetry->scans);
      }
     }
-   }
+    rememberSources(train,publication);
+   }else if(!access.state&&telemetry)InterlockedIncrement64(access.missing?&telemetry->missingTrainSlots:&telemetry->busyTrainScans);
   }
  }
  return nativeScan(context,range);
 }
 uint8_t __fastcall check(uintptr_t a,uintptr_t b,uintptr_t c,uintptr_t d,uintptr_t train,uintptr_t motion,uint64_t signal,uint8_t lookahead){
- NimbySignalDrivingRule instruction{};bool managed=false,fresh=false,eligible=false;
- uint64_t id=0;uintptr_t observedSession=0;double head=0,source=0;
- if(InterlockedCompareExchange(&active,0,0)&&read(motion,id)&&read(motion+0x3c0,head)&&std::isfinite(head)) {
-  Lock lock;
-  if(session&&session==currentSession())if(const auto* current=rule(rules,signal)) {
-   instruction=*current;managed=true;fresh=GetTickCount64()<expiry;observedSession=session;
-   // Loaded waiting trains have no ahead-scan cache yet. Bind only to the
-   // signal the native train is actually waiting at, never a lookahead request.
-   uint64_t waitingSignal{};uint8_t driving{};double speed{};int64_t ticks{};
-   const bool waiting=!lookahead&&id>>48==5&&read(motion+0x458,waitingSignal)&&waitingSignal==signal&&
-    read(motion+0x4b0,driving)&&driving==1&&read(motion+0x3c8,speed)&&
-    read(session+0x28,ticks)&&ticks>=0&&ticks<10000000000000LL;
-   if(waiting&&fresh&&(instruction.flags&NIMBY_DRIVING_ON_SIGHT)) {
-    if(trains.size()>=8192&&!trains.contains(id))trains.clear();
-    auto& state=trains[id];
-    if(state.motion!=motion){state={};state.motion=motion;}
-    state.managed=true;
-    if(std::none_of(state.ahead.begin(),state.ahead.end(),[&](const auto& row){return row.signal==signal;}))
-     state.ahead.insert(state.ahead.begin(),{signal,head});
-    if(observeWaitingStop(state.waiting,signal,head,speed,ticks)&&(instruction.flags&NIMBY_DRIVING_STOP_THEN_PROCEED))
-     state.memory.stopped={signal,head};
-   }
-   const auto found=trains.find(id);
-   if(found!=trains.end()&&found->second.motion==motion) {
-    source=head;
-    const auto at=std::find_if(found->second.ahead.begin(),found->second.ahead.end(),[&](const auto& row){return row.signal==signal;});
-    if(at!=found->second.ahead.end())source=at->position;
-    eligible=(!lookahead||at!=found->second.ahead.end())&&
-     restrictedEntry(found->second.memory,instruction,head,{true,200,0},fresh);
-   }
-  }
+ if(telemetry)InterlockedIncrement64(&telemetry->permissionCalls);
+ Publications::View snapshot(publications);const auto& publication=*snapshot;
+ const auto* current=publication.active()&&publication.session==currentSession()?rule(rules(publication),signal):nullptr;
+ if(!current){PermissionQuery query;QueryScope scope(query);return nativeCheck(a,b,c,d,train,motion,signal,lookahead);}
+ // Ownership is readable without touching another train's state. Only this
+ // managed signal can fail closed when its OWN train is currently unavailable.
+ uint64_t id{};double head{};
+ if(!read(motion,id)||id>>48!=5||!read(motion+0x3c0,head)||!std::isfinite(head))return 0;
+ if(publication.world)publication.world->markManaged(id);
+ TrainAccess access(publication,id,motion);
+ if(!access.state){if(telemetry)InterlockedIncrement64(access.missing?&telemetry->missingTrainSlots:&telemetry->busyTrainPermissions);return 0;}
+ auto& state=*access.state;synchronizeTrain(state,publication,id,head);
+ const auto instruction=*current;const auto observedLifetime=lifetime(publication.signalLifetimes,signal);
+ const bool fresh=freshRule(publication,signal,GetTickCount64());
+ uint64_t waitingSignal{};uint8_t driving{};double speed{};int64_t ticks{};
+ const bool waiting=!lookahead&&read(motion+0x458,waitingSignal)&&waitingSignal==signal&&
+  read(motion+0x4b0,driving)&&driving==1&&read(motion+0x3c8,speed)&&
+  read(publication.session+0x28,ticks)&&ticks>=0&&ticks<10000000000000LL;
+ if(waiting&&fresh&&(instruction.flags&NIMBY_DRIVING_ON_SIGHT)) {
+  state.managed=true;
+  if(std::none_of(state.ahead.begin(),state.ahead.end(),[&](const auto& row){return row.signal==signal;}))state.ahead.insert(state.ahead.begin(),{signal,head});
+  if(observeWaitingStop(state.waiting,signal,head,speed,ticks)&&(instruction.flags&NIMBY_DRIVING_STOP_THEN_PROCEED))state.memory.stopped={signal,head};
  }
+ double source=head;
+ const auto at=std::find_if(state.ahead.begin(),state.ahead.end(),[&](const auto& row){return row.signal==signal;});
+ if(at!=state.ahead.end())source=at->position;
+ const bool eligible=(state.managed||!state.ahead.empty())&&(!lookahead||at!=state.ahead.end())&&
+  restrictedEntry(state.memory,instruction,head,{true,200,0},fresh);
  PermissionQuery query;query.signal=signal;query.motion=motion;query.started=lookahead==0;query.allowOccupation=eligible;
  nimby::windows::automatic::PhysicalRoute entryRoute;
  if(eligible){entryRoute.begin(motion,id,source,readBytes);query.route=&entryRoute;}
+ const auto routeRevision=state.routeRevision;
  uint8_t native;
- // The mod owns restricted admission on the exact followed ranges. The game
- // still evaluates crossing occupation/reservations and controller ownership;
- // their refusal cannot be turned into approval by the final decision below.
  {QueryScope scope(query);native=nativeCheck(a,b,c,d,train,motion,signal,lookahead);}
- if(!managed)return native;
- Lock lock;
- const auto* current=rule(rules,signal);
- if(session!=observedSession||session!=currentSession()||!current||
-    std::memcmp(current,&instruction,sizeof instruction)||GetTickCount64()>=expiry)return 0;
+ // The publication may change during a native predicate. A removed/re-added
+ // source is a new lifetime even when the same owner reuses identical bytes.
+ Publications::View latest(publications);current=rule(rules(*latest),signal);
+ uint64_t confirmedId{};double confirmedHead{};
+ if(latest->world!=publication.world||latest->session!=currentSession()||state.routeRevision!=routeRevision||
+    !read(motion,confirmedId)||confirmedId!=id||!read(motion+0x3c0,confirmedHead)||confirmedHead!=head||!current||
+    lifetime(latest->signalLifetimes,signal)!=observedLifetime||
+    std::memcmp(current,&instruction,sizeof instruction)||!freshRule(*latest,signal,GetTickCount64()))return 0;
+ pruneReleased(state,*latest);
  if(instruction.flags&NIMBY_DRIVING_ON_SIGHT) {
   const bool granted=eligible&&native&&query.valid&&query.started&&std::isfinite(query.covered)&&std::min(query.free,query.covered)>5;
-  const auto found=trains.find(id);
-  if(found!=trains.end()&&found->second.motion==motion) {
-   found->second.entrySignal=signal;
-   found->second.entry={head,std::max(0.0,source-head)+query.covered,
-    std::max(0.0,source-head)+query.free,GetTickCount64(),granted};
-   if(granted&&!lookahead){
-    found->second.boundary={Passage{{signal,source},{signal,source},instruction,{}}};
-    found->second.physicalRoute=std::move(entryRoute);
+  state.entrySignal=signal;
+  state.entry={head,std::max(0.0,source-head)+query.covered,std::max(0.0,source-head)+query.free,GetTickCount64(),granted};
+  if(granted&&!lookahead){state.boundary={Passage{{signal,source},{signal,source},instruction,{}}};state.physicalRoute=std::move(entryRoute);}
+  if(telemetry){
+   InterlockedIncrement64(&telemetry->restrictedChecks);
+   const auto n=reserveSample(telemetry->permissionCount,512);
+   if(n>=0){auto& sample=telemetry->permissions[n];sample.observedAtMs=GetTickCount64();
+    sample.train=id;sample.signal=signal;sample.proof=state.memory.stopped.signal;
+    sample.flags=instruction.flags;sample.state=(eligible?1u:0u)|(native?2u:0u)|(query.valid?4u:0u)|(query.started?8u:0u)|(granted?16u:0u)|32u|(lookahead?64u:0u)|(query.reservationReplaced?128u:0u);
+    sample.ranges=query.ranges;sample.head=head;sample.source=source;sample.covered=query.covered;sample.free=query.free;
+    InterlockedExchange(&sample.ready,1);
    }
+   InterlockedIncrement64(granted?&telemetry->restrictedGranted:&telemetry->restrictedDenied);
   }
-  if(telemetry){InterlockedIncrement64(&telemetry->restrictedChecks);
-   // Capture changes in the actual native decision, not every simulation tick.
-   // Bit 128 records replacement of a longitudinal reservation refusal. It can
-   // coexist with a final denial (obstacle, crossing or another native reason).
-   const uint32_t state=(eligible?1u:0u)|(native?2u:0u)|(query.valid?4u:0u)|(query.started?8u:0u)|(granted?16u:0u)|(found!=trains.end()?32u:0u)|(lookahead?64u:0u)|(query.reservationReplaced?128u:0u);
-   const auto n=telemetry->permissionCount;
-   if(n<512&&(!n||telemetry->permissions[n-1].state!=state||telemetry->permissions[n-1].flags!=instruction.flags||telemetry->permissions[n-1].train!=id)) {
-    auto& sample=telemetry->permissions[telemetry->permissionCount];
-    sample.train=id;sample.signal=signal;sample.proof=found!=trains.end()?found->second.memory.stopped.signal:0;
-    sample.flags=instruction.flags;sample.state=state;sample.ranges=query.ranges;
-    sample.head=head;sample.source=source;sample.covered=query.covered;sample.free=query.free;
-    InterlockedExchange(&sample.ready,1);InterlockedIncrement(&telemetry->permissionCount);
-   }
-   if(granted)InterlockedIncrement64(&telemetry->restrictedGranted);
-   else InterlockedIncrement64(&telemetry->restrictedDenied);
-  }
-  return granted?1:0;
+  rememberSources(state,*latest);return granted?1:0;
  }
- if(!fresh||(instruction.flags&NIMBY_DRIVING_STOP)) {
-  if(telemetry){InterlockedIncrement64(&telemetry->stops);telemetry->lastSignal=signal;}return 0;
+ rememberSources(state,*latest);
+ if(!fresh||(instruction.flags&NIMBY_DRIVING_STOP)){
+  if(telemetry){InterlockedIncrement64(&telemetry->stops);InterlockedExchange64(reinterpret_cast<volatile LONG64*>(&telemetry->lastSignal),signal);}return 0;
  }
  return native;
 }
 uintptr_t __fastcall integrate(uintptr_t result,uintptr_t network,uintptr_t path,uintptr_t presence,uintptr_t dynamics,
  double extraMass,double ceiling,double acceleration,double braking,double distance,double target,int64_t budget,uintptr_t checkState){
+ if(telemetry)InterlockedIncrement64(&telemetry->integrationCalls);
  double chosenCeiling=ceiling,chosenBraking=braking,chosenDistance=distance,chosenTarget=target;
- nimby::automatic_status::Sample* sample=nullptr;
- std::vector<Passage> encountered;
- uint64_t observedId=0;uintptr_t observedSession=0;double beforeHead=0;
- if(InterlockedCompareExchange(&active,0,0)&&dynamics>=8&&presence==dynamics+0x398&&budget>0){
-  uint64_t id{};double head{};float material[8]{};uintptr_t config{};double brakeFactor{};
-  if(read(dynamics-8,id)&&id>>48==5&&read(presence+0x20,head)&&read(dynamics+0x1c,material)&&
-     read(network+0x10,config)&&read(config+0xd0,brakeFactor)&&std::isfinite(brakeFactor)&&brakeFactor>0&&
-     std::isfinite(extraMass)&&extraMass>=0&&std::isfinite(material[6])&&material[6]>0&&
-     std::isfinite(material[2])&&material[2]>0&&std::isfinite(head)&&
-     std::isfinite(material[0])&&material[0]>=0&&std::isfinite(material[7])&&material[7]>=0){
-   Lock lock;
-   if(session&&session==currentSession()) {
-    const bool fresh=GetTickCount64()<expiry;
-    // This argument combines native timetable cruising and a possible script
-    // ceiling. Remove only the former; the integrator still bounds speed by
-    // track/material and brakes for its distance/target arguments unchanged.
-    uint8_t targetActive{};float nativeTargetCeiling{};
-    if(fresh&&(drivingOptions&NIMBY_DRIVING_MAXIMUM_LINE_SPEED)&&
-       read(dynamics-8+0x4a0,targetActive)&&targetActive<=1&&
-       read(dynamics-8+0x49c,nativeTargetCeiling))
-     chosenCeiling=cruiseCeiling(ceiling,material[0],true,targetActive!=0,nativeTargetCeiling);
-    if(GetTickCount64()<constraintExpiry)if(const auto command=constraints.find(id);command!=constraints.end()) {
-     auto& state=trains[id];
-     if(!state.motion)state.motion=dynamics-8;
-     if(state.motion==dynamics-8)state.controlled.accept(command->second,head);
-    }
-    const auto found=trains.find(id);
-    if(found!=trains.end()&&found->second.motion==dynamics-8) {
-     auto& state=found->second;
-     if(GetTickCount64()>=constraintExpiry||!constraints.contains(id))state.controlled={};
-     if(state.memory.sight||(state.controlled.instruction.revision&&!state.controlled.completed&&state.controlled.instruction.mode==1)){
-      // Geometry comes from the native scanner, but occupation is read NOW,
-      // before each movement step. A long canton, a pause or accelerated time
-      // must not turn the scanner's cadence into repeated artificial stops.
-      // Reusing the geometry requires the same path, motion, full track IDs and
-      // matching current head. No new route or free continuation is invented.
-      uintptr_t map{},stepNetwork{},stepSession{};
-      if(currentStep.motion==dynamics-8&&path==dynamics-8+0x290&&
-         read(currentStep.context+8,stepNetwork)&&stepNetwork==network&&
-         read(currentStep.context+0x18,stepSession)&&stepSession==session&&
-         read(currentStep.context+0x68,map)&&map){
-       uintptr_t motion=dynamics-8;uint8_t clear=1;
-       std::array<uintptr_t,3> query{map,reinterpret_cast<uintptr_t>(&motion),reinterpret_cast<uintptr_t>(&clear)};
-       state.view=state.physicalRoute.refresh(motion,head,GetTickCount64(),readBytes,
-        [&](uintptr_t track,double from,double to,double length){bool occupied=false;
-         return physicalPrefix(reinterpret_cast<uintptr_t>(query.data()),track,from,to,length,occupied);});
-      }else state.view={};
-     }
-     auto proposed=prepareIntegration(state,rules,head,material[7],material[0],material[2],
-         material[6],extraMass,brakeFactor,fresh,GetTickCount64(),chosenCeiling,braking,distance,target);
-     chosenCeiling=proposed.ceiling;chosenBraking=proposed.braking;
-     chosenDistance=proposed.distance;chosenTarget=proposed.target;
-     if(proposed.restricted&&telemetry)InterlockedIncrement64(&telemetry->restrictedSteps);
-     if(proposed.observed){encountered=std::move(proposed.encountered);observedId=id;observedSession=session;beforeHead=head;}
-     if(telemetry&&(chosenCeiling!=ceiling||chosenBraking!=braking)) {
-      InterlockedIncrement64(&telemetry->applied);state.sampleBudget-=budget;
-      if(state.sampleBudget<=0&&telemetry->count<4096){
-       sample=&telemetry->samples[telemetry->count];InterlockedIncrement(&telemetry->count);
-       sample->train=id;sample->headBefore=head;sample->ceiling=chosenCeiling;sample->nativeCeiling=ceiling;
-       sample->braking=chosenBraking*brakeFactor;
-       if(state.memory.sight){const auto view=state.view.at(head,GetTickCount64());sample->restrictedSource=state.memory.sight->source;
-        sample->freeDistance=view.distanceM;sample->visibilityVerified=view.verified?1u:0u;}
-       read(presence+0x28,sample->before);state.sampleBudget=1000;
-      }
-     }
-    }
-   }
-  }
+ const auto invokeNative=[&]{return nativeIntegrate(result,network,path,presence,dynamics,extraMass,chosenCeiling,acceleration,chosenBraking,chosenDistance,chosenTarget,budget,checkState);};
+ Publications::View snapshot(publications);const auto& publication=*snapshot;
+ if(!publication.active()||publication.session!=currentSession()||dynamics<8||presence!=dynamics+0x398||budget<=0)return invokeNative();
+ const auto motion=dynamics-8;
+ uint64_t id{};double head{};float material[8]{};uintptr_t config{};double brakeFactor{};
+ if(!read(motion,id)||id>>48!=5||!read(presence+0x20,head)||!read(dynamics+0x1c,material)||
+    !read(network+0x10,config)||!read(config+0xd0,brakeFactor)||!std::isfinite(brakeFactor)||brakeFactor<=0||
+    !std::isfinite(extraMass)||extraMass<0||!std::isfinite(material[6])||material[6]<=0||
+    !std::isfinite(material[2])||material[2]<=0||!std::isfinite(head)||
+    !std::isfinite(material[0])||material[0]<0||!std::isfinite(material[7])||material[7]<0)return invokeNative();
+ double beforeSpeed{};read(presence+0x28,beforeSpeed);
+ uint8_t targetActive{};float nativeTargetCeiling{};
+ const auto applyCruise=[&](const Train* state){
+  if((trainOptions(publication,state,GetTickCount64())&NIMBY_DRIVING_MAXIMUM_LINE_SPEED)&&
+     read(motion+0x4a0,targetActive)&&targetActive<=1&&read(motion+0x49c,nativeTargetCeiling))
+   chosenCeiling=cruiseCeiling(ceiling,material[0],true,targetActive!=0,nativeTargetCeiling);
+ };
+ if(publication.world&&constraint(publication,id))publication.world->markManaged(id);
+ if(publication.world&&!publication.world->isManaged(id)){
+  applyCruise(nullptr);
+  if(telemetry)InterlockedIncrement64(chosenCeiling==ceiling?&telemetry->unmanagedNativeIntegrations:&telemetry->unmanagedCruiseIntegrations);
+  return invokeNative();
  }
- // Never hold stateLock across native integration: native permission callbacks
- // acquire it too. Commit memory only from the movement that actually happened.
- const auto returned=nativeIntegrate(result,network,path,presence,dynamics,extraMass,chosenCeiling,acceleration,chosenBraking,chosenDistance,chosenTarget,budget,checkState);
- if(observedId) {
-  double afterHead{};
-  if(read(presence+0x20,afterHead)) {
-   Lock lock;const auto found=trains.find(observedId);
-   if(session==observedSession&&session==currentSession()&&found!=trains.end()&&found->second.motion==dynamics-8)
-   {
-    double speed{};int64_t elapsed{};
-    const bool readable=read(presence+0x28,speed)&&read(result+0x30,elapsed);
-    commitIntegration(found->second,encountered,rules,beforeHead,afterHead,speed,elapsed,budget,readable,GetTickCount64()<expiry);
-   }
-  }
+ TrainAccess access(publication,id,motion);
+ if(!access.state){
+  // The independent interest index established a managed/ambiguous identity.
+  // Its missing or busy slot may carry restrictions, so only this train is
+  // conservative. Never infer absence of instructions from a failed lookup.
+  if(telemetry)InterlockedIncrement64(access.missing?&telemetry->missingTrainSlots:&telemetry->busyTrainIntegrations);
+  chosenCeiling=0;chosenDistance=0;chosenTarget=0;
+  const auto returned=invokeNative();
+  recordIntegration(id,head,beforeSpeed,presence,result,ceiling,braking,distance,target,chosenCeiling,chosenBraking,chosenDistance,chosenTarget,access.missing?2u:1u);
+  return returned;
  }
- if(sample){read(presence+0x28,sample->after);read(presence+0x20,sample->headAfter);read(result+0x30,sample->ticks);InterlockedExchange(&sample->ready,1);}
-
+ auto& state=*access.state;
+ // A recycled native object cannot use another object's retained instructions.
+ uint64_t confirmed{};if(!read(motion,confirmed)||confirmed!=id)return invokeNative();
+ synchronizeTrain(state,publication,id,head);
+ const auto now=GetTickCount64();const bool fresh=freshTrain(publication,state,head,now);
+ applyCruise(&state);
+ if(state.memory.sight||(state.controlled.instruction.revision&&!state.controlled.completed&&state.controlled.instruction.mode==1)){
+  uintptr_t map{},stepNetwork{},stepSession{};
+  if(currentStep.motion==motion&&path==motion+0x290&&read(currentStep.context+8,stepNetwork)&&stepNetwork==network&&
+     read(currentStep.context+0x18,stepSession)&&stepSession==publication.session&&read(currentStep.context+0x68,map)&&map){
+   uintptr_t queryMotion=motion;uint8_t clear=1;
+   std::array<uintptr_t,3> query{map,reinterpret_cast<uintptr_t>(&queryMotion),reinterpret_cast<uintptr_t>(&clear)};
+   state.view=state.physicalRoute.refresh(motion,head,now,readBytes,
+    [&](uintptr_t track,double from,double to,double length){bool occupied=false;
+     return physicalPrefix(reinterpret_cast<uintptr_t>(query.data()),track,from,to,length,occupied);});
+  }else state.view={};
+ }
+ auto proposed=prepareIntegration(state,rules(publication),head,material[7],material[0],material[2],material[6],extraMass,brakeFactor,fresh,now,chosenCeiling,braking,distance,target);
+ chosenCeiling=proposed.ceiling;chosenBraking=proposed.braking;chosenDistance=proposed.distance;chosenTarget=proposed.target;
+ if(proposed.restricted&&telemetry)InterlockedIncrement64(&telemetry->restrictedSteps);
+ // Reuse the publisher field as a PRIVATE lifetime token. It never crosses the
+ // public ABI. A release/re-add of the same owner must invalidate old passages.
+ for(auto& passage:proposed.encountered)passage.publisher=lifetime(publication.signalLifetimes,passage.source.signal);
+ rememberSources(state,publication);
+ const auto routeRevision=state.routeRevision;
+ const bool changed=chosenCeiling!=ceiling||chosenBraking!=braking||chosenDistance!=distance||chosenTarget!=target;
+ if(changed&&telemetry)InterlockedIncrement64(&telemetry->applied);
+ const auto returned=invokeNative();
+ // access remains held across native integration. Nested callbacks on this
+ // thread borrowed it, so there is no second lock that can lose a NEW crossing.
+ if(proposed.observed){
+  Publications::View latest(publications);double afterHead{};uint64_t afterId{};
+  if(latest->world==publication.world&&latest->session==currentSession()&&state.routeRevision==routeRevision&&read(motion,afterId)&&afterId==id&&read(presence+0x20,afterHead)){
+   pruneReleased(state,*latest);
+   std::erase_if(proposed.encountered,[&](const auto& passage){return !passage.publisher||lifetime(latest->signalLifetimes,passage.source.signal)!=passage.publisher;});
+   double speed{};int64_t elapsed{};
+   const bool readable=read(presence+0x28,speed)&&read(result+0x30,elapsed);
+   commitIntegration(state,proposed.encountered,rules(*latest),head,afterHead,speed,elapsed,budget,readable,freshTrain(*latest,state,afterHead,GetTickCount64()));
+   rememberSources(state,*latest);
+   if(telemetry)InterlockedIncrement64(&telemetry->committedIntegrations);
+  }else if(telemetry)InterlockedIncrement64(&telemetry->discardedCommits);
+ }
+ if(changed){state.sampleBudget-=budget;if(state.sampleBudget<=0){
+  recordIntegration(id,head,beforeSpeed,presence,result,ceiling,braking,distance,target,chosenCeiling,chosenBraking,chosenDistance,chosenTarget,fresh?0u:3u,&state);
+  state.sampleBudget=1000;
+ }}
  return returned;
 }
 }
-extern "C" __declspec(dllexport) uint32_t __cdecl NimbyDriving_PublishV2(const NimbySignalDrivingRule* input,uint32_t count,uint32_t lease,uint32_t options) noexcept {
+namespace {
+template<class Rows> std::vector<SourceLifetime> nextLifetimes(const Rows& before,const Rows& next,
+ std::span<const SourceLifetime> previous,uint64_t revision,bool sameWorld){
+ std::vector<SourceLifetime> result;result.reserve(next.rows().size());
+ for(const auto& row:next.rows()){
+  const auto id=Rows::id(row);const auto retained=sameWorld&&before.owner(id)==next.owner(id)?lifetime(previous,id):0;
+  result.push_back({id,retained?retained:revision});
+ }
+ return result;
+}
+template<bool Signals,class Row> uint32_t publishRows(std::vector<Row> rows,uint64_t deadline,uint32_t options,uint64_t owner){
+ PublicationBudget budget;
+ std::shared_ptr<const Publication> origin;
+ for(unsigned attempt=0;attempt<3;++attempt){
+  std::shared_ptr<const Publication> before;
+  {PublicationLock lock(budget);if(!lock){if(telemetry)InterlockedIncrement64(&telemetry->publicationBusy);return NIMBY_RESOURCE_LIMIT;}before=publications.snapshot();}
+  if(!origin)origin=before;
+  else if(before->worldRevision!=origin->worldRevision)return NIMBY_DATA_UNAVAILABLE;
+  const auto& prior=[&]() -> const auto& {if constexpr(Signals)return before->rules;else return before->constraints;}();
+  const auto& first=[&]() -> const auto& {if constexpr(Signals)return origin->rules;else return origin->constraints;}();
+  if(attempt&&!prior.sameOwnerVersion(first,owner))return NIMBY_RESOURCE_LIMIT;
+  const auto sim=currentSession();const bool nonempty=!rows.empty()||options;
+  if(!sim&&nonempty)return NIMBY_DATA_UNAVAILABLE;
+  auto next=std::make_shared<Publication>(*before);next->revision=before->revision+1;
+  const bool sameWorld=sim==before->session;
+  if(!sameWorld){
+   next->session=sim;++next->worldRevision;next->world=sim?std::make_shared<TrainWorld>():nullptr;
+   next->rules.clear();next->constraints.clear();next->signalLifetimes.clear();next->constraintLifetimes.clear();
+  }else if(sim&&!next->world)next->world=std::make_shared<TrainWorld>();
+  uint32_t result;
+  if constexpr(Signals){
+   result=next->rules.publish(owner,rows,deadline,options);
+   if(result==NIMBY_OK)next->signalLifetimes=nextLifetimes(before->rules,next->rules,before->signalLifetimes,next->revision,sameWorld);
+  }else{
+   result=next->constraints.publish(owner,rows,deadline);
+   if(result==NIMBY_OK)next->constraintLifetimes=nextLifetimes(before->constraints,next->constraints,before->constraintLifetimes,next->revision,sameWorld);
+  }
+  if(result!=NIMBY_OK)return result;
+  if(currentSession()!=sim||(nonempty&&GetTickCount64()>=deadline))return NIMBY_DATA_UNAVAILABLE;
+  std::array<std::shared_ptr<Publication>,32> garbage;
+  {PublicationLock lock(budget);if(!lock){if(telemetry)InterlockedIncrement64(&telemetry->publicationBusy);return NIMBY_RESOURCE_LIMIT;}
+   if(nonempty&&GetTickCount64()>=deadline)return NIMBY_DATA_UNAVAILABLE;
+   if(publications.snapshot()!=before)continue;
+   if(!publications.commit(before,next,garbage)){if(telemetry)InterlockedIncrement64(&telemetry->publicationRetirementFull);return NIMBY_RESOURCE_LIMIT;}
+   if(telemetry){const auto current=publications.snapshot();
+    InterlockedExchange64(reinterpret_cast<volatile LONG64*>(&telemetry->session),current->session);
+    InterlockedExchange(&telemetry->ruleCount,static_cast<LONG>(current->rules.rows().size()));
+   }
+  }
+  return NIMBY_OK;
+ }
+ if(telemetry)InterlockedIncrement64(&telemetry->publicationConflicts);
+ return NIMBY_RESOURCE_LIMIT;
+}
+}
+extern "C" __declspec(dllexport) uint32_t __cdecl NimbyDriving_PublishV3(const NimbySignalDrivingRule* input,uint32_t count,uint32_t lease,uint32_t options,uint64_t publisher) noexcept {
  try {
-  std::vector<NimbySignalDrivingRule> next;
-  if(!installed||!prepareRules(input,count,lease,options,next))return NIMBY_INVALID_ARGUMENT;
-  Lock lock;const auto sim=currentSession();
-  if(sim!=session){trains.clear();constraints.clear();constraintExpiry=0;}
-  else if(!options&&next.empty()&&constraints.empty())trains.clear();
-  session=sim;drivingOptions=options;rules=std::move(next);expiry=GetTickCount64()+lease;
-  if(telemetry){telemetry->session=session;InterlockedExchange(&telemetry->ruleCount,static_cast<LONG>(rules.size()));}
-  InterlockedExchange(&active,session&&(!rules.empty()||options||!constraints.empty()));return NIMBY_OK;
- }catch(...){ nimby::detail::diagnostics::exception("sdk", __func__); return NIMBY_INTERNAL_ERROR;}
+  const auto deadline=GetTickCount64()+lease;std::vector<NimbySignalDrivingRule> next;
+  if(!publisher||!installed||!prepareRules(input,count,lease,options,next))return NIMBY_INVALID_ARGUMENT;
+  return publishRows<true>(std::move(next),deadline,options,publisher);
+ }catch(...){nimby::detail::diagnostics::exception("sdk",__func__);return NIMBY_INTERNAL_ERROR;}
+}
+extern "C" __declspec(dllexport) uint32_t __cdecl NimbyDriving_PublishV2(const NimbySignalDrivingRule* input,uint32_t count,uint32_t lease,uint32_t options) noexcept {
+ // Legacy bridge callers share only this reserved namespace; they cannot
+ // replace or release owner-scoped batches. SDK clients use V3, even for V1/V2.
+ return NimbyDriving_PublishV3(input,count,lease,options,1);
 }
 extern "C" __declspec(dllexport) DWORD WINAPI NimbyInternal_Bootstrap(void* argument) noexcept {
  if(argument)return NIMBY_INVALID_ARGUMENT;
+ nimby::platform::windows::BridgeInstallation installation;
+ if(!installation)return installation.status();
  AcquireSRWLockExclusive(&initialization);struct Unlock{~Unlock(){ReleaseSRWLockExclusive(&initialization);}} unlock;
  if(installed)return NIMBY_ALREADY_INITIALIZED;
  std::array<wchar_t,32768> path{};NimbyBinaryInfo identity{};
@@ -432,32 +563,31 @@ extern "C" __declspec(dllexport) uint32_t __cdecl NimbyDriving_Publish(const Nim
 extern "C" __declspec(dllexport) uint32_t __cdecl NimbyDriving_TrainConstraints(
  const NimbyTrainConstraint* input,uint32_t count,uint32_t lease,uint64_t publisher) noexcept {
  try {
+  const auto deadline=GetTickCount64()+lease;
   if(!publisher||!installed||count>8192||(!input&&count)||lease<100||lease>5000)return NIMBY_INVALID_ARGUMENT;
-  std::unordered_map<uint64_t,NimbyTrainConstraint> next;
-  for(uint32_t i=0;i<count;++i)if(!validConstraint(input[i])||!next.emplace(input[i].train,input[i]).second)return NIMBY_INVALID_ARGUMENT;
-  Lock lock;const auto sim=currentSession();
-  if(sim!=session){trains.clear();rules.clear();constraints.clear();constraintOwner=constraintExpiry=0;drivingOptions=0;session=sim;}
-  if(!sim&&count)return NIMBY_DATA_UNAVAILABLE;
-  if(constraintOwner!=publisher){
-   if(!count)return NIMBY_OK;
-   if(!constraints.empty()&&GetTickCount64()<constraintExpiry)return NIMBY_RESOURCE_LIMIT;
-   for(auto& [id,state]:trains)state.controlled={};
-  }
-  constraintOwner=publisher;constraints=std::move(next);constraintExpiry=GetTickCount64()+lease;
-  for(auto& [id,state]:trains)if(!constraints.contains(id))state.controlled={};
-  InterlockedExchange(&active,session&&(!rules.empty()||drivingOptions||!constraints.empty()));return NIMBY_OK;
- }catch(...){ nimby::detail::diagnostics::exception("sdk", __func__); return NIMBY_INTERNAL_ERROR;}
+  std::vector<NimbyTrainConstraint> next;if(count)next.assign(input,input+count);
+  for(const auto& row:next)if(!validConstraint(row))return NIMBY_INVALID_ARGUMENT;
+  std::sort(next.begin(),next.end(),[](const auto& a,const auto& b){return a.train<b.train;});
+  for(size_t i=1;i<next.size();++i)if(next[i-1].train==next[i].train)return NIMBY_INVALID_ARGUMENT;
+  return publishRows<false>(std::move(next),deadline,0,publisher);
+ }catch(...){nimby::detail::diagnostics::exception("sdk",__func__);return NIMBY_INTERNAL_ERROR;}
 }
 extern "C" __declspec(dllexport) uint32_t __cdecl NimbyDriving_ReadTrainConstraint(uint64_t train,NimbyTrainConstraintStatus* out) noexcept {
  if(!out||out->size!=sizeof *out||train>>48!=5)return NIMBY_INVALID_ARGUMENT;
  *out={};out->size=sizeof *out;out->train=train;
- Lock lock;
- if(!session||session!=currentSession())return NIMBY_DATA_UNAVAILABLE;
- if(GetTickCount64()>=constraintExpiry||!constraints.contains(train))return NIMBY_OK;
- const auto& command=constraints.at(train);out->revision=command.revision;out->speed_mps=command.speed_mps;out->exit_signal=command.exit_signal;out->state=1;
- const auto state=trains.find(train);
- if(state!=trains.end()&&state->second.controlled.instruction.revision==command.revision){
-  out->state=state->second.controlled.state();out->exit_signal=state->second.controlled.exitSignal;
+ Publications::View view(publications);
+ if(!view->session||view->session!=currentSession())return NIMBY_DATA_UNAVAILABLE;
+ const auto current=constraint(*view,train);
+ if(!freshConstraint(*view,train,GetTickCount64())||!current)return NIMBY_OK;
+ out->revision=current->revision;out->speed_mps=current->speed_mps;out->exit_signal=current->exit_signal;out->state=1;
+ const auto slot=view->world?view->world->find(train,false):nullptr;
+ if(!slot)return NIMBY_OK;
+ // Readback does not know a native motion address. It never creates/rebinds a
+ // slot or enters a native callback, and a busy train reports a bounded retry.
+ if(!TryAcquireSRWLockExclusive(&slot->lock))return NIMBY_RESOURCE_LIMIT;
+ struct Unlock{SRWLOCK* lock;~Unlock(){ReleaseSRWLockExclusive(lock);}}unlock{&slot->lock};
+ if(slot->id==train&&slot->state.constraintLifetime==lifetime(view->constraintLifetimes,train)&&slot->state.controlled.instruction.revision==current->revision){
+  out->state=slot->state.controlled.state();out->exit_signal=slot->state.controlled.exitSignal;
  }
  return NIMBY_OK;
 }

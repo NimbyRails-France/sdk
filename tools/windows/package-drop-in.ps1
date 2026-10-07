@@ -14,7 +14,7 @@ if($DevelopmentConstruction){
 }elseif(Test-Path -LiteralPath "$stage/NimbyConstructionBridge-experimental-v1.dll"){
  throw 'A production package cannot reuse a stage containing the development construction bridge.'
 }
-foreach($name in @('SDL3.dll','NimbyRailsFranceSDK.dll','libwinpthread-1.dll','NimbyRailsFranceTextureBridge-experimental-v4.dll','NimbySignalUiBridge-experimental-v1.dll','NimbyAutomaticDrivingBridge-v1.dll','NimbyRailsFranceClockBridge-0.7.1.dll','NimbyModMetadataBridge-v1.dll')){
+foreach($name in @('SDL3.dll','NimbyRailsFranceSDK.dll','NimbyRailsFranceModHost.exe','libwinpthread-1.dll','NimbyRailsFranceTextureBridge-experimental-v4.dll','NimbySignalUiBridge-experimental-v1.dll','NimbyAutomaticDrivingBridge-v1.dll','NimbyRailsFranceClockBridge-0.7.1.dll','NimbyModMetadataBridge-v1.dll')){
  $source=if($name -eq 'SDL3.dll'){"$BuildDirectory/drop-in/$name"}else{"$BuildDirectory/$name"}
  Copy-Item -LiteralPath $source -Destination $stage -Force
 }

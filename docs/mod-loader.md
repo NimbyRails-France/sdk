@@ -1,56 +1,89 @@
-# Mods C++ via le NRF Loader du Hub
+﻿# Chargement et isolation des mods — contrat interne Windows
 
-Les mods Kotlin utilisent le même loader via le pont précompilé du SDK.
-Le [plugin Gradle](gradle-plugin.md) génère leur manifeste et assemble leurs DLL.
-Les instructions C++ ci-dessous ne sont pas requises pour un projet Kotlin.
+Les créateurs de mods utilisent l’API Kotlin `nimby` et le plugin Gradle.
+Le [wiki](https://wiki.nimbyrails-france.fr/commencer/installation) décrit ce
+parcours public. Cette page documente le loader du SDK, pas une API C++ à
+recopier dans les mods.
 
-Pour débuter en créant vous-même chaque fichier, suivre
-[le tutoriel de création d'un mod](tutorial-create-mod.md).
+## Frontières d’exécution
 
-## Écrire un mod sans code Windows
+Le proxy SDL démarre le SDK dans le jeu. Le gestionnaire de mods lance ensuite
+un processus distinct pour chaque mod natif. Sa DLL et son pont Kotlin sont
+chargés dans ce processus, pas dans le thread de rendu du jeu. Les composants
+natifs du SDK qui interviennent sur le jeu restent dans le processus du jeu.
 
-Inclure `<nimby/mod.hpp>`, implémenter `nimby::Mod nimby::createMod()` et lier
-la DLL à `NimbyRailsFranceSDK::Mod`. Cette cible ajoute `entry.cpp` du SDK au
-build du mod. L'adaptateur contient tous les exports C et le `DllMain` minimal.
-Le mod fournit uniquement des callbacks C++ : `showTexture`, `restoreTexture`,
-et éventuellement `start` et `stop`. Aucun objet C++ ne traverse une frontière
-DLL : les callbacks et l'adaptateur sont compilés ensemble.
+Une exception Kotlin, un blocage de callback et un crash natif sont des cas
+différents. Les exceptions sont consignées ; la supervision borne le démarrage,
+le travail et l’arrêt d’un worker. Un worker bloqué est mis en quarantaine,
+sans attendre son callback indéfiniment. Les autres workers restent supervisés
+indépendamment. Les Job Objects bornent les ressources des processus ; les
+lectures, publications et commandes passent également par des budgets du SDK.
 
-L'adaptateur valide les arguments, convertit les exceptions en codes de retour
-et empêche l'arrêt pendant une commande. Un échec de démarrage laisse le mod
-inactif ; un échec d'arrêt conserve son état pour permettre une nouvelle tentative.
-Les callbacks ne doivent pas rappeler les exports du même adaptateur (verrou non
-récursif). Les exports génériques de texture sont `NRFMod_ShowTextureV1` et
-`NRFMod_RestoreTextureV1` ; `NRFMod_IsInitializedV1` sert au diagnostic.
+Ces bornes limitent l’impact d’un mod défectueux. Elles ne garantissent ni temps
+réel strict ni absence de contention : le CPU, la mémoire et le moteur du jeu
+restent partagés. Ce mécanisme n’est pas une sandbox de sécurité pour exécuter
+du code malveillant. Une défaillance d’un composant du SDK chargé dans le jeu
+peut toujours affecter celui-ci.
 
-## Protocole du loader
+## Découverte et cycle de vie
 
-Le proxy SDL initialise le SDK puis les modules de `<jeu>/NRFMods/<projet>/`.
-Chaque dossier déclare sa DLL dans `nrf-mod.ini`, section `[NRFMod]`, clé `library`.
-Exemple : `library=SignalisationFrancaiseRealisteMod.dll`. Seul un nom de fichier
-DLL est accepté, sans chemin, ni remontée de dossier.
-Le Hub crée ces dossiers sous forme de jonctions vers les projets installés qui
-déclarent `loaderApi: 1`. Il ne faut pas copier les DLL du SDK dans chaque mod.
-Les dépendances propres à un mod peuvent se trouver près de sa DLL.
+Le Hub prépare `<jeu>/NRFMods/<projet>/` pour les projets déclarant `loaderApi: 1`.
+Le manifeste `nrf-mod.ini`, section `[NRFMod]`, fournit `library`, un nom de DLL
+sans chemin ni remontée de dossier. Le kit et le plugin génèrent les éléments
+nécessaires ; ne recopiez pas une version du SDK dans chaque mod.
 
-Exports C, convention WINAPI, sans exception traversant la frontière DLL :
+Les exports internes `NRFMod_StartV1` et `NRFMod_StopV1` sont appelés dans le
+worker. Les initialiseurs de DLL doivent rester minimaux : les observations et
+services appartiennent aux callbacks du runtime Kotlin. Le démarrage du mod
+peut précéder le chargement d’une partie ; une observation indisponible à ce
+moment ne constitue pas une preuve de corruption de la sauvegarde.
 
-```cpp
-extern "C" __declspec(dllexport) DWORD WINAPI NRFMod_StartV1(void* reserved);
-extern "C" __declspec(dllexport) DWORD WINAPI NRFMod_StopV1(void* reserved);
-```
+Le SDK conserve les diagnostics des workers arrêtés ou mis en quarantaine.
+Un mod absent ou invalide est journalisé sans interdire le chargement des autres
+mods. Les références de session, les baux et les résultats en cours ne sont pas
+des identifiants persistants d’une sauvegarde.
 
-`reserved` vaut nullptr. Start retourne 0 pour succès, 4 si déjà démarré ; Stop
-retourne 0 pour succès. Les autres valeurs sont des erreurs. DllMain ne doit pas
-initialiser le mod. Start intervient après SDL_Init, avant la disponibilité de la
-partie. Stop intervient avant l'arrêt du SDK, dans l'ordre inverse du démarrage.
-Si Stop échoue, le loader conserve le SDK. Les références DLL sont conservées
-jusqu'à la fermeture du processus. Il n'y a pas de rechargement à chaud.
+## Réveil des actions d’outils
 
-Le contrôle des empreintes du jeu et de SDL reste obligatoire avant de charger
-les mods. Une DLL manquante ou un export absent est journalisé et ne bloque pas
-les autres mods. Un crash à l'intérieur d'un mod peut affecter le jeu : les mods
-installés sont du code natif de confiance, pas des scripts isolés.
+La boucle interne des outils utilise une capture de session et conserve son
+intervalle périodique de 250 ms au repos. Une intention acceptée par le panneau
+de signal ou par une fenêtre d’outil peut avancer le prochain cycle. Ce réveil
+ne lance aucun callback sur le thread de la fenêtre : la même boucle sérielle
+effectue une capture fraîche, puis dépile les intentions avec leurs contrôles
+de propriétaire, de génération, de monde et d’expiration habituels.
 
-Cette fonction appartient au proxy SDL installé par le Hub. Le chargeur externe
-`NimbyRailsFranceLoader.exe` garde son rôle de diagnostic du SDK.
+Le courtier associe chaque fournisseur à l’événement de son propre worker.
+Le worker hérite uniquement du droit d’attendre cet événement Windows ; le
+pont UI détient son propre duplicata pour le signaler. Une fenêtre hébergée
+dans le worker utilise un second événement, local au processus. Aucun handle
+fourni dans une requête de mod n’est accepté pour choisir le destinataire.
+Le signal ne contient ni commande ni autorisation : la file validée reste
+l’autorité, même après un retrait de fournisseur ou un changement de monde.
+
+Les réveils sont regroupés ; deux départs anticipés sont espacés d’au moins
+20 ms. Un événement arrivé pendant un callback reste pris en compte après
+celui-ci, sans exécution concurrente ni rattrapage des cycles manqués. L’arrêt
+est prioritaire et les handles attendus sont fermés après la fin du thread.
+L’absence de timer haute résolution conserve une attente d’événements avec
+timeout ; si cette attente est indisponible, le cycle périodique reste le
+secours. La signalisation BAL et les boucles auxiliaires ne consomment pas
+les réveils de cette boucle interne.
+
+Dans une fenêtre d’outil Windows, une publication acceptée, une invalidation
+ou un arrêt signale également un événement privé du thread UI. L’affichage
+peut ainsi traiter une réponse sans attendre son prochain contrôle de 50 ms.
+Ce timeout reste inchangé pour la fraîcheur et la langue, et sert de secours
+si l’événement n’a pas pu être créé. Les notifications sont regroupées sans
+ajouter de thread ni exécuter de callback Kotlin dans l’UI.
+
+## Installation et validation
+
+Les empreintes du binaire du jeu et des composants natifs sont vérifiées avant
+leur utilisation. Les DLL et le kit Kotlin doivent provenir du même build.
+L’activation d’un nouveau profil se fait jeu fermé ; il n’y a pas de remplacement
+à chaud des composants épinglés dans le processus.
+
+Les tests de qualification couvrent un worker qui bloque, un worker qui inonde
+les requêtes et un worker qui crashe pendant que les autres mods continuent.
+Leurs résultats sont datés et liés à un build : voir les preuves de validation,
+sans en déduire qu’un nouveau binaire ou tous les scénarios ont été qualifiés.

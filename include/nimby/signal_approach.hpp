@@ -54,11 +54,10 @@ inline std::optional<Id> firstApproachedSignal(const SignalTopology& topology,Po
 
 struct SignalApproach {Id train=0;size_t blocks=0;};
 
-inline std::map<Id,SignalApproach> observeSignalApproaches(const Snapshot& snapshot,std::span<const Signal> boundaries,
+inline std::map<Id,SignalApproach> observeSignalApproaches(const Snapshot& snapshot,const SignalTopology& topology,
     Milliseconds maxAge=Milliseconds{1000},size_t blocks=1) {
     std::map<Id,SignalApproach> result;
     if(snapshot.isOlderThan(maxAge)||snapshot.getAllTrains().size()>4096)return result;
-    const SignalTopology topology(boundaries,snapshot.getAllTrackNodes(),snapshot.getAllTrackJunctions(),SignalDirectionConvention::Forward);
     for(const auto& train:snapshot.getAllTrains()) {
         const auto service=snapshot.getTrainServiceById(train.getId());
         const auto head=train.getPosition();
@@ -72,5 +71,10 @@ inline std::map<Id,SignalApproach> observeSignalApproaches(const Snapshot& snaps
         }
     }
     return result;
+}
+inline std::map<Id,SignalApproach> observeSignalApproaches(const Snapshot& snapshot,std::span<const Signal> boundaries,
+    Milliseconds maxAge=Milliseconds{1000},size_t blocks=1) {
+    const SignalTopology topology(boundaries,snapshot.getAllTrackNodes(),snapshot.getAllTrackJunctions(),SignalDirectionConvention::Forward);
+    return observeSignalApproaches(snapshot,topology,maxAge,blocks);
 }
 }

@@ -1,5 +1,38 @@
 #include <nimby/detail/signal_settings_client.hpp>
 #include <cstdio>
+namespace nimby::detail {
+struct SignalSettingsClientTest {
+    inline static NimbyUiExportV1 nativeExport{};
+    inline static uint32_t exports{};
+    static uint32_t countedExport(uint64_t owner,uint64_t session,char* bytes,uint32_t capacity,uint32_t* written){
+        ++exports;return nativeExport(owner,session,bytes,capacity,written);
+    }
+    static bool measure(SignalSettingsClient& client){
+        nativeExport=client.export_;client.export_=countedExport;exports=0;return client.revision_!=nullptr;
+    }
+    static void checkpoint(SignalSettingsClient& client){client.nextSave_={};client.checkpoint(false);}
+    inline static uint32_t batchMode{};
+    static uint32_t changingBatch(uint64_t,const uint64_t* ids,uint32_t count,NimbyUiReadBatchHeaderV1* header,NimbyUiReadBatchRowV1* rows){
+        *header={};header->size=sizeof(*header);header->version=1;header->count=count;header->field_count=1;
+        std::strcpy(header->names[0],batchMode==2?"changed":"active");
+        for(uint32_t i=0;i<count;++i){rows[i]={};rows[i].signal=ids[i];rows[i].status=batchMode==3?1:batchMode==4?0:2;rows[i].values=batchMode==1||batchMode==2?1:0;}
+        if(batchMode==5&&count)rows[0].signal=0;
+        return NIMBY_OK;
+    }
+    static bool changingValues(SignalSettingsClient& client,std::span<const SignalSettingsStore::Signal> signals){
+        const auto previous=client.readBatch_;client.readBatch_=changingBatch;
+        struct Restore{SignalSettingsClient& client;NimbyUiReadBatchV1 previous;~Restore(){client.readBatch_=previous;client.cached_=false;client.cache_.clear();}} restore{client,previous};
+        for(batchMode=0;batchMode<5;++batchMode){
+            if(!client.refresh(signals))return false;
+            const auto values=client.read(signals[0].id);
+            if(batchMode<3){if(values.getBoolean(batchMode==2?"changed":"active")!=std::optional<bool>(batchMode!=0))return false;
+                if(batchMode==2&&values.getBoolean("active"))return false;
+            }else if(values.status!=(batchMode==3?SettingsStatus::Absent:SettingsStatus::Unavailable)||!values.booleans.empty())return false;
+        }
+        batchMode=5;return !client.refresh(signals)&&!client.cached_;
+    }
+};
+}
 #define CHECK(x) do {if(!(x)){std::fprintf(stderr,"Failed line %d\n",__LINE__);return 1;}}while(false)
 int main(int argc,char** argv){
     CHECK(argc==2);
@@ -16,6 +49,7 @@ int main(int argc,char** argv){
     const auto session=client.beginSession("test-save");CHECK(session);
     const nimby::SignalSettingsStore::Signal signals[]{{id,"atlas"}};
     CHECK(client.observe(session,signals));
+    CHECK(nimby::detail::SignalSettingsClientTest::changingValues(client,signals));
     CHECK(client.read(id).getBoolean("active")==true);
     auto saved=client.exportSettings(session);CHECK(saved&&saved->sessionId=="test-save"&&saved->panelId=="client");
     saved->signals.push_back({id,{{"active",false}}});
@@ -49,9 +83,18 @@ int main(int argc,char** argv){
     nimby::detail::SignalSettingsFile::save(path,profile);
     const auto before=std::filesystem::last_write_time(path);
     dll=LoadLibraryA(argv[1]);CHECK(dll);CHECK(client.connectExisting(panel));
+    using Probe=nimby::detail::SignalSettingsClientTest;CHECK(Probe::measure(client));
     CHECK(client.synchronize(world,signals));
+    const auto firstExports=Probe::exports;CHECK(firstExports==2);
+    for(int i=0;i<10;++i){CHECK(client.synchronize(world,signals));Probe::checkpoint(client);}
+    CHECK(Probe::exports==firstExports); // No repeated serialization or export RPC.
     CHECK(client.read(id).getBoolean("active")==false);
-    client.close();CHECK(std::filesystem::last_write_time(path)==before);
+    client.close();CHECK(Probe::exports==firstExports);CHECK(std::filesystem::last_write_time(path)==before);
+    CHECK(client.connectExisting(panel));CHECK(Probe::measure(client));CHECK(client.synchronize(world,signals));
+    const auto beforePrune=Probe::exports;CHECK(client.synchronize(world,{}));CHECK(Probe::exports==beforePrune);
+    client.close();CHECK(Probe::exports==beforePrune+2); // Forced close saves a change inside the 250 ms cadence.
+    CHECK(nimby::detail::SignalSettingsFile::load(path)->signals.empty());
+    nimby::detail::SignalSettingsFile::save(path,profile);
     CHECK(client.connectExisting(panel));CHECK(client.synchronize(world,signals));
     CHECK(client.read(id).getBoolean("active")==false);
     CHECK(client.synchronize(nimby::GameSession{2,"1123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"},signals));

@@ -3,12 +3,13 @@
 #include <cstdint>
 #include <vector>
 namespace nimby::texture_bridge {
-// Owned by the runtime, never placed in shared memory. The worker is the only
-// writer; a render callback borrows/copies one entry under its platform lock.
+// Owned by the runtime, never placed in shared memory. Workers publish immutable
+// versions; a render callback pins a version only while copying one entry.
 struct Command {
     uint64_t signal=0,set_hash=0,expires=0;
     uint32_t index=0;
     uint32_t alternate_index=0, half_period_ms=0;
+    uint64_t owner=0;
 };
 // Select against simulation time, never polling/wall time. A paused simulation
 // therefore keeps the same phase even while frames continue to be drawn.

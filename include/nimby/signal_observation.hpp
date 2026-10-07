@@ -58,7 +58,7 @@ inline std::vector<LiveSignalState> observeSignals(const Snapshot& snapshot,
         if(!scope.blocks||scope.blocks>16||!catalogues.contains(scope.textureSet))throw std::invalid_argument("Invalid approach scope");
         maxApproach=std::max(maxApproach,scope.blocks);
     }
-    const auto approaches=maxApproach?observeSignalApproaches(snapshot,boundaries,maxAge,maxApproach):std::map<Id,SignalApproach>{};
+    const auto approaches=maxApproach?observeSignalApproaches(snapshot,topology.getSignalTopology(),maxAge,maxApproach):std::map<Id,SignalApproach>{};
     std::vector<LiveSignalState> result;
     result.reserve(selected.size());
     for (const auto& [id,catalogue] : selected) {

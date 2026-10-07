@@ -40,6 +40,10 @@ public:
         return Snapshot::capture(session_, scope, textureSet);
     }
     Snapshot::Ptr captureSignalling() { return capture(SnapshotScope::Signalling); }
+    Snapshot::Ptr captureTrainData(uint32_t flags=NIMBY_TRAIN_DATA_ALL) {
+        std::lock_guard guard(mutex_);
+        return Snapshot::capture(session_,SnapshotScope::TrainData,nullptr,{},flags);
+    }
     Snapshot::Ptr captureSignalling(std::span<const NimbySignalCaptureScope> scopes) {
         if(scopes.empty()||scopes.size()>16)throw std::invalid_argument("Invalid signalling scopes");
         std::lock_guard guard(mutex_);

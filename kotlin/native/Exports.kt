@@ -20,6 +20,8 @@ private val types by lazy {
     if(gameMod is SignallingMod) mod.signalTypes.map { it.copy(checkboxes = it.checkboxes.toList(), actions = it.actions.toList(), numbers = it.numbers.toList()) }.also(::validateSignalTypes)
     else emptyList()
 }
+private val networkSchema by lazy { SignalNetworkSchema(types) }
+private val settingsMasks by lazy { types.map { SignalSettingsMask(it.checkboxes) } }
 private val services by lazy { gameMod.services.toList().also { entries ->
     require(entries.size <= 32 && entries.distinct().size == entries.size)
     entries.forEach { require(it.matches(Regex("[a-zA-Z0-9_.-]{1,128}"))) }
@@ -216,18 +218,18 @@ private fun inTool(world: String, generation: Long, call: ToolCall?, block: (Too
 
 // Each row: id, next, mask, approaching train; type, status and seven observation integers.
 @CName("NRFKotlin_PrepareNetwork") fun prepareNetwork(count: Int, identities: CPointer<LongVar>?, fields: CPointer<IntVar>?, masks: CPointer<LongVar>?, statuses: CPointer<IntVar>?): Int = guarded("PrepareNetwork") {
-    require(count in 0..512)
+    require(count in 0..maximumSignalNetworkSize)
     if(count == 0) return@guarded 0
     require(identities != null && fields != null && masks != null && statuses != null)
     val source = List(count) { i ->
         val declaration = types[fields[i*9]]
         val mask = identities[i*4+2]
-        val settings = declaration.checkboxes.mapIndexed { bit, box -> box.name to (mask and (1L shl bit) != 0L) }.toMap()
+        val settings = settingsMasks[fields[i*9]].read(mask)
         val observation = Observation(Occupancy.entries[fields[i*9+2]], fields[i*9+3]!=0, fields[i*9+4]!=0,
             fields[i*9+5]!=0, fields[i*9+6]!=0, fields[i*9+7]!=0, fields[i*9+8], identities[i*4+3].takeIf { it!=0L })
         Signal(identities[i*4], identities[i*4+1], settings, observation, SettingsStatus.entries[fields[i*9+1]], declaration.id)
     }
-    val prepared = mod.prepareObservedNetwork(source)
+    val prepared = networkSchema.prepare(mod, source)
     prepared.forEachIndexed { i, signal ->
         masks[i] = types[fields[i*9]].checkboxes.foldIndexed(0L) { bit, mask, box ->
             if(signal.settings[box.name] ?: box.defaultValue) mask or (1L shl bit) else mask }
@@ -236,11 +238,15 @@ private fun inTool(world: String, generation: Long, call: ToolCall?, block: (Too
     0
 }
 
+// Optional capability: older ABI 8 DLLs retain their original 512-signal
+// bound. A new adapter must not send a larger request to those DLLs.
+@CName("NRFKotlin_NetworkLimit") fun networkLimit(): Int = maximumSignalNetworkSize
+
 @CName("NRFKotlin_DecideType") fun decideType(type: Int, mode: Int, mask: Long, status: Int, id: Long, nextId: Long, approachingTrain: Long,
     observation: CPointer<IntVar>?, nextAspect: Int, nextReason: Int, out: CPointer<IntVar>?): Int = guarded("Decide") {
     require(observation != null && out != null && mode in 0..2)
     val declaration = types[type]
-    val settings = declaration.checkboxes.mapIndexed { i, box -> box.name to (mask and (1L shl i) != 0L) }.toMap()
+    val settings = settingsMasks[type].read(mask)
     val o = Observation(Occupancy.entries[observation[0]], observation[1] != 0, observation[2] != 0,
         observation[3] != 0, observation[4] != 0, observation[5] != 0, observation[6], approachingTrain.takeIf { it != 0L })
     val next = if (nextAspect < 0) null else Decision(nextAspect, nextReason)

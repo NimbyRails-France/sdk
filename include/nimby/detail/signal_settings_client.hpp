@@ -49,7 +49,7 @@ public:
         std::vector<NimbyUiActionV1> declarations(panel.actions.size());
         for(size_t i=0;i<panel.actions.size();++i){const auto& a=panel.actions[i];auto& target=declarations[i];
             copy(target.id,a.id);copy(target.label,a.label);copy(target.provider,a.provider);copy(target.service,a.service);}
-        std::string panelId(panel.id);
+        std::string panelId(panel.id),textureSet(panel.textureSet);
         std::vector<NimbyUiNumberSettingV1> numbers(panel.numbers.size());
         for(size_t i=0;i<panel.numbers.size();++i){const auto& field=panel.numbers[i];auto& target=numbers[i];
             copy(target.name,field.name);copy(target.label,field.label);copy(target.visible_when,field.visibleWhen);
@@ -89,18 +89,22 @@ public:
             if(actions(owner,declarations.data(),static_cast<uint32_t>(declarations.size()))!=NIMBY_OK){remove(owner);native::unload(module);return false;}
         }
         panelId_=std::move(panelId);
+        textureSet_=std::move(textureSet);
         migrate_=panel.migrate;
         module_=module;owner_=owner;remove_=remove;read_=read;suspend_=suspend;
         begin_=begin;observe_=observe;
         export_=resolve<NimbyUiExportV1>(module,"NimbyUi_ExportV1");
         beginSaved_=resolve<NimbyUiBeginSavedV1>(module,"NimbyUi_BeginSavedV1");
         context_=resolve<NimbyUiPanelContextV1>(module,"NimbyUi_PanelContextV1");
+        readBatch_=resolve<NimbyUiReadBatchV1>(module,"NimbyUi_ReadBatchV1");
+        revision_=resolve<NimbyUiSettingsRevisionV1>(module,"NimbyUi_SettingsRevisionV1");
         return true;
     }
     // Only the SDK session coordinator may supply this identity and catalog.
     // Never substitute a process ID or a partial list for a loaded save.
     uint64_t beginSession(std::string_view identity) {
         std::lock_guard lock(mutex_);uint64_t session{};
+        cached_=false;cache_.clear();
         if(!module_||identity.empty()||identity.size()>512)return 0;
         return begin_(owner_,identity.data(),static_cast<uint32_t>(identity.size()),&session)==NIMBY_OK?session:0;
     }
@@ -109,6 +113,7 @@ public:
     uint64_t beginSession(std::string_view identity,const SignalSettingsStore::SavedSettings& saved) {
         const auto bytes=SignalSettingsFile::encode(saved);
         std::lock_guard lock(mutex_);uint64_t session{};
+        cached_=false;cache_.clear();
         if(!module_||!beginSaved_||identity.empty()||identity.size()>512)return 0;
         return beginSaved_(owner_,identity.data(),static_cast<uint32_t>(identity.size()),
             bytes.data(),static_cast<uint32_t>(bytes.size()),&session)==NIMBY_OK?session:0;
@@ -135,6 +140,7 @@ public:
         std::vector<NimbyUiSignalV1> wire(signals.size());
         for(size_t i=0;i<signals.size();++i){wire[i].id=signals[i].id;copy(wire[i].texture_set,signals[i].textureSet);}
         std::lock_guard lock(mutex_);
+        cached_=false; // Reuse allocations only after a fresh validated batch.
         return module_&&observe_(owner_,session,wire.data(),static_cast<uint32_t>(wire.size()))==NIMBY_OK;
     }
     bool connected() const {std::lock_guard lock(mutex_);return module_!=nullptr;}
@@ -170,20 +176,28 @@ public:
             if(!session){suspend();return false;}
             observedGame_=game;observedSession_=session;
             profilePath_=path;lastSaved_=original;
+            savedRevision_=0;
             nextSave_={};
         }
         if(!observe(observedSession_,catalog))return false;
         if(context_&&context_(owner_,observedSession_,game.generation)!=NIMBY_OK){suspend();return false;}
+        if(!refresh(catalog)){suspend();return false;}
         checkpoint(false);
         return true;
     }
     void suspend() noexcept {
         std::lock_guard lock(mutex_);
+        cached_=false;cache_.clear();
         if(module_)suspend_(owner_);
     }
     SignalSettings read(uint64_t signal) const {
         std::lock_guard lock(mutex_);
         if(!module_)return {};
+        if(cached_){
+            const auto found=cache_.find(signal);
+            if(found!=cache_.end())return found->second.settings;
+            SignalSettings absent;absent.status=SettingsStatus::Absent;return absent;
+        }
         NimbyUiValuesV1 wire{};wire.size=sizeof(wire);wire.version=NIMBY_SIGNAL_UI_ABI;
         if(read_(owner_,signal,&wire)!=NIMBY_OK||wire.size!=sizeof(wire)||
            wire.version!=NIMBY_SIGNAL_UI_ABI||wire.status>2||wire.count>64)return {};
@@ -207,23 +221,75 @@ public:
         return std::filesystem::path(root)/L"NimbyRailsFrance"/L"signal-settings"/std::string(world)/(encoded+".settings");
     }
 private:
+    friend struct SignalSettingsClientTest;
+    bool refresh(std::span<const SignalSettingsStore::Signal> catalog) {
+        std::lock_guard lock(mutex_);
+        if(!readBatch_)return true; // Older resident bridges retain their ABI.
+        cached_=false;
+        std::vector<uint64_t> ids;
+        for(const auto& signal:catalog)if(signal.textureSet==textureSet_)ids.push_back(signal.id);
+        if(ids.size()>16384)return false;
+        NimbyUiReadBatchHeaderV1 header{};header.size=sizeof header;header.version=1;
+        std::vector<NimbyUiReadBatchRowV1> rows(ids.size());
+        if(readBatch_(owner_,ids.data(),static_cast<uint32_t>(ids.size()),&header,rows.data())!=NIMBY_OK||
+           header.size!=sizeof header||header.version!=1||header.count!=ids.size()||header.field_count>64)return false;
+        std::vector<std::string> names;names.reserve(header.field_count);
+        std::set<std::string> unique;
+        for(uint32_t i=0;i<header.field_count;++i){
+            const auto end=static_cast<const char*>(std::memchr(header.names[i],0,sizeof header.names[i]));
+            if(!end||end==header.names[i])return false;
+            names.emplace_back(header.names[i],static_cast<size_t>(end-header.names[i]));
+            if(!unique.insert(names.back()).second)return false;
+        }
+        const bool sameSchema=names==cacheNames_;
+        std::map<uint64_t,CachedSettings> next;
+        for(size_t i=0;i<rows.size();++i){const auto& row=rows[i];
+            if(row.signal!=ids[i]||row.status>2||row.reserved||
+               (header.field_count<64&&(row.values>>header.field_count))||(row.status!=2&&row.values))return false;
+            if(next.contains(row.signal))return false;
+            const auto status=row.status==2?SettingsStatus::Present:row.status==1?SettingsStatus::Absent:SettingsStatus::Unavailable;
+            auto node=cache_.extract(row.signal);
+            if(node.empty())node=next.extract(next.emplace(row.signal,CachedSettings{}).first);
+            auto& value=node.mapped();
+            if(!sameSchema||value.settings.status!=status||value.mask!=row.values){
+                value.settings.status=status;value.settings.booleans.clear();value.mask=row.values;
+                if(status==SettingsStatus::Present)for(size_t j=0;j<names.size();++j)
+                    value.settings.booleans.emplace(names[j],bool(row.values&(uint64_t{1}<<j)));
+            }
+            next.insert(std::move(node));
+        }
+        cache_=std::move(next);cacheNames_=std::move(names);cached_=true;return true;
+    }
     void checkpoint(bool force) {
         if(profilePath_.empty()||!observedSession_)return;
         const auto now=std::chrono::steady_clock::now();
         if(!force&&now<nextSave_)return;
         nextSave_=now+std::chrono::milliseconds(250);
+        uint64_t before{};
+        if(revision_){
+            const auto status=revision_(owner_,observedSession_,&before);
+            if(status==NIMBY_HOOKS_UNAVAILABLE)revision_=nullptr; // Older resident bridge.
+            else if(status!=NIMBY_OK||!before)throw std::runtime_error("Cannot read signal settings revision");
+            else if(savedRevision_==before)return;
+        }
         const auto saved=exportSettings(observedSession_);
         if(!saved)throw std::runtime_error("Cannot export signal settings");
         const auto bytes=SignalSettingsFile::encode(*saved);
-        if(bytes==lastSaved_)return;
-        SignalSettingsFile::save(profilePath_,*saved);
-        lastSaved_=bytes;
+        if(bytes!=lastSaved_){
+            SignalSettingsFile::save(profilePath_,*saved);
+            lastSaved_=bytes;
+        }
+        // Remember the revision from BEFORE export. A click racing the copy or
+        // disk write must remain dirty for the next checkpoint, including close.
+        savedRevision_=before;
     }
     void closeLocked() noexcept {
         if(module_){remove_(owner_);native::unload(module_);}
         module_=nullptr;owner_=0;remove_=nullptr;read_=nullptr;suspend_=nullptr;
         begin_=nullptr;observe_=nullptr;
         export_=nullptr;beginSaved_=nullptr;context_=nullptr;
+        readBatch_=nullptr;cached_=false;cache_.clear();cacheNames_.clear();textureSet_.clear();
+        revision_=nullptr;savedRevision_=0;
         observedGame_.reset();observedSession_=0;profilePath_.clear();lastSaved_.clear();panelId_.clear();
         migrate_=nullptr;
     }
@@ -246,6 +312,14 @@ private:
     NimbyUiExportV1 export_{};
     NimbyUiBeginSavedV1 beginSaved_{};
     NimbyUiPanelContextV1 context_{};
+    NimbyUiReadBatchV1 readBatch_{};
+    NimbyUiSettingsRevisionV1 revision_{};
+    uint64_t savedRevision_=0;
+    bool cached_=false;
+    struct CachedSettings {SignalSettings settings;uint64_t mask{};};
+    std::map<uint64_t,CachedSettings> cache_;
+    std::vector<std::string> cacheNames_;
+    std::string textureSet_;
     // Accessed only by the serialized worker, or close after joining it.
     std::optional<GameSession> observedGame_;
     uint64_t observedSession_=0;

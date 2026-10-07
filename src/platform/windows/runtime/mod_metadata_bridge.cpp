@@ -1,3 +1,4 @@
+#include <platform/windows/bridge_installation.h>
 // Cosmetic metadata localisation for the qualified Windows 1.19 executable.
 // Discovery keeps the game's cache unchanged. UI copies/arguments are translated
 // for the picker and the in-game manager. No save, signal ID or file is rewritten.
@@ -221,6 +222,8 @@ uintptr_t list(uintptr_t out,uint8_t usableOnly){
 
 extern "C" __declspec(dllexport) DWORD WINAPI NimbyInternal_Bootstrap(void* argument)noexcept {
     if(argument)return NIMBY_INVALID_ARGUMENT;
+    nimby::platform::windows::BridgeInstallation installation;
+    if(!installation)return installation.status();
     AcquireSRWLockExclusive(&initialization);
     struct Unlock{~Unlock(){ReleaseSRWLockExclusive(&initialization);}} unlock;
     if(enabled)return NIMBY_ALREADY_INITIALIZED;

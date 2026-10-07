@@ -10,6 +10,8 @@ steps:
     commands:
       - "case $CI_COMMIT_MESSAGE in *\"Release-Runner: github\"*) echo GitHub runner selected; exit 0 ;; esac"
       - python3 .woodpecker/test-github-release.py
+      - python3 .woodpecker/test-release-metadata.py
+      - python3 .woodpecker/test-sdk-package.py
       - sh .woodpecker/build.sh
       - python3 .woodpecker/package.py
   - name: publish-github-release

@@ -36,6 +36,17 @@ typedef uint32_t (*NimbyUiBeginV1)(uint64_t owner,const char* identity,uint32_t 
 typedef uint32_t (*NimbyUiObserveV1)(uint64_t owner,uint64_t session,const NimbyUiSignalV1*,uint32_t count);
 typedef uint32_t (*NimbyUiSuspendV1)(uint64_t owner);
 typedef uint32_t (*NimbyUiReadV1)(uint64_t owner,uint64_t signal,NimbyUiValuesV1*);
+// Optional process-host batch. Field names are sent once, followed by compact
+// per-signal masks in that order. Values are refreshed for each observation.
+typedef struct NimbyUiReadBatchHeaderV1 {
+    uint32_t size,version,count,field_count;
+    char names[64][129];
+} NimbyUiReadBatchHeaderV1;
+typedef struct NimbyUiReadBatchRowV1 {
+    uint64_t signal,values;
+    uint32_t status,reserved;
+} NimbyUiReadBatchRowV1;
+typedef uint32_t (*NimbyUiReadBatchV1)(uint64_t,const uint64_t*,uint32_t,NimbyUiReadBatchHeaderV1*,NimbyUiReadBatchRowV1*);
 // Optional persistence exports. Payload is the bounded SDK settings codec, not
 // a game save. Export(nullptr,0) queries size; a short buffer receives no bytes.
 typedef uint32_t (*NimbyUiExportV1)(uint64_t owner,uint64_t session,char* bytes,uint32_t capacity,uint32_t* written);
@@ -109,3 +120,6 @@ typedef uint32_t (*NimbyUiSignalPreviewPublishV1)(uint64_t,const NimbyUiSignalPr
 // Internal native construction handoff. No STL objects cross DLL boundaries.
 typedef uint32_t (*NimbyUiSettingsCopyBeginV1)(uint64_t,uint64_t*);
 typedef uint32_t (*NimbyUiSettingsCopyFinishV1)(uint64_t,const uint64_t*,uint32_t);
+// Additive constant-cost check before serializing a settings profile. Revisions
+// are scoped to the owner; the session must still be current even when unchanged.
+typedef uint32_t (*NimbyUiSettingsRevisionV1)(uint64_t owner,uint64_t session,uint64_t* revision);

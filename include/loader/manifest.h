@@ -1,10 +1,20 @@
 #pragma once
+#include <array>
 #include <istream>
 #include <sstream>
 #include <string>
 #include <string_view>
 
 namespace nimby::loader {
+inline constexpr size_t manifest_byte_limit=64*1024;
+enum class ManifestError {none,invalid,too_large,io};
+inline const char* manifest_error_message(ManifestError error) noexcept {
+    switch(error){
+    case ManifestError::too_large:return "manifest exceeds the 64 KiB byte limit";
+    case ManifestError::io:return "manifest could not be read";
+    default:return "invalid mod library manifest";
+    }
+}
 // Manifest syntax is shared across hosts. Only suffix/case rules come from the
 // native module backend. Paths are single ASCII filenames, never directories.
 inline std::string trim_manifest(std::string value) {
@@ -37,23 +47,40 @@ inline std::string parse_manifest_lines(std::istream& input,std::string_view suf
        !manifest_equal(std::string_view(name).substr(name.size()-suffix.size()),suffix,insensitive))return {};
     return name;
 }
-inline std::string manifest_library(std::istream& input,std::string_view suffix,bool insensitive) {
-    const auto first=input.peek();
-    if(first!=0xff&&first!=0xfe)return parse_manifest_lines(input,suffix,insensitive);
-    // Preserve Windows INI files saved as UTF-16 with a BOM. The grammar and
-    // permitted module names are ASCII; non-ASCII code units stay invalid in
-    // identifiers, while arbitrary Unicode comments can still be ignored.
-    const bool little=input.get()==0xff;
-    if(input.get()!=(little?0xfe:0xff))return {};
-    std::string decoded;
-    for(int a=input.get();a!=std::char_traits<char>::eof();a=input.get()) {
-        const int b=input.get();
-        if(b==std::char_traits<char>::eof())return {};
-        const unsigned unit=little?unsigned(a)|(unsigned(b)<<8):unsigned(b)|(unsigned(a)<<8);
-        decoded.push_back(unit<128?static_cast<char>(unit):'\x7f');
+inline std::string manifest_library(std::istream& input,std::string_view suffix,bool insensitive,
+                                    ManifestError* error=nullptr) {
+    if(error)*error=ManifestError::invalid;
+    // Limit bytes from the actual stream, not a racy filesystem size. Even an
+    // endless stream or one giant line consumes only this fixed buffer; the
+    // extra byte distinguishes an exact-limit file from an oversized file.
+    std::array<char,manifest_byte_limit+1> bytes;
+    try {input.read(bytes.data(),static_cast<std::streamsize>(bytes.size()));}
+    catch(const std::ios_base::failure&){
+        if(input.bad()||!input.eof()){if(error)*error=ManifestError::io;return {};}
     }
-    if(input.bad())return {};
-    std::istringstream lines(decoded);
-    return parse_manifest_lines(lines,suffix,insensitive);
+    const auto count=static_cast<size_t>(input.gcount());
+    if(count>manifest_byte_limit){if(error)*error=ManifestError::too_large;return {};}
+    if(input.bad()||(input.fail()&&!input.eof())){if(error)*error=ManifestError::io;return {};}
+    if(!count)return {};
+    const auto first=static_cast<unsigned char>(bytes[0]);
+    std::string decoded;
+    if(first!=0xff&&first!=0xfe)decoded.assign(bytes.data(),count);
+    else {
+        // Preserve Windows INI files saved as UTF-16 with a BOM. The grammar and
+        // permitted module names are ASCII; non-ASCII code units stay invalid in
+        // identifiers, while arbitrary Unicode comments can still be ignored.
+        const bool little=first==0xff;
+        if(count<2||static_cast<unsigned char>(bytes[1])!=(little?0xfe:0xff)||(count%2))return {};
+        decoded.reserve((count-2)/2);
+        for(size_t i=2;i<count;i+=2) {
+            const auto a=static_cast<unsigned char>(bytes[i]),b=static_cast<unsigned char>(bytes[i+1]);
+            const unsigned unit=little?unsigned(a)|(unsigned(b)<<8):unsigned(b)|(unsigned(a)<<8);
+            decoded.push_back(unit<128?static_cast<char>(unit):'\x7f');
+        }
+    }
+    std::istringstream lines(std::move(decoded));
+    auto library=parse_manifest_lines(lines,suffix,insensitive);
+    if(error&&!library.empty())*error=ManifestError::none;
+    return library;
 }
 }

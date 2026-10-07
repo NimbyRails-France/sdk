@@ -24,12 +24,14 @@ inline BlockCoverage checkBlockCoverage(std::span<const TrainPresence> trains,
     BlockCoverage result;
     if (!nativeCollectionComplete) return result;
     std::unordered_set<std::uint64_t> occupiedTrains;
+    occupiedTrains.reserve(trains.size());
     for (const auto& row : footprints) {
         if (!row.train || !row.track || !std::isfinite(row.begin) || !std::isfinite(row.end)
             || row.begin < 0 || row.end < row.begin || row.end > 1) return result;
         occupiedTrains.insert(row.train);
     }
     std::unordered_set<std::uint64_t> seen;
+    seen.reserve(trains.size());
     for (const auto& train : trains) {
         if (!train.train || !seen.insert(train.train).second) return result;
         const bool hasFootprint = occupiedTrains.erase(train.train) != 0;

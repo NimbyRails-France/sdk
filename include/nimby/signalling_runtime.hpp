@@ -5,6 +5,8 @@
 #include <nimby/automatic_driving.hpp>
 #include <nimby/signalling_control.hpp>
 #include <nimby/detail/signal_animation.hpp>
+#include <nimby/detail/live_texture_tracking.hpp>
+#include <unordered_set>
 
 namespace nimby {
 // Generic command names supplied by a mod. All strings need static lifetime.
@@ -40,6 +42,22 @@ public:
     };
     struct NetworkSignalResult { std::uint64_t signal; SignalResult result; };
     struct NetworkResult { FixedList<NetworkSignalResult,Rules::maxSignals> signals; };
+    // Live maps use bounded heap storage; the versioned command ABI above
+    // keeps its original capacity and never grows the Windows worker stack.
+    struct LiveNetworkSignalResult {
+        std::uint64_t signal;
+        struct { typename Rules::Decision decision; } result;
+    };
+    struct LiveNetworkResult {
+        struct {
+            std::vector<LiveNetworkSignalResult> items;
+            std::span<const LiveNetworkSignalResult> values() const {return items;}
+        } signals;
+    };
+    static constexpr std::size_t liveSignalLimit=[] {
+        if constexpr(requires {Rules::maxLiveSignals;})return Rules::maxLiveSignals;
+        else return Rules::maxSignals;
+    }();
     struct BlockRequest {
         FixedList<BlockSection,512> sections;
         FixedList<TrainFootprint,4096> trains;
@@ -82,23 +100,35 @@ public:
     }
     static NetworkResult evaluateNetwork(const NetworkRequest& request,bool live) {
         checkClock(request.simulationMs,request.halfPeriodMs);
+        const auto decisions=networkDecisions(request.signals.values(),live,Rules::maxSignals);
+        NetworkResult result;
+        for(const auto& decision:decisions)
+            result.signals.push_back({decision.id,image(decision.decision,request.simulationMs,request.halfPeriodMs)});
+        return result;
+    }
+    static LiveNetworkResult evaluateLiveNetwork(std::span<const typename Rules::Signal> input) {
+        const auto decisions=networkDecisions(input,true,liveSignalLimit);
+        LiveNetworkResult result;result.signals.items.reserve(decisions.size());
+        for(const auto& decision:decisions)result.signals.items.push_back({decision.id,{decision.decision}});
+        return result;
+    }
+private:
+    static auto networkDecisions(std::span<const typename Rules::Signal> input,bool live,std::size_t limit) {
+        if(input.size()>limit)throw std::invalid_argument("Signal evaluation limit exceeded");
         const auto signals = [&] {
-            if constexpr(requires { Rules::prepareNetwork(request.signals.values()); })return Rules::prepareNetwork(request.signals.values());
-            else return request.signals.values();
+            if constexpr(requires { Rules::prepareNetwork(input); })return Rules::prepareNetwork(input);
+            else return input;
         }();
-        const auto decisions=nimby::evaluateSignalsWithFallback<typename Rules::Decision>(std::span<const typename Rules::Signal>{signals},[live](const auto& signal,const auto& next) {
+        return nimby::evaluateSignalsWithFallback<typename Rules::Decision>(std::span<const typename Rules::Signal>{signals},[live](const auto& signal,const auto& next) {
                 if constexpr(controllable)if(live)if(auto forced=controlState().forced(signal.id))return forced;
                 return Rules::decide(signal,next);
             },
             [](const auto& signal) {
                 if constexpr(requires { Rules::invalidNetworkDecision(signal); }) return Rules::invalidNetworkDecision(signal);
                 else return Rules::invalidNetworkDecision();
-            },Rules::maxSignals);
-        NetworkResult result;
-        for(const auto& decision:decisions)
-            result.signals.push_back({decision.id,image(decision.decision,request.simulationMs,request.halfPeriodMs)});
-        return result;
+            },limit);
     }
+public:
     static BlockResult occupancy(const BlockRequest& request) {
         const BlockReader reader(request.trains.values(),request.coverageVerified);
         return {reader.read(request.sections.values())};
@@ -139,22 +169,23 @@ private:
         static std::vector<Id> signals;
         return signals;
     }
+    template<class Cleanup> static void cleanupLive(Cleanup cleanup) {
+        if constexpr(controllable)controlState().invalidateAndCleanup(std::move(cleanup));
+        else cleanup();
+    }
     static void restoreLive() {
-        if constexpr(controllable){std::lock_guard guard(controlState().mutex);controlState().lost();
-            controlState().releaseTrains();
-        }
-        rendered().clear();
-        auto& owned = liveTextures();
-        std::erase_if(owned, [](Id id) {
-            try { restoreTexture(id); return true; } catch (...) { return false; }
+        cleanupLive([] {
+            rendered().clear();
+            auto& owned = liveTextures();
+            detail::restoreTrackedTextures(owned,[](Id){return true;},
+                [](std::span<const Id> ids){SignalTextures::inGame().restore(ids);},[](Id){});
         });
     }
     static void stopLive() {
-        if constexpr(controllable){std::lock_guard guard(controlState().mutex);controlState().lost();
-            controlState().releaseTrains();
-        }
-        if constexpr(requires(Id id,typename Rules::Decision decision){Rules::drivingRule(id,decision);})
-            AutomaticDriving::release();
+        cleanupLive([] {
+            if constexpr(requires(Id id,typename Rules::Decision decision){Rules::drivingRule(id,decision);})
+                AutomaticDriving::release();
+        });
     }
     struct Rendered { detail::SignalAnimation animation; std::string catalogue; std::chrono::steady_clock::time_point renewed; };
     static std::unordered_map<Id,Rendered>& rendered() {
@@ -163,27 +194,25 @@ private:
     static void observeLive(const Snapshot& snapshot) {
         const auto clock = snapshot.getSimulationClock();
         if (!clock) throw std::runtime_error("Simulation clock unavailable");
-        NetworkRequest request;
-        request.simulationMs = clock->getElapsedTime().count();
+        const auto simulationMs=clock->getElapsedTime().count();
+        constexpr int64_t halfPeriodMs=500;
+        checkClock(simulationMs,halfPeriodMs);
         // Read C++ panel values owned by this mod's SDK adapter. Until the
         // native session/UI bridge is ready, this returns Unavailable.
         auto states = [&] {
             if constexpr(requires { Rules::observe(snapshot); })return Rules::observe(snapshot);
-            else return observeSignals(snapshot, Rules::textureSet, Rules::maxSignals);
+            else return observeSignals(snapshot, Rules::textureSet, liveSignalLimit);
         }();
+        std::vector<typename Rules::Signal> signals;signals.reserve(states.size());
         std::unique_lock<std::mutex> controlLock;
         if constexpr(controllable){controlLock=std::unique_lock(controlState().mutex);controlState().observe(snapshot,states);}
         for (auto& state : states) {
             state.settings=readSignalSettings(state.id);
             if constexpr(controllable)controlState().overlay(state.id,state.settings);
-            request.signals.push_back(Rules::fromLive(state));
+            signals.push_back(Rules::fromLive(state));
         }
-        const auto result = evaluateNetwork(request,true);
+        const auto result = evaluateLiveNetwork(signals);
         if constexpr(controllable)for(const auto& row:result.signals.values())controlState().decisions[row.signal]=row.result.decision;
-        // Optional consumer diagnostics receive precisely the observations used
-        // for this decision, including the live panel values (no second capture).
-        if constexpr(requires { Rules::diagnoseLive(snapshot,states,result); })
-            Rules::diagnoseLive(snapshot,states,result);
         if constexpr(requires(Id id,typename Rules::Decision decision){Rules::drivingRule(id,decision);}) {
             std::vector<SignalDrivingRule> drivingRules;
             for(const auto& row:result.signals.values())
@@ -193,30 +222,50 @@ private:
         }
         auto& owned = liveTextures();
         if constexpr(controllable)controlState().publishTrains();
+        if(controlLock.owns_lock())controlLock.unlock();
+        // Diagnostics receive the same facts, after urgent driving publication.
+        if constexpr(requires { Rules::diagnoseLive(snapshot,states,result); })
+            Rules::diagnoseLive(snapshot,states,result);
+        std::unordered_map<Id,std::string_view> catalogues;
+        catalogues.reserve(states.size());
+        for(const auto& state:states)catalogues.emplace(state.id,state.textureSet);
         // Signals deleted or reassigned to another catalogue cease to be owned.
-        std::erase_if(owned, [&](Id id) {
-            if (std::any_of(states.begin(), states.end(), [id](const auto& state) { return state.id == id; })) return false;
-            try { restoreTexture(id); rendered().erase(id); return true; } catch (...) { return false; }
-        });
+        detail::restoreTrackedTextures(owned,[&](Id id){return !catalogues.contains(id);},
+            [](std::span<const Id> ids){SignalTextures::inGame().restore(ids);},[](Id id){rendered().erase(id);});
+        std::unordered_set<Id> ownedIds(owned.begin(),owned.end());
+        std::vector<TextureUpdate> updates;updates.reserve(result.signals.values().size());
+        std::vector<std::pair<Id,Rendered>> changed;changed.reserve(result.signals.values().size());
+        const auto now=std::chrono::steady_clock::now();
+        size_t refused=0;
         for (const auto& row : result.signals.values()) {
             // Record before sending: a partially successful batch is restored
             // by observationLost if any later render fails.
-            if (std::find(owned.begin(), owned.end(), row.signal) == owned.end()) owned.push_back(row.signal);
-            const auto animation=detail::signalAnimation<Rules>(row.result.decision,request.halfPeriodMs);
-            const auto source=std::find_if(states.begin(),states.end(),[&](const auto& s){return s.id==row.signal;});
-            if(source==states.end())throw std::logic_error("Missing rendered signal type");
+            if(!detail::trackLiveTexture(row.signal,owned,ownedIds)){++refused;continue;}
+            const auto animation=detail::signalAnimation<Rules>(row.result.decision,halfPeriodMs);
+            const auto source=catalogues.find(row.signal);
+            if(source==catalogues.end())throw std::logic_error("Missing rendered signal type");
             // React immediately to changes; renew identical leases less often.
             // Reading occupancy must not repeatedly reload the same texture.
-            const auto now=std::chrono::steady_clock::now();
             const auto previous=rendered().find(row.signal);
             if(previous!=rendered().end()&&previous->second.animation==animation&&
-               previous->second.catalogue==source->textureSet&&
+               previous->second.catalogue==source->second&&
                now-previous->second.renewed<Milliseconds{500})continue;
-            const TextureImage image{source->textureSet,animation.first};
-            const auto textures=SignalTextures::inGame();
-            if(animation.first==animation.alternate) textures.showFor(row.signal,image,Milliseconds{2500});
-            else textures.animateFor(row.signal,image,animation.alternate,Milliseconds{animation.everyMs},Milliseconds{2500});
-            rendered()[row.signal]={animation,source->textureSet,now};
+            const bool animated=animation.first!=animation.alternate;
+            updates.push_back({row.signal,{std::string(source->second),animation.first},animated?animation.alternate:std::string{},
+                Milliseconds{animated?animation.everyMs:0},Milliseconds{2500}});
+            changed.push_back({row.signal,{animation,std::string(source->second),now}});
+        }
+        SignalTextures::inGame().publish(updates);
+        for(auto& [signal,value]:changed)rendered()[signal]=std::move(value);
+        // Do not throw here: that would invalidate healthy driving rules and
+        // renewed peers. Native visuals for refused IDs are not proven safe.
+        static bool capacityReported=false;
+        if(refused&&!capacityReported){
+            detail::diagnostics::write("mods","ERROR","Automatic textures: 4096 tracked IDs reached while cleanup is pending. New overrides refused; their native visual indications are unverified. Driving and existing texture renewals continue.");
+            capacityReported=true;
+        }else if(!refused&&capacityReported){
+            detail::diagnostics::write("mods","INFO","Automatic textures: cleanup recovered; all current overrides admitted.");
+            capacityReported=false;
         }
     }
     static void checkClock(std::int64_t time,std::int64_t halfPeriod) {

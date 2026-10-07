@@ -24,17 +24,29 @@ int main(){try{
     constexpr uint64_t id=0x8000000000001;
     CHECK(endpoint.read(owner,id,&values)==NIMBY_OK&&values.status==0);
     CHECK(endpoint.begin(owner,"save-A",6,&session)==NIMBY_OK&&session);
+    uint64_t revision{};CHECK(endpoint.settingsRevision(owner,session,&revision)==NIMBY_OK&&revision);
+    const auto initialRevision=revision;
+    CHECK(endpoint.settingsRevision(owner,session+1,&revision)==NIMBY_INVALID_HANDLE&&revision==0);
     NimbyUiSignalV1 signal{};signal.id=id;std::strcpy(signal.texture_set,"atlas");
     CHECK(endpoint.observe(owner,session,nullptr,1)==NIMBY_INVALID_ARGUMENT);
     CHECK(endpoint.observe(owner,session+1,&signal,1)==NIMBY_INVALID_HANDLE);
     CHECK(endpoint.observe(owner,session,&signal,1)==NIMBY_OK);
+    CHECK(endpoint.settingsRevision(owner,session,&revision)==NIMBY_OK&&revision==initialRevision);
     CHECK(endpoint.read(owner,id,&values)==NIMBY_OK&&values.status==2&&values.count==1);
     CHECK(std::strcmp(values.fields[0].name,"active")==0&&values.fields[0].value==0);
+    const uint64_t batchIds[]{id,id+99};NimbyUiReadBatchRowV1 batchRows[2]{};
+    NimbyUiReadBatchHeaderV1 batchHeader{};batchHeader.size=sizeof batchHeader;batchHeader.version=1;
+    CHECK(endpoint.readBatch(owner,batchIds,2,&batchHeader,batchRows)==NIMBY_OK);
+    CHECK(batchHeader.count==2&&batchHeader.field_count==1&&std::string(batchHeader.names[0])=="active");
+    CHECK(batchRows[0].status==2&&batchRows[0].values==0&&batchRows[1].status==1);
     // Exercise the same resident store through the renderer, then the C ABI.
     auto frame=endpoint.host.prepare(1,id);
     struct Click {void checkbox(const char*,const char*,uint32_t& value){value=1;}} click;
     nimby::runtime::SignalUiHost::interactive(frame,id,click);
+    CHECK(endpoint.settingsRevision(owner,session,&revision)==NIMBY_OK&&revision>initialRevision);
     CHECK(endpoint.read(owner,id,&values)==NIMBY_OK&&values.fields[0].value==1);
+    CHECK(endpoint.readBatch(owner,batchIds,2,&batchHeader,batchRows)==NIMBY_OK&&batchRows[0].values==1);
+    CHECK(endpoint.readBatch(owner,batchIds,16385,&batchHeader,batchRows)==NIMBY_INVALID_ARGUMENT);
     {
         uint64_t copy{};const uint64_t target=id+0x10000;
         CHECK(endpoint.beginCopy(id,&copy)==NIMBY_OK&&copy);

@@ -1,6 +1,8 @@
 // Shared train observation and calendar planning. No OS calls or handles.
 // A failed consistency check returns unavailable; never merge separate attempts.
 #include "engine/network.h"
+#include "engine/detail/train_metadata.h"
+#include "engine/detail/train_composition.h"
 #include "engine/native_string.h"
 #include "engine/simulation_clock.h"
 #include <algorithm>
@@ -151,16 +153,37 @@ bool decode_train_position(const void* motion,size_t size,TrainPosition& out) no
     if(!position(p+0x3a8,candidate)) return false;
     out=candidate;return true;
 }
-bool read_trains(ReadMemory read,void* context,const LiveState& state,bool recognized,std::vector<Train>& out,bool presenceOnly) noexcept {
-    out.clear();if(!read||!recognized)return false;
+bool read_trains(ReadMemory read,void* context,const LiveState& state,bool recognized,std::vector<Train>& out,bool presenceOnly,TrainMetadataCatalog* metadata,bool includePaths,uint32_t dataFlags) noexcept {
+    out.clear();if(metadata)*metadata={};if(!read||!recognized)return false;
     try {
         LiveState current;
         if(!resolve_live_state(read,context,state.module_base,true,state.profile,current)||current!=state)return false;
         std::map<uint64_t,Train> trains;
         std::map<uint64_t,uint64_t> model_addresses;
+        // These additions use only the proven Windows layout and never add
+        // reads to the signalling-only path or to callers not requesting them.
+        bool wantMetadata=metadata&&!presenceOnly&&state.profile==LiveStateProfile::Windows119;
+        if(!metadata)dataFlags=NIMBY_TRAIN_DATA_ALL;
+        if(dataFlags&NIMBY_TRAIN_DATA_TIMETABLES)dataFlags|=NIMBY_TRAIN_DATA_SERVICE;
+        if(dataFlags&NIMBY_TRAIN_DATA_TAGS)dataFlags|=NIMBY_TRAIN_DATA_LINES;
+        const bool wantService=dataFlags&NIMBY_TRAIN_DATA_SERVICE,wantCharacteristics=dataFlags&NIMBY_TRAIN_DATA_CHARACTERISTICS;
+        const bool wantTimetables=dataFlags&NIMBY_TRAIN_DATA_TIMETABLES,wantTags=dataFlags&NIMBY_TRAIN_DATA_TAGS;
+        const bool wantPassengers=dataFlags&NIMBY_TRAIN_DATA_PASSENGERS,wantLines=dataFlags&NIMBY_TRAIN_DATA_LINES;
+        const bool wantComposition=dataFlags&NIMBY_TRAIN_DATA_COMPOSITION;
+        const bool wantLocations=dataFlags&NIMBY_TRAIN_DATA_LOCATIONS;
+        const bool wantMetadataSources=wantService||wantCharacteristics||wantComposition;
+        struct MetadataSource {
+            std::array<unsigned char,0x50> configured{},current{};NimbyTrainMetadata value{};
+            uint64_t motionAddress=0;bool currentStable=false;
+        };
+        std::map<uint64_t,MetadataSource> metadataSources;
         size_t path_budget=1048576;
         if(!collect(read,context,state.database+0x200,5,0x178,[&](const unsigned char* p,uint64_t address){
             Train t;t.id=field<uint64_t>(p,0);
+            if(wantMetadata&&wantMetadataSources)try{
+                auto& source=metadataSources[t.id];source.value.train_id=t.id;
+                if(wantCharacteristics||wantComposition)std::memcpy(source.configured.data(),p+0xc0,source.configured.size());
+            }catch(...){wantMetadata=false;metadataSources.clear();}
             // BAL : seules l'identite et la presence physique sont necessaires.
             if(presenceOnly){t.service.train_id=t.id;trains.emplace(t.id,std::move(t));return true;}
             if(!read_native_string(read,context,address+0x10,p+0x10,state.profile,t.name))return false;
@@ -178,6 +201,15 @@ bool read_trains(ReadMemory read,void* context,const LiveState& state,bool recog
             std::array<unsigned char,0x638> service_after{};
             const bool motionRechecked=read(context,address,service_after.data(),service_after.size())&&
                 field<uint64_t>(service_after.data(),0)==t.id;
+            if(wantMetadata&&wantMetadataSources&&motionRechecked){
+                auto& source=metadataSources.at(t.id);source.motionAddress=address;
+                if(wantComposition){
+                    source.currentStable=std::memcmp(p+8,service_after.data()+8,source.current.size())==0;
+                    if(source.currentStable)std::memcpy(source.current.data(),service_after.data()+8,source.current.size());
+                }
+            }
+            if(wantMetadata&&wantCharacteristics&&motionRechecked)metadataSources.at(t.id).value.current=
+                train_metadata::characteristics(p+8,service_after.data()+8,0x50);
             // Presence means network membership plus visibility, not whether a
             // Drive was engaged. Starting to move need not change occupancy.
             if(motionRechecked){
@@ -211,6 +243,26 @@ bool read_trains(ReadMemory read,void* context,const LiveState& state,bool recog
                 }
                 return true;
             }
+            if(wantLocations&&!wantService&&motionRechecked){
+                // Location-only tools still need Hidden/Blackhole and stopped
+                // Presence positions. Reuse the verified Motion pair without
+                // decoding service state, clocks, assignments or timetables.
+                const auto* after=service_after.data();
+                bool stable=true;
+                for(const auto offset:{0x1d0,0x218,0x4b0})
+                    if(p[offset]>1||p[offset]!=after[offset])stable=false;
+                const auto decode=[](const unsigned char* bytes,TrainPosition& location){
+                    return (bytes[0x218]||bytes[0x4b0]||bytes[0x1d0])&&
+                        position(bytes+(bytes[0x218]?0x1f8:bytes[0x4b0]?0x3a8:0xb8),location);
+                };
+                TrainPosition firstLocation{},lastLocation{};
+                if(stable&&decode(p,firstLocation)&&decode(after,lastLocation)&&
+                   firstLocation.track_id==lastLocation.track_id){
+                    t.service.location_track_id=lastLocation.track_id;
+                    t.service.flags|=NIMBY_SERVICE_LOCATION_VALID;
+                }
+            }
+            if(wantService){
             int64_t ticks{},epoch{};
             const bool clock_read=read(context,state.simulation+0x28,&ticks,sizeof ticks);
             std::array<unsigned char,0xbc> model_after{};
@@ -237,13 +289,20 @@ bool read_trains(ReadMemory read,void* context,const LiveState& state,bool recog
                     if(s.flags&NIMBY_SERVICE_ARRIVAL_VALID)s.arrival_remaining_seconds=double(s.arrival_time_us-s.game_time_us)/1000000;
                     if(s.flags&NIMBY_SERVICE_DEPARTURE_VALID)s.departure_remaining_seconds=std::max(0.0,double(s.departure_time_us-s.game_time_us)/1000000);
                     if(s.flags&NIMBY_SERVICE_COOLDOWN_VALID)s.dispatch_remaining_seconds=std::max(0.0,double(s.dispatch_time_us-s.game_time_us)/1000000);
+                    if(wantMetadata&&(s.flags&NIMBY_SERVICE_ARRIVAL_VALID)){
+                        if(const auto estimate=train_metadata::predictedDelay(p,verified,0x638,s.game_time_us)){
+                            auto& value=metadataSources.at(t.id).value;
+                            value.flags=NIMBY_TRAIN_PREDICTED_DELAY_VALID;value.predicted_arrival_delay_us=*estimate;
+                        }
+                    }
                 }
+            }
             }
             if(t.present){t.speed_mps=field<double>(p,0x3c8);if(!std::isfinite(t.speed_mps)||std::abs(t.speed_mps)>10000)return false;
                 t.positioned=decode_train_position(p,0x638,t.position);
                 // Serializer chain Motion -> Drive -> Path, see train-paths.md.
                 const auto begin=field<uint64_t>(p,0x338),end=field<uint64_t>(p,0x340),cap=field<uint64_t>(p,0x348);
-                if(p[0x320]==1&&end>=begin&&cap>=end&&(end-begin)%8==0&&end-begin<=16384*8&&cap-begin<=65536*8&&
+                if(includePaths&&p[0x320]==1&&end>=begin&&cap>=end&&(end-begin)%8==0&&end-begin<=16384*8&&cap-begin<=65536*8&&
                    (end==begin||pointer(begin))&&(end-begin)/8<=path_budget){
                     std::vector<uint64_t> entries((end-begin)/8),verify(entries.size());
                     std::array<unsigned char,0x638> after{};
@@ -275,8 +334,8 @@ bool read_trains(ReadMemory read,void* context,const LiveState& state,bool recog
             return true;
         }
         std::map<uint64_t,int32_t> passengers;
-        if(passenger_counts(read,context,state,passengers)){
-            for(auto& [id,t]:trains)if((t.service.flags&NIMBY_SERVICE_STATE_VALID)&&(t.service.motion_flags&NIMBY_MOTION_PRESENCE)){
+        if(wantPassengers&&passenger_counts(read,context,state,passengers)){
+            for(auto& [id,t]:trains)if((t.service.flags&(NIMBY_SERVICE_STATE_VALID|NIMBY_SERVICE_PRESENCE_VALID))&&(t.service.motion_flags&NIMBY_MOTION_PRESENCE)){
                 // The UI initializes a missing key to zero only after reading this map.
                 const auto found=passengers.find(id);
                 t.details.passenger_count=found==passengers.end()?0:found->second;
@@ -286,21 +345,37 @@ bool read_trains(ReadMemory read,void* context,const LiveState& state,bool recog
         // Run and stop data are optional; a missing catalog does not hide trains.
         std::map<uint64_t,std::array<unsigned char,0x280>> lines;
         std::map<uint64_t,uint64_t> line_addresses;
-        if(!collect(read,context,state.database+0x180,4,0x280,[&](const unsigned char* p,uint64_t address){
+        const bool linesAvailable=(wantTimetables||wantLines)&&collect(read,context,state.database+0x180,4,0x280,[&](const unsigned char* p,uint64_t address){
             std::array<unsigned char,0x280> bytes{};std::memcpy(bytes.data(),p,bytes.size());
             const auto id=field<uint64_t>(p,0);lines.emplace(id,bytes);line_addresses.emplace(id,address);return true;
-        }))lines.clear();
+        });
+        if(!linesAvailable)lines.clear();
         size_t stop_budget=1048576;
-        for(auto& [id,t]:trains){
+        struct SharedLine {
+            std::string name;
+            bool planAttempted=false,planAvailable=false,changed=false;
+            uint64_t begin=0;
+            std::vector<unsigned char> bytes;
+            std::vector<NimbyLineStop> stops;
+        };
+        std::map<uint64_t,SharedLine> sharedLines;
+        // Shared copies live only in this capture. Keep their raw comparison
+        // evidence bounded independently of the per-train output copy budget.
+        constexpr size_t maximumSharedLineBytes=32*1024*1024;
+        size_t sharedLineBytes=0;
+        std::vector<std::pair<Train*,int32_t>> lineUsers;
+        if(wantTimetables)for(auto& [id,t]:trains){
             auto& s=t.service;
             if(!(s.flags&NIMBY_SERVICE_RUN_VALID)||!lines.contains(s.line_id))continue;
             const auto& line=lines.at(s.line_id);const auto* p=line.data();
             const auto kind=field<int32_t>(p,0xfc);
             if(kind<0||kind>2)continue;
             s.line_kind=kind;s.flags|=NIMBY_SERVICE_LINE_VALID;
-            std::string name;
-            if(read_native_string(read,context,line_addresses.at(s.line_id)+0x78,p+0x78,state.profile,name))
-                std::memcpy(s.line_name_utf8,name.data(),name.size());
+            const auto [cached,inserted]=sharedLines.try_emplace(s.line_id);
+            auto& shared=cached->second;
+            if(inserted)read_native_string(read,context,line_addresses.at(s.line_id)+0x78,p+0x78,state.profile,shared.name);
+            std::memcpy(s.line_name_utf8,shared.name.data(),shared.name.size());
+            lineUsers.emplace_back(&t,s.status);
             std::array<unsigned char,0x280> line_verify{};
             if(!read(context,line_addresses.at(s.line_id),line_verify.data(),line_verify.size())||line_verify!=line){
                 s.flags&=~NIMBY_SERVICE_LINE_VALID;s.line_kind=-1;s.line_name_utf8[0]=0;continue;
@@ -321,27 +396,172 @@ bool read_trains(ReadMemory read,void* context,const LiveState& state,bool recog
             // Relative line plan only: partial runs/loops need further timing corrections.
             const auto count=(end-begin)/0x158;
             if(count<=stop_budget){
-                std::vector<unsigned char> bytes(end-begin),check(bytes.size());
-                if(read(context,begin,bytes.data(),bytes.size())&&read(context,begin,check.data(),check.size())&&bytes==check&&
-                   read(context,line_addresses.at(s.line_id),line_after.data(),line_after.size())&&line_after==line){
-                    std::vector<NimbyLineStop> stops;bool valid=true;
-                    for(uint32_t index=0;index<count;++index){
-                        const auto* entry=bytes.data()+size_t(index)*0x158;
-                        NimbyLineStop v{};v.line_id=s.line_id;v.index=index;
-                        v.track_id=field<uint64_t>(entry,0x78);v.station_id=field<uint64_t>(entry,0x110);
-                        if((v.track_id>>48)!=1||(v.station_id&&(v.station_id>>48)!=2)){valid=false;break;}
-                        const auto arrival=field<int32_t>(entry,0xb8),departure=field<int32_t>(entry,0xbc);
-                        if(arrival>=0&&departure>=arrival){v.arrival_offset_seconds=arrival;v.departure_offset_seconds=departure;v.flags=NIMBY_LINE_STOP_TIMES_VALID;}
-                        stops.push_back(v);
+                if(shared.planAttempted){
+                    // The separately re-read current stop must belong to the
+                    // same plan. Never combine it with an earlier cached row.
+                    if(shared.planAvailable&&std::memcmp(stop.data(),shared.bytes.data()+size_t(s.stop_index)*0x158,stop.size()))shared.changed=true;
+                    if(shared.planAvailable&&!shared.changed){t.line_stops=shared.stops;t.line_stops_available=true;stop_budget-=count;}
+                }else{
+                    const bool retain=end-begin<=maximumSharedLineBytes-sharedLineBytes;
+                    if(retain)shared.planAttempted=true;
+                    std::vector<unsigned char> bytes(end-begin),check(bytes.size());
+                    if(read(context,begin,bytes.data(),bytes.size())&&read(context,begin,check.data(),check.size())&&bytes==check&&
+                       read(context,line_addresses.at(s.line_id),line_after.data(),line_after.size())&&line_after==line&&
+                       !std::memcmp(stop.data(),bytes.data()+size_t(s.stop_index)*0x158,stop.size())){
+                        std::vector<NimbyLineStop> stops;stops.reserve(count);bool valid=true;
+                        for(uint32_t index=0;index<count;++index){
+                            const auto* entry=bytes.data()+size_t(index)*0x158;
+                            NimbyLineStop v{};v.line_id=s.line_id;v.index=index;
+                            v.track_id=field<uint64_t>(entry,0x78);v.station_id=field<uint64_t>(entry,0x110);
+                            if((v.track_id>>48)!=1||(v.station_id&&(v.station_id>>48)!=2)){valid=false;break;}
+                            const auto arrival=field<int32_t>(entry,0xb8),departure=field<int32_t>(entry,0xbc);
+                            if(arrival>=0&&departure>=arrival){v.arrival_offset_seconds=arrival;v.departure_offset_seconds=departure;v.flags=NIMBY_LINE_STOP_TIMES_VALID;}
+                            stops.push_back(v);
+                        }
+                        if(valid){
+                            if(retain){
+                                sharedLineBytes+=bytes.size();shared.begin=begin;shared.bytes=std::move(bytes);
+                                shared.stops=std::move(stops);shared.planAvailable=true;t.line_stops=shared.stops;
+                            }else t.line_stops=std::move(stops);
+                            t.line_stops_available=true;stop_budget-=count;
+                        }
                     }
-                    if(valid){t.line_stops=std::move(stops);t.line_stops_available=true;stop_budget-=count;}
                 }
             }
             if(kind==1&&(s.motion_flags&NIMBY_MOTION_HIDDEN)&&(s.motion_flags&NIMBY_MOTION_RUN_STOP)&&
                !(s.motion_flags&NIMBY_MOTION_DRIVE)&&s.status!=NIMBY_SERVICE_MOTHBALLED)s.status=NIMBY_SERVICE_DEPOT;
         }
+        // A later train may be read while the player edits a shared line in
+        // place. Validate the actual bytes once more, including distant stops
+        // not selected by any train. A changed plan invalidates all consumers
+        // from this capture, without dropping unrelated trains or their speed.
+        for(auto& [id,shared]:sharedLines){
+            const auto& line=lines.at(id);std::array<unsigned char,0x280> after{};
+            if(shared.planAvailable&&!shared.changed){
+                std::vector<unsigned char> verify(shared.bytes.size());
+                shared.changed=!read(context,shared.begin,verify.data(),verify.size())||verify!=shared.bytes;
+            }
+            if(!read(context,line_addresses.at(id),after.data(),after.size())||after!=line)shared.changed=true;
+            std::string name;
+            if(!read_native_string(read,context,line_addresses.at(id)+0x78,line.data()+0x78,state.profile,name)||name!=shared.name)
+                shared.name.clear();
+        }
+        for(const auto& [train,originalStatus]:lineUsers){
+            auto& s=train->service;const auto& shared=sharedLines.at(s.line_id);
+            if(shared.name.empty())s.line_name_utf8[0]=0;
+            if(shared.changed){
+                s.flags&=~(NIMBY_SERVICE_LINE_VALID|NIMBY_SERVICE_STOP_VALID);
+                s.line_kind=-1;s.line_name_utf8[0]=0;s.stop_track_id=s.stop_station_id=0;s.status=originalStatus;
+                train->line_stops_available=false;train->line_stops.clear();
+            }
+        }
+        TrainMetadataCatalog capturedMetadata;
+        if(wantMetadata)try{
+            if(wantMetadataSources)capturedMetadata.trains.reserve(trains.size());
+            if(wantLines)capturedMetadata.lines.reserve(lines.size());
+            if(wantTags)capturedMetadata.tag_states.reserve(trains.size()+lines.size());
+            train_metadata::PoolEvidence trainPool,linePool,motionPool;
+            if(wantMetadataSources||wantTags)trainPool.load(read,context,state.database+0x200);
+            if(wantLines)linePool.load(read,context,state.database+0x180);
+            if(wantMetadataSources)motionPool.load(read,context,state.simulation+0xa0);
+            size_t references=train_metadata::maximumReferences;
+            size_t carsRemaining=train_metadata::maximumCars;
+            const auto appendTags=[&](uint64_t id,uint64_t address,size_t offset){
+                std::vector<uint64_t> tags;
+                const bool selected=(id>>48)==5?trainPool.contains(id,address,0x178):linePool.contains(id,address,0x280);
+                const bool available=selected&&train_metadata::objectTags(read,context,address,id,offset,references,tags);
+                capturedMetadata.tag_states.push_back({id,available?1u:0u,0});
+                if(available)for(const auto tag:tags)capturedMetadata.object_tags.push_back({id,tag});
+            };
+            if(wantMetadataSources||wantTags)for(const auto& [id,train]:trains){
+                NimbyTrainMetadata item{};item.train_id=id;
+                if(wantMetadataSources)item=metadataSources.at(id).value;
+                const auto address=model_addresses.at(id);uint64_t before{},after{};std::array<unsigned char,0x50> dynamics{};
+                const bool selected=trainPool.contains(id,address,0x178)&&read(context,address,&before,8)&&before==id;
+                if(selected&&wantCharacteristics&&read(context,address+0xc0,dynamics.data(),dynamics.size()))
+                    item.configured=train_metadata::characteristics(metadataSources.at(id).configured.data(),dynamics.data(),dynamics.size());
+                const auto statesBefore=capturedMetadata.tag_states.size(),tagsBefore=capturedMetadata.object_tags.size();
+                if(wantTags)appendTags(id,address,0x80);
+                const auto vehiclesBefore=capturedMetadata.vehicles.size();
+                bool currentSelected=false;
+                if(wantMetadataSources){
+                    const auto& source=metadataSources.at(id);uint64_t motionId{};
+                    currentSelected=source.motionAddress&&motionPool.contains(id,source.motionAddress,0x638)&&
+                        read(context,source.motionAddress,&motionId,8)&&motionId==id;
+                    if(wantComposition){
+                        std::vector<NimbyTrainVehicle> cars;
+                        if(selected&&train_metadata::cars(read,context,address,id,0xc0,source.configured.data(),0,carsRemaining,cars)){
+                            item.configured.flags|=NIMBY_CHARACTERISTICS_COMPOSITION_VALID;
+                            capturedMetadata.vehicles.insert(capturedMetadata.vehicles.end(),cars.begin(),cars.end());
+                        }
+                        if(currentSelected&&source.currentStable&&train_metadata::cars(read,context,source.motionAddress,id,8,source.current.data(),1,carsRemaining,cars)){
+                            item.current.flags|=NIMBY_CHARACTERISTICS_COMPOSITION_VALID;
+                            capturedMetadata.vehicles.insert(capturedMetadata.vehicles.end(),cars.begin(),cars.end());
+                        }
+                    }
+                    currentSelected=currentSelected&&read(context,source.motionAddress,&motionId,8)&&motionId==id;
+                    if(!currentSelected){item.current={};item.flags=0;item.predicted_arrival_delay_us=0;}
+                }
+                if(!selected||!read(context,address,&after,8)||after!=id){
+                    item={};item.train_id=id;
+                    capturedMetadata.tag_states.resize(statesBefore);if(wantTags)capturedMetadata.tag_states.push_back({id,0,0});
+                    capturedMetadata.object_tags.resize(tagsBefore);
+                    capturedMetadata.vehicles.resize(vehiclesBefore);
+                }else if(!currentSelected){
+                    // Only this train's just-added current composition is affected.
+                    capturedMetadata.vehicles.erase(std::remove_if(capturedMetadata.vehicles.begin()+vehiclesBefore,capturedMetadata.vehicles.end(),
+                        [](const auto& car){return car.composition==1;}),capturedMetadata.vehicles.end());
+                }
+                if(wantMetadataSources)capturedMetadata.trains.push_back(item);
+            }
+            capturedMetadata.lines_available=wantLines&&linesAvailable;
+            if(wantLines)for(const auto& [id,bytes]:lines){
+                const auto address=line_addresses.at(id);const auto* p=bytes.data();
+                std::array<unsigned char,0x280> verify{};
+                NimbyLineMetadata line{};line.line_id=id;line.kind=-1;
+                const auto parent=field<uint64_t>(p,0x10);
+                if(!parent||((parent>>48)==4&&parent!=id&&lines.contains(parent))){
+                    line.parent_line_id=parent;line.flags|=NIMBY_LINE_PARENT_VALID;
+                }
+                const auto kind=field<int32_t>(p,0xfc);
+                if(kind>=0&&kind<=2){line.kind=kind;line.flags|=NIMBY_LINE_KIND_VALID;}
+                std::string name;
+                if(read_native_string(read,context,address+0x78,p+0x78,state.profile,name)){
+                    std::memcpy(line.name_utf8,name.data(),name.size());line.flags|=NIMBY_LINE_NAME_VALID;
+                }
+                const auto statesBefore=capturedMetadata.tag_states.size(),tagsBefore=capturedMetadata.object_tags.size();
+                // The native root owns +c8; descendants own +e0. Inheritance
+                // stays explicit in the parent ID and is resolved by the SDK.
+                if(wantTags)appendTags(id,address,parent?0xe0:0xc8);
+                const auto shared=sharedLines.find(id);
+                if(!linePool.contains(id,address,0x280)||!read(context,address,verify.data(),verify.size())||verify!=bytes||
+                   (shared!=sharedLines.end()&&shared->second.changed)){
+                    line={};line.line_id=id;line.kind=-1;
+                    capturedMetadata.tag_states.resize(statesBefore);if(wantTags)capturedMetadata.tag_states.push_back({id,0,0});
+                    capturedMetadata.object_tags.resize(tagsBefore);
+                }
+                capturedMetadata.lines.push_back(line);
+            }
+            if(wantTags)capturedMetadata.tags_available=train_metadata::tagCatalog(read,context,state,capturedMetadata.tags);
+            const bool stableTrains=trainPool.stable(read,context),stableLines=linePool.stable(read,context),stableMotion=motionPool.stable(read,context);
+            if(!stableTrains||!stableLines){
+                for(auto& tags:capturedMetadata.tag_states)if(((tags.object_id>>48)==5&&!stableTrains)||((tags.object_id>>48)==4&&!stableLines))tags.available=0;
+                std::erase_if(capturedMetadata.object_tags,[&](const auto& tag){return (tag.object_id>>48)==5?!stableTrains:!stableLines;});
+                if(!stableTrains){
+                    for(auto& train:capturedMetadata.trains){const auto id=train.train_id;train={};train.train_id=id;}
+                    capturedMetadata.vehicles.clear();
+                }
+                if(!stableLines){capturedMetadata.lines_available=false;for(auto& line:capturedMetadata.lines){const auto id=line.line_id;line={};line.line_id=id;line.kind=-1;}}
+            }
+            if(!stableMotion){
+                for(auto& train:capturedMetadata.trains){train.current={};train.flags=0;train.predicted_arrival_delay_us=0;}
+                std::erase_if(capturedMetadata.vehicles,[](const auto& car){return car.composition==1;});
+            }
+            if(wantComposition)capturedMetadata.models_available=train_metadata::vehicleModels(read,context,state,capturedMetadata.vehicles,capturedMetadata.models);
+        }catch(...){capturedMetadata={};} // Optional enrichment cannot hide trains.
         if(!resolve_live_state(read,context,state.module_base,true,state.profile,current)||current!=state)return false;
         for(auto& [id,t]:trains)out.push_back(std::move(t));
+        if(metadata)*metadata=std::move(capturedMetadata);
         return true;
     }catch(...){out.clear();return false;}
 }

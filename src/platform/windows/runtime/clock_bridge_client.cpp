@@ -2,6 +2,7 @@
 #include "platform/windows/runtime/clock_bridge.h"
 #include "engine/binary_identity.h"
 #include "platform/windows/loader/loader.h"
+#include "platform/windows/runtime/mod_host_client.h"
 #include <tlhelp32.h>
 #include <array>
 #include <bit>
@@ -37,12 +38,18 @@ std::filesystem::path bridge_path(DWORD pid) {
 uint32_t change(HANDLE process,DWORD pid,uint64_t simulation,const NimbyBinaryInfo& binary,
                 int64_t utc,NimbySimulationClock& clock,uint32_t& count,bool recalculate) noexcept {
     try {
+        const auto hosted=mod_host::client::target();
+        if(hosted&&hosted!=pid)return NIMBY_INVALID_ARGUMENT;
         const auto objectName=name(pid);
         Handle mutex{CreateMutexW(nullptr,FALSE,(objectName+L".Client").c_str())};
         if(!mutex.value)return NIMBY_IO_ERROR;
-        const auto lock=WaitForSingleObject(mutex.value,1000);
+        const auto lock=WaitForSingleObject(mutex.value,hosted?0:1000);
         if(lock!=WAIT_OBJECT_0 && lock!=WAIT_ABANDONED)return NIMBY_RESOURCE_LIMIT;
         struct Unlock {HANDLE value;~Unlock(){ReleaseMutex(value);}} unlock{mutex.value};
+        if(hosted) {
+            const auto status=mod_host::client::ensureBridge(pid,4);
+            if(status!=NIMBY_OK)return status;
+        }else {
         const auto bridge=bridge_path(pid);if(bridge.empty())return NIMBY_DATA_UNAVAILABLE;
         std::array<wchar_t,32768> executable{};DWORD length=static_cast<DWORD>(executable.size());
         if(!QueryFullProcessImageNameW(process,0,executable.data(),&length))return NIMBY_PROCESS_EXITED;
@@ -59,6 +66,7 @@ uint32_t change(HANDLE process,DWORD pid,uint64_t simulation,const NimbyBinaryIn
             loader::Monitor monitor(executable.data(),binary.sha256,bridge.wstring());
             if(!monitor.attach_process(pid).success)return NIMBY_IO_ERROR;
         }
+        }
         Handle mapping{OpenFileMappingW(FILE_MAP_ALL_ACCESS,FALSE,objectName.c_str())};
         if(!mapping.value)return NIMBY_DATA_UNAVAILABLE;
         auto* data=static_cast<Shared*>(MapViewOfFile(mapping.value,FILE_MAP_ALL_ACCESS,0,0,sizeof(Shared)));
@@ -69,8 +77,9 @@ uint32_t change(HANDLE process,DWORD pid,uint64_t simulation,const NimbyBinaryIn
         if(state!=idle && state!=complete)return NIMBY_RESOURCE_LIMIT;
         data->expected_sim=simulation;data->requested_utc=utc;data->count=0;
         data->recalculate=recalculate?1u:0u;
+        data->lease=platform::windows::bridgeRequestLease(hosted?1000:15000);
+        const auto deadline=data->lease.expires;
         InterlockedExchange(&data->state,pending);
-        const auto deadline=GetTickCount64()+15000;
         while(InterlockedCompareExchange(&data->state,complete,complete)!=complete) {
             if(WaitForSingleObject(process,10)!=WAIT_TIMEOUT)return NIMBY_PROCESS_EXITED;
             if(GetTickCount64()>=deadline) {

@@ -1,3 +1,4 @@
+#include <platform/windows/bridge_installation.h>
 // Diagnostic only: observes the native editor after its original body returns.
 // It does not draw widgets or change signal/save data. Observation expires.
 #include "platform/windows/runtime/signal_ui_probe.h"
@@ -32,6 +33,8 @@ void observe(uint64_t capture,uint64_t declaration){
 }
 extern "C" __declspec(dllexport) DWORD WINAPI NimbyInternal_Bootstrap(void* argument) noexcept {
     if(argument)return NIMBY_INVALID_ARGUMENT;
+    nimby::platform::windows::BridgeInstallation installation;
+    if(!installation)return installation.status();
     AcquireSRWLockExclusive(&initialization);
     struct Unlock{~Unlock(){ReleaseSRWLockExclusive(&initialization);}} unlock;
     if(enabled)return NIMBY_ALREADY_INITIALIZED;

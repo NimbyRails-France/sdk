@@ -15,6 +15,7 @@ set(selectors
     include/nimby/detail/platform/paths.hpp
     include/nimby/detail/platform/mod_abi.hpp
     include/nimby/detail/platform/mod_entry.hpp
+    include/nimby/detail/platform/observation_wait.hpp
     include/engine/game_layout.h)
 # A stale public client would silently reintroduce a second consumer API.
 if(EXISTS "${SDK_ROOT}/include/nimby/client.hpp")

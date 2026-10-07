@@ -5,6 +5,8 @@
 #include <string>
 #include <thread>
 #include <stdexcept>
+#include <nimby/detail/platform/windows/native_library.hpp>
+#include <nimby/detail/platform/host.hpp>
 
 namespace nimby::detail::control {
 inline std::wstring pipeName(uint32_t pid,const char* id) {
@@ -48,7 +50,8 @@ class Server {
 public:
     void start(const char* id,NimbyControlHandler handler) {
         if(thread_.joinable()||!handler)throw std::invalid_argument("Control server already started or missing handler");
-        const auto name=pipeName(GetCurrentProcessId(),id);
+        const auto target=native::modHostTarget();
+        const auto name=pipeName(target?target:GetCurrentProcessId(),id);
         // Single owning endpoint: a second instance must fail instead of
         // accepting requests unpredictably on the same mod name.
         HANDLE pipe=CreateNamedPipeW(name.c_str(),PIPE_ACCESS_DUPLEX|FILE_FLAG_OVERLAPPED|FILE_FLAG_FIRST_PIPE_INSTANCE,
@@ -67,7 +70,7 @@ public:
                 NimbyControlRequest request{};NimbyControlResponse response{};
                 response.size=sizeof response;response.version=NIMBY_CONTROL_VERSION;
                 if(transfer(pipe,&request,sizeof request,false,stop_)){
-                    try{response.result=handler(&request,&response);}catch(...){ nimby::detail::diagnostics::exception("mods", __func__); response.result=NIMBY_INTERNAL_ERROR;}
+                    try{platform::ModWork work;response.result=handler(&request,&response);}catch(...){ nimby::detail::diagnostics::exception("mods", __func__); response.result=NIMBY_INTERNAL_ERROR;}
                     if(transfer(pipe,&response,sizeof response,true,stop_)){
                         // DisconnectNamedPipe can discard unread messages.
                         uint32_t ack=0;transfer(pipe,&ack,sizeof ack,false,stop_);

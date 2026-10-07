@@ -39,12 +39,16 @@ class Game internal constructor(val advanced: NimbyClient) : AutoCloseable {
     class Trains internal constructor(private val client: NimbyClient) {
         /** Null signifie absent ou instable, jamais arrêté par défaut. */
         fun read(id: Long): DrivingObservation? = client.readTrain(id)
+        fun read(id: TrainId): DrivingObservation? = read(id.value)
+        /** Opt-in services, line and tag catalog, material characteristics.
+         * Data is copied; selecting a train additionally requests its line plan. */
+        fun snapshot(selectedTrain: TrainId? = null, query: TrainQuery = TrainQuery()): Observation = client.captureTrainData(selectedTrain?.value, query)
     }
 
     class Clock internal constructor(private val client: NimbyClient) {
-        /** Lit via une capture complète. Réutiliser snapshot.clock lorsqu'une
-         * capture a déjà été réalisée, pour ne pas doubler le coût de lecture. */
-        fun read(): SimulationClock? = client.capture().clock
+        /** Lit l'horloge sans parcourir la carte. Réutiliser snapshot.clock
+         * lorsqu'une capture a déjà été réalisée. */
+        fun read(): SimulationClock? = client.readSimulationClock()
         /** UTC en secondes entières. Écriture explicite, sans nouvelle tentative. */
         fun set(utc: Instant, recalculateTrains: Boolean = false): SimulationTimeChange =
             client.setSimulationDateTime(utc, recalculateTrains)

@@ -4,6 +4,7 @@
 #include <nimby/detail/automatic_driving.h>
 #include <nimby/detail/control_lease.hpp>
 #include <mutex>
+#include <exception>
 
 namespace nimby {
 // Serializes remote requests with the mod's observation/evaluation cycle.
@@ -30,6 +31,19 @@ public:
     }
     static uint64_t now(){return std::chrono::duration_cast<Milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();}
     void lost(){lease.observe(0,{},{});game.reset();decisions.clear();settings.clear();signalTypes.clear();observedAt=0;}
+    template<class Cleanup> void invalidateAndCleanup(Cleanup cleanup) {
+        std::exception_ptr failure;
+        try {
+            std::lock_guard guard(mutex);
+            lost();
+            // A failed release keeps publishedTrains set for the next attempt.
+            releaseTrains();
+        } catch(...) {failure=std::current_exception();}
+        // Texture cleanup or signal-rule release has a separate owner/channel.
+        // Attempt it even when train cleanup failed, without holding our mutex.
+        try {cleanup();}catch(...) {if(!failure)throw;}
+        if(failure)std::rethrow_exception(failure);
+    }
     void observe(const Snapshot& snapshot,const std::vector<LiveSignalState>& states) {
         if(!snapshot.getGameSession())throw std::runtime_error("Control requires an observed world identity");
         if(game!=snapshot.getGameSession()){

@@ -5,8 +5,22 @@
 #include <filesystem>
 #include <stdexcept>
 #include <string>
+#include <cstring>
+#include <bit>
 namespace nimby::detail::native {
 using Module=HMODULE;
+inline uint32_t modHostTarget() noexcept {
+    using Target=uint32_t(__cdecl*)();
+    const auto sdk=GetModuleHandleW(L"NimbyRailsFranceSDK.dll");
+    const auto target=sdk?std::bit_cast<Target>(GetProcAddress(sdk,"NimbyInternal_ModHostTarget")):nullptr;
+    return target?target():0;
+}
+inline void modHostPulse(uint32_t phase) noexcept {
+    using Pulse=void(__cdecl*)(uint32_t);
+    const auto sdk=GetModuleHandleW(L"NimbyRailsFranceSDK.dll");
+    const auto pulse=sdk?std::bit_cast<Pulse>(GetProcAddress(sdk,"NimbyInternal_ModHostPulse")):nullptr;
+    if(pulse)pulse(phase);
+}
 inline Module loadWithSearchFlags(const std::filesystem::path& path,bool pin,DWORD flags) {
     auto module=LoadLibraryExW(std::filesystem::absolute(path).c_str(),nullptr,
         flags);
@@ -27,9 +41,19 @@ inline Module load(const std::filesystem::path& path,bool pin=false) {
 inline Module loadIsolated(const std::filesystem::path& path) {
     return loadWithSearchFlags(path,false,LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR|LOAD_LIBRARY_SEARCH_SYSTEM32);
 }
-inline auto symbol(Module module,const char* name){return GetProcAddress(module,name);}
-inline Module existing(const char* name){HMODULE module{};return GetModuleHandleExA(0,name,&module)?module:nullptr;}
-inline void unload(Module module){if(module)FreeLibrary(module);}
+inline Module remoteUi(){return reinterpret_cast<Module>(static_cast<intptr_t>(-2));}
+inline auto symbol(Module module,const char* name){
+    if(module!=remoteUi())return GetProcAddress(module,name);
+    using Symbol=void*(__cdecl*)(const char*);
+    const auto sdk=GetModuleHandleW(L"NimbyRailsFranceSDK.dll");
+    const auto symbol=sdk?std::bit_cast<Symbol>(GetProcAddress(sdk,"NimbyInternal_ModHostUiSymbol")):nullptr;
+    return symbol?reinterpret_cast<FARPROC>(symbol(name)):nullptr;
+}
+inline Module existing(const char* name){
+    if(modHostTarget()&&name&&std::strcmp(name,"NimbySignalUiBridge-experimental-v1.dll")==0)return remoteUi();
+    HMODULE module{};return GetModuleHandleExA(0,name,&module)?module:nullptr;
+}
+inline void unload(Module module){if(module&&module!=remoteUi())FreeLibrary(module);}
 inline std::filesystem::path modulePath(const void* address) {
     HMODULE module{};
     if(address&&!GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS|GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,

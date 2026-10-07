@@ -2,6 +2,7 @@
 #include "engine/live_state.h"
 #include <array>
 #include <cstring>
+#include <span>
 #include <vector>
 namespace nimby::engine::memory {
 // Reads target-owned storage through a supplied callback. It never dereferences
@@ -12,7 +13,10 @@ namespace nimby::engine::memory {
 template<class T> T field(const void* p,size_t off) { T v{};std::memcpy(&v,static_cast<const unsigned char*>(p)+off,sizeof v);return v; }
 struct Collection { std::array<unsigned char,48> header{}; std::vector<uint64_t> blocks; };
 inline bool pointer(uint64_t p) { return p>=0x10000 && p<0x7fffffff0000ULL && p%8==0; }
-template<class F> bool collect(ReadMemory read,void* ctx,uint64_t address,uint64_t tag,size_t stride,F consume) {
+struct IgnoreBlock { void operator()(std::span<const unsigned char>,uint64_t) const {} };
+// Optional block preparation supports batched secondary reads. The span is
+// owned by this traversal and remains valid only until the next block.
+template<class F,class B=IgnoreBlock> bool collect(ReadMemory read,void* ctx,uint64_t address,uint64_t tag,size_t stride,F consume,B beforeBlock={}) {
     Collection pool;
     if(!read(ctx,address,pool.header.data(),48)) return false;
     const auto shift=field<uint32_t>(pool.header.data(),4),size=field<uint32_t>(pool.header.data(),8),mask=field<uint32_t>(pool.header.data(),16);
@@ -26,6 +30,7 @@ template<class F> bool collect(ReadMemory read,void* ctx,uint64_t address,uint64
     std::vector<unsigned char> bytes(size*stride);
     for(size_t b=0;b<pool.blocks.size();++b) {
         if(!pointer(pool.blocks[b])||!read(ctx,pool.blocks[b],bytes.data(),bytes.size())) return false;
+        beforeBlock(std::span<const unsigned char>(bytes),pool.blocks[b]);
         for(size_t slot=0;slot<size;++slot) {
             const auto* p=bytes.data()+slot*stride; const auto id=field<uint64_t>(p,0);
             if((id>>48)==0||(id>>48)==0xffff) continue;

@@ -1,5 +1,6 @@
 #include <nimby/detail/diagnostics.hpp>
 #include <nimby/detail/platform/windows/control_pipe.hpp>
+#include <platform/windows/mod_host.h>
 extern "C" NIMBY_API uint32_t __cdecl NimbyInternal_ModControl(uint32_t pid,const char* id,
     const NimbyControlRequest* request,NimbyControlResponse* response) noexcept {
     if(!request||!response||request->size!=sizeof *request||response->size!=sizeof *response||
@@ -17,7 +18,8 @@ extern "C" NIMBY_API uint32_t __cdecl NimbyInternal_ModControl(uint32_t pid,cons
         Handle pipe(connection);
         if(pipe.value==INVALID_HANDLE_VALUE)return NIMBY_DATA_UNAVAILABLE;
         ULONG server=0;DWORD mode=PIPE_READMODE_MESSAGE;
-        if(!GetNamedPipeServerProcessId(pipe.value,&server)||server!=pid||!SetNamedPipeHandleState(pipe.value,&mode,nullptr,nullptr))return NIMBY_IO_ERROR;
+        if(!GetNamedPipeServerProcessId(pipe.value,&server)||(server!=pid&&!nimby::mod_host::isChildOf(server,pid))||
+           !SetNamedPipeHandleState(pipe.value,&mode,nullptr,nullptr))return NIMBY_IO_ERROR;
         auto copy=*request;
         if(!transfer(pipe.value,&copy,sizeof copy,true)||!transfer(pipe.value,response,sizeof *response,false))return NIMBY_IO_ERROR;
         uint32_t ack=1;transfer(pipe.value,&ack,sizeof ack,true);
