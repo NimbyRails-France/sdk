@@ -28,6 +28,12 @@ sont résolues dynamiquement ; leur absence, un échec de capture, de parcours
 ou d'allocation abandonne intégralement la liste partielle puis utilise
 l'énumération Toolhelp d'origine. Les threads terminés sont exclus.
 
+Les anciens en-têtes MinGW qui ne fournissent pas `processsnapshot.h` utilisent
+les seules déclarations ABI nécessaires dans `thread_snapshot_compat.h`.
+Le contrat de liste et de repli est testé avec les deux jeux de déclarations.
+La capture réelle est vérifiée séparément sur Windows ; le test indique une
+indisponibilité explicite quand les exports PSS sont absents, notamment sous Wine 9.
+
 Seul `PSS_CAPTURE_THREADS` est demandé, sans clonage mémoire, capture de
 contexte ni capture de handles. Le marqueur et l'instantané sont libérés
 avant toute suspension. Les corps de `Freeze`, `Unfreeze`, la translation

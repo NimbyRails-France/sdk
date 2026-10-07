@@ -2,7 +2,11 @@
  * The upstream MinHook license and thread suspension/context code are unchanged. */
 #pragma once
 #include <windows.h>
+#if !defined(MH_FORCE_PSS_COMPAT) && __has_include(<processsnapshot.h>)
 #include <processsnapshot.h>
+#else
+#include "thread_snapshot_compat.h"
+#endif
 #include <limits.h>
 
 typedef struct _MH_THREAD_LIST

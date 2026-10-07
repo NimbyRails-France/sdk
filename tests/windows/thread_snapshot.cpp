@@ -1,14 +1,24 @@
 #include <windows.h>
-#include <processsnapshot.h>
 #include "thread_snapshot.h"
 #include <algorithm>
 #include <bit>
+#include <cstddef>
 #include <cstdio>
+#include <cstring>
 #include <vector>
 
 #define CHECK(x) do { if (!(x)) { std::fprintf(stderr, "FAIL line %d: %s\n", __LINE__, #x); return false; } } while (false)
 
 namespace {
+// Check the Windows x64 ABI with both system and compatibility declarations.
+static_assert(sizeof(PSS_THREAD_ENTRY) == 120);
+static_assert(offsetof(PSS_THREAD_ENTRY, ProcessId) == 16);
+static_assert(offsetof(PSS_THREAD_ENTRY, ThreadId) == 20);
+static_assert(offsetof(PSS_THREAD_ENTRY, Flags) == 104);
+static_assert(offsetof(PSS_THREAD_ENTRY, ContextRecord) == 112);
+static_assert(PSS_CAPTURE_THREADS == 0x80 && PSS_WALK_THREADS == 3);
+static_assert(PSS_THREAD_FLAGS_TERMINATED == 1);
+
 struct Fake {
     std::vector<PSS_THREAD_ENTRY> entries;
     DWORD captureStatus{ERROR_SUCCESS}, markerStatus{ERROR_SUCCESS};
@@ -249,8 +259,16 @@ bool realContracts() {
 }
 }
 
-int main() {
-    if (!fakeContracts() || !realContracts()) return 1;
+int main(int argc, char** argv) {
+    if (argc == 2 && std::strcmp(argv[1], "--live") == 0) {
+        const auto api = realApi();
+        if (!api.capture || !api.freeSnapshot || !api.createMarker || !api.freeMarker || !api.walk) {
+            std::puts("SKIP live PSS capture: required Windows exports are unavailable; fake/fallback contracts run separately.");
+            return 77;
+        }
+        return realContracts() ? 0 : 1;
+    }
+    if (argc != 1 || !fakeContracts()) return 1;
     std::puts("PASS complete PSS capture, exact cleanup, partial/allocation failures and clean Toolhelp fallback contract");
     return 0;
 }
