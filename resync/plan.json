@@ -1,0 +1,860 @@
+{
+  "schema": 1,
+  "preparedAt": "2026-10-07T23:11:40.608470+00:00",
+  "origin": "https://releases.nimbyrails-france.fr",
+  "serverGeneratedAt": "2026-09-28T07:51:38.693281+00:00",
+  "releases": [
+    {
+      "project": "tco",
+      "repository": "tco",
+      "tag": "v0.6.0-alpha.2",
+      "githubReleaseId": 398399760,
+      "publishedAt": "2026-09-28T15:51:05Z",
+      "notes": "- Ajoute le français et l'anglais, avec un choix de langue conservé entre les lancements.\n- Le changement de langue conserve la connexion, les filtres et la sélection sur la carte.\n- Traduit les informations de connexion et les détails des trains, signaux et voies.\n\nAdds French and English interfaces without losing the current connection, map selection or filters when switching language.",
+      "assets": [
+        {
+          "name": "NimbyTco-0.6.0-alpha.2-windows-x64.zip",
+          "size": 62905627,
+          "sha256": "0ed24d0d0ed48e0f790923aa1b4c15a30f27b6c33a5c2f2c64e7e7b6fdbd1932",
+          "url": "https://github.com/NimbyRails-France/tco/releases/download/v0.6.0-alpha.2/NimbyTco-0.6.0-alpha.2-windows-x64.zip",
+          "githubAssetId": 595783885
+        },
+        {
+          "name": "project-windows-x64.json",
+          "size": 559,
+          "sha256": "da9c5c8b6aba9e45f3c58c4b52295fd7982895f99fd47da2834cc97488f31e7f",
+          "url": "https://github.com/NimbyRails-France/tco/releases/download/v0.6.0-alpha.2/project-windows-x64.json",
+          "githubAssetId": 595784074
+        },
+        {
+          "name": "project.json",
+          "size": 559,
+          "sha256": "da9c5c8b6aba9e45f3c58c4b52295fd7982895f99fd47da2834cc97488f31e7f",
+          "url": "https://github.com/NimbyRails-France/tco/releases/download/v0.6.0-alpha.2/project.json",
+          "githubAssetId": 595784104
+        },
+        {
+          "name": "SHA256SUMS.txt",
+          "size": 275,
+          "sha256": "07782e602bd3baef9dff42905f9e26ef74c3d7fb409bfdb0cb2a9eb66634373c",
+          "url": "https://github.com/NimbyRails-France/tco/releases/download/v0.6.0-alpha.2/SHA256SUMS.txt",
+          "githubAssetId": 595784050
+        }
+      ]
+    },
+    {
+      "project": "hub",
+      "repository": "hub",
+      "tag": "v0.4.1-alpha.5",
+      "githubReleaseId": 398409106,
+      "publishedAt": "2026-09-28T16:03:01Z",
+      "notes": "- Le Hub et son installateur sont disponibles en français et en anglais, avec un choix de langue dans les réglages.\n- Les téléchargements et la recherche de mises à jour utilisent GitHub lorsque le serveur NRF est indisponible.\n- Les nouvelles versions du canal choisi sont recherchées chaque minute pendant que le Hub est ouvert et disponible.\n- Une même version n'est annoncée qu'une fois ; les projets locaux restent sous le contrôle du développeur.\n- Améliore les messages d'erreur et le suivi des opérations dans le journal.\n\nFrench and English interfaces, GitHub download fallback during server outages, and regular update checks without requiring a personal GitHub token.",
+      "assets": [
+        {
+          "name": "hub-latest-windows-x64.json",
+          "size": 351,
+          "sha256": "c68878a4bf2e63c25351f261f8396175464a1c82fff375eb675df6772913dfa1",
+          "url": "https://github.com/NimbyRails-France/hub/releases/download/v0.4.1-alpha.5/hub-latest-windows-x64.json",
+          "githubAssetId": 595807833
+        },
+        {
+          "name": "hub-latest.json",
+          "size": 351,
+          "sha256": "c68878a4bf2e63c25351f261f8396175464a1c82fff375eb675df6772913dfa1",
+          "url": "https://github.com/NimbyRails-France/hub/releases/download/v0.4.1-alpha.5/hub-latest.json",
+          "githubAssetId": 595807851
+        },
+        {
+          "name": "NRFHub-0.4.1-alpha.5-windows-x64-Setup.exe",
+          "size": 56443910,
+          "sha256": "dd2ab9b2ffccbe7f122b8f4ca14cb6fdd55070fc88d8a317495248e4821c1526",
+          "url": "https://github.com/NimbyRails-France/hub/releases/download/v0.4.1-alpha.5/NRFHub-0.4.1-alpha.5-windows-x64-Setup.exe",
+          "githubAssetId": 595807737
+        },
+        {
+          "name": "SHA256SUMS.txt",
+          "size": 285,
+          "sha256": "abb630bd862d8e54118c5ee9eccdeab42228c87edaef075a8d263363fb8a20a3",
+          "url": "https://github.com/NimbyRails-France/hub/releases/download/v0.4.1-alpha.5/SHA256SUMS.txt",
+          "githubAssetId": 595807814
+        }
+      ]
+    },
+    {
+      "project": "sdk",
+      "repository": "sdk",
+      "tag": "v0.8.0-alpha.3",
+      "githubReleaseId": 398422684,
+      "publishedAt": "2026-09-28T16:20:52Z",
+      "notes": "- Corrige des retards de réaction des signaux et de la marche à vue quand la simulation est accélérée.\n- Améliore l'approche des trains sur les grands cantons et le passage après un arrêt autorisé par le mod.\n- Ajoute les fenêtres d'outils, dont celles utilisées pour changer la date et l'heure de la partie.\n- Prend en charge les noms et descriptions traduits des mods et des signaux ; conserve les saisies lors d'un changement de langue.\n- Simplifie la création des mods Kotlin : leurs informations pour le jeu sont générées automatiquement.\n- Distribution Windows. Mettre à jour ensemble le SDK et les mods de cette série alpha.\n\nImproves signal reactions at accelerated simulation speeds, adds translated mod information and tool windows, and simplifies Kotlin mod packaging. Windows alpha; update the SDK and its mods together.",
+      "assets": [
+        {
+          "name": "NimbyRailsFranceSDK-0.8.0-alpha.3-drop-in-windows-x64.zip",
+          "size": 12167506,
+          "sha256": "78f69aaaa275b9cd591f333d3d640127d94d1429d3dd80460c89c8b01b17c7f8",
+          "url": "https://github.com/NimbyRails-France/sdk/releases/download/v0.8.0-alpha.3/NimbyRailsFranceSDK-0.8.0-alpha.3-drop-in-windows-x64.zip",
+          "githubAssetId": 595843044
+        },
+        {
+          "name": "NimbyRailsFranceSDK-0.8.0-alpha.3-hub.zip",
+          "size": 26865306,
+          "sha256": "8443ef23a6af21dc119e9007bba483da6d03b3e3082e6a681813cbc96f563bcc",
+          "url": "https://github.com/NimbyRails-France/sdk/releases/download/v0.8.0-alpha.3/NimbyRailsFranceSDK-0.8.0-alpha.3-hub.zip",
+          "githubAssetId": 595843069
+        },
+        {
+          "name": "NimbyRailsFranceSDK-0.8.0-alpha.3-windows-x64-mingw.zip",
+          "size": 14697856,
+          "sha256": "68b191fe0fdcd231bde0a445c7305eb52c402fea113f2dd5bc4a830cb57c878e",
+          "url": "https://github.com/NimbyRails-France/sdk/releases/download/v0.8.0-alpha.3/NimbyRailsFranceSDK-0.8.0-alpha.3-windows-x64-mingw.zip",
+          "githubAssetId": 595843117
+        },
+        {
+          "name": "NimbyRailsFranceSDK-kotlin-0.8.0-alpha.3-windows-x64.zip",
+          "size": 16488939,
+          "sha256": "b44bf25467391fb5a4e7626faeef76ad725adfaa32e8693cbc1f8d60323d0ce6",
+          "url": "https://github.com/NimbyRails-France/sdk/releases/download/v0.8.0-alpha.3/NimbyRailsFranceSDK-kotlin-0.8.0-alpha.3-windows-x64.zip",
+          "githubAssetId": 595843161
+        },
+        {
+          "name": "project-windows-x64.json",
+          "size": 547,
+          "sha256": "85fbdc79ae343756761d79fad564f3ac375e3f9dea7565375120a6d3735fc16f",
+          "url": "https://github.com/NimbyRails-France/sdk/releases/download/v0.8.0-alpha.3/project-windows-x64.json",
+          "githubAssetId": 595843219
+        },
+        {
+          "name": "project.json",
+          "size": 547,
+          "sha256": "85fbdc79ae343756761d79fad564f3ac375e3f9dea7565375120a6d3735fc16f",
+          "url": "https://github.com/NimbyRails-France/sdk/releases/download/v0.8.0-alpha.3/project.json",
+          "githubAssetId": 595843244
+        },
+        {
+          "name": "SHA256SUMS.txt",
+          "size": 647,
+          "sha256": "0043910bcff3a31ad161a6fa0c2faca270c1bf1b90514474085ce98130722952",
+          "url": "https://github.com/NimbyRails-France/sdk/releases/download/v0.8.0-alpha.3/SHA256SUMS.txt",
+          "githubAssetId": 595843195
+        }
+      ]
+    },
+    {
+      "project": "hub",
+      "repository": "hub",
+      "tag": "v0.4.1-alpha.6",
+      "githubReleaseId": 398426560,
+      "publishedAt": "2026-09-28T16:25:55Z",
+      "notes": "- Corrige le blocage au démarrage après une mise à jour depuis l'ancien Hub lorsque certains mods ne sont pas installés.\n- Conserve les réglages, les canaux choisis et les mods installés ; une copie du profil d'origine est gardée lors de sa conversion.\n\nFixes startup when upgrading an older Hub profile containing uninstalled projects, while preserving settings and installed mods.",
+      "assets": [
+        {
+          "name": "hub-latest-windows-x64.json",
+          "size": 351,
+          "sha256": "2b0b52f55b735f89faedb0efe5a609752f6a21228953fcc696d843fca14381f8",
+          "url": "https://github.com/NimbyRails-France/hub/releases/download/v0.4.1-alpha.6/hub-latest-windows-x64.json",
+          "githubAssetId": 595853348
+        },
+        {
+          "name": "hub-latest.json",
+          "size": 351,
+          "sha256": "2b0b52f55b735f89faedb0efe5a609752f6a21228953fcc696d843fca14381f8",
+          "url": "https://github.com/NimbyRails-France/hub/releases/download/v0.4.1-alpha.6/hub-latest.json",
+          "githubAssetId": 595853382
+        },
+        {
+          "name": "NRFHub-0.4.1-alpha.6-windows-x64-Setup.exe",
+          "size": 56445462,
+          "sha256": "764aedbb49245c09dc43b0c1af1e400789970c069c27511e28e0eb71f64cdcdd",
+          "url": "https://github.com/NimbyRails-France/hub/releases/download/v0.4.1-alpha.6/NRFHub-0.4.1-alpha.6-windows-x64-Setup.exe",
+          "githubAssetId": 595853187
+        },
+        {
+          "name": "SHA256SUMS.txt",
+          "size": 285,
+          "sha256": "efb169934ef24e0266ff2cc0b684ba80f21229f37b03a1051f4f7ca5e1d97584",
+          "url": "https://github.com/NimbyRails-France/hub/releases/download/v0.4.1-alpha.6/SHA256SUMS.txt",
+          "githubAssetId": 595853328
+        }
+      ]
+    },
+    {
+      "project": "signalisationfrancaiserealiste",
+      "repository": "ab-signalisation-lumineuse",
+      "tag": "v0.2.0-alpha.3",
+      "githubReleaseId": 398427526,
+      "publishedAt": "2026-09-28T16:27:11Z",
+      "notes": "- Améliore l'ouverture du Carré simple Avertissement à l'approche d'un train dans les deux cantons précédents, y compris en simulation accélérée.\n- Conserve la fermeture au passage de la tête du train et prépare l'ouverture pour le train suivant.\n- Améliore le fonctionnement de la marche à vue après un arrêt au BAL avec le nouveau SDK.\n- Traduit les noms et descriptions du mod et de ses signaux en français et en anglais.\n- Nécessite le SDK 0.8.0-alpha.3. Signal Placement reste facultatif.\n\nImproves approach detection and restricted movement with SDK 0.8.0-alpha.3. Mod and signal names are available in French and English; Signal Placement remains optional.",
+      "assets": [
+        {
+          "name": "project-windows-x64.json",
+          "size": 796,
+          "sha256": "3d27b7aca74e407fa6d03521330e021fe7a4e8efe620fec76900c027e626d43c",
+          "url": "https://github.com/NimbyRails-France/ab-signalisation-lumineuse/releases/download/v0.2.0-alpha.3/project-windows-x64.json",
+          "githubAssetId": 595856256
+        },
+        {
+          "name": "project.json",
+          "size": 796,
+          "sha256": "3d27b7aca74e407fa6d03521330e021fe7a4e8efe620fec76900c027e626d43c",
+          "url": "https://github.com/NimbyRails-France/ab-signalisation-lumineuse/releases/download/v0.2.0-alpha.3/project.json",
+          "githubAssetId": 595856279
+        },
+        {
+          "name": "SHA256SUMS.txt",
+          "size": 297,
+          "sha256": "2fbdeae5653af4f846f3d0699600dbd41ad116699542c943edc45ec226eb2f59",
+          "url": "https://github.com/NimbyRails-France/ab-signalisation-lumineuse/releases/download/v0.2.0-alpha.3/SHA256SUMS.txt",
+          "githubAssetId": 595856107
+        },
+        {
+          "name": "SignalisationFrancaiseRealiste-0.2.0-alpha.3-windows-x64.zip",
+          "size": 2732215,
+          "sha256": "48a3f64fbb0a9552c4f4d81d384cf7dab6f448ecf1bf5691ace6850fff22c592",
+          "url": "https://github.com/NimbyRails-France/ab-signalisation-lumineuse/releases/download/v0.2.0-alpha.3/SignalisationFrancaiseRealiste-0.2.0-alpha.3-windows-x64.zip",
+          "githubAssetId": 595856131
+        }
+      ]
+    },
+    {
+      "project": "time-change",
+      "repository": "bb-timechange",
+      "tag": "v0.1.0-alpha.1",
+      "githubReleaseId": 398427800,
+      "publishedAt": "2026-09-28T16:27:35Z",
+      "notes": "- Ajoute une fenêtre pour changer la date et l'heure de la partie.\n- Affiche une confirmation avant d'appliquer le changement et les interventions sur les trains.\n- Nécessite le SDK 0.8.0-alpha.3 sous Windows.\n- Propose les textes en français et en anglais, selon la langue du jeu.\n\nThe tool lets you change the game date and time, with confirmation before train\ninterventions. Its interface follows the game language, in French or English.",
+      "assets": [
+        {
+          "name": "project-windows-x64.json",
+          "size": 655,
+          "sha256": "a877e137fc1ce27a3288a0ccdd3aa9956b08290f1add9d39b450f409a9b4beba",
+          "url": "https://github.com/NimbyRails-France/bb-timechange/releases/download/v0.1.0-alpha.1/project-windows-x64.json",
+          "githubAssetId": 595857017
+        },
+        {
+          "name": "project.json",
+          "size": 655,
+          "sha256": "a877e137fc1ce27a3288a0ccdd3aa9956b08290f1add9d39b450f409a9b4beba",
+          "url": "https://github.com/NimbyRails-France/bb-timechange/releases/download/v0.1.0-alpha.1/project.json",
+          "githubAssetId": 595857044
+        },
+        {
+          "name": "SHA256SUMS.txt",
+          "size": 277,
+          "sha256": "6d0cd4e121a8f99d61983f418d1e7495ff7568824e970ce3c77f074f152641c7",
+          "url": "https://github.com/NimbyRails-France/bb-timechange/releases/download/v0.1.0-alpha.1/SHA256SUMS.txt",
+          "githubAssetId": 595856977
+        },
+        {
+          "name": "TimeChange-0.1.0-alpha.1-windows-x64.zip",
+          "size": 1798613,
+          "sha256": "e94f0573e1114c522e8a5099667b1bfc5605446a39b65d5b1c6b69213302e5dc",
+          "url": "https://github.com/NimbyRails-France/bb-timechange/releases/download/v0.1.0-alpha.1/TimeChange-0.1.0-alpha.1-windows-x64.zip",
+          "githubAssetId": 595857000
+        }
+      ]
+    },
+    {
+      "project": "hub",
+      "repository": "hub",
+      "tag": "v0.4.1-alpha.7",
+      "githubReleaseId": 398459671,
+      "publishedAt": "2026-09-28T17:12:50Z",
+      "notes": "- Guide la première installation avec le choix du dossier du jeu et les indications pour le retrouver dans Steam.\n- Vérifie le jeu avant d'activer les installations ; distingue un dossier absent ou illisible d'une version incompatible.\n- Mémorise le dossier choisi et permet de relancer sa vérification, en français comme en anglais.\n\nGuided first-time setup in French and English, with a saved game folder and verification before installing the SDK and mods.",
+      "assets": [
+        {
+          "name": "hub-latest-windows-x64.json",
+          "size": 351,
+          "sha256": "691f7a4f6b1b02ca9d41ac4660abd7d5432da278bed5013a6524eae87e1cdec4",
+          "url": "https://github.com/NimbyRails-France/hub/releases/download/v0.4.1-alpha.7/hub-latest-windows-x64.json",
+          "githubAssetId": 595951419
+        },
+        {
+          "name": "hub-latest.json",
+          "size": 351,
+          "sha256": "691f7a4f6b1b02ca9d41ac4660abd7d5432da278bed5013a6524eae87e1cdec4",
+          "url": "https://github.com/NimbyRails-France/hub/releases/download/v0.4.1-alpha.7/hub-latest.json",
+          "githubAssetId": 595951453
+        },
+        {
+          "name": "NRFHub-0.4.1-alpha.7-windows-x64-Setup.exe",
+          "size": 56455145,
+          "sha256": "bcae7918b8c65278bae81c3a175f882af8632c76351a1e438c5049ecc8fed80d",
+          "url": "https://github.com/NimbyRails-France/hub/releases/download/v0.4.1-alpha.7/NRFHub-0.4.1-alpha.7-windows-x64-Setup.exe",
+          "githubAssetId": 595951281
+        },
+        {
+          "name": "SHA256SUMS.txt",
+          "size": 285,
+          "sha256": "ded43b217cc2aaec85ec1355275d7aaaa517c00a457164626f3586a714f19126",
+          "url": "https://github.com/NimbyRails-France/hub/releases/download/v0.4.1-alpha.7/SHA256SUMS.txt",
+          "githubAssetId": 595951404
+        }
+      ]
+    },
+    {
+      "project": "hub",
+      "repository": "hub",
+      "tag": "v0.4.1-alpha.8",
+      "githubReleaseId": 398487355,
+      "publishedAt": "2026-09-28T17:51:15Z",
+      "notes": "- Conserve un journal détaillé de chaque installation, y compris les erreurs et le retour à la version précédente, dans le dossier des logs du Hub.\n- Fournit un fichier `installer-latest.log` facile à transmettre pour diagnostiquer une installation échouée.\n- Empêche une installation incomplète d’être annoncée comme réussie ou de lancer le Hub.\n\nDetailed installation and rollback logs are retained alongside Hub logs, with an easy-to-share `installer-latest.log`. Incomplete installations cannot report success or launch the Hub.",
+      "assets": [
+        {
+          "name": "hub-latest-windows-x64.json",
+          "size": 351,
+          "sha256": "f886de2efc3fde127f36dcee65cb294e4482bd966ec2a7404dc3517f5f9a8e74",
+          "url": "https://github.com/NimbyRails-France/hub/releases/download/v0.4.1-alpha.8/hub-latest-windows-x64.json",
+          "githubAssetId": 596027799
+        },
+        {
+          "name": "hub-latest.json",
+          "size": 351,
+          "sha256": "f886de2efc3fde127f36dcee65cb294e4482bd966ec2a7404dc3517f5f9a8e74",
+          "url": "https://github.com/NimbyRails-France/hub/releases/download/v0.4.1-alpha.8/hub-latest.json",
+          "githubAssetId": 596027819
+        },
+        {
+          "name": "NRFHub-0.4.1-alpha.8-windows-x64-Setup.exe",
+          "size": 56457912,
+          "sha256": "610e6db6d0d24ab02e20872876a5f2c905df6abae437287bc27569112da173b3",
+          "url": "https://github.com/NimbyRails-France/hub/releases/download/v0.4.1-alpha.8/NRFHub-0.4.1-alpha.8-windows-x64-Setup.exe",
+          "githubAssetId": 596027685
+        },
+        {
+          "name": "SHA256SUMS.txt",
+          "size": 285,
+          "sha256": "e2b841ab63a3962cf96ddb32e2ecdeffdd0e3bfd6488de984221900c33d769d8",
+          "url": "https://github.com/NimbyRails-France/hub/releases/download/v0.4.1-alpha.8/SHA256SUMS.txt",
+          "githubAssetId": 596027765
+        }
+      ]
+    },
+    {
+      "project": "hub",
+      "repository": "hub",
+      "tag": "v0.4.1-alpha.9",
+      "githubReleaseId": 398549340,
+      "publishedAt": "2026-09-28T19:16:58Z",
+      "notes": "- Corrige le blocage de l'installation du SDK d? ? l'ancienne DLL pthread reconnue ; aucune suppression manuelle n?cessaire avec le SDK 0.8.0-alpha.4.\n- V?rifie les huit DLL du SDK et des bridges, conserve les fichiers partag?s et restaure les d?pendances remplac?es.\n- R?pare les installations interrompues et les DLL g?r?es manquantes ? partir de manifestes et de sauvegardes v?rifi?s, y compris apr?s restauration de la SDL par Steam.\n- Conserve les DLL inconnues ou modifi?es et fournit un diagnostic pr?cis.\n\nCoordinates with SDK 0.8.0-alpha.4 to preserve shared DLLs, migrate the recognized legacy dependency, and recover interrupted or incomplete installations from verified backups.",
+      "assets": [
+        {
+          "name": "hub-latest-windows-x64.json",
+          "size": 351,
+          "sha256": "84c96cfed5ab9b91f37258632da1efc0340ba64d272a03c4839cabc7193db0ea",
+          "url": "https://github.com/NimbyRails-France/hub/releases/download/v0.4.1-alpha.9/hub-latest-windows-x64.json",
+          "githubAssetId": 596202321
+        },
+        {
+          "name": "hub-latest.json",
+          "size": 351,
+          "sha256": "84c96cfed5ab9b91f37258632da1efc0340ba64d272a03c4839cabc7193db0ea",
+          "url": "https://github.com/NimbyRails-France/hub/releases/download/v0.4.1-alpha.9/hub-latest.json",
+          "githubAssetId": 596202358
+        },
+        {
+          "name": "NRFHub-0.4.1-alpha.9-windows-x64-Setup.exe",
+          "size": 56463822,
+          "sha256": "964b2185ddfc0e4c8919e2a3e85334942221c785e3a679760266b788b80ba7d1",
+          "url": "https://github.com/NimbyRails-France/hub/releases/download/v0.4.1-alpha.9/NRFHub-0.4.1-alpha.9-windows-x64-Setup.exe",
+          "githubAssetId": 596202230
+        },
+        {
+          "name": "SHA256SUMS.txt",
+          "size": 285,
+          "sha256": "9570872ba7387199daef4f853423b4053f3d5d69f5adbb60b8ee18aeb9ddeb01",
+          "url": "https://github.com/NimbyRails-France/hub/releases/download/v0.4.1-alpha.9/SHA256SUMS.txt",
+          "githubAssetId": 596202306
+        }
+      ]
+    },
+    {
+      "project": "sdk",
+      "repository": "sdk",
+      "tag": "v0.8.0-alpha.4",
+      "githubReleaseId": 398557523,
+      "publishedAt": "2026-09-28T19:28:35Z",
+      "notes": "- R?utilise les DLL pr?existantes identiques sans les supprimer ? la d?sinstallation.\n- Migre l'ancienne d?pendance pthread reconnue avec sauvegarde et restauration ; conserve les DLL inconnues.\n- Conserve un manifeste de r?cup?ration avant les copies et permet le retrait malgr? des DLL g?r?es manquantes ou une SDL d?j? restaur?e.\n- ? utiliser avec le Hub 0.4.1-alpha.9 pour la r?paration des installations interrompues.\n\nPreserves shared DLLs, safely migrates the recognized legacy pthread dependency, and records recovery information before installation. Use Hub 0.4.1-alpha.9 for interrupted-install recovery.",
+      "assets": [
+        {
+          "name": "NimbyRailsFranceSDK-0.8.0-alpha.4-drop-in-windows-x64.zip",
+          "size": 12169871,
+          "sha256": "998d8ce7420e65f2ea9d2a44a75c2a612549b5c7f62999cf121c26e9aa288bb8",
+          "url": "https://github.com/NimbyRails-France/sdk/releases/download/v0.8.0-alpha.4/NimbyRailsFranceSDK-0.8.0-alpha.4-drop-in-windows-x64.zip",
+          "githubAssetId": 596224822
+        },
+        {
+          "name": "NimbyRailsFranceSDK-0.8.0-alpha.4-hub.zip",
+          "size": 26868412,
+          "sha256": "e15d390e0f33c59fa71f5db9b976d36d8481f837726c736a4f5e039647b6dca6",
+          "url": "https://github.com/NimbyRails-France/sdk/releases/download/v0.8.0-alpha.4/NimbyRailsFranceSDK-0.8.0-alpha.4-hub.zip",
+          "githubAssetId": 596224863
+        },
+        {
+          "name": "NimbyRailsFranceSDK-0.8.0-alpha.4-windows-x64-mingw.zip",
+          "size": 14698597,
+          "sha256": "ffaefa949fb0b444f89a07d6f22f4abe0cceb151bcf433fb632f2ce3f6db6010",
+          "url": "https://github.com/NimbyRails-France/sdk/releases/download/v0.8.0-alpha.4/NimbyRailsFranceSDK-0.8.0-alpha.4-windows-x64-mingw.zip",
+          "githubAssetId": 596224912
+        },
+        {
+          "name": "NimbyRailsFranceSDK-kotlin-0.8.0-alpha.4-windows-x64.zip",
+          "size": 16489678,
+          "sha256": "de903e4a6c5965a6b1bd41c11742a912393c1e9a2fa88b73b21e57f9974ea581",
+          "url": "https://github.com/NimbyRails-France/sdk/releases/download/v0.8.0-alpha.4/NimbyRailsFranceSDK-kotlin-0.8.0-alpha.4-windows-x64.zip",
+          "githubAssetId": 596224963
+        },
+        {
+          "name": "project-windows-x64.json",
+          "size": 547,
+          "sha256": "0d42439ea0496c70a1bcb0e00e895dddd28648aa6b3a4c2ad06a91ffc6feb379",
+          "url": "https://github.com/NimbyRails-France/sdk/releases/download/v0.8.0-alpha.4/project-windows-x64.json",
+          "githubAssetId": 596225043
+        },
+        {
+          "name": "project.json",
+          "size": 547,
+          "sha256": "0d42439ea0496c70a1bcb0e00e895dddd28648aa6b3a4c2ad06a91ffc6feb379",
+          "url": "https://github.com/NimbyRails-France/sdk/releases/download/v0.8.0-alpha.4/project.json",
+          "githubAssetId": 596225067
+        },
+        {
+          "name": "SHA256SUMS.txt",
+          "size": 647,
+          "sha256": "98e18325957e21c9f01bc1e879c1ac9896d6a5aff6fd8ad1bb1ec93a7175c9db",
+          "url": "https://github.com/NimbyRails-France/sdk/releases/download/v0.8.0-alpha.4/SHA256SUMS.txt",
+          "githubAssetId": 596225015
+        }
+      ]
+    },
+    {
+      "project": "hub",
+      "repository": "hub",
+      "tag": "v0.4.2-alpha.1",
+      "githubReleaseId": 398579534,
+      "publishedAt": "2026-09-28T20:00:01Z",
+      "notes": "- Remplace la publication 0.4.1-alpha.10 avec une nouvelle version pour éviter son classement derrière alpha.9 sur GitHub.\n- Inclut la mise à jour du Hub dans les profils Jouer et Développer, sans mise à jour automatique des SDK et mods de développement.\n- Conserve les corrections de vérification et de réparation des DLL du SDK.\n\nReplaces 0.4.1-alpha.10 with a new version number, retaining Hub self-updates in both profiles and SDK DLL recovery improvements.",
+      "assets": [
+        {
+          "name": "hub-latest-windows-x64.json",
+          "size": 351,
+          "sha256": "5284d0f1aeeb58d84d8f0f1b84fa6ac19b502ff5aac90584f36efb9c7aaa2a65",
+          "url": "https://github.com/NimbyRails-France/hub/releases/download/v0.4.2-alpha.1/hub-latest-windows-x64.json",
+          "githubAssetId": 596287110
+        },
+        {
+          "name": "hub-latest.json",
+          "size": 351,
+          "sha256": "5284d0f1aeeb58d84d8f0f1b84fa6ac19b502ff5aac90584f36efb9c7aaa2a65",
+          "url": "https://github.com/NimbyRails-France/hub/releases/download/v0.4.2-alpha.1/hub-latest.json",
+          "githubAssetId": 596287138
+        },
+        {
+          "name": "NRFHub-0.4.2-alpha.1-windows-x64-Setup.exe",
+          "size": 56467936,
+          "sha256": "fdfcdeafb9a7950f0303106fb4172df7741178b73600136f4c7a30fccf8768e3",
+          "url": "https://github.com/NimbyRails-France/hub/releases/download/v0.4.2-alpha.1/NRFHub-0.4.2-alpha.1-windows-x64-Setup.exe",
+          "githubAssetId": 596287004
+        },
+        {
+          "name": "SHA256SUMS.txt",
+          "size": 285,
+          "sha256": "44878d77e03db945b6b56d42007f08b5a77b5bfbca071b0b1ad5b8860c943877",
+          "url": "https://github.com/NimbyRails-France/hub/releases/download/v0.4.2-alpha.1/SHA256SUMS.txt",
+          "githubAssetId": 596287093
+        }
+      ]
+    },
+    {
+      "project": "signal-placement",
+      "repository": "ba-signal-placement",
+      "tag": "v0.1.0-alpha.2",
+      "githubReleaseId": 398601989,
+      "publishedAt": "2026-09-28T20:32:01Z",
+      "notes": "- Reconstruction avec le SDK 0.8.0-alpha.4 et son adaptateur de lecture légère de la session : l'outil au repos ne relit plus tout le réseau à chaque cycle.\n- Réduction de la contention avec les observations de signalisation, susceptible de retarder l'ouverture des carrés à l'approche des trains.\n- Le réseau complet reste lu à la demande pour calculer les emplacements des signaux.",
+      "assets": [
+        {
+          "name": "project-windows-x64.json",
+          "size": 690,
+          "sha256": "f64b848ab0e7dbdd502c513a15e6b8424bdbf8aedbfd687b0a027c30f6d4b4e8",
+          "url": "https://github.com/NimbyRails-France/ba-signal-placement/releases/download/v0.1.0-alpha.2/project-windows-x64.json",
+          "githubAssetId": 596350088
+        },
+        {
+          "name": "project.json",
+          "size": 690,
+          "sha256": "f64b848ab0e7dbdd502c513a15e6b8424bdbf8aedbfd687b0a027c30f6d4b4e8",
+          "url": "https://github.com/NimbyRails-France/ba-signal-placement/releases/download/v0.1.0-alpha.2/project.json",
+          "githubAssetId": 596350111
+        },
+        {
+          "name": "SHA256SUMS.txt",
+          "size": 282,
+          "sha256": "5f58b0d09f819020a0070f7e451cfa1c791d534dd35dab6b9f33a2493bc076d5",
+          "url": "https://github.com/NimbyRails-France/ba-signal-placement/releases/download/v0.1.0-alpha.2/SHA256SUMS.txt",
+          "githubAssetId": 596350015
+        },
+        {
+          "name": "SignalPlacement-0.1.0-alpha.2-windows-x64.zip",
+          "size": 1874843,
+          "sha256": "7407f51c4da2f511976e5a7297b89eb8e52d03b0b85790e68225daa99666650b",
+          "url": "https://github.com/NimbyRails-France/ba-signal-placement/releases/download/v0.1.0-alpha.2/SignalPlacement-0.1.0-alpha.2-windows-x64.zip",
+          "githubAssetId": 596350039
+        }
+      ]
+    },
+    {
+      "project": "sdk",
+      "repository": "sdk",
+      "tag": "v0.8.0-alpha.5",
+      "githubReleaseId": 398649031,
+      "publishedAt": "2026-09-28T21:43:29Z",
+      "notes": "- Keeps signal tool panels refreshable during temporary observation suspension; stale panel handles no longer invalidate tool observations.\n- Repeated signals inherit effective NRF checkbox settings, including unchecked values, with session isolation and deferred application to newly observed IDs.\n- Regression coverage for panel suspension, settings copy and stale presentation handles. Live-game visual validation remains required.",
+      "assets": [
+        {
+          "name": "NimbyRailsFranceSDK-0.8.0-alpha.5-drop-in-windows-x64.zip",
+          "size": 12175019,
+          "sha256": "695e826c7a208254f63acd193de0388e98d380122a40decf8ac468195d99ca7f",
+          "url": "https://github.com/NimbyRails-France/sdk/releases/download/v0.8.0-alpha.5/NimbyRailsFranceSDK-0.8.0-alpha.5-drop-in-windows-x64.zip",
+          "githubAssetId": 596483506
+        },
+        {
+          "name": "NimbyRailsFranceSDK-0.8.0-alpha.5-hub.zip",
+          "size": 26879622,
+          "sha256": "580faa5dbfc47bea8a39930962fee3944343fc446e8c38b7c50c37deb998b80a",
+          "url": "https://github.com/NimbyRails-France/sdk/releases/download/v0.8.0-alpha.5/NimbyRailsFranceSDK-0.8.0-alpha.5-hub.zip",
+          "githubAssetId": 596483631
+        },
+        {
+          "name": "NimbyRailsFranceSDK-0.8.0-alpha.5-windows-x64-mingw.zip",
+          "size": 14704659,
+          "sha256": "6f69b162dfbdcfe25c0bb390c49791f7f934bed8a4dd1f82230af54e6d778b55",
+          "url": "https://github.com/NimbyRails-France/sdk/releases/download/v0.8.0-alpha.5/NimbyRailsFranceSDK-0.8.0-alpha.5-windows-x64-mingw.zip",
+          "githubAssetId": 596483906
+        },
+        {
+          "name": "NimbyRailsFranceSDK-kotlin-0.8.0-alpha.5-windows-x64.zip",
+          "size": 16493998,
+          "sha256": "6e86471c1d6b2c97da7d0725687c183129e96b939820bb32e7c806b4e8430f11",
+          "url": "https://github.com/NimbyRails-France/sdk/releases/download/v0.8.0-alpha.5/NimbyRailsFranceSDK-kotlin-0.8.0-alpha.5-windows-x64.zip",
+          "githubAssetId": 596484046
+        },
+        {
+          "name": "project-windows-x64.json",
+          "size": 547,
+          "sha256": "ace1f58c9bd671255bab42f86adefcf75b5d6054381b7f2e5e40bf9e3f7de4ec",
+          "url": "https://github.com/NimbyRails-France/sdk/releases/download/v0.8.0-alpha.5/project-windows-x64.json",
+          "githubAssetId": 596484234
+        },
+        {
+          "name": "project.json",
+          "size": 547,
+          "sha256": "ace1f58c9bd671255bab42f86adefcf75b5d6054381b7f2e5e40bf9e3f7de4ec",
+          "url": "https://github.com/NimbyRails-France/sdk/releases/download/v0.8.0-alpha.5/project.json",
+          "githubAssetId": 596484258
+        },
+        {
+          "name": "SHA256SUMS.txt",
+          "size": 647,
+          "sha256": "475492979725959454e83ce99273637450788880dad7f3bd4e67832329818df8",
+          "url": "https://github.com/NimbyRails-France/sdk/releases/download/v0.8.0-alpha.5/SHA256SUMS.txt",
+          "githubAssetId": 596484215
+        }
+      ]
+    },
+    {
+      "project": "signal-placement",
+      "repository": "ba-signal-placement",
+      "tag": "v0.1.0-alpha.3",
+      "githubReleaseId": 398652895,
+      "publishedAt": "2026-09-28T21:49:23Z",
+      "notes": "- Uses SDK 0.8.0-alpha.5: repeated signals inherit NRF checkbox settings, including unchecked values.\n- Stale panel refreshes no longer trigger observation loss or repeated errors.\n- Requires updating the game SDK together with this mod; visual verification in game remains necessary.",
+      "assets": [
+        {
+          "name": "project-windows-x64.json",
+          "size": 690,
+          "sha256": "cfb31bbba96f0233f4453ebc0329f2b0f812cbde68e22ed77a8d570d069909f0",
+          "url": "https://github.com/NimbyRails-France/ba-signal-placement/releases/download/v0.1.0-alpha.3/project-windows-x64.json",
+          "githubAssetId": 596495243
+        },
+        {
+          "name": "project.json",
+          "size": 690,
+          "sha256": "cfb31bbba96f0233f4453ebc0329f2b0f812cbde68e22ed77a8d570d069909f0",
+          "url": "https://github.com/NimbyRails-France/ba-signal-placement/releases/download/v0.1.0-alpha.3/project.json",
+          "githubAssetId": 596495258
+        },
+        {
+          "name": "SHA256SUMS.txt",
+          "size": 282,
+          "sha256": "7053fe96c8e8680945c6e62975ba53ffdf8994a19d6462b840633dad4e0f369d",
+          "url": "https://github.com/NimbyRails-France/ba-signal-placement/releases/download/v0.1.0-alpha.3/SHA256SUMS.txt",
+          "githubAssetId": 596495199
+        },
+        {
+          "name": "SignalPlacement-0.1.0-alpha.3-windows-x64.zip",
+          "size": 1873943,
+          "sha256": "2e854a6977a3e946aae2233141542f1f4fc578d49082cf9027ddcfe382abf216",
+          "url": "https://github.com/NimbyRails-France/ba-signal-placement/releases/download/v0.1.0-alpha.3/SignalPlacement-0.1.0-alpha.3-windows-x64.zip",
+          "githubAssetId": 596495213
+        }
+      ]
+    },
+    {
+      "project": "sdk",
+      "repository": "sdk",
+      "tag": "v0.8.0-alpha.6",
+      "githubReleaseId": 398672311,
+      "publishedAt": "2026-09-28T22:21:42Z",
+      "notes": "- Fixes repeated signal orientation: construction writes the signed direction byte without overwriting neighbouring native fields, and uses the destination track orientation, matching the preview.\n- Regression tests cover both directions, both destination orientations and preservation of neighbouring bytes. Live-game confirmation remains required.",
+      "assets": [
+        {
+          "name": "NimbyRailsFranceSDK-0.8.0-alpha.6-drop-in-windows-x64.zip",
+          "size": 12175446,
+          "sha256": "bc63612b1e26d9925ecadda1d44d44657d88a85bad839c14f12c53d99a5e224c",
+          "url": "https://github.com/NimbyRails-France/sdk/releases/download/v0.8.0-alpha.6/NimbyRailsFranceSDK-0.8.0-alpha.6-drop-in-windows-x64.zip",
+          "githubAssetId": 596553683
+        },
+        {
+          "name": "NimbyRailsFranceSDK-0.8.0-alpha.6-hub.zip",
+          "size": 26880638,
+          "sha256": "f83093428905a51648731d2d35d26e2eb878c01ab201b0c2878b9040ec1ce704",
+          "url": "https://github.com/NimbyRails-France/sdk/releases/download/v0.8.0-alpha.6/NimbyRailsFranceSDK-0.8.0-alpha.6-hub.zip",
+          "githubAssetId": 596553719
+        },
+        {
+          "name": "NimbyRailsFranceSDK-0.8.0-alpha.6-windows-x64-mingw.zip",
+          "size": 14705248,
+          "sha256": "ec1a818d109832a6a6d70a62b4ae5a5d75d1f5da0b804bd42ebf45f846e7ae3e",
+          "url": "https://github.com/NimbyRails-France/sdk/releases/download/v0.8.0-alpha.6/NimbyRailsFranceSDK-0.8.0-alpha.6-windows-x64-mingw.zip",
+          "githubAssetId": 596553788
+        },
+        {
+          "name": "NimbyRailsFranceSDK-kotlin-0.8.0-alpha.6-windows-x64.zip",
+          "size": 16494584,
+          "sha256": "5666f5daa2d1ddce151ff61a000e451cafd5db23803c17914da1e4e48f6fa343",
+          "url": "https://github.com/NimbyRails-France/sdk/releases/download/v0.8.0-alpha.6/NimbyRailsFranceSDK-kotlin-0.8.0-alpha.6-windows-x64.zip",
+          "githubAssetId": 596553824
+        },
+        {
+          "name": "project-windows-x64.json",
+          "size": 547,
+          "sha256": "f0c02a08f1352dd845bd70b5d383b1bcf17efe3b8ecd4387a137a5fb76c95f8b",
+          "url": "https://github.com/NimbyRails-France/sdk/releases/download/v0.8.0-alpha.6/project-windows-x64.json",
+          "githubAssetId": 596553883
+        },
+        {
+          "name": "project.json",
+          "size": 547,
+          "sha256": "f0c02a08f1352dd845bd70b5d383b1bcf17efe3b8ecd4387a137a5fb76c95f8b",
+          "url": "https://github.com/NimbyRails-France/sdk/releases/download/v0.8.0-alpha.6/project.json",
+          "githubAssetId": 596553895
+        },
+        {
+          "name": "SHA256SUMS.txt",
+          "size": 647,
+          "sha256": "3281f937e6affa77fe418ccc210fe789e2c4b5145e43b0798fdc19d94433a27a",
+          "url": "https://github.com/NimbyRails-France/sdk/releases/download/v0.8.0-alpha.6/SHA256SUMS.txt",
+          "githubAssetId": 596553860
+        }
+      ]
+    },
+    {
+      "project": "sdk",
+      "repository": "sdk",
+      "tag": "v0.8.0-alpha.7",
+      "githubReleaseId": 398709292,
+      "publishedAt": "2026-09-28T23:42:21Z",
+      "notes": "- Ajoute des réglages numériques bornés dans les panneaux des signaux, avec affichage conditionnel, conservation de la saisie, sauvegarde et copie lors de la répétition.\n- Permet au mod de calculer des réglages effectifs pour un réseau de signaux sans modifier les observations, les identifiants ni les liens entre signaux. Le pont Kotlin utilise l’ABI 8.\n- Prend en charge la taille native de 0 à 4 et le placement à gauche par défaut pour les nouveaux signaux. Le sens de circulation et les propriétés des signaux existants ou copiés sont conservés.\n- Tests automatisés des champs numériques, de la construction native et de la propagation en réseau. La confirmation visuelle en jeu reste à effectuer.\n\nEnglish:\n\n- Adds bounded numeric signal settings with conditional visibility, persistent edit drafts, save/reload and repeat-copy support.\n- Adds a network preparation callback for derived settings. The Kotlin bridge uses ABI 8; existing observations, identities and topology cannot be changed by this callback.\n- Construction declarations support native size 0–4 and a left-side default for new signals. The qualified Windows construction hook changes only the fresh signal's lateral offset, preserving its direction and other fields; existing signals and copies retain their cosmetics.\n- Automated tests cover numeric fields, native construction fixtures and network propagation. Visual confirmation in the game remains required.",
+      "assets": [
+        {
+          "name": "NimbyRailsFranceSDK-0.8.0-alpha.7-drop-in-windows-x64.zip",
+          "size": 12187910,
+          "sha256": "96dde753df4b5a40ed203041ec63a3735aa6d4309c60f019e20fb972b2a90de4",
+          "url": "https://github.com/NimbyRails-France/sdk/releases/download/v0.8.0-alpha.7/NimbyRailsFranceSDK-0.8.0-alpha.7-drop-in-windows-x64.zip",
+          "githubAssetId": 596696053
+        },
+        {
+          "name": "NimbyRailsFranceSDK-0.8.0-alpha.7-hub.zip",
+          "size": 26910838,
+          "sha256": "96beeb900454d51e729f483f177a952aa0ca735dccf35f29c1a0fbe760df820a",
+          "url": "https://github.com/NimbyRails-France/sdk/releases/download/v0.8.0-alpha.7/NimbyRailsFranceSDK-0.8.0-alpha.7-hub.zip",
+          "githubAssetId": 596696075
+        },
+        {
+          "name": "NimbyRailsFranceSDK-0.8.0-alpha.7-windows-x64-mingw.zip",
+          "size": 14722984,
+          "sha256": "0d3fcfd37c19edb465fa735df7ceaba8e5396c0533d209ebe9c5e2410270b6ab",
+          "url": "https://github.com/NimbyRails-France/sdk/releases/download/v0.8.0-alpha.7/NimbyRailsFranceSDK-0.8.0-alpha.7-windows-x64-mingw.zip",
+          "githubAssetId": 596696117
+        },
+        {
+          "name": "NimbyRailsFranceSDK-kotlin-0.8.0-alpha.7-windows-x64.zip",
+          "size": 16535873,
+          "sha256": "5b5414e53aaa84ff486d19ef927e2b3b80702302c99dd139c744d96b4f37960f",
+          "url": "https://github.com/NimbyRails-France/sdk/releases/download/v0.8.0-alpha.7/NimbyRailsFranceSDK-kotlin-0.8.0-alpha.7-windows-x64.zip",
+          "githubAssetId": 596696156
+        },
+        {
+          "name": "project-windows-x64.json",
+          "size": 547,
+          "sha256": "0e74d1437bd4510164d1bd5b86ed2b2f8275377e803c6bef191ed0d70f80cef6",
+          "url": "https://github.com/NimbyRails-France/sdk/releases/download/v0.8.0-alpha.7/project-windows-x64.json",
+          "githubAssetId": 596696207
+        },
+        {
+          "name": "project.json",
+          "size": 547,
+          "sha256": "0e74d1437bd4510164d1bd5b86ed2b2f8275377e803c6bef191ed0d70f80cef6",
+          "url": "https://github.com/NimbyRails-France/sdk/releases/download/v0.8.0-alpha.7/project.json",
+          "githubAssetId": 596696224
+        },
+        {
+          "name": "SHA256SUMS.txt",
+          "size": 647,
+          "sha256": "f365e01a33a79fb95242ae6a021c690a426b2a898ea149cf72bf3bf7b0fec3cd",
+          "url": "https://github.com/NimbyRails-France/sdk/releases/download/v0.8.0-alpha.7/SHA256SUMS.txt",
+          "githubAssetId": 596696188
+        }
+      ]
+    },
+    {
+      "project": "signalisationfrancaiserealiste",
+      "repository": "ab-signalisation-lumineuse",
+      "tag": "v0.2.0-alpha.4",
+      "githubReleaseId": 398711456,
+      "publishedAt": "2026-09-28T23:47:45Z",
+      "notes": "- Ajoute « Nombre de cantons travaux suivants » (0 à 64) sous Vert CLI Travaux : le signal source et les N BAL suivants sont couverts, sous réserve des indications plus restrictives.\n- Recalcule la couverture sans modifier les réglages enregistrés des signaux suivants. Les zones peuvent se chevaucher ; diminuer le nombre ou décocher Travaux retire la couverture correspondante.\n- Les nouveaux signaux BAL et Carré utilisent la taille 4 et le placement à gauche du sens de circulation. Les signaux déjà posés restent inchangés.\n- Nécessite le SDK 0.8.0-alpha.7. Tests automatisés des règles et de l'intégration ; confirmation visuelle en jeu encore nécessaire.\n\nEnglish:\n\n- Adds a following work-block count (0-64): the source and the next N BAL signals receive work-zone coverage, while more restrictive indications retain priority.\n- Recalculates overlapping work zones without changing saved downstream settings; reducing the count or disabling Works removes the corresponding coverage.\n- New BAL and Carre signals default to size 4 and the left side of travel. Existing signals remain unchanged.\n- Requires SDK 0.8.0-alpha.7. Automated rules and integration tests pass; visual confirmation in the game remains required.",
+      "assets": [
+        {
+          "name": "project-windows-x64.json",
+          "size": 796,
+          "sha256": "6047ccd3c56c6c7c1219ad890eb372ca4c2f18fc1732e70fba51f66e54936e7a",
+          "url": "https://github.com/NimbyRails-France/ab-signalisation-lumineuse/releases/download/v0.2.0-alpha.4/project-windows-x64.json",
+          "githubAssetId": 596705916
+        },
+        {
+          "name": "project.json",
+          "size": 796,
+          "sha256": "6047ccd3c56c6c7c1219ad890eb372ca4c2f18fc1732e70fba51f66e54936e7a",
+          "url": "https://github.com/NimbyRails-France/ab-signalisation-lumineuse/releases/download/v0.2.0-alpha.4/project.json",
+          "githubAssetId": 596705933
+        },
+        {
+          "name": "SHA256SUMS.txt",
+          "size": 297,
+          "sha256": "e627d50cb439fc1f2ae05e5f0ce2b694748b5767c0cbcffd767e465a890b5f9e",
+          "url": "https://github.com/NimbyRails-France/ab-signalisation-lumineuse/releases/download/v0.2.0-alpha.4/SHA256SUMS.txt",
+          "githubAssetId": 596705863
+        },
+        {
+          "name": "SignalisationFrancaiseRealiste-0.2.0-alpha.4-windows-x64.zip",
+          "size": 2752134,
+          "sha256": "4c3af51074188a2c3e434d83231a4851a4f46f25d8b070ba692c189f746bd76c",
+          "url": "https://github.com/NimbyRails-France/ab-signalisation-lumineuse/releases/download/v0.2.0-alpha.4/SignalisationFrancaiseRealiste-0.2.0-alpha.4-windows-x64.zip",
+          "githubAssetId": 596705893
+        }
+      ]
+    },
+    {
+      "project": "sdk",
+      "repository": "sdk",
+      "tag": "v0.8.0-alpha.8",
+      "githubReleaseId": 398738304,
+      "publishedAt": "2026-09-29T00:54:26Z",
+      "notes": "- Affiche les réglages numériques conditionnels immédiatement sous leur case d'activation, notamment le compteur de cantons sous « Vert CLI Travaux ». Conserve le même ordre pendant les passes de disposition et d'interaction.\nEnglish:\n\n- Displays conditional numeric settings immediately below their enabling checkbox, preserving control order across layout and interaction passes.",
+      "assets": [
+        {
+          "name": "NimbyRailsFranceSDK-0.8.0-alpha.8-drop-in-windows-x64.zip",
+          "size": 12188826,
+          "sha256": "400bcda7645d7aca5712170afe1cc1deaa70b4ff21c2a81adb623291b97a6dd4",
+          "url": "https://github.com/NimbyRails-France/sdk/releases/download/v0.8.0-alpha.8/NimbyRailsFranceSDK-0.8.0-alpha.8-drop-in-windows-x64.zip",
+          "githubAssetId": 596822568
+        },
+        {
+          "name": "NimbyRailsFranceSDK-0.8.0-alpha.8-hub.zip",
+          "size": 26912856,
+          "sha256": "8bcf574ae6fa858f3d34e761e043ed47990b111120c303ca7a4d32211dc0d3fc",
+          "url": "https://github.com/NimbyRails-France/sdk/releases/download/v0.8.0-alpha.8/NimbyRailsFranceSDK-0.8.0-alpha.8-hub.zip",
+          "githubAssetId": 596822616
+        },
+        {
+          "name": "NimbyRailsFranceSDK-0.8.0-alpha.8-windows-x64-mingw.zip",
+          "size": 14724086,
+          "sha256": "69983aa509d30e59e681d3739e3974aec0c2ba92731bd0fc2dd3625a1b9ca764",
+          "url": "https://github.com/NimbyRails-France/sdk/releases/download/v0.8.0-alpha.8/NimbyRailsFranceSDK-0.8.0-alpha.8-windows-x64-mingw.zip",
+          "githubAssetId": 596822682
+        },
+        {
+          "name": "NimbyRailsFranceSDK-kotlin-0.8.0-alpha.8-windows-x64.zip",
+          "size": 16536776,
+          "sha256": "4ac9e00f6b240fb2439d2ec8b67383c94522c55858076c9104ac72d415f1923a",
+          "url": "https://github.com/NimbyRails-France/sdk/releases/download/v0.8.0-alpha.8/NimbyRailsFranceSDK-kotlin-0.8.0-alpha.8-windows-x64.zip",
+          "githubAssetId": 596822723
+        },
+        {
+          "name": "project-windows-x64.json",
+          "size": 547,
+          "sha256": "f501ae16999518b2b1829dc05e50ef73c311342645149376132f846baf6bfc14",
+          "url": "https://github.com/NimbyRails-France/sdk/releases/download/v0.8.0-alpha.8/project-windows-x64.json",
+          "githubAssetId": 596822794
+        },
+        {
+          "name": "project.json",
+          "size": 547,
+          "sha256": "f501ae16999518b2b1829dc05e50ef73c311342645149376132f846baf6bfc14",
+          "url": "https://github.com/NimbyRails-France/sdk/releases/download/v0.8.0-alpha.8/project.json",
+          "githubAssetId": 596822820
+        },
+        {
+          "name": "SHA256SUMS.txt",
+          "size": 647,
+          "sha256": "0dbe931e612fa31c847f70b641f451b4e18fc14e5a072626247d6e8669ea03a2",
+          "url": "https://github.com/NimbyRails-France/sdk/releases/download/v0.8.0-alpha.8/SHA256SUMS.txt",
+          "githubAssetId": 596822768
+        }
+      ]
+    },
+    {
+      "project": "signalisationfrancaiserealiste",
+      "repository": "ab-signalisation-lumineuse",
+      "tag": "v0.2.0-alpha.5",
+      "githubReleaseId": 398740503,
+      "publishedAt": "2026-09-29T00:59:56Z",
+      "notes": "- Nécessite le SDK 0.8.0-alpha.8 : le compteur travaux apparaît juste sous sa case d’activation.\n\n- Extrait le cantonnement, les réglages, les vitesses et les zones de travaux dans `signals/common/bal/`. Chaque modèle conserve ses fichiers d'indications, de règles, de panneau, de textures et de conduite.\n- Ajoute le Carré BAL type C avec les textures CC SMA, les mêmes réglages que le Sémaphore BAL et une case « Forcer au carré » pour maintenir un arrêt absolu.\n- Les zones de travaux traversent les BAL et Carrés BAL ; leur portée et les réglages sauvegardés restent indépendants du forçage au carré.\n- Les noms des signaux restent en français, avec leur type, dans toutes les langues. Les nouveaux signaux restent à gauche et en taille 4.\n- Tests des règles BAL, du carré forcé, des réseaux mixtes et des textures. Confirmation visuelle en jeu à effectuer.\n\nEnglish:\n\n- Requires SDK 0.8.0-alpha.8 so the works counter appears directly below its enabling checkbox.\n- Moves shared BAL rules, settings, speeds and work-zone propagation into `signals/common/bal/`, keeping each model's declarations, indications, panel, textures and driving files separate.\n- Adds Carré BAL type C using CC SMA textures, the existing BAL settings and a force-closed option imposing an absolute stop.\n- Work zones extend across BAL and Carré BAL signals without overwriting saved settings or bypassing a forced stop.\n- Signal names retain their French names and type in every language. New signals default to the left side and size 4.\n- Tests cover BAL rules, forced stops, mixed networks and texture mappings. Visual confirmation in the game remains required.",
+      "assets": [
+        {
+          "name": "project-windows-x64.json",
+          "size": 796,
+          "sha256": "70e719d479844a7985d75feba06074f3c9f5e0a9b1ca66e0bb3e417d7af63041",
+          "url": "https://github.com/NimbyRails-France/ab-signalisation-lumineuse/releases/download/v0.2.0-alpha.5/project-windows-x64.json",
+          "githubAssetId": 596834723
+        },
+        {
+          "name": "project.json",
+          "size": 796,
+          "sha256": "70e719d479844a7985d75feba06074f3c9f5e0a9b1ca66e0bb3e417d7af63041",
+          "url": "https://github.com/NimbyRails-France/ab-signalisation-lumineuse/releases/download/v0.2.0-alpha.5/project.json",
+          "githubAssetId": 596834739
+        },
+        {
+          "name": "SHA256SUMS.txt",
+          "size": 297,
+          "sha256": "a642b1979dce57f1777b47439998c2e38642288a7352c70ffc4b420a88be206e",
+          "url": "https://github.com/NimbyRails-France/ab-signalisation-lumineuse/releases/download/v0.2.0-alpha.5/SHA256SUMS.txt",
+          "githubAssetId": 596834664
+        },
+        {
+          "name": "SignalisationFrancaiseRealiste-0.2.0-alpha.5-windows-x64.zip",
+          "size": 2765708,
+          "sha256": "8214f9e30ee09daf9dfbee98cd36e8ea48f3a9601df1cfa9c0214bfedf100c3d",
+          "url": "https://github.com/NimbyRails-France/ab-signalisation-lumineuse/releases/download/v0.2.0-alpha.5/SignalisationFrancaiseRealiste-0.2.0-alpha.5-windows-x64.zip",
+          "githubAssetId": 596834685
+        }
+      ]
+    }
+  ],
+  "publisher": {
+    "distribution.py": "50517d4fb228326103a21fbb6cbd4c47b05e1d42999fa01d4f292ee76db16411",
+    "project_identities.py": "5e95955b1be00a24e940d53db292c570462752718f6c3bdaee617b44b6a6c391"
+  }
+}
