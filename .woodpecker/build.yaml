@@ -1,30 +1,14 @@
-# Verify and package every commit; only an explicit release subject publishes.
+# Check the approved secret filter against the next publisher image tag.
 labels:
   pool: general
 concurrency: 1
 when:
   - event: [push, manual]
+    branch: maintenance/server-publisher-upgrade-20261008
 steps:
-  - name: windows-build-and-tests
-    image: univenanne-ci-nimby-release:20260918
-    commands:
-      - "case $CI_COMMIT_MESSAGE in *\"Release-Runner: github\"*) echo GitHub runner selected; exit 0 ;; esac"
-      - python3 .woodpecker/test-github-release.py
-      - python3 .woodpecker/test-release-metadata.py
-      - python3 .woodpecker/test-sdk-package.py
-      - sh .woodpecker/build.sh
-      - python3 .woodpecker/package.py
-  - name: publish-github-release
-    image: univenanne-ci-nimby-publisher:20260918
+  - name: publisher-image-policy-check
+    image: univenanne-ci-nimby-publisher:20261008
     settings:
+      mode: check
       token:
         from_secret: nrf_release_token
-    when:
-      - evaluate: 'not (CI_COMMIT_MESSAGE contains "Release-Runner: github")'
-  - name: publish-distribution-server
-    image: python:3.12-alpine
-    volumes:
-      - /opt/docker/nimbyrailsfrance-distribution/storage:/distribution
-    commands:
-      - "case $CI_COMMIT_MESSAGE in *\"Release-Runner: github\"*) echo GitHub runner selected; exit 0 ;; esac"
-      - python .woodpecker/distribution.py
