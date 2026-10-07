@@ -1,0 +1,59 @@
+Static Woodpecker publisher upgrade - review bundle, not deployed
+
+Preferred image tag: univenanne-ci-nimby-publisher:20261008
+The existing nrf_release_token secret filter MUST remain unchanged. Root must
+verify whether the new exact image tag is already allowed before using it.
+
+Build command (root executes separately on the server):
+  docker build -t univenanne-ci-nimby-publisher:20261008 <bundle-directory>
+
+Image entrypoint:
+  python3 -I /opt/nrf/publish.py
+
+Plugin settings remain:
+  token: { from_secret: nrf_release_token }
+  mode: check   # optional: validate release input, never mutate GitHub
+
+Do not add a commands override or expose the token through a regular build
+step's environment. That would violate the existing plugin-only secret policy.
+
+Static image contents
+  image/legacy/publish.py and release-policy.py are byte-identical to the
+  inspected approved image (hashes in source-provenance.json). Bot and website
+  release requests dispatch to that exact implementation.
+  image/runtime contains the current SDK GitHub publisher and reviewed source
+  aliases, captured as image-owned files. It supports all six distributions,
+  immutable public assets and retryable public catalogue refresh.
+  image/publish.py loads those absolute paths, never workspace Python modules.
+  Isolated Python mode also ignores PYTHONPATH and workspace sitecustomize.
+
+Before any mutation for the six distributions, the wrapper checks:
+  - push/manual release request, or explicit skip for the GitHub runner;
+  - exact approved organization/repository (old/new aliases only);
+  - GitHub commit SHA and release subject match the CI request;
+  - current branch head is still the built commit;
+  - VERSION, branch/channel policy and dated release notes from that commit;
+  - local build plan exactly matches that source and all artifact digests;
+  - existing version tag points directly to the same commit;
+  - any existing draft/public release agrees with the verified build.
+
+check mode performs those validations without tags, uploads or catalogue edits.
+Ordinary commits perform no source reads or publication. The only accepted
+secret input for the new path is PLUGIN_TOKEN. Authenticated requests use fixed
+api.github.com / uploads.github.com origins with redirects disabled. Tokens and
+HTTP response bodies are not included in errors. Remote files are parsed as data.
+
+The image build runs 26 offline tests with fake APIs and temporary fixtures.
+No tests have network access or create real GitHub releases. They cover all six
+projects and renamed aliases, source/branch/version/channel/notes/tag mismatch,
+mode check, non-release commits, GitHub-runner skipping, immutable retries,
+workspace module injection, output symlinks, transport hosts and legacy checks.
+
+Keep this bundle's .gitattributes when committing it to a maintenance worktree:
+legacy/runtime bytes are pinned and must not undergo Windows newline conversion.
+The SDK source trees and normal project branches are not modified by this bundle.
+
+If the new image tag is denied by the unchanged filter, root may choose the
+already-approved tag only after recording its current image ID and creating an
+immutable backup alias. Preserve that rollback image; do not remove it. This
+bundle neither changes the filter nor chooses or deploys that fallback.

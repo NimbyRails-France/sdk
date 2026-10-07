@@ -1,4 +1,4 @@
-# Check the approved secret filter against the next publisher image tag.
+# Reviewed maintenance only: upgrade the static plugin, never release products.
 labels:
   pool: general
 concurrency: 1
@@ -6,9 +6,10 @@ when:
   - event: [push, manual]
     branch: maintenance/server-publisher-upgrade-20261008
 steps:
-  - name: publisher-image-policy-check
-    image: univenanne-ci-nimby-publisher:20261008
-    settings:
-      mode: check
-      token:
-        from_secret: nrf_release_token
+  - name: upgrade-static-publisher
+    image: univenanne-ci-general:20260918
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    commands:
+      - python3 maintenance/publisher/test_upgrade.py
+      - python3 maintenance/publisher/upgrade.py

@@ -1,0 +1,6 @@
+{
+  "legacy/publish.py": "5927e07b59cc6e2221d56f2db1dc822303aae27bab3334948ee06b12e494ee92",
+  "legacy/release-policy.py": "7a5ebbac2352c79b8f71a159438104605c4b06153b43516114fc9bc79fe79e08",
+  "runtime/github_release.py": "cc701bf7c2aae18b2e3a646c1e922cc07f4aa465204664577f134d9ac07e89e7",
+  "runtime/project_identities.py": "5e95955b1be00a24e940d53db292c570462752718f6c3bdaee617b44b6a6c391"
+}

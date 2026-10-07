@@ -1,0 +1,57 @@
+{
+  "preparedAt": "2026-10-07T23:30:43.469987+00:00",
+  "offlineTests": 26,
+  "testResult": "PASS",
+  "sourceProvenance": {
+    "legacy/publish.py": "5927e07b59cc6e2221d56f2db1dc822303aae27bab3334948ee06b12e494ee92",
+    "legacy/release-policy.py": "7a5ebbac2352c79b8f71a159438104605c4b06153b43516114fc9bc79fe79e08",
+    "runtime/github_release.py": "cc701bf7c2aae18b2e3a646c1e922cc07f4aa465204664577f134d9ac07e89e7",
+    "runtime/project_identities.py": "5e95955b1be00a24e940d53db292c570462752718f6c3bdaee617b44b6a6c391"
+  },
+  "files": {
+    ".dockerignore": {
+      "bytes": 39,
+      "sha256": "b3445f0a788951a4cd4ef1a7d120a4809d4c2c5c729b5be012175742d5dfba09"
+    },
+    ".gitattributes": {
+      "bytes": 49,
+      "sha256": "0c08edae6cc09237ca4a0c615146f4d457a33c8355ffc6920ea1f750ee520b3d"
+    },
+    "Dockerfile": {
+      "bytes": 206,
+      "sha256": "a4674f1f6fd95d58aa538b89ccf1a9a5ff076bf8d0e3c0a0d13330b2c85fe646"
+    },
+    "REVIEW.txt": {
+      "bytes": 3318,
+      "sha256": "7f3015a93bba25158655ede414ed990a23c177b460aec077df165f9f6decfa03"
+    },
+    "source-provenance.json": {
+      "bytes": 400,
+      "sha256": "87c149a246521a62b41b33eaecab1f2cf7f5d3a57c7ebff420468fcf6576b47f"
+    },
+    "image/publish.py": {
+      "bytes": 10231,
+      "sha256": "90ebb6e5581188321a611e1c078de3b92fb40b1249d139bb566b91f58ac86819"
+    },
+    "image/test_publisher.py": {
+      "bytes": 16860,
+      "sha256": "988a1363aa51403fd035850cc31c7398c5ba50e546c4629e7fead9924376ab0e"
+    },
+    "image/legacy/publish.py": {
+      "bytes": 7616,
+      "sha256": "5927e07b59cc6e2221d56f2db1dc822303aae27bab3334948ee06b12e494ee92"
+    },
+    "image/legacy/release-policy.py": {
+      "bytes": 2664,
+      "sha256": "7a5ebbac2352c79b8f71a159438104605c4b06153b43516114fc9bc79fe79e08"
+    },
+    "image/runtime/github_release.py": {
+      "bytes": 11527,
+      "sha256": "cc701bf7c2aae18b2e3a646c1e922cc07f4aa465204664577f134d9ac07e89e7"
+    },
+    "image/runtime/project_identities.py": {
+      "bytes": 1594,
+      "sha256": "5e95955b1be00a24e940d53db292c570462752718f6c3bdaee617b44b6a6c391"
+    }
+  }
+}
