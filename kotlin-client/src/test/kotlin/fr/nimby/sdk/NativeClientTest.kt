@@ -4,6 +4,31 @@ import java.nio.file.Path
 import kotlin.test.*
 
 class NativeClientTest {
+    @Test fun sdk09AcceptsCompatiblePatchesAndRejectsOtherVersionsBeforeOpeningTheGame() {
+        // Keep one lease alive while rejected opens release their own lease,
+        // so the fixture's mutable version and native function pointers survive.
+        NimbyClient.open(fixture(), 42).use {
+            val library = com.sun.jna.NativeLibrary.getInstance(fixture().toString())
+            val change = library.getFunction("Fixture_Version")
+            fun version(abi: Int, major: Int, minor: Int, patch: Int) = change.invokeVoid(arrayOf(abi, major, minor, patch))
+            fun opened() = library.getFunction("Fixture_Opened").invokeInt(emptyArray())
+            try {
+                val before = opened()
+                for (mismatch in listOf(intArrayOf(2, 0, 7, 0), intArrayOf(2, 0, 8, 0), intArrayOf(2, 0, 10, 0),
+                        intArrayOf(2, 1, 9, 0), intArrayOf(1, 0, 9, 0), intArrayOf(3, 0, 9, 0))) {
+                    version(mismatch[0], mismatch[1], mismatch[2], mismatch[3])
+                    val error = assertFailsWith<IllegalArgumentException> { NimbyClient.open(fixture(), 42) }
+                    assertEquals("SDK 0.9.x, ABI 2 requis", error.message)
+                    assertEquals(before, opened())
+                }
+                for (patch in listOf(0, 1, 999)) {
+                    version(2, 0, 9, patch)
+                    NimbyClient.open(fixture(), 42).use { assertNotNull(it.capture().trains.firstOrNull()) }
+                }
+                assertEquals(before + 3, opened())
+            } finally { version(2, 0, 9, 0) }
+        }
+    }
     @Test fun exactNetworkReuseNeverHidesDynamicChangesOrUnavailableGeometry() {
         val library = com.sun.jna.NativeLibrary.getInstance(fixture().toString())
         val change = library.getFunction("Fixture_NetworkRevision")

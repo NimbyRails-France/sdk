@@ -40,11 +40,11 @@ uint32_t copy(NimbySnapshot snapshot, T* out, uint32_t capacity, uint32_t* count
     return NIMBY_OK;
 }
 }
-static uint32_t runtimeMinor = 8, runtimeAbi = 2, runtimePatch = 0;
+static uint32_t runtimeMajor = 0, runtimeMinor = 9, runtimeAbi = 2, runtimePatch = 0;
 static std::atomic<int64_t> clockEpoch{1781123300};
 static std::atomic<bool> clockAvailable{true};
 uint32_t __cdecl NimbyInternal_GetVersion(NimbySdkVersion* out) noexcept {
-    *out = {sizeof *out, runtimeAbi, 0, runtimeMinor, runtimePatch}; return NIMBY_OK;
+    *out = {sizeof *out, runtimeAbi, runtimeMajor, runtimeMinor, runtimePatch}; return NIMBY_OK;
 }
 uint32_t __cdecl NimbyInternal_GetSimulationClock(NimbySnapshot,NimbySimulationClock* out) noexcept {
     if(!clockAvailable)return NIMBY_DATA_UNAVAILABLE;
@@ -310,16 +310,16 @@ int main() {
             REQUIRE(index.select(rows,1001,key).empty());
             REQUIRE(visited==rows.size());
         }
-        REQUIRE(nimby::getVersion().minor == 8 && nimby::getVersion().abi == 2);
-        for (int mismatch = 0; mismatch < 3; ++mismatch) {
-            runtimeMinor = mismatch == 0 ? 7 : mismatch == 2 ? 9 : 8;
-            runtimeAbi = mismatch == 1 ? 1 : 2;
+        REQUIRE(nimby::getVersion().major == 0 && nimby::getVersion().minor == 9 && nimby::getVersion().abi == 2);
+        for(const auto version:std::array{nimby::Version{0,7,0,2},nimby::Version{0,8,0,2},
+                nimby::Version{0,10,0,2},nimby::Version{1,9,0,2},nimby::Version{0,9,0,1},nimby::Version{0,9,0,3}}) {
+            runtimeMajor=version.major;runtimeMinor=version.minor;runtimeAbi=version.abi;
             bool rejected = false;
             try { (void)nimby::getVersion(); }
             catch (const nimby::Exception& e) { rejected = e.code() == nimby::ErrorCode::InvalidArgument; }
             REQUIRE(rejected);
         }
-        runtimeMinor = 8; runtimeAbi = 2;
+        runtimeMajor = 0; runtimeMinor = 9; runtimeAbi = 2;
         // The new minor begins at patch zero; capabilities must not depend on
         // the patch threshold from the previous 0.7 development series.
         REQUIRE(nimby::getVersion().patch == 0);

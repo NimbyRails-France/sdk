@@ -28,7 +28,10 @@ uint32_t NimbyInternal_ReadTrainDriving(NimbySession session,uint64_t id,NimbyDr
  if((id&0xffff)==7)out->train_id++;
  return NIMBY_OK;
 }
-static unsigned released=0,closed=0;
+static unsigned released=0,closed=0,opened=0;
+static uint32_t version_abi=2,version_major=0,version_minor=9,version_patch=0;
+NIMBY_API void Fixture_Version(uint32_t abi,uint32_t major,uint32_t minor,uint32_t patch){version_abi=abi;version_major=major;version_minor=minor;version_patch=patch;}
+NIMBY_API uint32_t Fixture_Opened(void){return opened;}
 static unsigned full_captures=0,session_captures=0;
 static unsigned network_revision=0;
 NIMBY_API void Fixture_NetworkRevision(uint32_t value){network_revision=value;}
@@ -36,8 +39,8 @@ NIMBY_API uint32_t Fixture_Released(void){return released;}
 NIMBY_API uint32_t Fixture_Closed(void){return closed;}
 NIMBY_API uint32_t Fixture_FullCaptures(void){return full_captures;}
 NIMBY_API uint32_t Fixture_SessionCaptures(void){return session_captures;}
-uint32_t NimbyInternal_GetVersion(NimbySdkVersion* v){if(!v||v->struct_size!=sizeof *v)return 1;*v=(NimbySdkVersion){sizeof *v,2,0,8,0};return 0;}
-uint32_t NimbyInternal_OpenProcess(uint32_t abi,uint32_t pid,NimbySession* out){if(abi!=2||(pid!=42&&pid!=44&&pid!=45))return 7;*out=pid==42?123:pid==44?124:125;return 0;}
+uint32_t NimbyInternal_GetVersion(NimbySdkVersion* v){if(!v||v->struct_size!=sizeof *v)return 1;*v=(NimbySdkVersion){sizeof *v,version_abi,version_major,version_minor,version_patch};return 0;}
+uint32_t NimbyInternal_OpenProcess(uint32_t abi,uint32_t pid,NimbySession* out){++opened;if(abi!=2||(pid!=42&&pid!=44&&pid!=45))return 7;*out=pid==42?123:pid==44?124:125;return 0;}
 uint32_t NimbyInternal_CloseSession(NimbySession s){if(s<123||s>125)return 9;closed++;return 0;}
 uint32_t NimbyInternal_CaptureSnapshot(NimbySession s,NimbySnapshot* out){if(s<123||s>125)return 9;++full_captures;*out=s+333;return 0;}
 #ifndef NRF_FIXTURE_LEGACY_METRICS

@@ -362,7 +362,7 @@ int main(int argc, char** argv) {
                       << "Available: snapshot, simulation clock, train position/speed/service/passengers, "
                          "track limits, topology, path membership, occupation/reservation intervals, textures.\n"
                          "Commands available: texture-show, texture-restore (visual only).\n"
-                         "SDK 0.8.0: read-train/watch-train provide targeted motion and train dynamics.\n"
+                         "SDK 0.9.0: read-train/watch-train provide targeted motion and train dynamics.\n"
                          "Not exposed: route distances, traction/brake commands, "
                          "speed target, native UI extension fields.\n"
                          "Native script capabilities are separate; see docs/sdk-conduite-etude.md.\n";

@@ -28,7 +28,7 @@ class NimbyClient private constructor(private val lease: LibraryLease, private v
     }
     companion object {
         fun open(libraryPath: Path, processId: Int): NimbyClient {
-            DiagnosticLog.forComponent("sdk-client").write("Open SDK 0.8.x ABI 2: library=$libraryPath gamePid=$processId")
+            DiagnosticLog.forComponent("sdk-client").write("Open SDK 0.9.x ABI 2: library=$libraryPath gamePid=$processId")
             require(processId > 0) { "Un PID de jeu explicite est nécessaire" }
             val lease = Libraries.acquire(libraryPath)
             val client = NimbyClient(lease, 0, processId)
@@ -38,7 +38,7 @@ class NimbyClient private constructor(private val lease: LibraryLease, private v
                     client.call("GetVersion", memory)
                     val version = NimbySdkVersion(memory)
                     DiagnosticLog.forComponent("sdk-client").write("Loaded SDK version=${version.major}.${version.minor}.${version.patch} ABI=${version.abiVersion} library=${libraryPath.toAbsolutePath()}")
-                    require(version.abiVersion == 2 && version.major == 0 && version.minor == 8) { "SDK 0.8.x, ABI 2 requis" }
+                    require(version.abiVersion == 2 && version.major == 0 && version.minor == 9) { "SDK 0.9.x, ABI 2 requis" }
                 }
                 val result = LongByReference()
                 client.call("OpenProcess", 2, processId, result)
@@ -278,7 +278,7 @@ class NimbyClient private constructor(private val lease: LibraryLease, private v
             val stations = if(!locations) emptyList() else records("CopyStations", snapshot, NimbyStation.SIZE) { p -> NimbyStation(p).let { Station(it.id, it.nameUtf8) } } ?: error("Gares indisponibles")
             val nodes = if(query != null) emptyList() else records("CopyTrackNodes", snapshot, NimbyTrackNode.SIZE) { p -> NimbyTrackNode(p).let { TrackNode(it.id, it.linkA.nonzero(), it.linkB.nonzero(), it.x, it.y) } }.orEmpty()
             val junctions = if(query != null) emptyList() else records("CopyTrackJunctions", snapshot, NimbyTrackJunction.SIZE) { p -> NimbyTrackJunction(p).let { TrackJunction(it.branchTrackId, it.mainTrackId, it.mainFraction, it.mainDirection, it.branchDirection) } }.orEmpty()
-            // Additive private ABI: older 0.8.x DLLs remain usable. Catch only
+            // Additive private ABI: an accepted 0.9.x DLL can lack optional exports. Catch only
             // symbol lookup failure, never a failure while invoking/decoding it.
             val metrics = if (query != null || !trackMetricsAvailable) null else records("CopyTrackMetrics", snapshot, NimbyTrackMetric.SIZE) { p ->
                 NimbyTrackMetric(p).let { TrackMetric(it.trackId, it.lengthM) }

@@ -66,8 +66,8 @@ inline Version getVersion() {
     version.struct_size = sizeof version;
     detail::check(NimbyInternal_GetVersion(&version), "GetVersion");
     if (version.abi_version != NIMBY_OBSERVATION_ABI_VERSION ||
-        version.major != 0 || version.minor != 8)
-        detail::check(NIMBY_INVALID_ARGUMENT, "NimbyRailsFranceSDK 0.8.x required");
+        version.major != 0 || version.minor != 9)
+        detail::check(NIMBY_INVALID_ARGUMENT, "NimbyRailsFranceSDK 0.9.x required");
     return {version.major, version.minor, version.patch, version.abi_version};
 }
 struct Coordinates { double x, y; };

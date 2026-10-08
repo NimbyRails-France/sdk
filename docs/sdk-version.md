@@ -1,14 +1,14 @@
 # Versions et compatibilité
 
-Cette branche prépare **SDK 0.8.0**. La version du dépôt ou d'un kit local ne
+Cette branche prépare **SDK 0.9.0-alpha.1**. La version du dépôt ou d'un kit local ne
 prouve pas qu'une release a été publiée.
 
 ## Chaîne Kotlin prise en charge
 
 | Composant | Version ou cible |
 | --- | --- |
-| Kit SDK Kotlin | 0.8.0, format de manifeste 1 |
-| Plugin Gradle `fr.nimbyrails.mod` | 0.8.0, distribué dans le kit |
+| Kit SDK Kotlin | 0.9.0-alpha.1, format de manifeste 1 |
+| Plugin Gradle `fr.nimbyrails.mod` | 0.9.0-alpha.1, distribué dans le kit |
 | Kotlin/Native | 2.2.20 |
 | Gradle Wrapper | 8.14.3 |
 | JVM de développement vérifiée | JDK 21 |
@@ -45,10 +45,17 @@ utilisateurs même lorsque le code compile.
 5. Choisir le SDK d'exécution correspondant dans le profil développeur du Hub.
 6. Redémarrer le jeu et vérifier les scénarios concernés avant publication.
 
-## Clients C++
+## Version du runtime et clients
 
-`nimby::getVersion()` expose la version du SDK et du pont interne sans ouvrir
-le jeu. Les headers, bibliothèques d'import et DLL doivent provenir du même kit.
-Les clients 0.6 doivent suivre la [migration 0.7](migration-0.7.md).
+Le runtime annonce la version numérique **0.9.0**, avec l'ABI interne **2**.
+Le suffixe de prérelease reste dans `VERSION`, `sdk.json` et les manifestes de
+distribution ; il n'est pas représenté dans la structure native de version.
+Le client JVM et l'adaptateur natif de cette branche acceptent les correctifs
+**0.9.x** avec ABI 2 et refusent les autres versions mineures, majeures ou ABI
+avant d'utiliser leurs observations. Le client JVM refuse avant l'ouverture
+du processus de jeu.
+
+`nimby::getVersion()` est une vérification interne sans ouverture du jeu.
+Les headers, bibliothèques d'import et DLL doivent provenir du même kit.
 Le pont privé n'est pas une API consommateur et n'a pas de garantie indépendante
 de compatibilité.

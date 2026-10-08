@@ -9,7 +9,7 @@ _Static_assert(sizeof(NimbySnapshotInfo)==112,"Snapshot ABI");
 _Static_assert(sizeof(NimbyGameSession)==48,"Game session ABI");
 int main(void) {
     NimbySdkVersion version={sizeof(NimbySdkVersion),0,0,0,0};
-    if(NimbyInternal_GetVersion(&version)!=NIMBY_OK || version.abi_version!=2 || version.major!=0 || version.minor!=8)return 1;
+    if(NimbyInternal_GetVersion(&version)!=NIMBY_OK || version.abi_version!=2 || version.major!=0 || version.minor!=9 || version.patch!=0)return 1;
     if(NimbyInternal_GetVersion(0)!=NIMBY_INVALID_ARGUMENT)return 1;
     version.struct_size=0;if(NimbyInternal_GetVersion(&version)!=NIMBY_INVALID_ARGUMENT)return 1;
     NimbySession session=123;

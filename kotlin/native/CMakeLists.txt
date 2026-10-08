@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.24)
 project(NimbyKotlinMod LANGUAGES CXX)
-find_package(NimbyRailsFranceSDK 0.8.0 CONFIG REQUIRED)
+find_package(NimbyRailsFranceSDK 0.9.0 CONFIG REQUIRED)
 if(NOT NRF_MODULE_NAME OR NOT NRF_KOTLIN_LIBRARY)
   message(FATAL_ERROR "SDK maintainers: set NRF_MODULE_NAME and NRF_KOTLIN_LIBRARY. Mod authors use the fr.nimbyrails.mod Gradle plugin.")
 endif()
