@@ -1,4 +1,4 @@
-# Isolated maintenance branch: import existing public binaries, no builds/tags.
+# Isolated maintenance branch: mirror the two approved GitHub fallback releases, no builds/tags.
 labels:
   pool: general
 concurrency: 1
@@ -6,11 +6,11 @@ when:
   - event: [push, manual]
     branch: maintenance/server-release-resync-20261008
 steps:
-  - name: sync-published-release-history
+  - name: sync-approved-ba-bb-release-wave
     image: python:3.12-alpine
     volumes:
       - /opt/docker/nimbyrailsfrance-distribution/storage:/distribution
     commands:
       - python resync/test_resync.py
-      - python resync/resync.py fetch --expected-plan-sha256 ba272ef5a23e63a8711466e9012eeaa40570a01b2df1e308e7f46e4e54890324
-      - python resync/resync.py apply --apply --storage /distribution --expected-plan-sha256 ba272ef5a23e63a8711466e9012eeaa40570a01b2df1e308e7f46e4e54890324
+      - python resync/resync.py fetch --expected-plan-sha256 59d8287261837e77e2f8becfb564ae645603d52b0ce66cf3a389f37bd7f73faf
+      - python resync/resync.py apply --apply --storage /distribution --expected-plan-sha256 59d8287261837e77e2f8becfb564ae645603d52b0ce66cf3a389f37bd7f73faf
