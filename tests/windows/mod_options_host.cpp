@@ -20,10 +20,13 @@ std::filesystem::path savedFile(const std::filesystem::path& folder){
     return {};
 }
 int main(){
-    const auto temporary=std::filesystem::temp_directory_path();
+    // Canonicalize the existing parent once. Containment of this generated
+    // child is lexical; Wine need not supply native directory file identities.
+    const auto temporary=std::filesystem::canonical(std::filesystem::temp_directory_path());
     const auto root=temporary/("nrf-options-test-"+std::to_string(GetCurrentProcessId())+"-"+std::to_string(GetTickCount64()));
-    assert(std::filesystem::equivalent(root.parent_path(),temporary)&&root.filename().string().starts_with("nrf-options-test-"));
-    std::filesystem::create_directory(root);
+    assert(root.is_absolute()&&root.parent_path()==temporary&&root.filename().string().starts_with("nrf-options-test-"));
+    // Cleanup owns only a directory this test actually created.
+    assert(std::filesystem::create_directory(root));
     struct Cleanup{std::filesystem::path path;~Cleanup(){std::error_code error;std::filesystem::remove_all(path,error);}} cleanup{root};
     uint64_t first{};
     {
