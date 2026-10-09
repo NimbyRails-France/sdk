@@ -1,6 +1,6 @@
 # Référence de l’API Kotlin
 
-Ce guide est désormais maintenu dans le [dépôt du wiki officiel](https://github.com/NimbyRails-France/wiki),
+Ce guide est désormais maintenu dans le [dépôt du wiki officiel](https://github.com/NimbyRails-France/wiki-dev),
 page `reference`, destinée à **https://wiki-dev.nimbyrails-france.fr/reference**.
 
 Le wiki contient les explications, exemples Kotlin et signatures synchronisées

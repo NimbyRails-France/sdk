@@ -1,7 +1,7 @@
 # Notes techniques du SDK
 
 Les guides destinés aux créateurs de mods et d'outils sont maintenant développés
-dans le [dépôt wiki](https://github.com/NimbyRails-France/wiki), pour le site
+dans le [dépôt wiki](https://github.com/NimbyRails-France/wiki-dev), pour le site
 **https://wiki-dev.nimbyrails-france.fr**. Ils couvrent la nouvelle API `signalMod`,
 le client `Nimby.connect`, les exemples et la référence Kotlin synchronisée.
 Ce dossier conserve les contrats internes, rapports et notes de maintenance.

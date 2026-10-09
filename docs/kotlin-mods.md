@@ -1,6 +1,6 @@
 # Créer un mod Kotlin
 
-Ce guide est désormais maintenu dans le [dépôt du wiki officiel](https://github.com/NimbyRails-France/wiki),
+Ce guide est désormais maintenu dans le [dépôt du wiki officiel](https://github.com/NimbyRails-France/wiki-dev),
 page [commencer/installation de l’édition 0.9](https://wiki-dev.nimbyrails-france.fr/version/0.9/commencer/installation).
 
 Le wiki contient les explications, exemples Kotlin et signatures synchronisées

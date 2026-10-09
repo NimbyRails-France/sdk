@@ -1,6 +1,6 @@
 # Client Kotlin
 
-Ce guide est désormais maintenu dans le [dépôt du wiki officiel](https://github.com/NimbyRails-France/wiki),
+Ce guide est désormais maintenu dans le [dépôt du wiki officiel](https://github.com/NimbyRails-France/wiki-dev),
 page `lire/connexion`, destinée à **https://wiki-dev.nimbyrails-france.fr/lire/connexion**.
 
 Le wiki contient les explications, exemples Kotlin et signatures synchronisées

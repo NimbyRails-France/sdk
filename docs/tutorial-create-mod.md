@@ -1,6 +1,6 @@
 # Premier mod
 
-Ce guide est désormais maintenu dans le [dépôt du wiki officiel](https://github.com/NimbyRails-France/wiki),
+Ce guide est désormais maintenu dans le [dépôt du wiki officiel](https://github.com/NimbyRails-France/wiki-dev),
 page `commencer/premier-mod`, destinée à **https://wiki-dev.nimbyrails-france.fr/commencer/premier-mod**.
 
 Le wiki contient les explications, exemples Kotlin et signatures synchronisées
