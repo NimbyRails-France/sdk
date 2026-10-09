@@ -175,4 +175,3 @@ class TrainLengthLimitContractTest {
         assertEquals(longest, TrainLengthLimitAccess(valid).message(0))
     }
 }
-
