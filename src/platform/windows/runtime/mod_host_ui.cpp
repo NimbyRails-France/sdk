@@ -353,5 +353,6 @@ extern "C" NIMBY_API void* __cdecl NimbyInternal_ModHostUiSymbol(const char* nam
     SYMBOL("NimbyUi_SignalPreviewPublishV1",preview);SYMBOL("NimbyUi_TranslationsV1",translations);
 #undef SYMBOL
     // SettingsCopyBegin/Finish are native construction handoffs, never mod APIs.
-    return optionsSymbol(name);
+    if(const auto symbol=optionsSymbol(name))return symbol;
+    return trainLengthSymbol(name);
 }

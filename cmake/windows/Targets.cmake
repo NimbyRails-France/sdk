@@ -33,6 +33,7 @@ add_library(NimbyRailsFranceSDK SHARED
     src/platform/windows/runtime/mod_host.cpp
     src/platform/windows/runtime/mod_host_ui.cpp
     src/platform/windows/runtime/mod_host_options.cpp
+    src/platform/windows/runtime/mod_host_train_length.cpp
     src/platform/windows/runtime/mod_host_driving.cpp
     src/platform/windows/runtime/mod_host_textures.cpp
     src/platform/windows/runtime/mod_host_epoch.cpp
@@ -195,6 +196,7 @@ target_link_libraries(nimby_signal_settings_probe PRIVATE NimbyRailsFranceSDK ni
 add_library(nimby_signal_ui_probe_bridge SHARED tools/windows/signal_ui_probe_bridge.cpp src/platform/windows/engine/binary_identity.cpp)
 add_library(nimby_signal_ui_bridge SHARED src/platform/windows/runtime/signal_ui_bridge.cpp
     src/platform/windows/runtime/mod_options_host.cpp src/platform/windows/runtime/mod_options_ui.cpp
+    src/platform/windows/runtime/train_length_native.cpp
     src/platform/windows/engine/binary_identity.cpp)
 target_include_directories(nimby_signal_ui_bridge PRIVATE include)
 target_link_libraries(nimby_signal_ui_bridge PRIVATE nimby_build nimby_minhook bcrypt user32)

@@ -1,5 +1,6 @@
 #pragma once
 #include <runtime/mod_options_registry.h>
+#include <platform/windows/mod_options_loader_status.h>
 #include <filesystem>
 #include <memory>
 #include <string_view>
@@ -21,6 +22,8 @@ public:
     std::string translate(uint64_t token,std::string_view text,std::string_view language)const;
     std::string storageError(uint64_t token)const;
     uint64_t catalogueRevision()const noexcept;
+    uint32_t reportLoaderStatus(const LoaderStatus& status);
+    std::string loaderMessage(bool french)const;
     // Broker-only snapshot serialization; never called from game hooks.
     uint32_t read(uint64_t token,uint64_t known,char* output,uint32_t capacity,uint32_t* written,uint64_t* revision);
 private:

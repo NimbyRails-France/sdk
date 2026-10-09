@@ -87,7 +87,7 @@ void initialize_sdk() noexcept {
         stop_mods=std::bit_cast<StopMods>(GetProcAddress(sdk,"NimbyInternal_StopModHosts"));
         const auto result=start_mods&&stop_mods?start_mods(path):NIMBY_HOOKS_UNAVAILABLE;
         if(result==NIMBY_RESOURCE_LIMIT)
-            log("ERROR: insufficient isolated-mod resources; no mod batch remains active. See SDK loader log; close other applications or enable fewer mods.");
+            log("ERROR: isolated-mod batch admission or startup refused; no mod batch remains active. See game Options > NRF Hub and SDK loader log for the cause.");
         else if(result!=NIMBY_OK)
             log("ERROR: isolated mod hosts unavailable; no mod batch remains active");
     }

@@ -52,7 +52,8 @@ void report(const char* scenario,size_t from) {
 // No game hooks or game binary dependencies in this executable. The production
 // host uses explicit parent-identity and test-only uptime seams.
 extern "C" uint32_t __cdecl NimbyInternal_Initialize(uint32_t,uint32_t) noexcept {return NIMBY_OK;}
-extern "C" uint32_t __cdecl NimbyInternal_EnsureSignalUiBridge() noexcept {return NIMBY_HOOKS_UNAVAILABLE;}
+std::atomic<unsigned> optionsBridgeAttempts{};
+extern "C" uint32_t __cdecl NimbyInternal_EnsureSignalUiBridge() noexcept {++optionsBridgeAttempts;return NIMBY_HOOKS_UNAVAILABLE;}
 namespace nimby::mod_host {
 uint32_t dispatchUi(const Request& request,Reply& reply,Owners& owners) {
     if(request.operation!=100||request.data.size()!=24||request.args[0]>18)return NIMBY_INVALID_ARGUMENT;
@@ -239,7 +240,7 @@ void resourcePlans() {
         CHECK(nimby::mod_host::planResources(count,processors,64*gib,40*gib,options));
         CHECK(options.cpuRate*count<=2500);
         CHECK(options.cpuRate<=10000/processors);
-        CHECK(options.memoryLimit>=256ull*1024*1024&&options.memoryLimit<=gib);
+        CHECK(options.memoryLimit>=nimby::mod_host::minimumPrivateMemory&&options.memoryLimit<=gib);
         CHECK((options.memoryLimit+overhead)*count<=16*gib);
         CHECK(options.rpcCallsPerSecond*count<=6000&&options.rpcCallsPerSecond<=1500);
         CHECK(options.rpcCallBurst*count<=1024);
@@ -249,10 +250,33 @@ void resourcePlans() {
     nimby::mod_host::LaunchOptions constrained;
     CHECK(nimby::mod_host::planResources(3,24,32*gib,4*gib,constrained));
     CHECK(constrained.memoryLimit<gib&&constrained.cpuRate==10000/24);
-    CHECK(!nimby::mod_host::planResources(8,24,32*gib,4*gib,constrained));
+    CHECK(!nimby::mod_host::planResources(16,24,32*gib,4*gib,constrained));
     CHECK(!nimby::mod_host::planResources(0,24,32*gib,4*gib,constrained));
     CHECK(!nimby::mod_host::planResources(33,24,32*gib,32*gib,constrained));
     CHECK(!nimby::mod_host::planResources(1,24,32*gib,128*1024*1024,constrained));
+    // Reproduce the user's launch: four mods and 2305 MiB available. The old
+    // 256 MiB minimum rejected the batch even though each could receive ~240.
+    nimby::mod_host::ResourcePlan report;
+    constexpr uint64_t mib=1024ull*1024;
+    CHECK(nimby::mod_host::planResources(4,24,32*gib,2305*mib,constrained,&report));
+    CHECK(report.admission==nimby::mod_host::ResourceAdmission::Accepted);
+    CHECK(constrained.memoryLimit>=239*mib&&constrained.memoryLimit<241*mib);
+    CHECK((constrained.memoryLimit+overhead)*4<=2305*mib/2);
+    CHECK(report.privatePerMod==constrained.memoryLimit&&report.budget==2305*mib/2);
+    CHECK(constrained.memoryLimit%(64*1024)==0);
+    const auto required=4*(overhead+nimby::mod_host::minimumPrivateMemory);
+    CHECK(nimby::mod_host::planResources(4,24,32*gib,2*required,constrained,&report));
+    CHECK(constrained.memoryLimit==nimby::mod_host::minimumPrivateMemory);
+    const auto previous=constrained;
+    CHECK(!nimby::mod_host::planResources(4,24,32*gib,2*required-1,constrained,&report));
+    CHECK(report.admission==nimby::mod_host::ResourceAdmission::MemoryBudget&&report.requiredBudget==required);
+    CHECK(constrained.memoryLimit==previous.memoryLimit&&constrained.cpuRate==previous.cpuRate);
+    CHECK(!nimby::mod_host::planResources(4,24,4*required-1,32*gib,constrained,&report));
+    CHECK(report.admission==nimby::mod_host::ResourceAdmission::MemoryBudget);
+    CHECK(!nimby::mod_host::planResources(4,0,32*gib,32*gib,constrained,&report));
+    CHECK(report.admission==nimby::mod_host::ResourceAdmission::NoProcessors);
+    CHECK(!nimby::mod_host::planResources(4,10001,32*gib,32*gib,constrained,&report));
+    CHECK(report.admission==nimby::mod_host::ResourceAdmission::CpuBudget);
     std::cout<<"PASS resource reservations: fixed fair shares, CPU/memory/RPC aggregate bounds and low-memory admission rejection\n";
 }
 void rejectedBatch() {
@@ -263,12 +287,15 @@ void rejectedBatch() {
         ~Cleanup(){std::error_code error;for(unsigned i=0;i<33;++i){const auto child=root/std::to_string(i);
             std::filesystem::remove(child/"nrf-mod.ini",error);std::filesystem::remove(child,error);}std::filesystem::remove(root,error);}
     } cleanup{directory};
+    const auto before=channelMappings();const auto bridgeBefore=optionsBridgeAttempts.load();
+    CHECK(NimbyInternal_StartModHosts(directory.c_str())==NIMBY_OK);
+    CHECK(optionsBridgeAttempts==bridgeBefore+1&&channelMappings()==before);
     for(unsigned i=0;i<33;++i){const auto child=directory/std::to_string(i);CHECK(std::filesystem::create_directory(child));
         std::ofstream manifest(child/"nrf-mod.ini");manifest<<"[NRFMod]\nlibrary=fixture.dll\n";}
-    const auto before=channelMappings();
     CHECK(NimbyInternal_StartModHosts(directory.c_str())==NIMBY_RESOURCE_LIMIT);
+    CHECK(optionsBridgeAttempts==bridgeBefore+2);
     CHECK(channelMappings()==before);CHECK(NimbyInternal_StopModHosts()==NIMBY_OK);
-    std::cout<<"PASS rejected batch reports RESOURCE_LIMIT before creating any worker channel\n";
+    std::cout<<"PASS SDK Options attempted for empty and refused batches; UI unavailability does not alter admission or create worker channels\n";
 }
 void rejectedCpuControl(const std::filesystem::path& exe,const std::filesystem::path& directory) {
     const auto mappings=channelMappings();
@@ -446,9 +473,8 @@ int wmain(int argc,wchar_t** argv) {
         if(argc==3&&std::wstring_view(argv[2])==L"--watchdog-resume") {watchdogResume(exe,directory);return 0;}
         nimby::mod_host::LaunchOptions options;options.targetPid=GetCurrentProcessId();
         SYSTEM_INFO machine{};GetSystemInfo(&machine);
-        CHECK(nimby::mod_host::planResources(4,machine.dwNumberOfProcessors,32ull*1024*1024*1024,8ull*1024*1024*1024,options));
+        CHECK(nimby::mod_host::planResources(4,machine.dwNumberOfProcessors,32ull*1024*1024*1024,2305ull*1024*1024,options));
         options.startupTimeoutMs=1200;options.callbackTimeoutMs=350;options.shutdownTimeoutMs=300;
-        options.memoryLimit=128*1024*1024;
         const auto originalMappings=channelMappings();
         // An optional retained pre-change DLL exercises real legacy modules
         // against this candidate host without teaching the module a new ABI.

@@ -11,9 +11,11 @@
 #include <nimby/detail/translations.hpp>
 #include <nimby/detail/mod_options_client.hpp>
 #include <nimby/detail/mod_option_windows.hpp>
+#include <nimby/detail/platform/train_length.hpp>
 #include <engine/mod_shortcuts.h>
 #include <chrono>
 #include <sstream>
+#include <thread>
 #include "tool_context.hpp"
 
 #ifndef NIMBY_KOTLIN_LIBRARY
@@ -71,6 +73,7 @@ struct Api {
     std::vector<Type> types;
     std::vector<SignalSettingsPanel> panels;
     bool tool=false;
+    bool hasTickCallback=true; // ABI <=9 retains its existing observation loop.
     std::vector<std::string> services;
     int (*serviceEvent)(int,int64_t,int64_t,int64_t,int64_t,const char*,const char*,const char*,ToolCall)=nullptr;
     int (*serviceEventV2)(int,int64_t,int64_t,int64_t,int64_t,const char*,const char*,const char*,ToolCall,int,int)=nullptr;
@@ -82,12 +85,25 @@ struct Api {
     int optionCount{};
     int (*optionsApply)(const char*,int,int)=nullptr;
     void (*originalStop)()=nullptr;
+    void (*originalStart)()=nullptr;
     void (*originalObservationLost)()=nullptr;
     detail::ModOptionWindows optionWindows;
     std::optional<GameSession> optionsGame;
     std::vector<std::string> pendingWindows;
     std::chrono::steady_clock::time_point nextOptionsConnection{};
     int (*windowEvent)(int,int64_t,const char*,const char*,const int32_t*,int,const char*,int64_t,ToolCall)=nullptr;
+    int (*trainLengthMeters)()=nullptr;
+    std::string trainLengthOption;
+    std::string trainEditorDeclaration;
+    int trainLengthMinimum=1,trainLengthMaximum=10000;
+    detail::platform::TrainLengthFunctions trainLengthFunctions;
+    uint64_t trainLengthOwner{};
+    uint32_t publishedTrainLength{};
+    std::thread policyOptionsWorker;
+    detail::platform::TrainLengthOptionWait policyOptionsWait;
+    bool policyOptionsOnly()const noexcept {
+        return trainLengthMeters&&tool&&!hasTickCallback&&services.empty()&&windows.empty();
+    }
     template<class T> T symbol(const char* name) {
         auto address=detail::native::symbol(module,name);if(!address)throw std::runtime_error(std::string("Missing Kotlin SDK export: ")+name);
         return reinterpret_cast<T>(address);
@@ -102,6 +118,40 @@ struct Api {
         const auto count=typeMetadata(type,field,index,buffer.data(),int(buffer.size()));check(count);
         if(count>=int(buffer.size())||buffer[count]!=0)throw std::runtime_error("Invalid Kotlin type text length");
         return {buffer.data(),static_cast<std::size_t>(count)};
+    }
+    void prepareTrainLength(int abi) {
+        if(abi<10)return;
+        trainLengthMeters=symbol<decltype(trainLengthMeters)>("NRFKotlin_TrainLengthLimitMeters");
+        const auto tick=symbol<int(*)()>("NRFKotlin_ToolHasTick")();check(tick);
+        if(tick>1)throw std::runtime_error("Invalid Kotlin tick declaration");
+        hasTickCallback=tick==1;
+        std::array<char,129> option{};
+        const auto read=symbol<int(*)(char*,int)>("NRFKotlin_TrainLengthLimitOption");
+        const auto bytes=read(option.data(),int(option.size()));check(bytes);
+        if(bytes<1||bytes>=int(option.size())||option[bytes])throw std::runtime_error("Missing train length option identifier");
+        trainLengthOption.assign(option.data(),bytes);
+        if(abi>=11){
+            const auto message=symbol<int(*)(int,char*,int)>("NRFKotlin_TrainEditorMessage");
+            std::array<std::string,3> messages;
+            for(int i=0;i<3;++i){
+                std::array<char,1025> buffer{};
+                const auto count=message(i,buffer.data(),int(buffer.size()));check(count);
+                if(count<1||count>=int(buffer.size())||buffer[count]||
+                   std::memchr(buffer.data(),0,static_cast<size_t>(count)))
+                    throw std::runtime_error("Invalid train editor message declaration");
+                messages[size_t(i)].assign(buffer.data(),count);
+            }
+            trainEditorDeclaration=nlohmann::json({{"messages",messages},{"translations",translationsJson}}).dump();
+            if(trainEditorDeclaration.size()>NIMBY_OPTIONS_SCHEMA_LIMIT)
+                throw std::runtime_error("Train editor message declaration too large");
+        }
+        (void)currentTrainLength();
+    }
+    uint32_t currentTrainLength()const {
+        const auto metres=trainLengthMeters();check(metres);
+        if(metres<trainLengthMinimum||metres>trainLengthMaximum)
+            throw std::runtime_error("Train length is outside the declared integer option bounds");
+        return static_cast<uint32_t>(metres);
     }
     void prepareOptions(int abi) {
         using Json=nlohmann::json;
@@ -133,18 +183,33 @@ struct Api {
         }
         for(const auto& window:windows)fields.push_back({{"id",optionWindows.add(window.id)},{"label",window.title},
             {"description",""},{"kind",3},{"default",window.shortcut}});
+        if(trainLengthMeters){
+            size_t matches=0;
+            for(const auto& field:fields)if(field.at("id")==trainLengthOption){
+                if(field.at("kind")!=1)throw std::runtime_error("Train length must use a declared integer option");
+                trainLengthMinimum=field.at("minimum").get<int>();trainLengthMaximum=field.at("maximum").get<int>();
+                if(trainLengthMinimum<1||trainLengthMaximum>10000||trainLengthMinimum>trainLengthMaximum)
+                    throw std::runtime_error("Unsupported train length option bounds");
+                ++matches;
+            }
+            if(matches!=1)throw std::runtime_error("Train length option must be declared exactly once");
+            (void)currentTrainLength();
+        }
         if(fields.empty())return;
         if(fields.size()>64)throw std::runtime_error("Too many mod options and windows");
         optionsDeclaration=Json({{"id",id},{"title",title},{"fields",std::move(fields)},
             {"translations",translationsJson}}).dump();
         if(optionsDeclaration.size()>NIMBY_OPTIONS_SCHEMA_LIMIT)throw std::runtime_error("Mod options declaration too large");
     }
-    void refreshOptions(){
+    void refreshOptions(bool required=false){
         if(optionsDeclaration.empty())return;
         if(!optionsClient.connected()){
-            const auto now=std::chrono::steady_clock::now();if(now<nextOptionsConnection)return;
+            const auto now=std::chrono::steady_clock::now();if(!required&&now<nextOptionsConnection)return;
             nextOptionsConnection=now+std::chrono::seconds(1);
-            if(NimbyInternal_EnsureSignalUiBridge()!=NIMBY_OK||!optionsClient.connect(optionsDeclaration))return;
+            if(NimbyInternal_EnsureSignalUiBridge()!=NIMBY_OK||!optionsClient.connect(optionsDeclaration)){
+                if(required)throw std::runtime_error("Cannot load saved train length preference from the SDK");
+                return;
+            }
         }
         const auto changes=optionsClient.refresh([&](const detail::ModOptionsClient::Changes& changes){
             if(!changes.changed)return;
@@ -155,11 +220,129 @@ struct Api {
                 std::string packed;for(int i=0;i<optionCount;++i){packed+=changes.values[size_t(i)];packed+='\0';}
                 check(optionsApply(packed.data(),int(packed.size()),optionCount));
             }
+            // Publish only after the complete preference snapshot was checked.
+            // If publication fails, ModOptionsClient keeps this revision pending.
+            synchronizeTrainLength();
         });
         // These are opening requests only. The tool UI rechecks its own fresh
         // game context and foreground window before showing anything.
         pendingWindows.clear();
         for(const auto& event:changes.events)if(const auto window=optionWindows.resolve(event);!window.empty())pendingWindows.emplace_back(window);
+    }
+    void synchronizeTrainLength(){
+        if(!trainLengthOwner)return;
+        const auto metres=currentTrainLength();
+        if(metres==publishedTrainLength)return;
+        detail::check(trainLengthRequest([&]{return trainLengthFunctions.update(trainLengthOwner,metres);}),"Update train length limit");
+        publishedTrainLength=metres;
+        detail::diagnostics::write("mods","INFO",("Train length limit updated: mod="+id+" maximum_m="+std::to_string(metres)).c_str());
+    }
+    template<class Request> uint32_t trainLengthRequest(Request&& request){
+        // Registry contention is transient; an exhausted retry remains owned
+        // and visible. This runs only for a requested change, never while idle.
+        for(unsigned attempt=0;attempt<3;++attempt){
+            const auto status=request();
+            if(status!=NIMBY_RESOURCE_LIMIT||attempt==2)return status;
+            if(policyOptionsWait.available()){
+                if(policyOptionsWait.pause(std::chrono::milliseconds{20})!=detail::platform::TrainLengthOptionWait::Result::Elapsed)return status;
+            }
+            else
+                std::this_thread::sleep_for(std::chrono::milliseconds{20});
+        }
+        return NIMBY_RESOURCE_LIMIT;
+    }
+    void retireTrainLength()noexcept {
+        if(!trainLengthOwner)return;
+        const auto status=trainLengthRequest([&]{return trainLengthFunctions.remove(trainLengthOwner);});
+        if(status==NIMBY_OK||status==NIMBY_INVALID_HANDLE){trainLengthOwner=0;publishedTrainLength=0;return;}
+        // Keep the capability for stop/retry. The parent also retires every
+        // capability if this isolated mod crashes or exceeds its watchdog.
+        std::array<char,320> message{};
+        std::snprintf(message.data(),message.size(),"Train length cleanup deferred to owning host: mod=%s status=%u",id.c_str(),status);
+        detail::diagnostics::write("mods","WARN",message.data());
+    }
+    void stopTrainLength()noexcept {
+        policyOptionsWait.interrupt();
+        // SDK mailbox requests are bounded by the parent. Waiting retains the
+        // handles until the only options reader has finished; no DLL-detach work.
+        if(policyOptionsWorker.joinable())policyOptionsWorker.join();
+        policyOptionsWait.release();retireTrainLength();
+    }
+    void runPolicyOptions()noexcept {
+        using Result=detail::platform::TrainLengthOptionWait::Result;
+        try {
+            bool retryPending=false;
+            unsigned retries=0;
+            for(;;){
+                // A timeout exists only while an explicitly changed preference
+                // could not be published. Idle remains an infinite event wait.
+                const auto wake=policyOptionsWait.wait(retryPending);
+                if(wake==Result::Stop)return;
+                const bool notified=wake==Result::Action;
+                if(!notified&&!(retryPending&&wake==Result::Elapsed))throw std::runtime_error("Train length option wait failed");
+                if(notified)retries=0;
+                // Coalesce bursts without a timer or idle polling. Stop wins
+                // throughout the short throttle, and no game capture is made.
+                const auto throttle=policyOptionsWait.pause(std::chrono::milliseconds{20});
+                if(throttle==Result::Stop)return;
+                if(throttle!=Result::Elapsed)throw std::runtime_error("Train length option throttle failed");
+                policyOptionsWait.consumeActions();
+                detail::platform::ModWork work;work.stage(NIMBY_MOD_WORK_REFRESH_OPTIONS);
+                try {
+                    refreshOptions(true);retryPending=false;retries=0;
+                }catch(const Exception& error){
+                    if(error.code()!=ErrorCode::ResourceLimit)throw;
+                    retryPending=++retries<3;
+                    if(!retryPending){
+                        std::array<char,384> message{};
+                        std::snprintf(message.data(),message.size(),
+                            "Train length preference update deferred after registry contention: mod=%s published_maximum_m=%u; revision pending until next option event",
+                            id.c_str(),publishedTrainLength);
+                        detail::diagnostics::write("mods","WARN",message.data());
+                    }
+                }
+            }
+        }catch(...){
+            detail::diagnostics::exception("mods","train length option worker");
+            // Preserve the last validated limit. A reader failure must not
+            // silently remove a working restriction; stop/crash cleanup still
+            // belongs to this mod's capability and its supervising parent.
+            detail::diagnostics::write("mods","ERROR","Train length preference worker stopped; last validated limit retained until owner cleanup");
+        }
+    }
+    void startTrainLength(){
+        if(!trainLengthMeters||!detail::platform::hostedByGame())return;
+        try {
+            if(!trainLengthFunctions.resolve(!trainEditorDeclaration.empty()))
+                detail::check(NIMBY_HOOKS_UNAVAILABLE,"Train length policy requires a compatible SDK and platform");
+            if(trainLengthOwner)throw std::runtime_error("Previous train length capability was not retired");
+            if(policyOptionsOnly()){
+                if(!policyOptionsWait.prepare())
+                    throw std::runtime_error("Train length preferences require an isolated mod action wake");
+            }
+            // Copy action handles first, then reload preferences. Any change
+            // after this initial read remains latched until the worker waits.
+            refreshOptions(true);
+            const auto metres=currentTrainLength();
+            detail::check(trainLengthRequest([&]{
+                return trainEditorDeclaration.empty()?trainLengthFunctions.add(id.c_str(),metres,&trainLengthOwner):
+                    trainLengthFunctions.addEditor(id.c_str(),metres,trainEditorDeclaration.data(),
+                        static_cast<uint32_t>(trainEditorDeclaration.size()),&trainLengthOwner);
+            }),"Register train length limit");
+            if(!trainLengthOwner)throw std::runtime_error("Missing train length capability");
+            publishedTrainLength=metres;
+            if(policyOptionsOnly())policyOptionsWorker=std::thread([this]{runPolicyOptions();});
+            detail::diagnostics::write("mods","INFO",("Train length limit registered: mod="+id+" maximum_m="+
+                std::to_string(metres)+" owner="+std::to_string(trainLengthOwner)+" message_owner="+
+                (trainEditorDeclaration.empty()?"sdk":"mod")+" declaration_bytes="+std::to_string(trainEditorDeclaration.size())+
+                " options_worker="+(policyOptionsOnly()?"event":"observation")).c_str());
+        }catch(...){
+            // StartV1 cannot call stop after a start callback itself throws.
+            // Roll back both native ownership and option registration here.
+            stopTrainLength();
+            if(!optionsClient.close())detail::diagnostics::write("mods","WARN","Failed-start option cleanup deferred to the owning host");
+            throw;
+        }
     }
     void observeOptionsGame(const GameSession& game){
         if(optionsGame&&*optionsGame==game)return;
@@ -202,7 +385,7 @@ struct Api {
         if(const auto available=reinterpret_cast<int(*)(int)>(detail::native::symbol(module,"NRFKotlin_TranslationsAvailable")))
             check(available(translationsJson.empty()?0:1));
         const auto version=symbol<int(*)()>("NRFKotlin_Version");const auto abi=version();check(abi);
-        if(abi<1||abi>9)throw std::runtime_error("Unsupported Kotlin ABI");
+        if(abi<1||abi>11)throw std::runtime_error("Unsupported Kotlin ABI");
         metadata=symbol<decltype(metadata)>("NRFKotlin_Metadata");
         if(abi>=3){
             const auto kind=symbol<int(*)()>("NRFKotlin_ModKind")();check(kind);
@@ -229,7 +412,7 @@ struct Api {
                 windows.push_back({values[0],values[1],values[2]});
             }
         }
-        id=text(0);title=text(1);prepareOptions(abi);
+        id=text(0);title=text(1);prepareTrainLength(abi);prepareOptions(abi);
         if(tool){diagnostic=text(3);return;}
         if(abi>=8)prepareNetwork=symbol<decltype(prepareNetwork)>("NRFKotlin_PrepareNetwork");
         if(const auto limit=reinterpret_cast<int(*)()>(detail::native::symbol(module,"NRFKotlin_NetworkLimit"))){
@@ -512,7 +695,7 @@ nimby::Mod nimby::createMod() {
     auto& api=kotlin::api();
     nimby::Mod mod;
     if(api.tool){
-        mod.observe=+[](const Snapshot& snapshot){
+        if(!api.policyOptionsOnly())mod.observe=+[](const Snapshot& snapshot){
             if(const auto game=snapshot.getGameSession()){
                 kotlin::ToolScope scope(*game);
                 auto& api=kotlin::api();
@@ -529,7 +712,7 @@ nimby::Mod nimby::createMod() {
                         kotlin::check(api.windowEvent(int(event->index),int64_t(event->sequence),event->action.c_str(),names.c_str(),values.data(),int(values.size()),game->worldId.c_str(),int64_t(game->generation),kotlin::toolCall));
                     }
                 }
-                kotlin::check(kotlin::api().toolTick(game->worldId.c_str(),int64_t(game->generation),kotlin::toolCall));
+                if(api.hasTickCallback)kotlin::check(api.toolTick(game->worldId.c_str(),int64_t(game->generation),kotlin::toolCall));
             }else{
                 if(kotlin::toolWindows)kotlin::toolWindows->invalidate();
                 kotlin::toolReader().reset();auto& api=kotlin::api();
@@ -561,7 +744,9 @@ nimby::Mod nimby::createMod() {
     }
     mod.id=api.id;mod.services=api.services;mod.translationsJson=api.translationsJson;
     if(!api.optionsDeclaration.empty()){
-        mod.refreshOptions=+[]{kotlin::api().refreshOptions();};
+        // The pure declarative policy owns an event-only preference worker.
+        // No second reader and no session/network observation are registered.
+        if(!api.policyOptionsOnly())mod.refreshOptions=+[]{kotlin::api().refreshOptions();};
         api.originalStop=mod.stop;
         api.originalObservationLost=mod.observationLost;
         mod.observationLost=+[]{auto& api=kotlin::api();
@@ -570,8 +755,19 @@ nimby::Mod nimby::createMod() {
             if(api.originalObservationLost)api.originalObservationLost();
             if(discardError)std::rethrow_exception(discardError);};
         mod.stop=+[]{auto& api=kotlin::api();
+            api.stopTrainLength();
             if(!api.optionsClient.close())detail::diagnostics::write("mods","WARN","Mod option cleanup deferred to the owning host");
             api.optionsGame.reset();api.pendingWindows.clear();if(api.originalStop)api.originalStop();};
+    }
+    if(api.trainLengthMeters){
+        api.originalStart=mod.start;
+        mod.start=+[]{auto& api=kotlin::api();
+            api.startTrainLength();
+            try{if(api.originalStart)api.originalStart();}
+            catch(...){api.stopTrainLength();
+                if(!api.optionsClient.close())detail::diagnostics::write("mods","WARN","Failed-start option cleanup deferred to the owning host");
+                throw;}
+        };
     }
     if(!api.services.empty())mod.signalActionV2=+[](const NimbyUiActionEventV2& input,const Snapshot& snapshot){
         const auto& event=input.base;

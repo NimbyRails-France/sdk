@@ -6,7 +6,7 @@ suspendus ; les dossiers de plateforme sont conservés. Le SDK fournit les obser
 le contrat de chargement. Les règles de signalisation et les ressources restent
 dans les mods.
 
-Cette branche développe la version **0.9.0-alpha.2**. Un paquet construit localement
+Cette branche développe la version **0.9.0-alpha.3**. Un paquet construit localement
 n'est pas une release publiée.
 
 La documentation des créateurs de mods est désormais maintenue dans le
@@ -41,6 +41,39 @@ requiert aucun script PowerShell, CMake, compilateur C++ ou dossier `tools`.
 **[Démarrage Kotlin](docs/kotlin-mods.md)** ·
 [Référence Gradle](docs/gradle-plugin.md) ·
 [Mode développeur du Hub](docs/hub-development.md)
+
+Pour contrôler la longueur des compositions, le mod déclare une préférence et
+ses messages dans `trainEditor`. Le SDK vérifie les modifications du train et
+traduit les messages à l'affichage ; aucun callback périodique n'est nécessaire.
+Déclarer la même instance de préférence dans `options(...)` et dans la règle :
+
+```kotlin
+val maxLengthMeters = IntegerOption(
+    "maxLengthMeters", tr("options.maxLengthMeters"), defaultValue = 850,
+    minimum = minimumTrainLengthMeters, maximum = maximumTrainLengthMeters,
+)
+options(maxLengthMeters)
+trainEditor {
+    maximumLength(
+        meters = maxLengthMeters,
+        exceeded = tr("composition.lengthExceeded"),
+        lengthUnavailable = tr("composition.lengthUnavailable"),
+        verificationUnavailable = tr("composition.verificationUnavailable"),
+    )
+}
+```
+
+Ce code se place dans le bloc `toolMod(modInfo) { ... }`. Les trois messages
+doivent être définis dans `assets/translations.json` ; utiliser `tr("clé")`
+sans paramètres. Le mod choisit la valeur par défaut, ici 850 mètres.
+Le SDK affiche séparément la longueur proposée et la limite active.
+
+The mod declares its composition rule and rejection messages with `trainEditor`.
+Register the same `IntegerOption` instance in `options(...)` and `maximumLength(...)`.
+Define all three message keys in `assets/translations.json` and use `tr("key")`
+without arguments. The SDK checks changes and resolves messages in the game's
+language; the mod needs no periodic callback. The mod chooses the default limit,
+850 metres in this example, and the SDK displays measured lengths separately.
 
 ## Choisir le bon kit
 

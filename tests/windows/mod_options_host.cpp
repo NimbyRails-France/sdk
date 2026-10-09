@@ -30,6 +30,64 @@ int main(){
     struct Cleanup{std::filesystem::path path;~Cleanup(){std::error_code error;std::filesystem::remove_all(path,error);}} cleanup{root};
     uint64_t first{};
     {
+        // Loader feedback uses the existing immutable catalogue; no preference
+        // file, registry row, game pointer or user-provided text is involved.
+        service::Host host(root/"loader-status");
+        assert(host.loaderMessage(true).empty()&&host.loaderMessage(false).empty());
+        const auto initial=host.catalogueRevision();
+        const service::LoaderStatus noMods{NIMBY_OPTIONS_LOADER_NO_MODS};
+        assert(host.reportLoaderStatus(noMods)==NIMBY_OK&&host.catalogueRevision()>initial);
+        assert(host.loaderMessage(true).find("NRF Hub")!=std::string::npos);
+        assert(host.loaderMessage(false).find("No mods are enabled")!=std::string::npos);
+        const auto unchanged=host.catalogueRevision();
+        assert(host.reportLoaderStatus(noMods)==NIMBY_OK&&host.catalogueRevision()==unchanged);
+        constexpr uint64_t mib=1024*1024;
+        service::LoaderStatus refused{NIMBY_OPTIONS_LOADER_RESOURCE_REFUSED,4,0,2305*mib,2048*mib,1024*mib,1216*mib};
+        assert(host.reportLoaderStatus(refused)==NIMBY_OK);
+        assert(host.loaderMessage(true).find("1024 Mio")!=std::string::npos);
+        assert(host.loaderMessage(false).find("1216 MiB")!=std::string::npos);
+        assert(host.loaderMessage(false).find("2305 MiB")!=std::string::npos);
+        const auto beforeInvalid=host.catalogueRevision();
+        const auto accepted=host.loaderMessage(false);
+        for(const auto invalid:std::array<service::LoaderStatus,5>{{
+            {99}, {NIMBY_OPTIONS_LOADER_READY,34}, {NIMBY_OPTIONS_LOADER_READY,4,5},
+            {NIMBY_OPTIONS_LOADER_NO_MODS,1},
+            {NIMBY_OPTIONS_LOADER_RESOURCE_REFUSED,4,0,UINT64_MAX}}})
+            assert(host.reportLoaderStatus(invalid)==NIMBY_INVALID_ARGUMENT);
+        assert(host.catalogueRevision()==beforeInvalid&&host.loaderMessage(false)==accepted);
+        assert(host.registry.snapshot()->mods.empty());
+        assert(host.reportLoaderStatus({NIMBY_OPTIONS_LOADER_START_FAILED,4})==NIMBY_OK);
+        assert(host.loaderMessage(false).find("logs in NRF Hub")!=std::string::npos);
+        assert(host.reportLoaderStatus({NIMBY_OPTIONS_LOADER_START_FAILED,4,3})==NIMBY_OK);
+        assert(host.loaderMessage(false).find("3/4 active")!=std::string::npos);
+        constexpr uint64_t maximumMemory=uint64_t{1}<<60;
+        const auto largest=service::loaderDiagnostic({NIMBY_OPTIONS_LOADER_RESOURCE_REFUSED,32,0,
+            maximumMemory,maximumMemory,maximumMemory,maximumMemory});
+        assert(largest.french.size()<768&&largest.english.size()<768);
+        const auto rounding=service::loaderDiagnostic({NIMBY_OPTIONS_LOADER_RESOURCE_REFUSED,1,0,1,1,1,1});
+        assert(rounding.english.find("1 MiB; minimum required: 1 MiB")!=std::string::npos);
+        const auto unknown=service::loaderDiagnostic({NIMBY_OPTIONS_LOADER_RESOURCE_REFUSED,4});
+        assert(unknown.english.find("logs in NRF Hub")!=std::string::npos);
+        assert(unknown.english.find("insufficient")==std::string::npos&&unknown.english.find("0 MiB")==std::string::npos);
+        const auto countLimit=service::loaderDiagnostic({NIMBY_OPTIONS_LOADER_RESOURCE_REFUSED,33});
+        assert(countLimit.english.find("32 active mods")!=std::string::npos&&countLimit.english.find("memory")==std::string::npos);
+        assert(host.reportLoaderStatus({NIMBY_OPTIONS_LOADER_READY,4,4})==NIMBY_OK);
+        assert(host.loaderMessage(true).empty()&&host.loaderMessage(false).empty());
+        // Readers see one complete publication while a producer replaces the
+        // status. Numbers from two reports cannot be combined in the message.
+        refused.physical=1111*mib;refused.budget=111*mib;
+        auto other=refused;other.physical=2222*mib;other.budget=222*mib;
+        assert(host.reportLoaderStatus(refused)==NIMBY_OK);
+        std::jthread producer([&]{for(unsigned i=0;i<200;++i)assert(host.reportLoaderStatus(i%2?refused:other)==NIMBY_OK);});
+        for(unsigned i=0;i<500;++i){
+            const auto text=host.loaderMessage(false);
+            if(text.find("111 MiB")!=std::string::npos)assert(text.find("1111 MiB")!=std::string::npos&&text.find("2222 MiB")==std::string::npos);
+            else assert(text.find("222 MiB")!=std::string::npos&&text.find("2222 MiB")!=std::string::npos&&text.find("1111 MiB")==std::string::npos);
+        }
+        producer.join();
+        assert(!std::filesystem::exists(root/"loader-status"));
+    }
+    {
         service::Host host(root);auto added=host.add(declaration);assert(added);first=added.token;
         assert(!host.add(declaration));
         std::array<char,NIMBY_OPTIONS_VALUES_LIMIT> buffer{};uint32_t bytes{};uint64_t revision{};
@@ -118,14 +176,18 @@ int main(){
         auto localized=Json::parse(declaration);localized["title"]=title;
         localized["translations"]=R"({"fallback":"fr","languages":{"fr":{"title":"Premier"},"en":{"title":"First"}}})";
         const auto a=host.add(localized.dump());assert(a);
+        assert(host.reportLoaderStatus({NIMBY_OPTIONS_LOADER_NO_MODS})==NIMBY_OK);
+        assert(!host.loaderMessage(true).empty());
         const auto published=host.catalogueRevision();assert(published>initial);
         assert(host.translate(a.token,title,"fr")=="Premier"&&host.translate(a.token,title,"en")=="First");
         localized["id"]="other-catalogue";
         localized["translations"]=R"({"fallback":"fr","languages":{"fr":{"title":"Second"},"en":{"title":"Second EN"}}})";
         const auto b=host.add(localized.dump());assert(b&&host.catalogueRevision()>published);
+        assert(!host.loaderMessage(true).empty());
         assert(host.translate(a.token,title,"fr")=="Premier"&&host.translate(b.token,title,"fr")=="Second");
         const auto beforeRemoval=host.catalogueRevision();
         assert(host.remove(b.token));assert(host.catalogueRevision()>beforeRemoval);
+        assert(!host.loaderMessage(true).empty());
         assert(host.translate(a.token,title,"en")=="First");
         assert(host.translate(b.token,title,"en")!="Second EN");
     }

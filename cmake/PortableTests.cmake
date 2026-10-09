@@ -1,12 +1,17 @@
 # Contracts that run unchanged on either host. No bridge or game process needed.
 if(BUILD_TESTING)
-    foreach(contract automatic_controller driving_command mod_manifest train_monitor_model train_metadata control_lease construction signal_actions signal_ui_isolation signal_ui_retirement signal_preview_diagnostics translations mod_shortcuts mod_options mod_options_codec mod_options_client)
+    foreach(contract automatic_controller driving_command mod_manifest train_monitor_model train_metadata train_length_policy train_editor_messages control_lease construction signal_actions signal_ui_isolation signal_ui_retirement signal_preview_diagnostics translations mod_shortcuts mod_options mod_options_codec mod_options_client)
         add_executable(nimby_${contract}_tests tests/${contract}.cpp)
         target_include_directories(nimby_${contract}_tests PRIVATE include)
         target_link_libraries(nimby_${contract}_tests PRIVATE nimby_build)
         add_test(NAME ${contract} COMMAND nimby_${contract}_tests)
         set_tests_properties(${contract} PROPERTIES TIMEOUT 30)
     endforeach()
+    add_executable(nimby_train_length_group_tests tests/windows/train_length_group.cpp)
+    target_include_directories(nimby_train_length_group_tests PRIVATE include)
+    target_link_libraries(nimby_train_length_group_tests PRIVATE nimby_build)
+    add_test(NAME native_train_length_groups COMMAND nimby_train_length_group_tests)
+    set_tests_properties(native_train_length_groups PROPERTIES TIMEOUT 15)
     target_sources(nimby_train_monitor_model_tests PRIVATE src/engine/trains.cpp src/engine/live_state.cpp)
     target_sources(nimby_train_metadata_tests PRIVATE src/engine/trains.cpp src/engine/live_state.cpp)
     # Replace only the platform process connection, preserving the production

@@ -6,7 +6,7 @@ import kotlin.native.CName
 import nimby.*
 import nimby.mod.createMod
 
-// ABI privée v1 du SDK. Aucun pointeur ni annotation native dans le code du mod.
+// ABI privée additive du SDK. Aucun pointeur ni annotation native dans le code du mod.
 private val gameMod: GameMod by lazy {
     createMod().also {
         require(it.id.isNotBlank())
@@ -15,6 +15,7 @@ private val gameMod: GameMod by lazy {
 }
 private val mod: SignallingMod get() = gameMod as SignallingMod
 private val options by lazy { ModOptionsAccess(gameMod.options, gameMod.windows.size) }
+private val trainLength by lazy { TrainLengthLimitAccess(gameMod) }
 // Copy the declarations once. A mod cannot change the mask layout after the
 // native adapter has copied its panels. No mutable current-type global exists.
 private val types by lazy {
@@ -57,7 +58,23 @@ private fun text(value: String, out: CPointer<ByteVar>?, capacity: Int): Int {
     // Newly compiled signals require an animation-aware adapter. Otherwise an
     // old adapter could silently sample a custom cadence as a static image.
     val extendedShortcuts = gameMod.windows.any { !it.shortcut.matches(Regex("Ctrl\\+Shift\\+[A-Z]|F([1-9]|1[0-2])")) }
-    if(options.count != 0 || extendedShortcuts) 9 else if(gameMod is SignallingMod) 8 else if(gameMod.windows.isNotEmpty()) 7 else 3
+    if(trainLength.declaration != null) 11 else if(options.count != 0 || extendedShortcuts) 9 else if(gameMod is SignallingMod) 8 else if(gameMod.windows.isNotEmpty()) 7 else 3
+}
+// Length exports introduced in ABI 10; editor messages extend them in ABI 11.
+// Old mods retain their ABI. Copying this policy never reads the game.
+@CName("NRFKotlin_TrainLengthLimitMeters") fun trainLengthLimitMeters(): Int = guarded("TrainLengthLimitMeters") {
+    trainLength.declaration?.maximumLengthMeters ?: 0
+}
+@CName("NRFKotlin_TrainLengthLimitOption") fun trainLengthLimitOption(out: CPointer<ByteVar>?, capacity: Int): Int = guarded("TrainLengthLimitOption") {
+    text(trainLength.declaration?.optionId ?: "", out, capacity)
+}
+// ABI 11 copies the mod's static message references. The resident SDK resolves
+// their catalogue once, then selects a cached text in the game's language.
+@CName("NRFKotlin_TrainEditorMessage") fun trainEditorMessage(index: Int, out: CPointer<ByteVar>?, capacity: Int): Int = guarded("TrainEditorMessage") {
+    text(trainLength.message(index), out, capacity)
+}
+@CName("NRFKotlin_ToolHasTick") fun toolHasTick(): Int = guarded("ToolHasTick") {
+    if(trainLength.hasTickCallback) 1 else 0
 }
 // Additive ABI 9. Options are copied once and updates are all-or-nothing. These
 // exports never call mod code; the adapter invokes OptionsApply on its worker.

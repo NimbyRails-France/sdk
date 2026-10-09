@@ -3,7 +3,7 @@ plugins {
     `maven-publish`
 }
 group = "fr.nimbyrails"
-version = "0.9.0-alpha.2"
+version = "0.9.0-alpha.3"
 layout.buildDirectory = layout.projectDirectory.dir("build/${System.getProperty("os.name").lowercase().replace(' ', '-')}")
 kotlin { jvmToolchain(21) }
 dependencies {

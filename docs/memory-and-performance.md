@@ -119,11 +119,19 @@ boucle ne prélève pas de jetons de requêtes ou de CPU dans le quota d'un vois
 L'admission réserve au plus le quart de la RAM physique totale et la moitié de
 la mémoire encore disponible (physique et engagement). Elle compte le canal de
 communication, deux copies de message et la limite de mémoire privée de chaque
-processus. La limite privée va de 256 Mio à 1 Gio selon la place restante. Si le
+processus. La limite privée va de 192 Mio à 1 Gio selon la place restante. Le
+minimum sert seulement à l'admission : chaque mod reçoit toute sa part égale du
+budget restant. Ainsi, quatre mods avec 2 305 Mio disponibles reçoivent environ
+240 Mio chacun, sans élargir l'enveloppe globale. Si le
 lot ne tient pas, ou dépasse 32 mods, aucun processus du lot n'est lancé et le
 chargeur signale `ResourceLimit` dans son journal. Fermer d'autres applications
 ou activer moins de mods permet une nouvelle tentative. Cette admission ne
 réserve pas physiquement la RAM et ne plafonne pas toutes les allocations du jeu.
+Le diagnostic distingue le refus du calcul de budget d'un échec de mesure
+Windows ; il conserve la mémoire physique et l'engagement disponibles, le
+budget calculé, le minimum nécessaire et la limite privée attribuée.
+L'onglet NRF Hub est installé indépendamment du démarrage des mods et affiche
+la cause d'un refus du lot, lorsque le pont Options est disponible pour le jeu.
 Chaque manifeste `nrf-mod.ini` est lu avec une limite de 64 Kio, BOM compris,
 avant son décodage UTF-8 ou UTF-16 ; un dépassement est refusé et journalisé.
 

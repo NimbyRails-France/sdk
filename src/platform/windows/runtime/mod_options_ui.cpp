@@ -75,6 +75,7 @@ struct Presentation {
     uint64_t registryRevision=~uint64_t{};
     uint64_t catalogueRevision=~uint64_t{};
     std::string language;
+    std::string loaderMessage;
 };
 thread_local Presentation presentation;
 // The SDK selection never enters the game's persisted 0..6 tab enum. Owner
@@ -260,6 +261,7 @@ void freeze(uint64_t capture){
     const auto catalogueRevision=host().catalogueRevision();
     const bool rebuild=view.registryRevision!=snapshot->revision||view.catalogueRevision!=catalogueRevision||view.language!=language;
     if(rebuild){
+      view.loaderMessage=host().loaderMessage(view.french);
       view.mods.clear();
       for(const auto& entry:snapshot->mods){
         DrawMod mod{entry.token,host().translate(entry.token,entry.title,language),{},{}};
@@ -311,7 +313,8 @@ void drawMods(const Ui& ui,OptionsPage page){
     auto& view=presentation;const bool interactive=ui.pass()==Ui::Pass::Interactive,fr=view.french;
     const bool shortcutsPage=page==OptionsPage::Shortcuts;
     const auto visible=[&](const auto& field){return (field.field.kind==model::Kind::Shortcut)==shortcutsPage;};
-    if(std::none_of(view.mods.begin(),view.mods.end(),[&](const auto& mod){return std::any_of(mod.fields.begin(),mod.fields.end(),visible);}))
+    if(!view.loaderMessage.empty())ui.message(view.loaderMessage.c_str());
+    if(view.loaderMessage.empty()&&std::none_of(view.mods.begin(),view.mods.end(),[&](const auto& mod){return std::any_of(mod.fields.begin(),mod.fields.end(),visible);}))
         ui.message(shortcutsPage?tr(fr,"Les raccourcis des mods chargés apparaissent ici.","Shortcuts from loaded mods appear here."):
             tr(fr,"Les options des mods chargés apparaissent ici.","Options from loaded mods appear here."));
     if(shortcutsPage&&!view.nativeKnown)ui.message(tr(fr,"Vérification des raccourcis du jeu en cours. Leur attribution reste désactivée.","Game shortcut verification is pending. Shortcut assignment is disabled."));
@@ -423,7 +426,7 @@ void render(uint64_t capture,uint64_t declaration){
         // declare HFILL explicitly instead of relying on fillRows_ there.
         put(declaration+layout.ui_align_enabled,uint8_t{1});put(declaration+layout.ui_align_value,Geometry::rowAlign);
         const bool navigationVisible=current.categories.navigation();
-        ui->heading(navigationVisible?"NRF Hub":page==OptionsPage::Shortcuts?tr(presentation.french,"Raccourcis","Shortcuts"):"Interface");
+        ui->heading(navigationVisible||!presentation.loaderMessage.empty()?"NRF Hub":page==OptionsPage::Shortcuts?tr(presentation.french,"Raccourcis","Shortcuts"):"Interface");
         if(navigationVisible){
             if(pageButton(*ui,"Interface",page==OptionsPage::Interface)&&interactive)current.pendingPage=OptionsPage::Interface;
             if(pageButton(*ui,tr(presentation.french,"Raccourcis","Shortcuts"),page==OptionsPage::Shortcuts)&&interactive)current.pendingPage=OptionsPage::Shortcuts;

@@ -39,8 +39,14 @@ struct LaunchOptions {
 // Compute fixed, equal reservations before starting any member of a batch.
 // Available memory includes the smaller of physical and commit availability.
 // No live worker can borrow another worker's unused CPU/RPC reservation.
+inline constexpr uint64_t minimumPrivateMemory=192ull*1024*1024;
+enum class ResourceAdmission { Accepted, InvalidCount, NoProcessors, MemoryBudget, CpuBudget };
+struct ResourcePlan {
+    ResourceAdmission admission=ResourceAdmission::InvalidCount;
+    uint64_t budget=0, overheadPerMod=0, requiredBudget=0, privatePerMod=0;
+};
 bool planResources(size_t count,uint32_t processors,uint64_t totalPhysical,
-                   uint64_t availableMemory,LaunchOptions& options) noexcept;
+                   uint64_t availableMemory,LaunchOptions& options,ResourcePlan* report=nullptr) noexcept;
 // The supervisor executes SDK code only. The mod's loader, static initializers,
 // Kotlin runtime and callbacks all live in the separate child process.
 class Worker {

@@ -11,13 +11,15 @@
 namespace nimby::mod_host {
 inline constexpr uint32_t protocol = 1;
 inline constexpr uint32_t payloadLimit = 16 * 1024 * 1024 + 65536;
-// Operation ranges: 1 ensure UI, 100..199 UI, 200..299 driving, 300..399 textures.
+// Operation ranges: 1 ensure UI, 100..199 UI, 200..299 driving, 300..399 textures,
+// 400..403 train length and copied editor declarations.
 struct Request {uint32_t operation{}; std::array<uint64_t,8> args{}; std::vector<uint8_t> data;};
 struct Reply {std::array<uint64_t,8> args{}; std::vector<uint8_t> data;};
 struct Owners {
     struct EpochTicket {uint64_t id{},generation{};int64_t ticks{};uint64_t expires{};};
     std::unordered_set<uint64_t> panels, providers;
     uint64_t options{};
+    uint64_t trainLength{};
     // Parent-owned wake event for this channel. Never populated from an RPC.
     uint64_t actionWake{};
     uint64_t driving{};
@@ -31,6 +33,9 @@ uint32_t dispatchUi(const Request&, Reply&, Owners&);
 uint32_t dispatchOptions(const Request&, Reply&, Owners&);
 void cleanupOptions(Owners&) noexcept;
 void* optionsSymbol(const char*) noexcept;
+uint32_t dispatchTrainLength(const Request&, Reply&, Owners&);
+void cleanupTrainLength(Owners&) noexcept;
+void* trainLengthSymbol(const char*) noexcept;
 uint32_t dispatchTools(const Request&, Reply&, Owners&);
 void cleanupUi(Owners&) noexcept;
 uint32_t dispatchDriving(const Request&, Reply&, Owners&);

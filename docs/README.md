@@ -6,7 +6,7 @@ dans le [dépôt wiki](https://github.com/NimbyRails-France/wiki-dev), pour le s
 le client `Nimby.connect`, les exemples et la référence Kotlin synchronisée.
 Ce dossier conserve les contrats internes, rapports et notes de maintenance.
 
-Documentation de la branche **0.9.0-alpha.2**, pour Windows x64. Les guides décrivent
+Documentation de la branche **0.9.0-alpha.3**, pour Windows x64. Les guides décrivent
 les contrats du code de cette branche ; ils ne constituent pas une annonce
 de publication.
 

@@ -73,7 +73,10 @@ struct Host::State {
         std::optional<options::Entry> retired;
     };
     struct Metadata{std::shared_ptr<const nimby::detail::Translations> translations;std::string error;};
-    using Catalogues=std::map<uint64_t,Metadata>;
+    struct Catalogues {
+        std::map<uint64_t,Metadata> mods;
+        std::shared_ptr<const LoaderDiagnostic> loader;
+    };
     Host& owner;
     std::filesystem::path directory;
     // Only broker/storage threads acquire lifecycle. UI reads an immutable
@@ -83,17 +86,22 @@ struct Host::State {
     std::map<uint64_t,Profile> profiles;
     std::atomic<std::shared_ptr<const Catalogues>> catalogues{std::make_shared<const Catalogues>()};
     std::atomic<uint64_t> catalogueRevision{0};
+    std::shared_ptr<const LoaderDiagnostic> loader;
     uint64_t nextOwner=0;
     std::jthread writer;
     State(Host& host,std::filesystem::path path):owner(host),directory(path.empty()?userDirectory():std::move(path)),
         writer([this](std::stop_token stop){run(stop);}){}
     ~State(){writer.request_stop();wake.notify_one();if(writer.joinable())writer.join();}
-    void publish(){
+    void publish(std::shared_ptr<const LoaderDiagnostic> diagnostic){
         auto next=std::make_shared<Catalogues>();
-        for(const auto& [token,p]:profiles)if(!p.retired)next->emplace(token,Metadata{p.translations,p.error});
+        for(const auto& [token,p]:profiles)if(!p.retired)next->mods.emplace(token,Metadata{p.translations,p.error});
+        next->loader=diagnostic;
+        // Allocate the complete replacement before changing the accepted state.
+        loader=std::move(diagnostic);
         catalogues.store(std::move(next),std::memory_order_release);
         catalogueRevision.fetch_add(1,std::memory_order_release);
     }
+    void publish(){publish(loader);}
     void save(const options::Entry& entry,Profile& profile){
         if(profile.written==entry.values)return;
         try{
@@ -204,14 +212,25 @@ options::Result Host::reset(uint64_t token,std::string_view field){
     auto result=registry.reset(token,field);if(result)state_->wake.notify_one();return result;
 }
 std::string Host::translate(uint64_t token,std::string_view text,std::string_view language)const{
-    const auto catalogs=state_->catalogues.load(std::memory_order_acquire);const auto found=catalogs->find(token);
-    return nimby::detail::Translations::resolve(found==catalogs->end()?nullptr:found->second.translations.get(),text,language);
+    const auto catalogs=state_->catalogues.load(std::memory_order_acquire);const auto found=catalogs->mods.find(token);
+    return nimby::detail::Translations::resolve(found==catalogs->mods.end()?nullptr:found->second.translations.get(),text,language);
 }
 std::string Host::storageError(uint64_t token)const{
-    const auto catalogs=state_->catalogues.load(std::memory_order_acquire);const auto found=catalogs->find(token);
-    return found==catalogs->end()?std::string{}:found->second.error;
+    const auto catalogs=state_->catalogues.load(std::memory_order_acquire);const auto found=catalogs->mods.find(token);
+    return found==catalogs->mods.end()?std::string{}:found->second.error;
 }
 uint64_t Host::catalogueRevision()const noexcept{return state_->catalogueRevision.load(std::memory_order_acquire);}
+uint32_t Host::reportLoaderStatus(const LoaderStatus& value){
+    if(!validLoaderStatus(value))return NIMBY_INVALID_ARGUMENT;
+    auto diagnostic=std::make_shared<const LoaderDiagnostic>(loaderDiagnostic(value));
+    std::lock_guard lock(state_->lifecycle);
+    if(state_->loader&&state_->loader->status==value)return NIMBY_OK;
+    state_->publish(std::move(diagnostic));return NIMBY_OK;
+}
+std::string Host::loaderMessage(bool french)const{
+    const auto snapshot=state_->catalogues.load(std::memory_order_acquire);
+    return snapshot->loader?(french?snapshot->loader->french:snapshot->loader->english):std::string{};
+}
 uint32_t Host::read(uint64_t token,uint64_t known,char* output,uint32_t capacity,uint32_t* written,uint64_t* revision){
     if(written)*written=0;
     if(revision)*revision=0;
@@ -278,4 +297,10 @@ OPTIONS_EXPORT NimbyOptions_WakeV1(uint64_t owner,uint64_t parentEvent)noexcept{
         try{wake=std::make_shared<service::ParentEvent>(duplicate);}catch(...){CloseHandle(duplicate);throw;}
         return service::status(service::host().registry.setWake(owner,std::move(wake)));
     });
+}
+OPTIONS_EXPORT NimbyOptions_ReportLoaderStatusV1(uint32_t code,uint32_t requested,uint32_t started,
+    uint64_t physical,uint64_t commit,uint64_t budget,uint64_t required)noexcept{
+    const service::LoaderStatus value{code,requested,started,physical,commit,budget,required};
+    if(!service::validLoaderStatus(value))return NIMBY_INVALID_ARGUMENT;
+    return service::boundary([&]{return service::host().reportLoaderStatus(value);});
 }

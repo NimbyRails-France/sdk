@@ -2,6 +2,26 @@
 
 ## [Unreleased]
 
+## [0.9.0-alpha.3] - 2026-10-09
+
+### Français
+
+- Permet aux mods de définir une longueur maximale de train et de contrôler les ajouts directement dans l’éditeur de composition du jeu.
+- Tient compte des trains attelés et des changements de composition, tout en permettant de réduire un train devenu trop long.
+- Affiche les motifs de refus dans la langue du jeu, avec la longueur calculée et la limite autorisée en cas de dépassement. Chaque mod peut personnaliser ses messages.
+- Corrige certains refus de démarrage des mods lorsque la mémoire disponible est limitée.
+- Garde les Options NRF Hub accessibles même si aucun mod ne démarre et explique les problèmes de chargement.
+- Enrichit les journaux pour faciliter l’analyse des ajouts refusés, des contrôles de composition et des problèmes de démarrage des mods.
+
+### English
+
+- Lets mods define a maximum train length and check additions directly in the game’s composition editor.
+- Accounts for coupled trains and composition changes while allowing an oversized train to be shortened.
+- Displays rejection reasons in the game’s language, with the calculated length and permitted maximum when the limit is exceeded. Each mod can customize its messages.
+- Fixes some mod startup refusals when available memory is limited.
+- Keeps NRF Hub Options accessible even if no mod starts and explains loading problems.
+- Adds more detailed logs to help investigate rejected additions, composition checks and mod startup problems.
+
 ## [0.9.0-alpha.2] - 2026-10-09
 
 ### Français

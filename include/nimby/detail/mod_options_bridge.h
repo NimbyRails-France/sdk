@@ -16,3 +16,15 @@ typedef uint32_t (*NimbyOptionsReadV1)(uint64_t owner,uint64_t known_revision,
     char* output,uint32_t capacity,uint32_t* written,uint64_t* revision);
 // Parent-only binding: no child-supplied handle may reach this export.
 typedef uint32_t (*NimbyOptionsWakeV1)(uint64_t owner,uint64_t parent_event);
+
+// Parent-only loader feedback. Memory quantities are copied byte counts, not
+// addresses; this endpoint is never routed to an isolated mod.
+enum NimbyOptionsLoaderStatusV1 {
+    NIMBY_OPTIONS_LOADER_READY=0,
+    NIMBY_OPTIONS_LOADER_NO_MODS=1,
+    NIMBY_OPTIONS_LOADER_RESOURCE_REFUSED=2,
+    NIMBY_OPTIONS_LOADER_START_FAILED=3
+};
+typedef uint32_t (*NimbyOptionsReportLoaderStatusV1)(uint32_t code,
+    uint32_t requested,uint32_t started,uint64_t available_physical_bytes,
+    uint64_t available_commit_bytes,uint64_t budget_bytes,uint64_t required_bytes);

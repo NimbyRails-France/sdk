@@ -23,6 +23,8 @@ abstract class GameMod {
     open val metadata: ModMetadata? = null
     /** Préférences globales du joueur, affichées et enregistrées par le SDK. */
     open val options: List<ModOption<*>> = emptyList()
+    /** Règles déclaratives de composition et messages du mod, appliqués par le SDK. */
+    open val trainEditor: TrainEditor? = null
     open val windows: List<ToolWindow> = emptyList()
     open fun onWindowEvent(request: ToolWindowEvent, context: ToolContext) {}
     open val services: List<String> = emptyList()
@@ -41,6 +43,8 @@ class ToolMod internal constructor(
     override val windows: List<ToolWindow>,
     private val windowHandlers: Map<String, ToolContext.(ToolWindowEvent) -> Unit>,
     override val options: List<ModOption<*>>,
+    override val trainEditor: TrainEditor?,
+    internal val hasTickCallback: Boolean,
 ) : GameMod() {
     override val services: List<String> = handlers.keys.toList()
     override fun onSignalAction(request: SignalActionRequest, context: ToolContext) {
@@ -55,10 +59,18 @@ class ToolMod internal constructor(
 
 class ToolModBuilder internal constructor() {
     internal val declaredOptions = mutableListOf<ModOption<*>>()
+    internal var declaredTrainEditor: TrainEditor? = null
     /** Ajoute les préférences du mod, dans l'ordre d'affichage. */
     fun options(vararg values: ModOption<*>) {
         val combined = checkedModOptions(declaredOptions + values, windows.size)
         declaredOptions.clear(); declaredOptions.addAll(combined)
+    }
+    /** Déclare les règles de composition et les messages traduisibles du mod.
+     * La préférence de longueur doit aussi être enregistrée avec [options].
+     * Le bloc configure la déclaration une fois ; aucun callback de jeu n'est créé. */
+    fun trainEditor(block: TrainEditorBuilder.() -> Unit) {
+        require(declaredTrainEditor == null) { "Règles de composition des trains déjà déclarées" }
+        declaredTrainEditor = TrainEditorBuilder().apply(block).build()
     }
     internal val windows = mutableListOf<ToolWindow>()
     internal val windowHandlers = linkedMapOf<String, ToolContext.(ToolWindowEvent) -> Unit>()
@@ -77,6 +89,7 @@ class ToolModBuilder internal constructor() {
     fun metadata(author: String, description: String, name: String? = null) { metadata = ModMetadata(author, description, name) }
     internal val handlers = linkedMapOf<String, ToolContext.(SignalActionRequest) -> Unit>()
     internal var tick: ToolContext.() -> Unit = {}
+    internal var tickDeclared: Boolean = false
     internal var stop: () -> Unit = {}
     /** Callback sérialisé sur le worker du mod, jamais sur le thread de l'UI. */
     fun service(id: String, handler: ToolContext.(SignalActionRequest) -> Unit) {
@@ -85,7 +98,7 @@ class ToolModBuilder internal constructor() {
         require(handlers.size < 32) { "Au maximum 32 services par mod" }
         handlers[id] = handler
     }
-    fun onTick(block: ToolContext.() -> Unit) { tick=block }
+    fun onTick(block: ToolContext.() -> Unit) { tick=block; tickDeclared=true }
     fun onStop(block: () -> Unit) { stop=block }
 }
 
@@ -93,9 +106,13 @@ fun toolMod(id: String, title: String, block: ToolModBuilder.() -> Unit): ToolMo
     validateServiceName(id)
     require(title.isNotBlank() && title.length <= 256 && '\u0000' !in title)
     val builder = ToolModBuilder().apply(block)
-    require(builder.handlers.isNotEmpty() || builder.windows.isNotEmpty()) { "Déclarer un service ou une fenêtre" }
+    val options = checkedModOptions(builder.declaredOptions, builder.windows.size)
+    val trainEditor = checkedTrainEditor(builder.declaredTrainEditor, options)
+    require(builder.handlers.isNotEmpty() || builder.windows.isNotEmpty() || trainEditor != null) {
+        "Déclarer un service, une fenêtre ou une limite de longueur des trains"
+    }
     return ToolMod(id, title, builder.handlers.toMap(), builder.tick, builder.stop, builder.metadata,
-        builder.windows.toList(), builder.windowHandlers.toMap(), checkedModOptions(builder.declaredOptions, builder.windows.size))
+        builder.windows.toList(), builder.windowHandlers.toMap(), options, trainEditor, builder.tickDeclared)
 }
 
 internal fun validateServiceName(value: String) {

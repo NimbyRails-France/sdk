@@ -3,6 +3,7 @@
 #include <platform/windows/mod_host_watchdog.h>
 #include <nimby/detail/diagnostics.hpp>
 #include <nimby/detail/native_library.hpp>
+#include <nimby/detail/mod_options_bridge.h>
 #include <nimby/detail/signal_settings_runtime.hpp>
 #include <engine/binary_identity.h>
 #include <loader/manifest.h>
@@ -28,6 +29,17 @@ void require(bool condition,const char* message){if(!condition)throw std::runtim
 std::filesystem::path sdkDirectory(){return detail::native::modulePath(reinterpret_cast<void*>(&NimbyInternal_ModHostTarget)).parent_path();}
 void log(std::string_view message,const char* level="INFO") noexcept {
     try {const std::string text(message);detail::diagnostics::write("loader",level,text.c_str());}catch(...){}
+}
+void reportLoaderStatus(uint32_t code,uint32_t requested,uint32_t started,
+                        const MEMORYSTATUSEX& memory={},const ResourcePlan& plan={}) noexcept {
+    const auto module=GetModuleHandleW(L"NimbySignalUiBridge-experimental-v1.dll");
+    const auto report=module?std::bit_cast<NimbyOptionsReportLoaderStatusV1>(GetProcAddress(module,"NimbyOptions_ReportLoaderStatusV1")):nullptr;
+    const auto status=report?report(code,requested,started,memory.ullAvailPhys,memory.ullAvailPageFile,
+                                   plan.budget,plan.requiredBudget):NIMBY_HOOKS_UNAVAILABLE;
+    if(status!=NIMBY_OK){
+        char message[192]{};std::snprintf(message,sizeof message,"Options loader-status feedback unavailable: code=%u status=%u",code,status);
+        detail::diagnostics::write("loader","WARN",message);
+    }
 }
 // One endpoint per process. A timeout poisons this endpoint permanently; a late
 // reply can never satisfy a later command with different buffers.
@@ -120,22 +132,37 @@ double threadCpuMilliseconds() noexcept {
 }
 
 bool planResources(size_t count,uint32_t processors,uint64_t totalPhysical,
-                   uint64_t availableMemory,LaunchOptions& options) noexcept {
-    if(!count||count>32||!processors)return false;
+                   uint64_t availableMemory,LaunchOptions& options,ResourcePlan* report) noexcept {
+    ResourcePlan plan;
+    const auto finish=[&](ResourceAdmission admission){plan.admission=admission;if(report)*report=plan;return admission==ResourceAdmission::Accepted;};
+    if(!count||count>32)return finish(ResourceAdmission::InvalidCount);
+    if(!processors)return finish(ResourceAdmission::NoProcessors);
     // Reserve the mapped mailbox and simultaneous private request/reply copies
     // as well as the child's commit limit. These are admission reservations,
     // not a promise that every other SDK/game allocation fits this envelope.
-    const uint64_t overhead=sizeof(Shared)+2ull*payloadLimit;
-    const uint64_t budget=std::min(totalPhysical/4,availableMemory/2);
-    if(budget/count<overhead+256ull*1024*1024)return false;
-    options.memoryLimit=static_cast<size_t>(std::min<uint64_t>(1024ull*1024*1024,budget/count-overhead));
-    options.cpuRate=std::min<uint32_t>(10000/std::max<uint32_t>(2,processors),2500/static_cast<uint32_t>(count));
-    if(!options.cpuRate)return false;
-    options.rpcCallsPerSecond=std::min<uint32_t>(1500,6000/static_cast<uint32_t>(count));
-    options.rpcCallBurst=std::min<uint32_t>(256,1024/static_cast<uint32_t>(count));
-    options.rpcBytesPerSecond=std::min<uint64_t>(32ull*1024*1024,128ull*1024*1024/count);
-    options.brokerCpuFraction=std::min(0.1,double(processors)*0.05/double(count));
-    return true;
+    plan.overheadPerMod=sizeof(Shared)+2ull*payloadLimit;
+    plan.budget=std::min(totalPhysical/4,availableMemory/2);
+    plan.requiredBudget=count*(plan.overheadPerMod+minimumPrivateMemory);
+    if(plan.budget<plan.requiredBudget)return finish(ResourceAdmission::MemoryBudget);
+    // Keep the same aggregate envelope and per-process hard caps. A 256 MiB
+    // admission floor rejected four lightweight mods despite ~240 MiB of
+    // private allowance each. 192 MiB is the lower admission bound; the full
+    // remaining equal share is still assigned, never just that minimum.
+    // Job limits are page-granular. Round down to a 64 KiB boundary (also a
+    // multiple of Windows x64 pages) so the actual cap cannot exceed this
+    // worker's share and querying the applied JobObject returns the same cap.
+    constexpr uint64_t granularity=64ull*1024;
+    plan.privatePerMod=std::min<uint64_t>(1024ull*1024*1024,plan.budget/count-plan.overheadPerMod)/granularity*granularity;
+    auto candidate=options;
+    candidate.memoryLimit=static_cast<size_t>(plan.privatePerMod);
+    candidate.cpuRate=std::min<uint32_t>(10000/std::max<uint32_t>(2,processors),2500/static_cast<uint32_t>(count));
+    if(!candidate.cpuRate)return finish(ResourceAdmission::CpuBudget);
+    candidate.rpcCallsPerSecond=std::min<uint32_t>(1500,6000/static_cast<uint32_t>(count));
+    candidate.rpcCallBurst=std::min<uint32_t>(256,1024/static_cast<uint32_t>(count));
+    candidate.rpcBytesPerSecond=std::min<uint64_t>(32ull*1024*1024,128ull*1024*1024/count);
+    candidate.brokerCpuFraction=std::min(0.1,double(processors)*0.05/double(count));
+    options=candidate;
+    return finish(ResourceAdmission::Accepted);
 }
 
 struct Worker::Impl {
@@ -247,6 +274,8 @@ struct Worker::Impl {
                     status=dispatchDriving(requestCopy,response,owners);
                 else if(requestCopy.operation>=300&&requestCopy.operation<400)
                     status=dispatchTextures(requestCopy,response,owners);
+                else if(requestCopy.operation>=400&&requestCopy.operation<=403)
+                    status=dispatchTrainLength(requestCopy,response,owners);
             } catch(const std::bad_alloc&) {status=NIMBY_RESOURCE_LIMIT;}
               catch(...) {status=NIMBY_INTERNAL_ERROR;}
         }
@@ -314,7 +343,7 @@ struct Worker::Impl {
         // All cleanup is scoped to this process's opaque registration tokens.
         // Driving retirement is retained by its bounded broker queue until
         // native contention clears; it does not keep this channel allocated.
-        cleanupUi(owners);cleanupDriving(owners);cleanupTextures(owners);
+        cleanupUi(owners);cleanupDriving(owners);cleanupTextures(owners);cleanupTrainLength(owners);
         // The manager retains quarantined Workers for their diagnostics. The
         // 16 MiB channel must not remain committed merely to retain an outcome.
         // Only this thread touches the view; requestStop uses its own event.
@@ -610,6 +639,15 @@ extern "C" uint32_t __cdecl NimbyInternal_StartModHosts(const wchar_t* directory
     try {
         if(!directory||!*directory||NimbyInternal_ModHostTarget())return NIMBY_INVALID_ARGUMENT;
         std::lock_guard lock(managerMutex);if(!workers().empty())return NIMBY_ALREADY_INITIALIZED;
+        // Options belong to the SDK, not to whichever mod first requests a UI
+        // service. Install the resident bridge even when admission later fails
+        // or this directory contains no compatible mods. Failure is diagnostic
+        // only: it must not prevent an independent mod service from starting.
+        const auto uiStatus=NimbyInternal_EnsureSignalUiBridge();
+        if(uiStatus!=NIMBY_OK&&uiStatus!=NIMBY_ALREADY_INITIALIZED){
+            char message[192]{};std::snprintf(message,sizeof message,"SDK Options bridge unavailable at mod admission: status=%u",uiStatus);
+            nimby::detail::diagnostics::write("loader","WARN",message);
+        }
         std::vector<std::filesystem::path> paths;std::error_code error;
         for(std::filesystem::directory_iterator it(directory,error),end;!error&&it!=end;it.increment(error)){
             if(!it->is_directory(error)||it->path().filename().wstring().starts_with(L'.'))continue;
@@ -618,24 +656,39 @@ extern "C" uint32_t __cdecl NimbyInternal_StartModHosts(const wchar_t* directory
             const auto name=nimby::loader::manifest_library(manifest,".dll",true,&manifestError);
             if(name.empty()){log("Mod "+it->path().filename().string()+": "+nimby::loader::manifest_error_message(manifestError),"ERROR");continue;}
             paths.push_back(it->path()/name);
-            if(paths.size()>32){log("Isolated-mod admission limit exceeded (more than 32 mods): no mods started", "ERROR");return NIMBY_RESOURCE_LIMIT;}
+            if(paths.size()>32){log("Isolated-mod admission limit exceeded (more than 32 mods): no mods started", "ERROR");
+                reportLoaderStatus(NIMBY_OPTIONS_LOADER_RESOURCE_REFUSED,33,0);return NIMBY_RESOURCE_LIMIT;}
         }
-        if(error)return NIMBY_IO_ERROR;
-        if(paths.empty())return NIMBY_OK;
+        if(error){reportLoaderStatus(NIMBY_OPTIONS_LOADER_START_FAILED,static_cast<uint32_t>(paths.size()),0);return NIMBY_IO_ERROR;}
+        if(paths.empty()){reportLoaderStatus(NIMBY_OPTIONS_LOADER_NO_MODS,0,0);return NIMBY_OK;}
         SYSTEM_INFO system{};GetSystemInfo(&system);
         MEMORYSTATUSEX memory{};memory.dwLength=sizeof(memory);
-        LaunchOptions options;
-        if(!GlobalMemoryStatusEx(&memory)||!planResources(paths.size(),system.dwNumberOfProcessors,
-            memory.ullTotalPhys,std::min(memory.ullAvailPhys,memory.ullAvailPageFile),options)){
-            log("Insufficient isolated-mod resources: no mods started (requested="+std::to_string(paths.size())+
-                ", available memory MiB="+std::to_string(memory.ullAvailPhys/(1024*1024))+
-                "); close other applications or enable fewer mods", "ERROR");
-            return NIMBY_RESOURCE_LIMIT;
-        }
-        log("Mod batch resource reservations: count="+std::to_string(paths.size())+
-            ", CPU basis points per mod="+std::to_string(options.cpuRate)+
-            ", private memory MiB per mod="+std::to_string(options.memoryLimit/(1024*1024))+
-            ", RPC/s per mod="+std::to_string(options.rpcCallsPerSecond));
+        LaunchOptions options;ResourcePlan plan;
+        const bool sampled=GlobalMemoryStatusEx(&memory)!=0;
+        const auto memoryError=sampled?ERROR_SUCCESS:GetLastError();
+        const bool admitted=sampled&&planResources(paths.size(),system.dwNumberOfProcessors,
+            memory.ullTotalPhys,std::min(memory.ullAvailPhys,memory.ullAvailPageFile),options,&plan);
+        const auto reason=!sampled?"memory_sample_failed":plan.admission==ResourceAdmission::Accepted?"accepted":
+            plan.admission==ResourceAdmission::MemoryBudget?"memory_budget":plan.admission==ResourceAdmission::CpuBudget?"cpu_budget":
+            plan.admission==ResourceAdmission::NoProcessors?"no_processors":"invalid_count";
+        // An admission refusal is a policy decision, not proof that a Windows
+        // allocation failed. Preserve both physical and commit measurements so
+        // diagnostics identify which bound actually prevented the launch.
+        char reservation[1024]{};
+        std::snprintf(reservation,sizeof reservation,
+            "Mod batch resource admission: reason=%s requested=%llu processors=%lu memory_sample=%u win32_error=%lu "
+            "total_physical_bytes=%llu free_physical_bytes=%llu free_commit_bytes=%llu "
+            "budget_bytes=%llu required_budget_bytes=%llu overhead_per_mod_bytes=%llu minimum_private_bytes=%llu "
+            "private_per_mod_bytes=%llu cpu_basis_points_per_mod=%u rpc_per_mod_per_second=%u",
+            reason,static_cast<unsigned long long>(paths.size()),static_cast<unsigned long>(system.dwNumberOfProcessors),
+            unsigned(sampled),static_cast<unsigned long>(memoryError),static_cast<unsigned long long>(memory.ullTotalPhys),
+            static_cast<unsigned long long>(memory.ullAvailPhys),static_cast<unsigned long long>(memory.ullAvailPageFile),
+            static_cast<unsigned long long>(plan.budget),static_cast<unsigned long long>(plan.requiredBudget),
+            static_cast<unsigned long long>(plan.overheadPerMod),static_cast<unsigned long long>(minimumPrivateMemory),
+            static_cast<unsigned long long>(plan.privatePerMod),admitted?options.cpuRate:0,admitted?options.rpcCallsPerSecond:0);
+        nimby::detail::diagnostics::write("loader",admitted?"INFO":"ERROR",reservation);
+        if(!admitted){reportLoaderStatus(sampled?NIMBY_OPTIONS_LOADER_RESOURCE_REFUSED:NIMBY_OPTIONS_LOADER_START_FAILED,
+            static_cast<uint32_t>(paths.size()),0,memory,plan);return NIMBY_RESOURCE_LIMIT;}
         configureEpochTarget(GetCurrentProcessId());
         std::sort(paths.begin(),paths.end());
         for(const auto& path:paths){
@@ -644,9 +697,11 @@ extern "C" uint32_t __cdecl NimbyInternal_StartModHosts(const wchar_t* directory
                 log("Cannot isolate "+path.filename().string()+": "+e.what()+"; stopping the entire mod batch", "ERROR");
                 for(auto& worker:workers())worker->requestStop();
                 for(auto& worker:workers())worker->join();
-                workers().clear();return NIMBY_RESOURCE_LIMIT;
+                workers().clear();reportLoaderStatus(NIMBY_OPTIONS_LOADER_START_FAILED,static_cast<uint32_t>(paths.size()),0,memory,plan);
+                return NIMBY_RESOURCE_LIMIT;
             }
         }
+        reportLoaderStatus(NIMBY_OPTIONS_LOADER_READY,static_cast<uint32_t>(paths.size()),static_cast<uint32_t>(workers().size()),memory,plan);
         return NIMBY_OK;
     }catch(...){return NIMBY_INTERNAL_ERROR;}
 }
