@@ -44,6 +44,10 @@ struct Fixture {
 uint64_t beginGroup(uint64_t obj,const char* key,uint32_t flags){
     CHECK(obj==f->p());CHECK(std::string(key)=="panel");CHECK(flags==0); // Both scroll axes enabled.
     CHECK(get<uint8_t>(obj,0x30)==1&&get<float>(obj,0x34)==280);
+    // The native Layout pass sizes the viewport before the Interactive pass
+    // can resize its content. Without HFILL, a fresh declaration gives a
+    // zero-width clip even when the child content has a minimum width.
+    CHECK(get<uint8_t>(obj,0x18)==1&&get<uint32_t>(obj,0x1c)==0xa0);
     if(f->interactive)CHECK(get<float>(f->nk(),0x248c)==15&&get<float>(f->nk(),0x2490)==15);
     f->calls.emplace_back("scroll");return f->brokenChild?0:f->c();
 }
@@ -141,6 +145,11 @@ int main(){try{
         if(render){expected.insert(expected.begin()+1,"calculate");CHECK(f->width==432.f);}
         CHECK(f->calls==expected);
         CHECK(get<float>(f->nk(),0x248c)==24&&get<float>(f->nk(),0x2490)==24); // Restored outside the group.
+        // A preceding widget may reset the declaration or leave a different
+        // horizontal alignment. Neither case may collapse the next viewport.
+        f->begin(render);put(f->p(),0x18,uint8_t{1});put(f->p(),0x1c,uint32_t{0x20});
+        ui->scroll("panel",280,400.f,[](auto& child){child.heading("Options");});
+        CHECK(f->rows==1);
         // Unwinding must restore BOTH native stacks, including a failed draw.
         f->begin(render);bool caught=false;
         try{ui->scroll("panel",280,[](auto&){throw std::runtime_error("draw failed");});}catch(...){caught=true;}

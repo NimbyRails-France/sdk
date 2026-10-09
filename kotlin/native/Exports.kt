@@ -14,6 +14,7 @@ private val gameMod: GameMod by lazy {
     }
 }
 private val mod: SignallingMod get() = gameMod as SignallingMod
+private val options by lazy { ModOptionsAccess(gameMod.options, gameMod.windows.size) }
 // Copy the declarations once. A mod cannot change the mask layout after the
 // native adapter has copied its panels. No mutable current-type global exists.
 private val types by lazy {
@@ -55,7 +56,25 @@ private fun text(value: String, out: CPointer<ByteVar>?, capacity: Int): Int {
 @CName("NRFKotlin_Version") fun version(): Int = guarded("Version") {
     // Newly compiled signals require an animation-aware adapter. Otherwise an
     // old adapter could silently sample a custom cadence as a static image.
-    if(gameMod is SignallingMod) 8 else if(gameMod.windows.isNotEmpty()) 7 else 3
+    val extendedShortcuts = gameMod.windows.any { !it.shortcut.matches(Regex("Ctrl\\+Shift\\+[A-Z]|F([1-9]|1[0-2])")) }
+    if(options.count != 0 || extendedShortcuts) 9 else if(gameMod is SignallingMod) 8 else if(gameMod.windows.isNotEmpty()) 7 else 3
+}
+// Additive ABI 9. Options are copied once and updates are all-or-nothing. These
+// exports never call mod code; the adapter invokes OptionsApply on its worker.
+@CName("NRFKotlin_OptionCount") fun optionCount(): Int = guarded("OptionCount") { options.count }
+@CName("NRFKotlin_OptionInfo") fun optionInfo(index: Int, out: CPointer<IntVar>?): Int = guarded("OptionInfo") {
+    require(out != null)
+    options.info(index).forEachIndexed { i, value -> out[i] = value }; 0
+}
+@CName("NRFKotlin_OptionMetadata") fun optionMetadata(index: Int, field: Int, out: CPointer<ByteVar>?, capacity: Int): Int = guarded("OptionMetadata") {
+    text(options.metadata(index, field), out, capacity)
+}
+@CName("NRFKotlin_OptionChoiceMetadata") fun optionChoiceMetadata(index: Int, choice: Int, field: Int, out: CPointer<ByteVar>?, capacity: Int): Int = guarded("OptionChoiceMetadata") {
+    text(options.choiceMetadata(index, choice, field), out, capacity)
+}
+@CName("NRFKotlin_OptionsApply") fun optionsApply(packed: CPointer<ByteVar>?, bytes: Int, count: Int): Int = guarded("OptionsApply") {
+    require(bytes in 0..64 * 257 && count in 0..64 && (bytes == 0 || packed != null))
+    options.apply(if (bytes == 0) byteArrayOf() else packed!!.readBytes(bytes), count); 0
 }
 // Called before version()/createMod(). Tests using the Kotlin API directly
 // keep the default; the actual loader checks the file next to the mod DLL.

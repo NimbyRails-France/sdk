@@ -55,7 +55,7 @@ extern "C" uint32_t __cdecl NimbyInternal_Initialize(uint32_t,uint32_t) noexcept
 extern "C" uint32_t __cdecl NimbyInternal_EnsureSignalUiBridge() noexcept {return NIMBY_HOOKS_UNAVAILABLE;}
 namespace nimby::mod_host {
 uint32_t dispatchUi(const Request& request,Reply& reply,Owners& owners) {
-    if(request.operation!=100||request.data.size()!=24||request.args[0]>16)return NIMBY_INVALID_ARGUMENT;
+    if(request.operation!=100||request.data.size()!=24||request.args[0]>18)return NIMBY_INVALID_ARGUMENT;
     if(request.args[0]>=9&&request.args[0]<=11){
         // Bounded expensive broker work, with no shared fixture lock held.
         // Charge it to the caller's CPU bucket rather than slowing all channels.
@@ -76,7 +76,13 @@ uint32_t dispatchUi(const Request& request,Reply& reply,Owners& owners) {
         if(stats.actionStage==1&&!fixture::changed.wait_for(lock,1500ms,[&]{return fixture::releasedActionFixtures.contains(request.args[0]);}))
             return NIMBY_DATA_UNAVAILABLE;
     }
-    fixture::changed.notify_all();return NIMBY_OK;
+    fixture::changed.notify_all();
+    if(request.args[0]==18&&request.args[1]==2) {
+        // Only this channel's dispatcher waits. Release the fixture mutex
+        // first, so the parent test and a healthy sibling keep progressing.
+        lock.unlock();std::this_thread::sleep_for(2400ms);
+    }
+    return NIMBY_OK;
 }
 void cleanupUi(Owners& owners) noexcept {
     std::lock_guard lock(fixture::mutex);for(auto token:owners.panels)fixture::active.erase(token);
@@ -118,6 +124,67 @@ struct IsolatedDiagnostics {
         std::filesystem::remove(directory/"loader"/"nimby_mod_host_tests_exe.log",error);
         std::filesystem::remove(directory/"loader",error);
         std::filesystem::remove(directory,error);
+    }
+    static uint64_t field(const std::string& line,const char* key) {
+        const auto at=line.find(key);CHECK(at!=std::string::npos);
+        return std::stoull(line.substr(at+std::char_traits<char>::length(key)));
+    }
+    std::vector<std::string> matching(uint32_t child,const char* marker,bool childEvent=false) const {
+        std::ifstream input(directory/"loader"/"nimby_mod_host_tests_exe.log");CHECK(input.good());
+        std::vector<std::string> found;
+        for(std::string line;std::getline(input,line);) {
+            if(line.find(marker)==std::string::npos)continue;
+            if(field(line,childEvent?"[pid=":"child_pid=")==child)found.push_back(std::move(line));
+        }
+        return found;
+    }
+    void verifyCallback(uint32_t child,uint64_t detail,uint32_t deadline,bool freshStage=false) const {
+        const auto lines=matching(child,"Mod watchdog context:");CHECK(lines.size()==1);
+        const auto& line=lines.front();
+        CHECK(line.find("cause=callback_timeout")!=std::string::npos);
+        CHECK(field(line,"child_tid=")>0);
+        CHECK(line.find("stage=mod_observe")!=std::string::npos);
+        CHECK(field(line,"stage_id=")==NIMBY_MOD_WORK_MOD_OBSERVE);
+        CHECK(field(line,"detail=")==detail);
+        CHECK(field(line,"callback_age_ms=")>deadline);
+        // Stage publication can occur repeatedly during a hung callback. Its
+        // own timestamp must not replace the older outer callback timestamp.
+        CHECK(field(line,"stage_age_ms=")<=field(line,"callback_age_ms="));
+        if(freshStage)CHECK(field(line,"stage_age_ms=")<500);
+        CHECK(field(line,"last_rpc_operation=")==100);
+        CHECK(field(line,"last_rpc_status=")==NIMBY_OK);
+        CHECK(field(line,"rpc_state=")==2); // The last echo completed before this callback blocked.
+        std::cout<<line<<'\n';
+    }
+    void verifySlowCompletion(uint32_t child) const {
+        const auto lines=matching(child,"Mod callback completed slowly:",true);CHECK(lines.size()==1);
+        const auto& completed=lines.front();
+        CHECK(field(completed,"child_tid=")>0);
+        CHECK(field(completed,"callback_age_ms=")>=1000);
+        CHECK(completed.find("slowest_stage=mod_observe")!=std::string::npos);
+        CHECK(field(completed,"slowest_stage_id=")==NIMBY_MOD_WORK_MOD_OBSERVE);
+        CHECK(field(completed,"slowest_stage_ms=")>=1000);
+        CHECK(field(completed,"detail=")==1701);
+        const auto warnings=matching(child,"Mod callback slow:");CHECK(warnings.size()==1);
+        CHECK(warnings.front().find("cause=callback_slow")!=std::string::npos);
+        CHECK(field(warnings.front(),"callback_age_ms=")>=1000);
+        std::cout<<completed<<'\n';
+    }
+    void verifyReplyTimeout(uint32_t child) const {
+        const auto lines=matching(child,"Mod RPC channel unavailable:",true);CHECK(lines.size()==1);
+        const auto& line=lines.front();
+        CHECK(line.find("reason=reply_timeout")!=std::string::npos);
+        CHECK(field(line,"target_pid=")==GetCurrentProcessId());
+        CHECK(field(line,"child_tid=")>0);
+        CHECK(field(line,"operation=")==100);
+        CHECK(field(line,"status=")==NIMBY_IO_ERROR);
+        CHECK(field(line,"elapsed_ms=")>=2000);
+        CHECK(field(line,"rpc_state=")==1);
+        CHECK(line.find("stage=publish_textures")!=std::string::npos);
+        CHECK(field(line,"stage_id=")==NIMBY_MOD_WORK_PUBLISH_TEXTURES);
+        CHECK(field(line,"detail=")==18);
+        CHECK(matching(child,"Mod watchdog context:").empty());
+        std::cout<<line<<'\n';
     }
     void verifyRejections() const {
         std::ifstream input(directory/"loader"/"nimby_mod_host_tests_exe.log");CHECK(input.good());
@@ -347,9 +414,9 @@ void watchdogResume(const std::filesystem::path& exe,const std::filesystem::path
     CHECK(!healthy.finished());const auto after=fixture::get(0);CHECK(fixture::wait(0,after.calls+16));
     healthy.requestStop();CHECK(waitFinished(healthy));healthy.join();CHECK(healthy.outcome()=="stopped");
     std::cout<<"PASS twenty-minute uptime jump preserves callback; real 5000ms awake hang quarantined after "<<elapsed<<"ms; sibling remains healthy\n";
-    // An old parent uses the same mailbox layout but a different clock epoch.
-    // Reject it before assigning any child state, while public mod V1 remains.
-    CHECK(protocol==1&&channelProtocol==2);
+    // Old mailbox versions omit diagnostic stages or use another clock epoch.
+    // Reject them before assigning child state, while public mod V1 remains.
+    CHECK(protocol==1&&channelProtocol==3);
     struct Handles {
         std::array<HANDLE,5> values{};
         ~Handles(){for(auto value:values)if(value)CloseHandle(value);}
@@ -358,9 +425,12 @@ void watchdogResume(const std::filesystem::path& exe,const std::filesystem::path
     for(size_t i=1;i<handles.values.size();++i)handles.values[i]=CreateEventW(nullptr,FALSE,FALSE,nullptr);
     for(auto value:handles.values)CHECK(value);
     auto* mailbox=static_cast<Shared*>(MapViewOfFile(handles.values[0],FILE_MAP_ALL_ACCESS,0,0,sizeof(Shared)));
-    CHECK(mailbox);mailbox->version=1;mailbox->size=sizeof(Shared);mailbox->targetPid=GetCurrentProcessId();
-    const auto legacy=attach(handles.values[0],handles.values[1],handles.values[2],handles.values[3],handles.values[4],GetCurrentProcessId());
-    UnmapViewOfFile(mailbox);CHECK(legacy==NIMBY_INVALID_BINARY);
+    CHECK(mailbox);mailbox->size=sizeof(Shared);mailbox->targetPid=GetCurrentProcessId();
+    for(const auto legacyVersion:{1u,2u}) {
+        mailbox->version=legacyVersion;
+        CHECK(attach(handles.values[0],handles.values[1],handles.values[2],handles.values[3],handles.values[4],GetCurrentProcessId())==NIMBY_INVALID_BINARY);
+    }
+    UnmapViewOfFile(mailbox);
     std::cout<<"PASS watchdog zero sentinel, future marker, exact deadline and old mailbox rejection; mod V1 retained\n";
 }
 }
@@ -409,6 +479,7 @@ int wmain(int argc,wchar_t** argv) {
             const auto outcome=offender.outcome();
             if(mode==2)CHECK(outcome.find("startup timeout")!=std::string::npos);
             if(mode==3||mode==7||mode==8)CHECK(outcome.find("callback timeout")!=std::string::npos);
+            if(mode==7||mode==8)diagnostics.verifyCallback(offender.pid(),mode,options.callbackTimeoutMs,mode==8);
             if(mode==4)CHECK(outcome.find("stop timeout")!=std::string::npos);
             if(mode==1||mode==5)CHECK(outcome.find("terminated, exit=")!=std::string::npos);
             if(mode==6){
@@ -417,6 +488,34 @@ int wmain(int argc,wchar_t** argv) {
             }
             std::cout<<"{\"fault\":\""<<labels[mode]<<"\",\"outcome\":\""<<outcome<<"\",\"elapsed_ms\":"
                 <<std::chrono::duration<double,std::milli>(std::chrono::steady_clock::now()-started).count()<<"}\n";
+        }
+        {
+            const auto before=fixture::get(0);
+            auto stagedOptions=options;stagedOptions.callbackTimeoutMs=1500;
+            nimby::mod_host::Worker offender(exe,directory/L"host_fixture_17.dll",stagedOptions);
+            CHECK(fixture::wait(17,4,5s)); // Startup, two completed slow cycles, blocked successor.
+            const auto began=nimby::mod_host::watchdogNow();
+            CHECK(waitFinished(offender,3s));offender.join();checkExited(offender.pid());
+            CHECK(nimby::mod_host::watchdogNow()-began<3000);
+            CHECK(offender.outcome()=="callback timeout; quarantined");
+            CHECK(channelMappings()==originalMappings+1);
+            CHECK(!healthy.finished());CHECK(fixture::wait(0,before.calls+32));
+            diagnostics.verifyCallback(offender.pid(),17,stagedOptions.callbackTimeoutMs,true);
+            diagnostics.verifySlowCompletion(offender.pid());
+            std::cout<<"PASS staged hang retains outer deadline, completed slow callback and last RPC context; sibling remains healthy\n";
+        }
+        {
+            auto delayedOptions=options;delayedOptions.callbackTimeoutMs=4000;
+            nimby::mod_host::Worker offender(exe,directory/L"host_fixture_18.dll",delayedOptions);
+            CHECK(fixture::wait(18,3)); // The delayed dispatcher published its entry before releasing the fixture lock.
+            const auto before=fixture::get(0);
+            CHECK(fixture::wait(0,before.calls+32)); // Sibling progresses while the parent dispatcher is still waiting.
+            CHECK(!offender.finished());
+            CHECK(waitFinished(offender));offender.join();checkExited(offender.pid());
+            CHECK(offender.outcome()=="terminated, exit="+std::to_string(NIMBY_IO_ERROR));
+            CHECK(!healthy.finished());CHECK(channelMappings()==originalMappings+1);
+            diagnostics.verifyReplyTimeout(offender.pid());
+            std::cout<<"PASS child RPC timeout retains texture-publication stage while a parent dispatcher waits; sibling remains healthy\n";
         }
         const auto before=fixture::get(0);
         std::vector<std::unique_ptr<nimby::mod_host::Worker>> flooders;
@@ -459,7 +558,7 @@ int wmain(int argc,wchar_t** argv) {
         healthy.requestStop();CHECK(waitFinished(healthy));healthy.join();checkExited(healthy.pid());
         CHECK(channelMappings()==originalMappings);
         CHECK(healthy.outcome()=="stopped");
-        {std::lock_guard lock(fixture::mutex);CHECK(fixture::active.empty()&&fixture::cleaned==17);}
+        {std::lock_guard lock(fixture::mutex);CHECK(fixture::active.empty()&&fixture::cleaned==19);}
         diagnostics.verifyRejections();
         std::cout<<"PASS real child processes: native crash, startup/callback/shutdown hangs, uncaught exception, RPC flood, parent/healthy progress and scoped cleanup\n";
     }catch(const std::exception& error){std::cerr<<error.what()<<'\n';return 1;}

@@ -6,11 +6,11 @@ suspendus ; les dossiers de plateforme sont conservés. Le SDK fournit les obser
 le contrat de chargement. Les règles de signalisation et les ressources restent
 dans les mods.
 
-Cette branche développe la version **0.9.0-alpha.1**. Un paquet construit localement
+Cette branche développe la version **0.9.0-alpha.2**. Un paquet construit localement
 n'est pas une release publiée.
 
 La documentation des créateurs de mods est désormais maintenue dans le
-[wiki officiel — édition 0.9](https://wiki.nimbyrails-france.fr/version/0.9) : parcours débutant, exemples compilables,
+[wiki officiel — édition 0.9](https://wiki-dev.nimbyrails-france.fr/version/0.9) : parcours débutant, exemples compilables,
 référence des types et fonctions Kotlin. `docs/` conserve les notes techniques
 de maintenance et les liens de transition des anciens guides.
 
@@ -20,7 +20,7 @@ Pour contribuer au noyau : [architecture](docs/architecture.md) et
 ## Créer un mod Kotlin
 
 1. Installer un JDK 21 et extraire le kit Kotlin du SDK.
-2. Créer son propre projet avec le [guide pas à pas](https://wiki.nimbyrails-france.fr/version/0.9/commencer/installation).
+2. Créer son propre projet avec le [guide pas à pas](https://wiki-dev.nimbyrails-france.fr/version/0.9/commencer/installation).
 3. Configurer `NRF_KOTLIN_SDK` ou la propriété Gradle `nrfSdkDir`.
 4. Ouvrir le projet dans IntelliJ IDEA et exécuter `build`.
 5. Ajouter le projet dans le profil développeur du Hub pour l'essayer en jeu.

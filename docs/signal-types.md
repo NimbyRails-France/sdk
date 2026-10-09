@@ -1,7 +1,7 @@
 # Types de signaux
 
 Ce guide est désormais maintenu dans le [dépôt du wiki officiel](https://github.com/NimbyRails-France/wiki),
-page `mods/signaux`, destinée à **https://wiki.nimbyrails-france.fr/mods/signaux**.
+page `mods/signaux`, destinée à **https://wiki-dev.nimbyrails-france.fr/mods/signaux**.
 
 Le wiki contient les explications, exemples Kotlin et signatures synchronisées
 avec les sources du SDK. Ce fichier reste uniquement pour les anciens liens

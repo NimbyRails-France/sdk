@@ -1,14 +1,14 @@
 # Versions et compatibilité
 
-Cette branche prépare **SDK 0.9.0-alpha.1**. La version du dépôt ou d'un kit local ne
+Cette branche prépare **SDK 0.9.0-alpha.2**. La version du dépôt ou d'un kit local ne
 prouve pas qu'une release a été publiée.
 
 ## Chaîne Kotlin prise en charge
 
 | Composant | Version ou cible |
 | --- | --- |
-| Kit SDK Kotlin | 0.9.0-alpha.1, format de manifeste 1 |
-| Plugin Gradle `fr.nimbyrails.mod` | 0.9.0-alpha.1, distribué dans le kit |
+| Kit SDK Kotlin | 0.9.0-alpha.2, format de manifeste 1 |
+| Plugin Gradle `fr.nimbyrails.mod` | 0.9.0-alpha.2, distribué dans le kit |
 | Kotlin/Native | 2.2.20 |
 | Gradle Wrapper | 8.14.3 |
 | JVM de développement vérifiée | JDK 21 |

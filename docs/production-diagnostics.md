@@ -81,6 +81,48 @@ reproductible à partir du seul log.
 
 ## Maintenance
 
+### Blocage d'un mod et disparition des textures
+
+Le chargeur écrit `Mod watchdog context` avant d'arrêter un processus qui ne
+répond plus. Cette entrée conserve le mod, le PID/TID, l'étape en cours
+(`stage`), son contexte numérique (`detail`), la durée du traitement et de
+l'étape, le dernier échange RPC avec son code de retour, ainsi que les limites
+et un relevé de mémoire/CPU. Ces relevés décrivent l'état au moment du diagnostic :
+une mémoire élevée ne prouve pas, à elle seule, la cause du blocage.
+
+Les marqueurs distinguent capture du jeu, réglages, calcul des signaux,
+publication des règles de conduite, diagnostic du mod et publication/nettoyage
+des textures. `detail` représente, selon l'étape, le nombre d'éléments, l'index
+du panneau (0 pour le panneau principal) ou l'identifiant du signal d'une
+action. `stage=unspecified` peut correspondre à un ancien mod non recompilé ou
+à un marqueur momentanément illisible ; ce n'est pas une étape du jeu.
+
+Un traitement encore actif après une seconde produit `Mod callback slow`.
+Un traitement lent qui termine produit `Mod callback completed slowly`, avec
+son étape la plus longue. Chaque type de résumé est limité à une entrée par
+processus mod toutes les 30 secondes, avec compteur de répétitions omises.
+Les marqueurs ne renouvellent jamais la limite du watchdog et aucune écriture
+n'est ajoutée aux cycles rapides réussis. L'horloge exclut veille/hibernation.
+
+Si le serveur RPC lui-même reste bloqué, son superviseur peut être retenu dans
+l'appel. Le côté mod écrit alors `Mod RPC channel unavailable` après son attente
+bornée, avec l'opération, l'étape, la durée et la raison (`reply_timeout`, arrêt
+du jeu, échec d'attente ou réponse invalide). Ce message permet de distinguer
+ce cas d'un blocage dans le calcul local du mod, sans ajouter un thread de
+surveillance à chaque mod.
+
+`Texture publication rejected`, dans les logs SDK, précise la première cause
+du rejet : signal absent, doublon, chemin manquant/ambigu, catalogue invalide,
+changement de monde ou refus du pont. Le message contient le propriétaire,
+le PID cible, la ligne et le signal concernés, le lot et les chemins bornés.
+Au maximum quatre entrées sont émises par thread de publication sur cinq
+secondes ; une publication réussie n'ajoute aucun log.
+
+Les anciens mods restent chargeables, mais les étapes détaillées nécessitent
+de les reconstruire avec l'adaptateur actuel. Le SDK et son exécutable hôte
+doivent provenir du même paquet (protocole privé 3) ; le protocole public des
+mods reste V1. Le Hub inclut déjà ces dossiers dans son export diagnostic.
+
 Le sink Windows est dans `include/nimby/detail/platform/windows/diagnostics.hpp`.
 Il est compatible avec le proxy compilé sans exceptions et n'est jamais appelé
 depuis `DllMain`. Les points d'appel communs utilisent un sélecteur indépendant

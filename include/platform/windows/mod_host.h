@@ -6,18 +6,22 @@
 #include <string>
 
 namespace nimby::mod_host {
-// Private parent/child mailbox revision. Version 2 uses awake-time watchdog
-// stamps; the public mod entry protocol remains V1 and requires no rebuild.
-inline constexpr uint32_t channelProtocol=2;
+// Private parent/child mailbox revision. Version 3 adds diagnostic stages;
+// the public mod entry protocol remains V1. SDK and its host ship together.
+inline constexpr uint32_t channelProtocol=3;
 struct WorkSlot {
     volatile LONG thread;
+    volatile LONG revision, stage;
     alignas(8) volatile LONG64 since;
+    alignas(8) volatile LONG64 stageSince, detail;
 };
 struct Shared {
     uint32_t version, size, targetPid;
     volatile LONG phase; // starting, callback, idle, stopping
     alignas(8) volatile LONG64 phaseSince;
     volatile LONG ready, requestState;
+    volatile LONG requestThread;
+    alignas(8) volatile LONG64 requestSince;
     WorkSlot work[64];
     uint32_t operation, inputSize, capacity, outputSize, result;
     std::array<uint64_t,8> args;

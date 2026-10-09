@@ -21,6 +21,16 @@ inline void modHostPulse(uint32_t phase) noexcept {
     const auto pulse=sdk?std::bit_cast<Pulse>(GetProcAddress(sdk,"NimbyInternal_ModHostPulse")):nullptr;
     if(pulse)pulse(phase);
 }
+inline void modHostStage(uint32_t stage,uint64_t detail=0) noexcept {
+    using Stage=void(__cdecl*)(uint32_t,uint64_t);
+    // Cache even a missing optional symbol; no module lookup on each stage.
+    // The SDK is retained for the lifetime of an isolated mod process.
+    static const auto marker=[]() noexcept {
+        const auto sdk=GetModuleHandleW(L"NimbyRailsFranceSDK.dll");
+        return sdk?std::bit_cast<Stage>(GetProcAddress(sdk,"NimbyInternal_ModHostStage")):nullptr;
+    }();
+    if(marker)marker(stage,detail);
+}
 inline Module loadWithSearchFlags(const std::filesystem::path& path,bool pin,DWORD flags) {
     auto module=LoadLibraryExW(std::filesystem::absolute(path).c_str(),nullptr,
         flags);

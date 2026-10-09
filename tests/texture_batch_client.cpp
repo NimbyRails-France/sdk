@@ -3,6 +3,7 @@
 #include <platform/texture_connection.h>
 #include <engine/signal_textures.h>
 #include <runtime/texture_publications.h>
+#include <runtime/texture_publication_diagnostics.h>
 #include <iostream>
 #include <stdexcept>
 #define CHECK(x) do{if(!(x))throw std::runtime_error("line "+std::to_string(__LINE__)+": " #x);}while(false)
@@ -11,6 +12,47 @@ int opens=0,catalogs=0,memberships=0,publishes=0,submits=0,statusBatches=0,forwa
 uint64_t missing=0;bool changedWorld=false;uint32_t target=0,lastOperation=0;
 nimby::engine::LiveState world{1,2,3,4,5};
 nimby::texture_bridge::Table table;
+void failureDiagnostics(){
+    using nimby::runtime::TexturePublicationDiagnostics;
+    using Reason=nimby::runtime::TexturePublicationReason;
+    using namespace std::chrono_literals;
+    TexturePublicationDiagnostics diagnostic;
+    const auto now=TexturePublicationDiagnostics::Clock::now();
+    NimbyTextureUpdate row{};row.signal=0x8000000000001;row.duration_ms=2500;
+    std::strcpy(row.texture_set,"test");std::strcpy(row.first_path,"a.svg");
+    CHECK(nimby::runtime::invalidTextureUpdate(row)==Reason::None);
+    auto malformed=row;std::memset(malformed.first_path,'x',sizeof malformed.first_path);
+    CHECK(nimby::runtime::invalidTextureUpdate(malformed)==Reason::FirstPathUnterminated);
+    malformed=row;malformed.signal=1;CHECK(nimby::runtime::invalidTextureUpdate(malformed)==Reason::InvalidSignal);
+    malformed=row;malformed.flags=2;CHECK(nimby::runtime::invalidTextureUpdate(malformed)==Reason::InvalidFlags);
+    malformed=row;malformed.duration_ms=999;CHECK(nimby::runtime::invalidTextureUpdate(malformed)==Reason::InvalidDuration);
+    malformed=row;malformed.half_period_ms=500;CHECK(nimby::runtime::invalidTextureUpdate(malformed)==Reason::InvalidAnimation);
+    auto after=world;++after.database;
+    TexturePublicationDiagnostics::Context context{42,7,46,45,&row,&world,&after};
+    unsigned reports=0;std::string message;
+    const auto sink=[&](const char* text) noexcept {++reports;message=text;};
+    diagnostic.report(NIMBY_OK,Reason::None,context,sink,now);CHECK(reports==0);
+    diagnostic.report(NIMBY_INVALID_ARGUMENT,Reason::SignalMissing,context,sink,now);
+    CHECK(reports==1&&message.find("status=1 reason=signal_missing targetPid=42 owner=7 count=46 row=45 signal=2251799813685249")!=std::string::npos);
+    CHECK(message.find("textureSet=\"test\" first=\"a.svg\"")!=std::string::npos);
+    CHECK(message.find("root=2 database=3 copy=4 simulation=5 afterRoot=2 afterDatabase=4 afterCopy=4 afterSimulation=5")!=std::string::npos);
+    for(unsigned i=0;i<1000;++i){after.database=i;diagnostic.report(NIMBY_INVALID_ARGUMENT,Reason::SignalMissing,context,sink,now+1ms);}
+    CHECK(reports==1); // Changing world counters do not trigger repeated disk writes.
+    diagnostic.report(NIMBY_DATA_UNAVAILABLE,Reason::WorldChanged,context,sink,now+2ms);
+    CHECK(reports==2&&message.find("suppressed=1000")!=std::string::npos);
+    for(unsigned i=0;i<1000;++i){++row.signal;diagnostic.report(NIMBY_DATA_UNAVAILABLE,Reason::WorldChanged,context,sink,now+3ms);}
+    CHECK(reports==4); // Changing signal IDs cannot defeat the burst cap.
+    diagnostic.report(NIMBY_DATA_UNAVAILABLE,Reason::WorldChanged,context,sink,now+5s);
+    CHECK(reports==5&&message.find("suppressed=998")!=std::string::npos);
+    // Logging malformed ABI fields stays within fixed buffers and one line.
+    TexturePublicationDiagnostics malformedDiagnostic;
+    std::memset(row.texture_set,'s',sizeof row.texture_set);
+    std::memset(row.first_path,'x',sizeof row.first_path);row.first_path[1]='\n';row.first_path[2]='"';
+    std::memset(row.alternate_path,'a',sizeof row.alternate_path);
+    malformedDiagnostic.report(NIMBY_INVALID_ARGUMENT,Reason::FirstPathUnterminated,context,sink,now);
+    CHECK(message.size()<1536&&message.find('\n')==std::string::npos&&message.find("first=\"x??")!=std::string::npos);
+    CHECK(message.find("suppressed=0")!=std::string::npos);
+}
 }
 namespace nimby::platform {
 struct TextureConnection::Impl{};
@@ -45,6 +87,7 @@ bool resolve_live_state(ReadMemory,void*,uint64_t,bool,LiveStateProfile,LiveStat
 bool resolve_live_state(ReadMemory read,void* context,uint64_t base,bool recognized,LiveState& out)noexcept{return resolve_live_state(read,context,base,recognized,world.profile,out);}
 }
 int main(){try{
+    failureDiagnostics();
     constexpr uint64_t first=0x8000000000001;
     std::vector<NimbyTextureUpdate> rows(46);
     for(size_t i=0;i<rows.size();++i){auto& row=rows[i];row.signal=first+i;row.duration_ms=2500;

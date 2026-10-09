@@ -135,14 +135,16 @@ public:
             return host.actions->publish(provider,p.panel,p.signal,std::string(text(p.origin)),std::string(text(p.service)),std::string(text(p.message)),std::move(buttons),std::move(inputs))?NIMBY_OK:NIMBY_INVALID_HANDLE;
         });
     }
-    uint32_t publishPreview(uint64_t provider,const NimbyUiSignalPreviewV1* source,uint64_t* publication=nullptr)noexcept {
+    uint32_t publishPreview(uint64_t provider,const NimbyUiSignalPreviewV1* source,uint64_t* publication=nullptr,SignalActions::PreviewResult* diagnostic=nullptr)noexcept {
         if(publication)*publication=0;
+        if(diagnostic)*diagnostic={SignalActions::PreviewStatus::Invalid};
         return boundary([&]() -> uint32_t {
             if(!source||source->size!=sizeof(*source)||source->version!=1||source->reserved||source->count>64)return NIMBY_INVALID_ARGUMENT;
             if(source->count&&source->signal>>48!=8)return NIMBY_INVALID_ARGUMENT;
             const auto result=source->count?host.actions->publishPreview(provider,source->panel,source->signal,std::string(text(source->origin)),
                 std::string(text(source->service)),{source->positions,source->positions+source->count}):host.actions->publishPreview(provider,0,0,{},{},{});
             if(publication)*publication=result.publication;
+            if(diagnostic)*diagnostic=result;
             return result.status==SignalActions::PreviewStatus::Published?NIMBY_OK:
                 result.status==SignalActions::PreviewStatus::Busy?NIMBY_RESOURCE_LIMIT:NIMBY_INVALID_HANDLE;
         });

@@ -69,9 +69,16 @@ void startObservations(const nimby::Mod& mod) {
     // cadence. No Mod layout or Kotlin declaration change is needed.
     nimby::detail::ObservationLoopAccess::start(observations(),[connection, mod, observe=mod.observe, panel=mod.signalSettings, scope=mod.observationScope, textureSet=mod.observationTextureSet] {
         nimby::detail::platform::ModWork work;
+        if(mod.refreshOptions){work.stage(NIMBY_MOD_WORK_REFRESH_OPTIONS);mod.refreshOptions();}
+        work.stage(NIMBY_MOD_WORK_CONNECT_SETTINGS);
         connectSettings(panel,mod.translationsJson);
+        work.stage(NIMBY_MOD_WORK_CONNECT_SERVICES);
         connectServices(mod);
-        if (!*connection) connection->reset(new nimby::detail::ObservationSession(currentProcessId()));
+        if (!*connection){work.stage(NIMBY_MOD_WORK_OPEN_OBSERVATION);connection->reset(new nimby::detail::ObservationSession(currentProcessId()));}
+        const bool signalling=!mod.observationSignals.empty()||!textureSet.empty();
+        work.stage(signalling?NIMBY_MOD_WORK_CAPTURE_SIGNALLING:
+            scope==nimby::SnapshotScope::Session?NIMBY_MOD_WORK_CAPTURE_SESSION:NIMBY_MOD_WORK_CAPTURE_COMPLETE,
+            mod.observationSignals.size());
         auto snapshot = !mod.observationSignals.empty()?(*connection)->captureSignalling(mod.observationSignals):
             textureSet.empty()?(*connection)->capture(scope):(*connection)->captureSignalling(textureSet);
         // Capture already retries the mutable presence/occupation pair together.
@@ -79,27 +86,38 @@ void startObservations(const nimby::Mod& mod) {
         // coverage stayed incomplete, delaying approach detection and allowing
         // driving instructions to expire between observations. Deliver this
         // capture immediately; its unknown blocks remain unknown for the mod.
-        if(settingsBridge().connected())settingsBridge().synchronize(*snapshot);
-        for(auto& panel:additionalPanels())if(panel.client->connected())panel.client->synchronize(*snapshot);
+        if(settingsBridge().connected()){work.stage(NIMBY_MOD_WORK_SYNCHRONIZE_SETTINGS,0);settingsBridge().synchronize(*snapshot);}
+        uint64_t panelIndex=0;
+        for(auto& panel:additionalPanels()){
+            ++panelIndex;
+            if(panel.client->connected()){work.stage(NIMBY_MOD_WORK_SYNCHRONIZE_SETTINGS,panelIndex);panel.client->synchronize(*snapshot);}
+        }
         const auto& game=snapshot->getGameSession();
+        work.stage(NIMBY_MOD_WORK_OBSERVE_SERVICES);
         const bool serviceReady=game&&services().observe(*game);
-        if(!serviceReady)services().suspend();
+        if(!serviceReady){work.stage(NIMBY_MOD_WORK_SUSPEND_SERVICES);services().suspend();}
+        work.stage(NIMBY_MOD_WORK_MOD_OBSERVE);
         observe(*snapshot);
         if(serviceReady&&(mod.signalAction||mod.signalActionV2))for(unsigned i=0;i<64;++i){
+            work.stage(NIMBY_MOD_WORK_POLL_ACTIONS,i);
             const auto event=services().pollWithValue();if(!event)break;
             const auto& base=event->base;
             if(base.generation==game->generation&&std::string_view(base.world)==game->worldId){
+                work.stage(NIMBY_MOD_WORK_MOD_ACTION,base.signal);
                 if(mod.signalActionV2)mod.signalActionV2(*event,*snapshot);
                 else if(!event->has_value){auto old=base;old.size=sizeof old;old.version=1;mod.signalAction(old,*snapshot);}
             }
         }
     }, [lost=mod.observationLost] {
         nimby::detail::platform::ModWork work;
+        work.stage(NIMBY_MOD_WORK_SUSPEND_SETTINGS,0);
         nimby::detail::signalSettingsStore().suspendObservations();
         settingsBridge().suspend();
-        for(auto& panel:additionalPanels())panel.client->suspend();
+        uint64_t panelIndex=0;
+        for(auto& panel:additionalPanels()){work.stage(NIMBY_MOD_WORK_SUSPEND_SETTINGS,++panelIndex);panel.client->suspend();}
+        work.stage(NIMBY_MOD_WORK_SUSPEND_SERVICES);
         services().suspend();
-        if(lost)lost();
+        if(lost){work.stage(NIMBY_MOD_WORK_OBSERVATION_LOST);lost();}
     }, nimby::Milliseconds{mod.observationIntervalMs},mod.observationScope==nimby::SnapshotScope::Session);
 }
 void releaseReader() {

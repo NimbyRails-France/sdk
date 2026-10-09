@@ -3,7 +3,10 @@ package nimby
 /** Fenêtre de l'outil, indépendante d'un signal. Sous Windows, le raccourci
  * ouvre un panneau appartenant à la fenêtre du jeu, uniquement au premier plan.
  * Ce n'est pas un bouton injecté dans la barre native du jeu.
- * shortcut accepte Ctrl+Shift+lettre ou une touche F1 à F12. */
+ * shortcut : Ctrl+, Alt+, Shift+ facultatifs dans cet ordre, puis une touche
+ * (A–Z, 0–9, F1–F24, Enter, Space, Tab, Escape, Backspace, Delete, Insert,
+ * Home, End, PageUp, PageDown, Left, Right, Up ou Down). Vide le désactive.
+ * Le joueur peut le modifier dans les options des mods, gérées par le SDK. */
 data class ToolWindow(val id: String, val title: String, val shortcut: String)
 
 /** Action d'une fenêtre : open à l'ouverture, sinon l'id du bouton cliqué.

@@ -1,7 +1,7 @@
 ﻿# Chargement et isolation des mods — contrat interne Windows
 
 Les créateurs de mods utilisent l’API Kotlin `nimby` et le plugin Gradle.
-Le [wiki](https://wiki.nimbyrails-france.fr/commencer/installation) décrit ce
+Le [wiki](https://wiki-dev.nimbyrails-france.fr/commencer/installation) décrit ce
 parcours public. Cette page documente le loader du SDK, pas une API C++ à
 recopier dans les mods.
 

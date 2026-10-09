@@ -15,10 +15,12 @@
 #endif
 namespace {
 using Pulse=void(__cdecl*)(uint32_t);
+using Stage=void(__cdecl*)(uint32_t,uint64_t);
 using Call=uint32_t(__cdecl*)(uint32_t,uint64_t*,const void*,uint32_t,void*,uint32_t,uint32_t*);
 using ActionWaits=uint32_t(__cdecl*)(uint64_t*,uint64_t*);
 using WakeLocal=void(__cdecl*)();
 Pulse pulse{};Call call{};
+Stage stage{};
 ActionWaits actionWaits{};WakeLocal wakeLocal{};
 std::atomic<bool> stopping=false;
 std::atomic<uint64_t> throttled=0;
@@ -114,8 +116,11 @@ extern "C" __declspec(dllexport) uint32_t WINAPI NRFMod_HostProtocolV1(void*) { 
 extern "C" __declspec(dllexport) uint32_t WINAPI NRFMod_StartV1(void*) {
     const auto exe=GetModuleHandleW(nullptr);
     pulse=std::bit_cast<Pulse>(GetProcAddress(exe,"NimbyInternal_ModHostPulse"));
+    stage=std::bit_cast<Stage>(GetProcAddress(exe,"NimbyInternal_ModHostStage"));
     call=std::bit_cast<Call>(GetProcAddress(exe,"NimbyInternal_ModHostCall"));
     if(!pulse||!call)return 3;
+    if constexpr(NIMBY_HOST_FIXTURE_MODE==7||NIMBY_HOST_FIXTURE_MODE==8||NIMBY_HOST_FIXTURE_MODE==17||NIMBY_HOST_FIXTURE_MODE==18)
+        if(!stage)return 3;
     if(const auto status=invoke(0))return status;
     if constexpr(NIMBY_HOST_FIXTURE_MODE==1)RaiseException(EXCEPTION_ACCESS_VIOLATION,0,0,nullptr);
     if constexpr(NIMBY_HOST_FIXTURE_MODE==2)for(;;)Sleep(1000);
@@ -152,11 +157,35 @@ extern "C" __declspec(dllexport) uint32_t WINAPI NRFMod_StartV1(void*) {
             UnmapViewOfFile(shared);return;
         }
         if constexpr(NIMBY_HOST_FIXTURE_MODE==7) {
-            std::thread([]{for(;;){pulse(2);Sleep(2);pulse(3);Sleep(2);}}).detach();
-            pulse(2);for(;;)Sleep(1000);
+            // A second thread continually enters and leaves a different stage;
+            // it must not overwrite this thread's blocked callback diagnostics.
+            std::thread([]{for(;;){pulse(2);stage(NIMBY_MOD_WORK_MOD_ACTION,700);Sleep(2);pulse(3);Sleep(2);}}).detach();
+            pulse(2);stage(NIMBY_MOD_WORK_MOD_OBSERVE,7);for(;;)Sleep(1000);
         }
         if constexpr(NIMBY_HOST_FIXTURE_MODE==8) {
-            pulse(2);Sleep(80);pulse(2);Sleep(80);pulse(3);for(;;)Sleep(1000);
+            // Nested work and repeated stage changes must retain the outermost
+            // callback deadline, even though the current stage keeps progressing.
+            pulse(2);stage(NIMBY_MOD_WORK_MOD_OBSERVE,8);Sleep(80);pulse(2);stage(NIMBY_MOD_WORK_MOD_ACTION,800);Sleep(80);pulse(3);
+            for(;;){stage(NIMBY_MOD_WORK_MOD_OBSERVE,8);Sleep(40);}
+        }
+        if constexpr(NIMBY_HOST_FIXTURE_MODE==17) {
+            // Two completed slow callbacks use different details so duplicate
+            // message suppression cannot hide an unbounded duration logger.
+            // Their successor publishes stage progress while hung, proving
+            // stage markers cannot renew the watchdog's outer callback deadline.
+            for(uint64_t sequence=1;sequence<=2;++sequence) {
+                pulse(2);stage(NIMBY_MOD_WORK_MOD_OBSERVE,1700+sequence);
+                if(invoke(sequence))ExitProcess(6);
+                Sleep(1200);pulse(3);
+            }
+            pulse(2);stage(NIMBY_MOD_WORK_MOD_OBSERVE,17);if(invoke(3))ExitProcess(6);
+            for(;;){stage(NIMBY_MOD_WORK_MOD_OBSERVE,17);Sleep(40);}
+        }
+        if constexpr(NIMBY_HOST_FIXTURE_MODE==18) {
+            if(invoke(1))ExitProcess(6);
+            pulse(2);stage(NIMBY_MOD_WORK_PUBLISH_TEXTURES,18);
+            const auto status=invoke(2); // Parent dispatch deliberately exceeds the RPC reply deadline.
+            ExitProcess(status==NIMBY_IO_ERROR?status:6);
         }
         if constexpr(NIMBY_HOST_FIXTURE_MODE==3) {
             pulse(2);std::atomic<uint64_t> busy{};for(;;)busy.fetch_add(1,std::memory_order_relaxed);

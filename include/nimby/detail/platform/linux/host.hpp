@@ -31,7 +31,8 @@ inline bool hostedByGame() {
 inline uint32_t currentProcessId() noexcept {
     return static_cast<uint32_t>(getpid());
 }
-struct ModWork {};
+inline void modWorkStage(uint32_t,uint64_t=0) noexcept {}
+struct ModWork {void stage(uint32_t value,uint64_t detail=0) noexcept {modWorkStage(value,detail);}};
 inline std::filesystem::path stateDirectory() {
         std::filesystem::path root;
         const auto xdg=std::getenv("XDG_STATE_HOME");

@@ -18,6 +18,8 @@ private fun optional(value: String?) = value?.let(::quote) ?: "null"
 
 fun main() {
     val mod = createMod()
+    // Also validate custom GameMod subclasses that bypass the declaration DSL.
+    nimby.internal.ModOptionsAccess(mod.options, mod.windows.size)
     val meta = requireNotNull(mod.metadata) { "Déclarer metadata(author, description) dans le mod" }
     val types = if (mod is SignallingMod) mod.signalTypes.also(::validateSignalTypes) else emptyList()
     val models = types.joinToString(",") { type ->

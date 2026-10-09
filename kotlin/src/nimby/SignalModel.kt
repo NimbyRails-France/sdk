@@ -216,6 +216,12 @@ inline fun <reified A : Enum<A>, reified R : Enum<R>> signalModel(
 /** Composition du paquet : chaque modèle conserve ses enums et ses callbacks. */
 @SignalModDsl
 class SignalModelsBuilder internal constructor() {
+    internal val declaredOptions = mutableListOf<ModOption<*>>()
+    /** Préférences globales du joueur ; les cases d'un signal restent séparées. */
+    fun options(vararg values: ModOption<*>) {
+        val combined = checkedModOptions(declaredOptions + values)
+        declaredOptions.clear(); declaredOptions.addAll(combined)
+    }
     internal var preparation: (List<Signal>) -> List<Signal> = { it }
     fun prepareNetwork(block: (List<Signal>) -> List<Signal>) { preparation = block }
     internal var metadata: ModMetadata? = null
@@ -248,6 +254,7 @@ fun signalMod(id: String, title: String, block: SignalModelsBuilder.() -> Unit):
         override fun prepareNetwork(signals: List<Signal>) = builder.preparation(signals)
         override val id = id
         override val title = title
+        override val options = checkedModOptions(builder.declaredOptions)
         override val metadata = builder.metadata
         override val modelLocalIndications = true
         override val maximumLineSpeed = builder.maximumLineSpeed

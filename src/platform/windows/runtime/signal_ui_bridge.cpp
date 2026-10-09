@@ -4,10 +4,13 @@
 // Registration does not enable a panel: a real session and a complete observed
 // signal catalog must first be supplied by the SDK observation worker.
 #include "runtime/signal_ui_endpoint.h"
+#include "runtime/signal_preview_diagnostics.h"
 #include "runtime/signal_settings_panel.h"
 #include "engine/binary_identity.h"
 #include "platform/windows/signal_preview.h"
 #include "platform/windows/game_language.h"
+#include <platform/windows/mod_options_host.h>
+#include <platform/windows/mod_options_ui.h>
 #include <MinHook.h>
 #include <array>
 
@@ -18,6 +21,7 @@ uint64_t base{};
 bool enabled=false;
 SRWLOCK initialization=SRWLOCK_INIT;
 nimby::runtime::SignalUiEndpoint endpoint;
+nimby::runtime::SignalPreviewDiagnostics previewDiagnostics;
 class ProviderEvent final:public nimby::runtime::SignalActions::ActionWake {
     HANDLE event_{};
 public:
@@ -141,12 +145,21 @@ UI_EXPORT NimbyUi_ModPresentV1(const char* id,uint32_t length,uint32_t* present)
 UI_EXPORT NimbyUi_ToolPanelPublishV1(uint64_t provider,const NimbyUiToolPanelV1* panel) noexcept {return endpoint.publishToolPanel(provider,panel);}
 UI_EXPORT NimbyUi_ToolPanelPublishV2(uint64_t provider,const NimbyUiToolPanelV2* panel) noexcept {return endpoint.publishToolPanelV2(provider,panel);}
 UI_EXPORT NimbyUi_SignalPreviewPublishV1(uint64_t provider,const NimbyUiSignalPreviewV1* value) noexcept {
-    if(!enabled||!originalViewport)return NIMBY_HOOKS_UNAVAILABLE;
+    const auto report=[&](uint32_t status,const nimby::runtime::SignalActions::PreviewResult& detail)noexcept {
+        // Diagnostics must never replace the original operation status.
+        try{previewDiagnostics.report(provider,value,status,detail,[](const char* message){
+            nimby::detail::diagnostics::write("sdk","WARN",message);
+        });}catch(...){}
+        return status;
+    };
+    if(!enabled||!originalViewport)return report(NIMBY_HOOKS_UNAVAILABLE,{});
     preview::BorrowedFrame frame(readMemory,nullptr);
     uint64_t root{},db{},sim{};
-    if(value&&value->count&&(!frame.get(base+0xb81998,root)||!root||!frame.get(root+0x540,db)||!db||!frame.get(root+0x680,sim)||!sim))return NIMBY_DATA_UNAVAILABLE;
+    if(value&&value->count&&(!frame.get(base+0xb81998,root)||!root||!frame.get(root+0x540,db)||!db||!frame.get(root+0x680,sim)||!sim))return report(NIMBY_DATA_UNAVAILABLE,{});
     uint64_t publication{};
-    const auto result=endpoint.publishPreview(provider,value,&publication);
+    nimby::runtime::SignalActions::PreviewResult detail{};
+    const auto result=endpoint.publishPreview(provider,value,&publication,&detail);
+    if(result!=NIMBY_OK)return report(result,detail);
     if(result==NIMBY_OK&&value&&value->count){
         AcquireSRWLockExclusive(&previewLock);
         // Only assignments occur under this lock. Out-of-order RPC completion
@@ -185,6 +198,7 @@ extern "C" __declspec(dllexport) DWORD WINAPI NimbyInternal_Bootstrap(void* argu
     const auto target=reinterpret_cast<void*>(base+0x7a0a40);
     const auto viewportTarget=reinterpret_cast<void*>(base+preview::viewportDrawRva);
     struct Cleanup{bool& created;bool& viewportCreated;void* target;void* viewportTarget;~Cleanup(){if(enabled)return;
+        nimby::platform::windows::mod_options::cleanupHooks();
         if(created)MH_RemoveHook(target);
         if(viewportCreated)MH_RemoveHook(viewportTarget);
         MH_Uninitialize();
@@ -193,6 +207,9 @@ extern "C" __declspec(dllexport) DWORD WINAPI NimbyInternal_Bootstrap(void* argu
     created=true;
     if(MH_CreateHook(viewportTarget,reinterpret_cast<void*>(&renderViewport),reinterpret_cast<void**>(&originalViewport))!=MH_OK)return NIMBY_INTERNAL_ERROR;
     viewportCreated=true;
+    // Initialize storage on the bootstrap worker, before any UI/input hook.
+    try{(void)nimby::platform::windows::mod_options::host();}catch(...){return NIMBY_INTERNAL_ERROR;}
+    if(!nimby::platform::windows::mod_options::installUi(base))return NIMBY_INTERNAL_ERROR;
     // The trampoline, TLS frames and owned registry must survive mod unloads.
     HMODULE self{};
     if(!GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS|GET_MODULE_HANDLE_EX_FLAG_PIN,reinterpret_cast<LPCWSTR>(&render),&self))return NIMBY_INTERNAL_ERROR;

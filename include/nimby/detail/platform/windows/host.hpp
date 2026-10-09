@@ -37,9 +37,11 @@ inline uint32_t currentProcessId() noexcept {
     const auto target=native::modHostTarget();
     return target?target:GetCurrentProcessId();
 }
+inline void modWorkStage(uint32_t value,uint64_t detail=0) noexcept {native::modHostStage(value,detail);}
 struct ModWork {
     ModWork(){native::modHostPulse(2);}
     ~ModWork(){native::modHostPulse(3);}
+    void stage(uint32_t value,uint64_t detail=0) noexcept {modWorkStage(value,detail);}
 };
 inline std::filesystem::path stateDirectory() {
         wchar_t root[32768]{};

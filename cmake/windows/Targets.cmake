@@ -32,6 +32,7 @@ add_library(NimbyRailsFranceSDK SHARED
     src/platform/windows/runtime/signal_ui_bridge_client.cpp
     src/platform/windows/runtime/mod_host.cpp
     src/platform/windows/runtime/mod_host_ui.cpp
+    src/platform/windows/runtime/mod_host_options.cpp
     src/platform/windows/runtime/mod_host_driving.cpp
     src/platform/windows/runtime/mod_host_textures.cpp
     src/platform/windows/runtime/mod_host_epoch.cpp
@@ -192,9 +193,11 @@ target_include_directories(nimby_signal_membership_probe PRIVATE include)
 target_link_libraries(nimby_signal_membership_probe PRIVATE nimby_build bcrypt)
 target_link_libraries(nimby_signal_settings_probe PRIVATE NimbyRailsFranceSDK nimby_build)
 add_library(nimby_signal_ui_probe_bridge SHARED tools/windows/signal_ui_probe_bridge.cpp src/platform/windows/engine/binary_identity.cpp)
-add_library(nimby_signal_ui_bridge SHARED src/platform/windows/runtime/signal_ui_bridge.cpp src/platform/windows/engine/binary_identity.cpp)
+add_library(nimby_signal_ui_bridge SHARED src/platform/windows/runtime/signal_ui_bridge.cpp
+    src/platform/windows/runtime/mod_options_host.cpp src/platform/windows/runtime/mod_options_ui.cpp
+    src/platform/windows/engine/binary_identity.cpp)
 target_include_directories(nimby_signal_ui_bridge PRIVATE include)
-target_link_libraries(nimby_signal_ui_bridge PRIVATE nimby_build nimby_minhook bcrypt)
+target_link_libraries(nimby_signal_ui_bridge PRIVATE nimby_build nimby_minhook bcrypt user32)
 set_target_properties(nimby_signal_ui_bridge PROPERTIES PREFIX "" OUTPUT_NAME "NimbySignalUiBridge-experimental-v1")
 add_dependencies(NimbyRailsFranceSDK nimby_signal_ui_bridge)
 install(TARGETS nimby_signal_ui_bridge RUNTIME DESTINATION bin)

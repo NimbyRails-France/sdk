@@ -198,6 +198,7 @@ void sameStoreReadContention(){
 void previewContention(){
     using namespace nimby::runtime;
     using State=SignalActions::PreviewStatus;
+    using Reason=SignalActions::PreviewReason;
     constexpr uint64_t source=0x8000000000041,track=0x1000000000021;
     constexpr nimby::SignalCheckbox fields[]{{"work","Work","",false}};
     SignalUiEndpoint endpoint;
@@ -229,11 +230,15 @@ void previewContention(){
         unsigned retries=0;
         const auto answer=actions.publishPreview(provider,owner,source,"repeat","repeat",{{track,.6,1,0}},SignalActions::Clock::now(),[&]{++retries;return false;});
         CHECK(answer.status==State::Busy&&retries==0);CHECK(!actions.preview(source));
+        CHECK(answer.diagnostic.reason==Reason::RegistryBusy&&answer.publication==0);
         CHECK(endpoint.publishPreview(provider,&wire)==NIMBY_RESOURCE_LIMIT);
         blocked.finish();CHECK(blocked.completed);
     }
     {
         BlockedSave blocked(store,session);CHECK(blocked.wait());
+        unsigned retries=0;
+        const auto busy=actions.publishPreview(provider,owner,source,"repeat","repeat",{{track,.6,1,0}},SignalActions::Clock::now(),[&]{++retries;return false;});
+        CHECK(busy.status==State::Busy&&busy.diagnostic.reason==Reason::StoreBusy&&busy.publication==0&&retries==1);
         auto call=std::async(std::launch::async,[&]{return endpoint.publishPreview(provider,&wire);});
         auto render=std::async(std::launch::async,[&]{return actions.preview(source);});
         auto peer=std::async(std::launch::async,[&]{return actions.observeProvider(provider,{"world",1});});
@@ -264,28 +269,66 @@ void previewContention(){
             ++retries;blocked.finish();return true;
         });
         CHECK(answer.status==State::Published&&retries==1&&answer.publication>serial);
+        CHECK(answer.diagnostic.reason==Reason::None);
         const auto drawn=actions.preview(source);CHECK(drawn&&drawn->positions[0].fraction==.7);
         CHECK(drawn->expires==begin+2s); // Retry does not start another lease.
     }
-    auto pendingThen=[&](auto change){
+    auto pendingThen=[&](Reason reason,auto change){
         BlockedSave blocked(store,session);CHECK(blocked.wait());unsigned retries=0;
         const auto answer=actions.publishPreview(provider,owner,source,"repeat","repeat",{{track,.8,1,0}},SignalActions::Clock::now(),[&]{
             ++retries;blocked.finish();change();return true;
         });
         CHECK(answer.status==State::Invalid&&retries==1);CHECK(!actions.preview(source));
+        CHECK(answer.diagnostic.reason==reason&&answer.publication==0);
+        CHECK(std::string(answer.diagnostic.providerId)=="tool");
+        return answer.diagnostic;
     };
     // A stop/clear wins against a renewal already waiting on the real store.
-    pendingThen([&]{CHECK(actions.publishPreview(provider,0,0,{},{},{}));});
+    const auto cancelled=pendingThen(Reason::RequestCancelled,[&]{CHECK(actions.publishPreview(provider,0,0,{},{},{}));});
+    CHECK(cancelled.expectedRevision<cancelled.revision);
     CHECK(endpoint.publishPreview(provider,&wire)==NIMBY_OK);
-    pendingThen([&]{store->suspendObservations();CHECK(store->observeSignals(session,signals));});
+    const auto resumed=pendingThen(Reason::ObservationEpochChanged,[&]{store->suspendObservations();CHECK(store->observeSignals(session,signals));});
+    CHECK(resumed.expectedObservationEpoch<resumed.observationEpoch);
     CHECK(endpoint.publishPreview(provider,&wire)==NIMBY_OK);
-    pendingThen([&]{CHECK(store->observeSignals(session,{}));CHECK(store->observeSignals(session,signals));});
+    pendingThen(Reason::ObservationEpochChanged,[&]{CHECK(store->observeSignals(session,{}));CHECK(store->observeSignals(session,signals));});
     CHECK(store->setBoolean(store->selectSignal(session,source),"work",true));
     CHECK(endpoint.publishPreview(provider,&wire)==NIMBY_OK);
-    pendingThen([&]{session=store->beginSession("world");CHECK(store->observeSignals(session,signals));});
+    pendingThen(Reason::ObservationEpochChanged,[&]{session=store->beginSession("world");CHECK(store->observeSignals(session,signals));});
     CHECK(store->setBoolean(store->selectSignal(session,source),"work",true));
     CHECK(endpoint.publishPreview(provider,&wire)==NIMBY_OK);
-    pendingThen([&]{CHECK(actions.suspendProvider(provider));CHECK(actions.observeProvider(provider,{"world",1}));});
+    const auto restarted=pendingThen(Reason::ProviderEpochChanged,[&]{CHECK(actions.suspendProvider(provider));CHECK(actions.observeProvider(provider,{"world",1}));});
+    CHECK(restarted.expectedProviderEpoch<restarted.providerEpoch);
+    CHECK(endpoint.publishPreview(provider,&wire)==NIMBY_OK);
+    // The source can remain continuously observed while a different signal
+    // disappears. The admitted catalogue epoch still cannot be reused.
+    const nimby::SignalSettingsStore::Signal withNeighbour[]{{source,"atlas"},{source+1,"atlas"}};
+    CHECK(store->observeSignals(session,withNeighbour));
+    const auto changedCatalogue=pendingThen(Reason::ObservationEpochChanged,[&]{CHECK(store->observeSignals(session,signals));});
+    CHECK(changedCatalogue.expectedObservationEpoch<changedCatalogue.observationEpoch);
+    CHECK(store->signalState(source,true,"world")==nimby::SignalSettingsStore::SignalState::Known);
+    CHECK(endpoint.publishPreview(provider,&wire)==NIMBY_OK);
+    // Panel availability is independent of store observations. A new request
+    // works once the panel returns; an already waiting request is refused.
+    pendingThen(Reason::PanelInactive,[&]{CHECK(actions.panelContext(owner,{}));});
+    CHECK(store->signalState(source,true,"world")==nimby::SignalSettingsStore::SignalState::Known);
+    CHECK(actions.panelContext(owner,{"world",1}));
+    CHECK(endpoint.publishPreview(provider,&wire)==NIMBY_OK);
+    pendingThen(Reason::PanelWorldChanged,[&]{CHECK(actions.panelContext(owner,{"another",1}));});
+    CHECK(actions.panelContext(owner,{"world",1}));
+    CHECK(endpoint.publishPreview(provider,&wire)==NIMBY_OK);
+    const auto panelReloaded=pendingThen(Reason::PanelGenerationChanged,[&]{CHECK(actions.panelContext(owner,{"world",2}));});
+    CHECK(panelReloaded.generation==1&&panelReloaded.providerGeneration==1&&panelReloaded.panelGeneration==2);
+    CHECK(actions.panelContext(owner,{"world",1}));
+    CHECK(endpoint.publishPreview(provider,&wire)==NIMBY_OK);
+    // Provider context changes revoke the admitted epoch first, even when
+    // the replacement world or generation itself would also be incompatible.
+    const auto providerWorld=pendingThen(Reason::ProviderEpochChanged,[&]{CHECK(actions.observeProvider(provider,{"another",1}));});
+    CHECK(providerWorld.expectedProviderEpoch<providerWorld.providerEpoch);
+    CHECK(actions.observeProvider(provider,{"world",1}));
+    CHECK(endpoint.publishPreview(provider,&wire)==NIMBY_OK);
+    const auto providerReloaded=pendingThen(Reason::ProviderEpochChanged,[&]{CHECK(actions.observeProvider(provider,{"world",2}));});
+    CHECK(providerReloaded.generation==1&&providerReloaded.providerGeneration==2&&providerReloaded.panelGeneration==1);
+    CHECK(actions.observeProvider(provider,{"world",1}));
     CHECK(endpoint.publishPreview(provider,&wire)==NIMBY_OK);
     {
         BlockedSave blocked(store,session);CHECK(blocked.wait());
@@ -293,15 +336,25 @@ void previewContention(){
         const auto answer=actions.publishPreview(provider,owner,source,"repeat","repeat",{{track,.9,1,0}},begin,[&]{
             blocked.finish();time+=3s;return true;
         },[&]{return time;});
-        CHECK(answer.status==State::Invalid);CHECK(!actions.preview(source,time));
+        CHECK(answer.status==State::Invalid&&answer.diagnostic.reason==Reason::PreviewExpired&&answer.publication==0);
+        CHECK(!actions.preview(source,time));
     }
+    auto rejectedNow=[&](Reason reason){
+        const auto answer=actions.publishPreview(provider,owner,source,"repeat","repeat",{{track,.5,1,0}});
+        CHECK(answer.status==State::Invalid&&answer.diagnostic.reason==reason&&answer.publication==0);
+    };
     store->suspendObservations();CHECK(endpoint.publishPreview(provider,&wire)==NIMBY_INVALID_HANDLE);
+    rejectedNow(Reason::ObservationsSuspended);
     CHECK(store->observeSignals(session,{}));CHECK(endpoint.publishPreview(provider,&wire)==NIMBY_INVALID_HANDLE);
+    rejectedNow(Reason::SignalMissing);
     CHECK(store->observeSignals(session,signals));
     CHECK(endpoint.publishPreview(provider,&wire)==NIMBY_OK);
     CHECK(store->setBoolean(store->selectSignal(session,source),"work",true));
-    pendingThen([&]{CHECK(endpoint.host.remove(owner));});
+    pendingThen(Reason::PanelMissing,[&]{CHECK(endpoint.host.remove(owner));});
     CHECK(endpoint.publishPreview(provider,&wire)==NIMBY_INVALID_HANDLE);
+    rejectedNow(Reason::PanelMissing);
+    CHECK(endpoint.removeProvider(provider)==NIMBY_OK);
+    rejectedNow(Reason::ProviderMissing);
 }
 void retainedBusyPanel(){
     using namespace nimby::runtime;

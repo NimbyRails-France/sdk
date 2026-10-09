@@ -1,6 +1,6 @@
 # Contracts that run unchanged on either host. No bridge or game process needed.
 if(BUILD_TESTING)
-    foreach(contract automatic_controller driving_command mod_manifest train_monitor_model train_metadata control_lease construction signal_actions signal_ui_isolation signal_ui_retirement translations)
+    foreach(contract automatic_controller driving_command mod_manifest train_monitor_model train_metadata control_lease construction signal_actions signal_ui_isolation signal_ui_retirement signal_preview_diagnostics translations mod_shortcuts mod_options mod_options_codec mod_options_client)
         add_executable(nimby_${contract}_tests tests/${contract}.cpp)
         target_include_directories(nimby_${contract}_tests PRIVATE include)
         target_link_libraries(nimby_${contract}_tests PRIVATE nimby_build)

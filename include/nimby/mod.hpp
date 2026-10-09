@@ -62,6 +62,9 @@ struct Mod {
     // Invoked on this mod's observation worker, never on the native UI thread.
     void (*signalAction)(const NimbyUiActionEventV1&,const Snapshot&)=nullptr;
     void (*signalActionV2)(const NimbyUiActionEventV2&,const Snapshot&)=nullptr;
+    // SDK-private configuration handoff, run on the mod worker before capture.
+    // It also runs without a loaded world, so menu options can be registered.
+    void (*refreshOptions)()=nullptr;
 };
 
 // Implement once in mod.cpp. Called explicitly by NRF Loader, never in DllMain.

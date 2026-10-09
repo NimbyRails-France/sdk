@@ -21,6 +21,8 @@ abstract class GameMod {
     abstract val title: String
     /** Déclarer metadata dans le builder pour générer les informations du jeu. */
     open val metadata: ModMetadata? = null
+    /** Préférences globales du joueur, affichées et enregistrées par le SDK. */
+    open val options: List<ModOption<*>> = emptyList()
     open val windows: List<ToolWindow> = emptyList()
     open fun onWindowEvent(request: ToolWindowEvent, context: ToolContext) {}
     open val services: List<String> = emptyList()
@@ -38,6 +40,7 @@ class ToolMod internal constructor(
     override val metadata: ModMetadata?,
     override val windows: List<ToolWindow>,
     private val windowHandlers: Map<String, ToolContext.(ToolWindowEvent) -> Unit>,
+    override val options: List<ModOption<*>>,
 ) : GameMod() {
     override val services: List<String> = handlers.keys.toList()
     override fun onSignalAction(request: SignalActionRequest, context: ToolContext) {
@@ -51,14 +54,21 @@ class ToolMod internal constructor(
 }
 
 class ToolModBuilder internal constructor() {
+    internal val declaredOptions = mutableListOf<ModOption<*>>()
+    /** Ajoute les préférences du mod, dans l'ordre d'affichage. */
+    fun options(vararg values: ModOption<*>) {
+        val combined = checkedModOptions(declaredOptions + values, windows.size)
+        declaredOptions.clear(); declaredOptions.addAll(combined)
+    }
     internal val windows = mutableListOf<ToolWindow>()
     internal val windowHandlers = linkedMapOf<String, ToolContext.(ToolWindowEvent) -> Unit>()
     /** Enregistre une fenêtre et son formulaire ; aucun signal requis. */
     fun window(id: String, title: String, shortcut: String = "F8", handler: ToolContext.(ToolWindowEvent) -> Unit) {
         validateServiceName(id)
         require(id !in windowHandlers && windows.size < 8)
-        require(windows.none { it.shortcut == shortcut }) { "Raccourci déjà déclaré : $shortcut" }
-        require(shortcut.matches(Regex("Ctrl\\+Shift\\+[A-Z]|F([1-9]|1[0-2])")))
+        checkedModOptions(declaredOptions, windows.size + 1)
+        require(shortcut.isEmpty() || windows.none { it.shortcut == shortcut }) { "Raccourci déjà déclaré : $shortcut" }
+        require(validOptionShortcut(shortcut)) { "Raccourci invalide : $shortcut" }
         require(title.isNotBlank() && title.encodeToByteArray().size <= 256 && '\u0000' !in title)
         windows.add(ToolWindow(id, title, shortcut)); windowHandlers[id] = handler
     }
@@ -85,7 +95,7 @@ fun toolMod(id: String, title: String, block: ToolModBuilder.() -> Unit): ToolMo
     val builder = ToolModBuilder().apply(block)
     require(builder.handlers.isNotEmpty() || builder.windows.isNotEmpty()) { "Déclarer un service ou une fenêtre" }
     return ToolMod(id, title, builder.handlers.toMap(), builder.tick, builder.stop, builder.metadata,
-        builder.windows.toList(), builder.windowHandlers.toMap())
+        builder.windows.toList(), builder.windowHandlers.toMap(), checkedModOptions(builder.declaredOptions, builder.windows.size))
 }
 
 internal fun validateServiceName(value: String) {

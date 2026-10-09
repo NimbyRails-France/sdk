@@ -1,5 +1,6 @@
 #include <platform/windows/mod_host_protocol.h>
 #include <nimby/detail/signal_ui_bridge.h>
+#include <nimby/detail/diagnostics.hpp>
 #include <windows.h>
 #include <bit>
 #include <new>
@@ -144,13 +145,26 @@ uint32_t translations(uint32_t kind,uint64_t t,const char* bytes,uint32_t size) 
 }
 
 uint32_t dispatchUi(const Request& request,Reply& reply,Owners& owners) {
+    if(request.operation>=150&&request.operation<=153)return dispatchOptions(request,reply,owners);
     return boundary([&]() -> uint32_t {
         reply={};const auto& a=request.args;
         if(request.data.size()>payloadLimit)return NIMBY_RESOURCE_LIMIT;
         const bool provider=(request.operation>=ProviderRemove&&request.operation<=ProviderPoll)||
             request.operation==ToolPanel||request.operation==ToolPanelV2||request.operation==ProviderPollV2||request.operation==Preview;
         const bool panel=(request.operation>=Remove&&request.operation<=PanelContext)||request.operation==ReadBatch||request.operation==SettingsRevision;
-        if((panel||provider)&&!owns(owners,a[0],provider))return NIMBY_INVALID_HANDLE;
+        if((panel||provider)&&!owns(owners,a[0],provider)){
+            // This guard runs before the resident endpoint. Record it too so
+            // an invalid channel owner cannot look like a silent preview failure.
+            // Owners are private to this serialized broker channel; no shared
+            // action/store lock is held here. The sink bounds repeated reports.
+            char message[256]{};
+            std::snprintf(message,sizeof message,
+                "Signal UI ownership rejected: status=%u reason=channel_%s_not_owned operation=%u token=%llu panels=%zu providers=%zu",
+                uint32_t(NIMBY_INVALID_HANDLE),provider?"provider":"panel",request.operation,
+                static_cast<unsigned long long>(a[0]),owners.panels.size(),owners.providers.size());
+            detail::diagnostics::write("loader","WARN",message);
+            return NIMBY_INVALID_HANDLE;
+        }
         switch(request.operation) {
         case Register: {
             NimbyUiPanelV1 value{};if(!exact(request,value))return NIMBY_INVALID_ARGUMENT;
@@ -315,6 +329,7 @@ uint32_t dispatchUi(const Request& request,Reply& reply,Owners& owners) {
     });
 }
 void cleanupUi(Owners& owners) noexcept {
+    cleanupOptions(owners);
     for(const auto token:owners.providers)call<NimbyUiProviderRemoveV1>("NimbyUi_ProviderRemoveV1",token);
     for(const auto token:owners.panels)call<NimbyUiRemoveV1>("NimbyUi_RemoveV1",token);
     owners.providers.clear();owners.panels.clear();
@@ -338,5 +353,5 @@ extern "C" NIMBY_API void* __cdecl NimbyInternal_ModHostUiSymbol(const char* nam
     SYMBOL("NimbyUi_SignalPreviewPublishV1",preview);SYMBOL("NimbyUi_TranslationsV1",translations);
 #undef SYMBOL
     // SettingsCopyBegin/Finish are native construction handoffs, never mod APIs.
-    return nullptr;
+    return optionsSymbol(name);
 }

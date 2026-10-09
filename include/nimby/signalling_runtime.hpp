@@ -6,6 +6,7 @@
 #include <nimby/signalling_control.hpp>
 #include <nimby/detail/signal_animation.hpp>
 #include <nimby/detail/live_texture_tracking.hpp>
+#include <nimby/detail/mod_work.hpp>
 #include <unordered_set>
 
 namespace nimby {
@@ -115,10 +116,12 @@ public:
 private:
     static auto networkDecisions(std::span<const typename Rules::Signal> input,bool live,std::size_t limit) {
         if(input.size()>limit)throw std::invalid_argument("Signal evaluation limit exceeded");
+        if(live)detail::markModWork(NIMBY_MOD_WORK_PREPARE_NETWORK,input.size());
         const auto signals = [&] {
             if constexpr(requires { Rules::prepareNetwork(input); })return Rules::prepareNetwork(input);
             else return input;
         }();
+        if(live)detail::markModWork(NIMBY_MOD_WORK_EVALUATE_NETWORK,std::span<const typename Rules::Signal>{signals}.size());
         return nimby::evaluateSignalsWithFallback<typename Rules::Decision>(std::span<const typename Rules::Signal>{signals},[live](const auto& signal,const auto& next) {
                 if constexpr(controllable)if(live)if(auto forced=controlState().forced(signal.id))return forced;
                 return Rules::decide(signal,next);
@@ -192,6 +195,7 @@ private:
         static std::unordered_map<Id,Rendered> values;return values;
     }
     static void observeLive(const Snapshot& snapshot) {
+        detail::markModWork(NIMBY_MOD_WORK_OBSERVE_SIGNALS);
         const auto clock = snapshot.getSimulationClock();
         if (!clock) throw std::runtime_error("Simulation clock unavailable");
         const auto simulationMs=clock->getElapsedTime().count();
@@ -205,7 +209,9 @@ private:
         }();
         std::vector<typename Rules::Signal> signals;signals.reserve(states.size());
         std::unique_lock<std::mutex> controlLock;
+        detail::markModWork(NIMBY_MOD_WORK_SIGNAL_CONTROL,states.size());
         if constexpr(controllable){controlLock=std::unique_lock(controlState().mutex);controlState().observe(snapshot,states);}
+        detail::markModWork(NIMBY_MOD_WORK_SIGNAL_SETTINGS,states.size());
         for (auto& state : states) {
             state.settings=readSignalSettings(state.id);
             if constexpr(controllable)controlState().overlay(state.id,state.settings);
@@ -214,25 +220,30 @@ private:
         const auto result = evaluateLiveNetwork(signals);
         if constexpr(controllable)for(const auto& row:result.signals.values())controlState().decisions[row.signal]=row.result.decision;
         if constexpr(requires(Id id,typename Rules::Decision decision){Rules::drivingRule(id,decision);}) {
+            detail::markModWork(NIMBY_MOD_WORK_PREPARE_DRIVING,result.signals.values().size());
             std::vector<SignalDrivingRule> drivingRules;
             for(const auto& row:result.signals.values())
                 if(const auto rule=Rules::drivingRule(row.signal,row.result.decision))drivingRules.push_back(*rule);
             const bool maximumLineSpeed=[] {if constexpr(requires{Rules::maximumLineSpeed;})return Rules::maximumLineSpeed;else return false;}();
+            detail::markModWork(NIMBY_MOD_WORK_PUBLISH_DRIVING,drivingRules.size());
             AutomaticDriving::publish(drivingRules,Milliseconds{1000},maximumLineSpeed);
         }
         auto& owned = liveTextures();
-        if constexpr(controllable)controlState().publishTrains();
+        if constexpr(controllable){detail::markModWork(NIMBY_MOD_WORK_PUBLISH_TRAINS);controlState().publishTrains();}
         if(controlLock.owns_lock())controlLock.unlock();
         // Diagnostics receive the same facts, after urgent driving publication.
+        detail::markModWork(NIMBY_MOD_WORK_SIGNAL_DIAGNOSTICS,states.size());
         if constexpr(requires { Rules::diagnoseLive(snapshot,states,result); })
             Rules::diagnoseLive(snapshot,states,result);
         std::unordered_map<Id,std::string_view> catalogues;
         catalogues.reserve(states.size());
         for(const auto& state:states)catalogues.emplace(state.id,state.textureSet);
+        detail::markModWork(NIMBY_MOD_WORK_TEXTURE_CLEANUP,owned.size());
         // Signals deleted or reassigned to another catalogue cease to be owned.
         detail::restoreTrackedTextures(owned,[&](Id id){return !catalogues.contains(id);},
             [](std::span<const Id> ids){SignalTextures::inGame().restore(ids);},[](Id id){rendered().erase(id);});
         std::unordered_set<Id> ownedIds(owned.begin(),owned.end());
+        detail::markModWork(NIMBY_MOD_WORK_PREPARE_TEXTURES,result.signals.values().size());
         std::vector<TextureUpdate> updates;updates.reserve(result.signals.values().size());
         std::vector<std::pair<Id,Rendered>> changed;changed.reserve(result.signals.values().size());
         const auto now=std::chrono::steady_clock::now();
@@ -255,7 +266,9 @@ private:
                 Milliseconds{animated?animation.everyMs:0},Milliseconds{2500}});
             changed.push_back({row.signal,{animation,std::string(source->second),now}});
         }
+        detail::markModWork(NIMBY_MOD_WORK_PUBLISH_TEXTURES,updates.size());
         SignalTextures::inGame().publish(updates);
+        detail::markModWork(NIMBY_MOD_WORK_TEXTURE_COMMIT,changed.size());
         for(auto& [signal,value]:changed)rendered()[signal]=std::move(value);
         // Do not throw here: that would invalidate healthy driving rules and
         // renewed peers. Native visuals for refused IDs are not proven safe.

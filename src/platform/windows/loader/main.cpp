@@ -16,7 +16,7 @@ BOOL WINAPI stop_handler(DWORD event) {
 }
 }
 int wmain(int argc,wchar_t** argv) {
-    nimby::detail::diagnostics::write("loader", "INFO", "Starting external loader SDK 0.9.0-alpha.1");
+    nimby::detail::diagnostics::write("loader", "INFO", "Starting external loader SDK 0.9.0-alpha.2");
     try {
         if (argc==2 && std::wstring(argv[1])==L"--stop") {
             HANDLE event=OpenEventW(EVENT_MODIFY_STATE,FALSE,stop_event_name);

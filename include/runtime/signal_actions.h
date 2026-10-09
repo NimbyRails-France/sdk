@@ -58,9 +58,26 @@ public:
         uint64_t storeEpoch=0,publication=0;
     };
     enum class PreviewStatus { Published, Invalid, Busy };
+    // Internal diagnostic values only; the mod-facing C ABI keeps its statuses.
+    enum class PreviewReason {
+        None, RegistryBusy, ProviderMissing, PanelMissing, RequestCancelled,
+        PanelInactive, ContextMissing, ProviderEpochChanged, PreviewExpired, ProviderExpired,
+        ProviderWorldChanged, ProviderGenerationChanged, PanelWorldChanged, PanelGenerationChanged,
+        ServiceMissing, ActionMissing, StoreBusy, StoreRetired, StoreSessionMissing,
+        ObservationsSuspended, StoreWorldChanged, ObservationEpochChanged, SignalMissing
+    };
+    struct PreviewDiagnostic {
+        PreviewReason reason=PreviewReason::None;
+        char providerId[129]{};
+        uint64_t expectedProviderEpoch=0,providerEpoch=0;
+        uint64_t generation=0,providerGeneration=0,panelGeneration=0;
+        uint64_t expectedObservationEpoch=0,observationEpoch=0;
+        uint64_t expectedRevision=0,revision=0;
+    };
     struct PreviewResult {
         PreviewStatus status;
         uint64_t publication=0;
+        PreviewDiagnostic diagnostic{};
         explicit operator bool()const{return status==PreviewStatus::Published;}
     };
     struct PreviewRetry {
@@ -84,16 +101,37 @@ public:
         const auto started=clock();
         std::optional<Preview> next;
         uint64_t requestRevision=0;
+        PreviewDiagnostic diagnostic;
         for(;;){
             {
                 std::unique_lock lock(mutex_,std::try_to_lock);
                 // Without the first registry snapshot we have no owner epoch
                 // or cancellation ticket. Defer to a fresh worker tick rather
                 // than crossing an unseen clear/suspend while trying to enter.
-                if(!lock&&!next)return {PreviewStatus::Busy};
+                if(!lock&&!next)return {PreviewStatus::Busy,0,{PreviewReason::RegistryBusy}};
                 if(lock){
+                    // Fields from a prior busy attempt are not current values
+                    // for a later cancellation/suspension check.
+                    diagnostic.providerEpoch=0;diagnostic.providerGeneration=0;diagnostic.panelGeneration=0;
+                    diagnostic.observationEpoch=0;diagnostic.revision=0;
                     const auto owner=providers_.find(provider);
-                    if(owner==providers_.end())return {PreviewStatus::Invalid};
+                    const auto rejected=[&](PreviewStatus status,PreviewReason reason){
+                        diagnostic.reason=reason;
+                        // Copy bounded failure context under the same registry
+                        // lock as validation. Logging happens after this return.
+                        if(owner!=providers_.end()){
+                            const auto& p=owner->second;
+                            std::copy(p.id.begin(),p.id.end(),diagnostic.providerId);
+                            diagnostic.providerEpoch=p.epoch;diagnostic.providerGeneration=p.context.generation;
+                            diagnostic.revision=p.previewRevision;
+                        }
+                        if(const auto consumer=panels_.find(panel);consumer!=panels_.end())
+                            diagnostic.panelGeneration=consumer->second.context.generation;
+                        if(next){diagnostic.expectedProviderEpoch=next->epoch;diagnostic.generation=next->context.generation;
+                            diagnostic.expectedObservationEpoch=next->storeEpoch;diagnostic.expectedRevision=requestRevision;}
+                        return PreviewResult{status,0,diagnostic};
+                    };
+                    if(owner==providers_.end())return rejected(PreviewStatus::Invalid,PreviewReason::ProviderMissing);
                     if(!next){
                         if(positions.empty()){
                             ++owner->second.previewRevision;
@@ -101,7 +139,7 @@ public:
                             return {PreviewStatus::Published};
                         }
                         const auto consumer=panels_.find(panel);
-                        if(consumer==panels_.end())return {PreviewStatus::Invalid};
+                        if(consumer==panels_.end())return rejected(PreviewStatus::Invalid,PreviewReason::PanelMissing);
                         next=Preview{provider,panel,owner->second.epoch,signal,std::move(origin),std::move(service),owner->second.context,
                             std::move(positions),now+std::chrono::seconds(2),consumer->second.store->observationEpoch(),0};
                         requestRevision=owner->second.previewRevision;
@@ -109,18 +147,25 @@ public:
                     // A retry retains its original owner/session and expiry.
                     // Suspension, deletion/readdition or a new session cannot
                     // turn a previously pending drawing into a fresh request.
-                    if(requestRevision!=owner->second.previewRevision)return {PreviewStatus::Invalid};
-                    const auto state=previewStateLocked(*next,now+(clock()-started));
-                    if(state==SignalSettingsStore::SignalState::Unknown)return {PreviewStatus::Invalid};
+                    if(requestRevision!=owner->second.previewRevision)return rejected(PreviewStatus::Invalid,PreviewReason::RequestCancelled);
+                    const auto state=previewStateLocked(*next,now+(clock()-started),&diagnostic);
+                    if(state==SignalSettingsStore::SignalState::Unknown)return rejected(PreviewStatus::Invalid,diagnostic.reason);
                     if(state==SignalSettingsStore::SignalState::Known){
                         ++owner->second.previewRevision;next->publication=++serial_;const auto publication=next->publication;
                         preview_=std::move(*next);return {PreviewStatus::Published,publication};
                     }
-                }
+                    diagnostic=rejected(PreviewStatus::Busy,diagnostic.reason).diagnostic;
+                }else diagnostic.reason=PreviewReason::RegistryBusy;
             }
             // Never hold the action/store/render lock while waiting. Both a
             // wall-clock budget and an attempt cap bound worker-side retries.
-            if(!retry())return {PreviewStatus::Busy};
+            if(!retry()){
+                // No registry snapshot is read after unlocking. The last
+                // validation distinguishes store contention from registry contention.
+                if(next){diagnostic.expectedProviderEpoch=next->epoch;diagnostic.generation=next->context.generation;
+                    diagnostic.expectedObservationEpoch=next->storeEpoch;diagnostic.expectedRevision=requestRevision;}
+                return {PreviewStatus::Busy,0,diagnostic};
+            }
         }
     }
     std::optional<Preview> preview(uint64_t selectedSignal,Clock::time_point now=Clock::now())const {
@@ -366,15 +411,41 @@ private:
     // panel retire its queued intents without allocating during cleanup.
     struct Provider {std::string id;std::set<std::string> services;Context context;Clock::time_point expires;Token epoch;std::list<Event> queue;std::map<std::pair<Token,uint64_t>,Presentation> panels;uint64_t previewRevision=0;std::shared_ptr<const ActionWake> wake{};};
     struct Panel {std::shared_ptr<SignalSettingsStore> store;Context context;std::vector<Action> actions;bool active=false;};
-    SignalSettingsStore::SignalState previewStateLocked(const Preview& preview,Clock::time_point now)const {
+    SignalSettingsStore::SignalState previewStateLocked(const Preview& preview,Clock::time_point now,PreviewDiagnostic* diagnostic=nullptr)const {
         using State=SignalSettingsStore::SignalState;
         const auto p=providers_.find(preview.provider);const auto panel=panels_.find(preview.panel);
-        if(p==providers_.end()||panel==panels_.end()||!panel->second.active||!preview.context||p->second.epoch!=preview.epoch||
-            now>=preview.expires||now>=p->second.expires||p->second.context!=preview.context||panel->second.context!=preview.context||
-            !p->second.services.contains(preview.service))return State::Unknown;
+        const auto unknown=[&](PreviewReason reason){if(diagnostic)diagnostic->reason=reason;return State::Unknown;};
+        if(p==providers_.end())return unknown(PreviewReason::ProviderMissing);
+        if(panel==panels_.end())return unknown(PreviewReason::PanelMissing);
+        if(!panel->second.active)return unknown(PreviewReason::PanelInactive);
+        if(!preview.context)return unknown(PreviewReason::ContextMissing);
+        if(p->second.epoch!=preview.epoch)return unknown(PreviewReason::ProviderEpochChanged);
+        if(now>=preview.expires)return unknown(PreviewReason::PreviewExpired);
+        if(now>=p->second.expires)return unknown(PreviewReason::ProviderExpired);
+        if(p->second.context.world!=preview.context.world)return unknown(PreviewReason::ProviderWorldChanged);
+        if(p->second.context.generation!=preview.context.generation)return unknown(PreviewReason::ProviderGenerationChanged);
+        if(panel->second.context.world!=preview.context.world)return unknown(PreviewReason::PanelWorldChanged);
+        if(panel->second.context.generation!=preview.context.generation)return unknown(PreviewReason::PanelGenerationChanged);
+        if(!p->second.services.contains(preview.service))return unknown(PreviewReason::ServiceMissing);
         if(!std::any_of(panel->second.actions.begin(),panel->second.actions.end(),[&](const auto& a){
-            return a.id==preview.origin&&a.service==preview.service&&a.provider==p->second.id;}))return State::Unknown;
-        return panel->second.store->signalState(preview.signal,true,preview.context.world,preview.storeEpoch);
+            return a.id==preview.origin&&a.service==preview.service&&a.provider==p->second.id;}))return unknown(PreviewReason::ActionMissing);
+        SignalSettingsStore::SignalStateDetails details;
+        const auto state=panel->second.store->signalState(preview.signal,true,preview.context.world,preview.storeEpoch,diagnostic?&details:nullptr);
+        if(diagnostic){
+            diagnostic->observationEpoch=details.epoch;
+            using Reason=SignalSettingsStore::SignalStateReason;
+            switch(details.reason){
+                case Reason::None:diagnostic->reason=PreviewReason::None;break;
+                case Reason::Busy:diagnostic->reason=PreviewReason::StoreBusy;break;
+                case Reason::Retired:diagnostic->reason=PreviewReason::StoreRetired;break;
+                case Reason::SessionMissing:diagnostic->reason=PreviewReason::StoreSessionMissing;break;
+                case Reason::ObservationsSuspended:diagnostic->reason=PreviewReason::ObservationsSuspended;break;
+                case Reason::WorldChanged:diagnostic->reason=PreviewReason::StoreWorldChanged;break;
+                case Reason::EpochChanged:diagnostic->reason=PreviewReason::ObservationEpochChanged;break;
+                case Reason::SignalMissing:diagnostic->reason=PreviewReason::SignalMissing;break;
+            }
+        }
+        return state;
     }
     bool validLocked(const Selection& s,Clock::time_point now)const {
         const auto p=providers_.find(s.provider);const auto panel=panels_.find(s.panel);

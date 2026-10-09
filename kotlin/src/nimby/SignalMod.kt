@@ -91,6 +91,12 @@ internal data class CompiledSignal<A : Enum<A>, R : Enum<R>>(
  * exclusivement du mod. Le SDK prend en charge les exports et le réseau. */
 @SignalModDsl
 class SignalModBuilder<A : Enum<A>, R : Enum<R>> internal constructor() {
+    internal val declaredOptions = mutableListOf<ModOption<*>>()
+    /** Préférences globales du joueur ; les cases d'un signal restent séparées. */
+    fun options(vararg values: ModOption<*>) {
+        val combined = checkedModOptions(declaredOptions + values)
+        declaredOptions.clear(); declaredOptions.addAll(combined)
+    }
     var maximumLineSpeed: Boolean = false
     var diagnosticFile: String = "nimby-kotlin-faults.jsonl"
     internal val definitions = mutableListOf<CompiledSignal<A, R>>()
@@ -156,6 +162,7 @@ internal fun <A : Enum<A>, R : Enum<R>> buildSignalMod(
     return object : SignallingMod() {
         override val id = id
         override val title = title
+        override val options = checkedModOptions(builder.declaredOptions)
         override val maximumLineSpeed = builder.maximumLineSpeed
         override val diagnosticFile = builder.diagnosticFile
         override val signalTypes = definitions.map { it.type }

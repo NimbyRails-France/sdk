@@ -72,6 +72,10 @@ public:
     }
 
     [[nodiscard]] Pass pass() const noexcept { return pass_; }
+    // Internal resident integration only: synchronously lend this already
+    // validated emitter to an ORIGINAL native body. Never retain it or expose
+    // it to mod APIs; a scroll child expires when its callback returns.
+    [[nodiscard]] uint64_t nativeObject()const noexcept{return object_;}
     [[nodiscard]] bool buttonsAvailable()const noexcept{return button_!=0;}
     void heading(const char* text)const {
         prepareRow();margins(10,8,10,4);
@@ -160,6 +164,12 @@ public:
     }
     template<class Draw> void scroll(const char* key,float height,float minimumWidth,Draw draw) const {
         if(!group_){draw(*this);return;}
+        const auto& layout=gameLayout(profile_);
+        // The viewport is a separate item in the parent's layout. Its width
+        // must fill that column even when the preceding native widget has
+        // reset the declaration. Resizing the child content below cannot
+        // widen an already collapsed viewport or its clipping rectangle.
+        option(layout.ui_align_enabled,layout.ui_align_value,uint32_t{0xa0});
         nextHeight(height);
         // Scope only the extension group's scrollbar dimensions. Native theme
         // colours, hover/drag behaviour and every other game panel are kept.
@@ -188,7 +198,6 @@ public:
         // the remaining controls receive zero rectangles (an empty panel).
         // The root's height must remain automatic: its full content height
         // drives scrolling, independently of the capped viewport above.
-        const auto& layout=gameLayout(profile_);
         if(pass_==Pass::Interactive)child->fitScrollWidth(*this,minimumWidth);
         child->option(layout.ui_width_enabled,layout.ui_width_value,1.f);
         child->option(layout.ui_flow_enabled,layout.ui_flow_value,uint32_t{3}); // Native vertical column.

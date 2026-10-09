@@ -17,6 +17,7 @@ struct Reply {std::array<uint64_t,8> args{}; std::vector<uint8_t> data;};
 struct Owners {
     struct EpochTicket {uint64_t id{},generation{};int64_t ticks{};uint64_t expires{};};
     std::unordered_set<uint64_t> panels, providers;
+    uint64_t options{};
     // Parent-owned wake event for this channel. Never populated from an RPC.
     uint64_t actionWake{};
     uint64_t driving{};
@@ -27,6 +28,9 @@ struct Owners {
 };
 // Implemented by SDK-owned facades. No mod function pointer crosses this ABI.
 uint32_t dispatchUi(const Request&, Reply&, Owners&);
+uint32_t dispatchOptions(const Request&, Reply&, Owners&);
+void cleanupOptions(Owners&) noexcept;
+void* optionsSymbol(const char*) noexcept;
 uint32_t dispatchTools(const Request&, Reply&, Owners&);
 void cleanupUi(Owners&) noexcept;
 uint32_t dispatchDriving(const Request&, Reply&, Owners&);

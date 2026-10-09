@@ -83,6 +83,22 @@ struct ToolWindowsTest {
         assert(tools.enqueueOpen(0)&&wakes==2);
         const auto opened=tools.poll();assert(opened&&opened->action=="open"&&opened->game==*tools.game_);
         assert(!IsWindowVisible(view.window)); // No focus/window automation in this test.
+        // SDK-driven open requests do not reserve OS hotkeys or activate a
+        // window on this worker thread. Duplicate requests remain bounded.
+        assert(!tools.requestOpen("unknown"));
+        for(unsigned i=0;i<1000;++i)assert(tools.requestOpen("clock"));
+        assert(tools.pendingOpens_.size()==1&&tools.events_.empty()&&wakes==2);
+        assert(WaitForSingleObject(tools.uiWake_.event,0)==WAIT_OBJECT_0);
+        const auto pending=tools.takeOpenRequests();
+        assert(pending.size()==1&&pending.front().index==0&&tools.takeOpenRequests().empty());
+        assert(!IsWindowVisible(view.window)&&tools.events_.empty());
+        assert(tools.requestOpen("clock"));tools.invalidate();
+        assert(tools.pendingOpens_.empty()&&!tools.requestOpen("clock")&&tools.takeOpenRequests().empty());
+        tools.game_=GameSession{3,"next-world"};tools.observed_=GetTickCount64();
+        assert(!tools.enqueueOpen(pending.front().index,pending.front().epoch));
+        assert(tools.requestOpen("clock"));tools.observed_=GetTickCount64()-5001;
+        assert(tools.takeOpenRequests().empty()&&tools.pendingOpens_.empty());
+        assert(!tools.requestOpen("clock"));
         notified=nullptr;
     }
 };

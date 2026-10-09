@@ -2,6 +2,22 @@
 
 ## [Unreleased]
 
+## [0.9.0-alpha.2] - 2026-10-09
+
+### Français
+
+- Ajoute un onglet « NRF Hub » aux options du jeu. Ses rubriques Interface et Raccourcis regroupent les réglages par mod, avec conservation des préférences et retour aux valeurs par défaut.
+- Permet de personnaliser les raccourcis des fenêtres d’outils et indique l’action qui utilise déjà une combinaison, en tenant compte des raccourcis du jeu et des autres mods compatibles.
+- Facilite la création de réglages pour les mods, avec des cases à cocher, des valeurs numériques et des listes de choix, accompagnés de guides et d’exemples en français et en anglais.
+- Enrichit les diagnostics pour faciliter l’analyse des problèmes d’affichage des signaux, des aperçus de pose indisponibles et des interruptions de mods.
+
+### English
+
+- Adds an “NRF Hub” tab to the game options. Its Interface and Shortcuts sections group settings by mod, with saved preferences and the ability to restore defaults.
+- Lets players customize tool-window shortcuts and identifies actions already using a combination, taking game shortcuts and other compatible mods into account.
+- Makes it easier to add mod settings with checkboxes, numeric values and choices, supported by French and English guides and examples.
+- Adds more detailed diagnostics to help investigate signal display problems, unavailable placement previews and interrupted mods.
+
 ## [0.9.0-alpha.1] - 2026-10-08
 
 - Isole mieux les mods défectueux pour limiter les perturbations sur le jeu et les autres mods lorsqu'un mod se bloque ou s'arrête.

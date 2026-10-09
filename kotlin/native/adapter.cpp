@@ -2,12 +2,17 @@
 #include <atomic>
 #include <nimby/kotlin_mod.hpp>
 #include <nimby/signal_settings_store.hpp>
+#include <nimby/detail/signal_settings_runtime.hpp>
 #include <nimby/detail/native_library.hpp>
 #include <filesystem>
 #include <fstream>
 #include <iomanip>
 #include <set>
 #include <nimby/detail/translations.hpp>
+#include <nimby/detail/mod_options_client.hpp>
+#include <nimby/detail/mod_option_windows.hpp>
+#include <engine/mod_shortcuts.h>
+#include <chrono>
 #include <sstream>
 #include "tool_context.hpp"
 
@@ -72,6 +77,16 @@ struct Api {
     int (*toolTick)(const char*,int64_t,ToolCall)=nullptr;
     int (*toolStop)()=nullptr;
     std::vector<platform::ToolWindows::Definition> windows;
+    detail::ModOptionsClient optionsClient;
+    std::string optionsDeclaration;
+    int optionCount{};
+    int (*optionsApply)(const char*,int,int)=nullptr;
+    void (*originalStop)()=nullptr;
+    void (*originalObservationLost)()=nullptr;
+    detail::ModOptionWindows optionWindows;
+    std::optional<GameSession> optionsGame;
+    std::vector<std::string> pendingWindows;
+    std::chrono::steady_clock::time_point nextOptionsConnection{};
     int (*windowEvent)(int,int64_t,const char*,const char*,const int32_t*,int,const char*,int64_t,ToolCall)=nullptr;
     template<class T> T symbol(const char* name) {
         auto address=detail::native::symbol(module,name);if(!address)throw std::runtime_error(std::string("Missing Kotlin SDK export: ")+name);
@@ -87,6 +102,73 @@ struct Api {
         const auto count=typeMetadata(type,field,index,buffer.data(),int(buffer.size()));check(count);
         if(count>=int(buffer.size())||buffer[count]!=0)throw std::runtime_error("Invalid Kotlin type text length");
         return {buffer.data(),static_cast<std::size_t>(count)};
+    }
+    void prepareOptions(int abi) {
+        using Json=nlohmann::json;
+        auto fields=Json::array();
+        if(abi>=9){
+            optionCount=symbol<int(*)()>("NRFKotlin_OptionCount")();check(optionCount);
+            if(optionCount>64)throw std::runtime_error("Too many Kotlin mod options");
+            const auto info=symbol<int(*)(int,int*)>("NRFKotlin_OptionInfo");
+            const auto metadata=symbol<int(*)(int,int,char*,int)>("NRFKotlin_OptionMetadata");
+            const auto choice=symbol<int(*)(int,int,int,char*,int)>("NRFKotlin_OptionChoiceMetadata");
+            optionsApply=symbol<decltype(optionsApply)>("NRFKotlin_OptionsApply");
+            auto text=[&](int index,int field){std::array<char,1025> buffer{};
+                const auto n=metadata(index,field,buffer.data(),int(buffer.size()));check(n);
+                if(n>=int(buffer.size())||buffer[n])throw std::runtime_error("Invalid mod option text");
+                return std::string(buffer.data(),n);};
+            for(int i=0;i<optionCount;++i){
+                std::array<int,4> details{};check(info(i,details.data()));
+                if(details[0]<0||details[0]>3||details[3]<0||details[3]>16)throw std::runtime_error("Invalid mod option type");
+                Json field={{"id",text(i,0)},{"label",text(i,1)},{"description",text(i,2)},
+                    {"kind",details[0]},{"default",text(i,3)},{"minimum",details[1]},{"maximum",details[2]}};
+                field["choices"]=Json::array();
+                for(int j=0;j<details[3];++j){std::array<std::string,2> parts;
+                    for(int k=0;k<2;++k){std::array<char,257> buffer{};const auto n=choice(i,j,k,buffer.data(),int(buffer.size()));check(n);
+                        if(n<1||n>=int(buffer.size())||buffer[n])throw std::runtime_error("Invalid mod option choice");parts[k].assign(buffer.data(),n);}
+                    field["choices"].push_back({{"id",parts[0]},{"label",parts[1]}});
+                }
+                fields.push_back(std::move(field));
+            }
+        }
+        for(const auto& window:windows)fields.push_back({{"id",optionWindows.add(window.id)},{"label",window.title},
+            {"description",""},{"kind",3},{"default",window.shortcut}});
+        if(fields.empty())return;
+        if(fields.size()>64)throw std::runtime_error("Too many mod options and windows");
+        optionsDeclaration=Json({{"id",id},{"title",title},{"fields",std::move(fields)},
+            {"translations",translationsJson}}).dump();
+        if(optionsDeclaration.size()>NIMBY_OPTIONS_SCHEMA_LIMIT)throw std::runtime_error("Mod options declaration too large");
+    }
+    void refreshOptions(){
+        if(optionsDeclaration.empty())return;
+        if(!optionsClient.connected()){
+            const auto now=std::chrono::steady_clock::now();if(now<nextOptionsConnection)return;
+            nextOptionsConnection=now+std::chrono::seconds(1);
+            if(NimbyInternal_EnsureSignalUiBridge()!=NIMBY_OK||!optionsClient.connect(optionsDeclaration))return;
+        }
+        const auto changes=optionsClient.refresh([&](const detail::ModOptionsClient::Changes& changes){
+            if(!changes.changed)return;
+            if(changes.values.size()!=size_t(optionCount)+windows.size())throw std::runtime_error("Invalid mod options snapshot size");
+            for(size_t i=size_t(optionCount);i<changes.values.size();++i)
+                if(!engine::mod_shortcuts::parse(changes.values[i]))throw std::runtime_error("Invalid window shortcut value");
+            if(optionCount){
+                std::string packed;for(int i=0;i<optionCount;++i){packed+=changes.values[size_t(i)];packed+='\0';}
+                check(optionsApply(packed.data(),int(packed.size()),optionCount));
+            }
+        });
+        // These are opening requests only. The tool UI rechecks its own fresh
+        // game context and foreground window before showing anything.
+        pendingWindows.clear();
+        for(const auto& event:changes.events)if(const auto window=optionWindows.resolve(event);!window.empty())pendingWindows.emplace_back(window);
+    }
+    void observeOptionsGame(const GameSession& game){
+        if(optionsGame&&*optionsGame==game)return;
+        // refreshOptions ran before this capture. None of its input events is
+        // allowed to cross a session boundary, including the first capture.
+        pendingWindows.clear();optionsClient.discardEvents();optionsGame=game;
+    }
+    void loseOptionsGame(){
+        optionsGame.reset();pendingWindows.clear();optionsClient.discardEvents();
     }
     Api() {
         const auto ownPath=detail::native::modulePath(reinterpret_cast<const void*>(&check));
@@ -120,7 +202,7 @@ struct Api {
         if(const auto available=reinterpret_cast<int(*)(int)>(detail::native::symbol(module,"NRFKotlin_TranslationsAvailable")))
             check(available(translationsJson.empty()?0:1));
         const auto version=symbol<int(*)()>("NRFKotlin_Version");const auto abi=version();check(abi);
-        if(abi<1||abi>8)throw std::runtime_error("Unsupported Kotlin ABI");
+        if(abi<1||abi>9)throw std::runtime_error("Unsupported Kotlin ABI");
         metadata=symbol<decltype(metadata)>("NRFKotlin_Metadata");
         if(abi>=3){
             const auto kind=symbol<int(*)()>("NRFKotlin_ModKind")();check(kind);
@@ -143,11 +225,12 @@ struct Api {
             windowEvent=symbol<decltype(windowEvent)>("NRFKotlin_WindowEvent");
             auto meta=symbol<int(*)(int,int,char*,int)>("NRFKotlin_WindowMetadata");
             for(int i=0;i<count;++i){std::array<std::string,3> values;
-                for(int field=0;field<3;++field){std::array<char,2048> buffer{};const auto n=meta(i,field,buffer.data(),int(buffer.size()));check(n);if(n<=0||n>=int(buffer.size())||buffer[n])throw std::runtime_error("Window metadata");values[field].assign(buffer.data(),n);}
+                for(int field=0;field<3;++field){std::array<char,2048> buffer{};const auto n=meta(i,field,buffer.data(),int(buffer.size()));check(n);if((n==0&&field!=2)||n>=int(buffer.size())||buffer[n])throw std::runtime_error("Window metadata");values[field].assign(buffer.data(),n);}
                 windows.push_back({values[0],values[1],values[2]});
             }
         }
-        if(tool){id=text(0);title=text(1);diagnostic=text(3);return;}
+        id=text(0);title=text(1);prepareOptions(abi);
+        if(tool){diagnostic=text(3);return;}
         if(abi>=8)prepareNetwork=symbol<decltype(prepareNetwork)>("NRFKotlin_PrepareNetwork");
         if(const auto limit=reinterpret_cast<int(*)()>(detail::native::symbol(module,"NRFKotlin_NetworkLimit"))){
             const auto count=limit();check(count);
@@ -433,9 +516,12 @@ nimby::Mod nimby::createMod() {
             if(const auto game=snapshot.getGameSession()){
                 kotlin::ToolScope scope(*game);
                 auto& api=kotlin::api();
+                api.observeOptionsGame(*game);
                 if(!api.windows.empty()){
                     if(!kotlin::toolWindows)kotlin::toolWindows=std::make_unique<platform::ToolWindows>(api.windows,api.translationsJson);
                     kotlin::toolWindows->observe(*game);
+                    for(const auto& window:api.pendingWindows)kotlin::toolWindows->requestOpen(window);
+                    api.pendingWindows.clear();
                     while(const auto event=kotlin::toolWindows->poll()){
                         if(event->game!=*game)continue;
                         std::string names;std::vector<int32_t> values;
@@ -444,6 +530,10 @@ nimby::Mod nimby::createMod() {
                     }
                 }
                 kotlin::check(kotlin::api().toolTick(game->worldId.c_str(),int64_t(game->generation),kotlin::toolCall));
+            }else{
+                if(kotlin::toolWindows)kotlin::toolWindows->invalidate();
+                kotlin::toolReader().reset();auto& api=kotlin::api();
+                if(api.optionsGame||!api.pendingWindows.empty())api.loseOptionsGame();
             }
         };
         mod.stop=+[]{
@@ -470,6 +560,19 @@ nimby::Mod nimby::createMod() {
         }
     }
     mod.id=api.id;mod.services=api.services;mod.translationsJson=api.translationsJson;
+    if(!api.optionsDeclaration.empty()){
+        mod.refreshOptions=+[]{kotlin::api().refreshOptions();};
+        api.originalStop=mod.stop;
+        api.originalObservationLost=mod.observationLost;
+        mod.observationLost=+[]{auto& api=kotlin::api();
+            std::exception_ptr discardError;
+            try{api.loseOptionsGame();}catch(...){discardError=std::current_exception();}
+            if(api.originalObservationLost)api.originalObservationLost();
+            if(discardError)std::rethrow_exception(discardError);};
+        mod.stop=+[]{auto& api=kotlin::api();
+            if(!api.optionsClient.close())detail::diagnostics::write("mods","WARN","Mod option cleanup deferred to the owning host");
+            api.optionsGame.reset();api.pendingWindows.clear();if(api.originalStop)api.originalStop();};
+    }
     if(!api.services.empty())mod.signalActionV2=+[](const NimbyUiActionEventV2& input,const Snapshot& snapshot){
         const auto& event=input.base;
         auto& a=kotlin::api();const auto it=std::find(a.services.begin(),a.services.end(),event.service);

@@ -7,6 +7,7 @@
 #include <engine/binary_identity.h>
 #include <loader/manifest.h>
 #include <tlhelp32.h>
+#include <psapi.h>
 #include <algorithm>
 #include <atomic>
 #include <bit>
@@ -34,8 +35,79 @@ struct Client {
     Shared* shared{}; HANDLE request{},reply{},stop{},game{},action{},localAction{};
     std::mutex mutex; bool poisoned=false;
     uint32_t target=0;
+    std::atomic<uint64_t> nextSlowReport{0}, suppressedSlowReports{0};
 };
 Client& client(){static Client value;return value;}
+const char* stageName(uint32_t stage) noexcept {
+    switch(stage){
+    case NIMBY_MOD_WORK_CONNECT_SETTINGS:return "connect_settings";
+    case NIMBY_MOD_WORK_CONNECT_SERVICES:return "connect_services";
+    case NIMBY_MOD_WORK_OPEN_OBSERVATION:return "open_observation";
+    case NIMBY_MOD_WORK_CAPTURE_SIGNALLING:return "capture_signalling";
+    case NIMBY_MOD_WORK_CAPTURE_SESSION:return "capture_session";
+    case NIMBY_MOD_WORK_CAPTURE_COMPLETE:return "capture_complete";
+    case NIMBY_MOD_WORK_SYNCHRONIZE_SETTINGS:return "synchronize_settings";
+    case NIMBY_MOD_WORK_OBSERVE_SERVICES:return "observe_services";
+    case NIMBY_MOD_WORK_MOD_OBSERVE:return "mod_observe";
+    case NIMBY_MOD_WORK_POLL_ACTIONS:return "poll_actions";
+    case NIMBY_MOD_WORK_MOD_ACTION:return "mod_action";
+    case NIMBY_MOD_WORK_OBSERVATION_LOST:return "observation_lost";
+    case NIMBY_MOD_WORK_SUSPEND_SETTINGS:return "suspend_settings";
+    case NIMBY_MOD_WORK_SUSPEND_SERVICES:return "suspend_services";
+    case NIMBY_MOD_WORK_REFRESH_OPTIONS:return "refresh_options";
+    case NIMBY_MOD_WORK_OBSERVE_SIGNALS:return "observe_signals";
+    case NIMBY_MOD_WORK_SIGNAL_CONTROL:return "signal_control";
+    case NIMBY_MOD_WORK_SIGNAL_SETTINGS:return "signal_settings";
+    case NIMBY_MOD_WORK_PREPARE_NETWORK:return "prepare_network";
+    case NIMBY_MOD_WORK_EVALUATE_NETWORK:return "evaluate_network";
+    case NIMBY_MOD_WORK_PREPARE_DRIVING:return "prepare_driving";
+    case NIMBY_MOD_WORK_PUBLISH_DRIVING:return "publish_driving";
+    case NIMBY_MOD_WORK_PUBLISH_TRAINS:return "publish_trains";
+    case NIMBY_MOD_WORK_SIGNAL_DIAGNOSTICS:return "signal_diagnostics";
+    case NIMBY_MOD_WORK_TEXTURE_CLEANUP:return "texture_cleanup";
+    case NIMBY_MOD_WORK_PREPARE_TEXTURES:return "prepare_textures";
+    case NIMBY_MOD_WORK_PUBLISH_TEXTURES:return "publish_textures";
+    case NIMBY_MOD_WORK_TEXTURE_COMMIT:return "texture_commit";
+    default:return "unspecified";
+    }
+}
+uint64_t age(uint64_t since,uint64_t now) noexcept {return since&&now>=since?now-since:0;}
+struct WorkTrace {
+    unsigned depth=0;
+    WorkSlot* active=nullptr;
+    uint64_t began=0,stageBegan=0,detail=0,slowestMs=0,slowestDetail=0;
+    uint32_t stage=0,slowestStage=0;
+    void finishStage(uint64_t now) noexcept {
+        const auto elapsed=age(stageBegan,now);
+        if(elapsed>slowestMs){slowestMs=elapsed;slowestStage=stage;slowestDetail=detail;}
+    }
+};
+WorkTrace& workTrace() noexcept {static thread_local WorkTrace value;return value;}
+struct WorkDiagnostic {uint32_t thread=0,stage=0;uint64_t since=0,stageSince=0,detail=0;};
+WorkDiagnostic readWork(WorkSlot& slot) noexcept {
+    // A fixed retry count is sufficient for diagnostics. Never wait on a mod
+    // that stopped halfway through a marker update; its outer deadline remains
+    // observable separately even when its diagnostic stage cannot be sampled.
+    for(unsigned retry=0;retry<3;++retry){
+        const auto revision=InterlockedCompareExchange(&slot.revision,0,0);
+        if(revision&1)continue;
+        WorkDiagnostic value;
+        value.thread=static_cast<uint32_t>(InterlockedCompareExchange(&slot.thread,0,0));
+        value.since=static_cast<uint64_t>(InterlockedCompareExchange64(&slot.since,0,0));
+        value.stage=static_cast<uint32_t>(InterlockedCompareExchange(&slot.stage,0,0));
+        value.stageSince=static_cast<uint64_t>(InterlockedCompareExchange64(&slot.stageSince,0,0));
+        value.detail=static_cast<uint64_t>(InterlockedCompareExchange64(&slot.detail,0,0));
+        if(revision==InterlockedCompareExchange(&slot.revision,0,0)&&
+           value.thread==static_cast<uint32_t>(InterlockedCompareExchange(&slot.thread,0,0)))return value;
+    }
+    return {};
+}
+double processCpuMilliseconds(HANDLE process) noexcept {
+    FILETIME created{},exited{},kernel{},user{};
+    if(!GetProcessTimes(process,&created,&exited,&kernel,&user))return -1;
+    const auto ticks=[](FILETIME value){return (uint64_t(value.dwHighDateTime)<<32)|value.dwLowDateTime;};
+    return double(ticks(kernel)+ticks(user))/10000.;
+}
 std::mutex managerMutex;
 std::vector<std::unique_ptr<Worker>>& workers(){static auto* value=new std::vector<std::unique_ptr<Worker>>;return *value;}
 std::atomic<uint64_t> nextOwner{1};
@@ -83,15 +155,44 @@ struct Worker::Impl {
     double lastDispatchedCpuMilliseconds=0;
     uint64_t rejectedRequests=0;
     bool rejectionLogged=false;
+    uint32_t lastRpcOperation=0,lastRpcStatus=0;
+    uint64_t lastRpcAt=0,lastRpcDuration=0,nextSlowReport=0,suppressedSlowReports=0;
     ~Impl(){if(shared)UnmapViewOfFile(shared);}
     void record(std::string_view text) noexcept {
         try {std::lock_guard lock(stateMutex);result=text;log("Mod host "+name+": "+result);}catch(...){}
+    }
+    void reportWork(const char* prefix,const char* cause,const WorkDiagnostic& work,uint64_t now) noexcept {
+        PROCESS_MEMORY_COUNTERS_EX memory{};memory.cb=sizeof memory;
+        const bool haveMemory=K32GetProcessMemoryInfo(process.value,reinterpret_cast<PROCESS_MEMORY_COUNTERS*>(&memory),sizeof memory)!=0;
+        MEMORYSTATUSEX system{};system.dwLength=sizeof system;
+        const bool haveSystem=GlobalMemoryStatusEx(&system)!=0;
+        char message[1792]{};
+        std::snprintf(message,sizeof message,
+            "%s cause=%s mod=%.240s child_pid=%lu child_tid=%u stage=%s stage_id=%u detail=%llu "
+            "callback_age_ms=%llu stage_age_ms=%llu callback_limit_ms=%u rpc_state=%ld rpc_operation=%u "
+            "rpc_thread=%ld rpc_age_ms=%llu last_rpc_operation=%u last_rpc_status=%u last_rpc_duration_ms=%llu last_rpc_age_ms=%llu "
+            "cpu_limit_basis_points=%u memory_limit_bytes=%llu child_cpu_ms=%.3f memory_sample=%u child_private_bytes=%llu child_peak_private_bytes=%llu "
+            "system_memory_sample=%u free_physical_bytes=%llu free_commit_bytes=%llu rejected_rpc=%llu suppressed=%llu",
+            prefix,cause,name.c_str(),static_cast<unsigned long>(childPid),work.thread,stageName(work.stage),work.stage,
+            static_cast<unsigned long long>(work.detail),static_cast<unsigned long long>(age(work.since,now)),
+            static_cast<unsigned long long>(age(work.stageSince,now)),options.callbackTimeoutMs,
+            static_cast<long>(InterlockedCompareExchange(&shared->requestState,0,0)),shared->operation,
+            static_cast<long>(InterlockedCompareExchange(&shared->requestThread,0,0)),
+            static_cast<unsigned long long>(age(static_cast<uint64_t>(InterlockedCompareExchange64(&shared->requestSince,0,0)),now)),
+            lastRpcOperation,lastRpcStatus,static_cast<unsigned long long>(lastRpcDuration),static_cast<unsigned long long>(age(lastRpcAt,now)),
+            options.cpuRate,static_cast<unsigned long long>(options.memoryLimit),processCpuMilliseconds(process.value),unsigned(haveMemory),
+            static_cast<unsigned long long>(memory.PrivateUsage),static_cast<unsigned long long>(memory.PeakPagefileUsage),unsigned(haveSystem),
+            static_cast<unsigned long long>(system.ullAvailPhys),static_cast<unsigned long long>(system.ullAvailPageFile),
+            static_cast<unsigned long long>(rejectedRequests),static_cast<unsigned long long>(suppressedSlowReports));
+        detail::diagnostics::write("loader","WARN",message);
+        suppressedSlowReports=0;
     }
     void serve(){
         if(InterlockedCompareExchange(&shared->requestState,1,1)!=1){Sleep(10);return;}
         Request requestCopy; Reply response;
         requestCopy.operation=shared->operation;requestCopy.args=shared->args;
         const auto size=shared->inputSize,capacity=shared->capacity;
+        const auto rpcStarted=watchdogNow();
         uint32_t status=NIMBY_INVALID_ARGUMENT;
         const auto cpuBefore=threadCpuMilliseconds();
         const auto now=GetTickCount64(),elapsed=now-budgetAt;budgetAt=now;
@@ -160,6 +261,7 @@ struct Worker::Impl {
         const auto spentCpuMilliseconds=std::max(0.0,threadCpuMilliseconds()-cpuBefore);
         cpuMilliseconds-=spentCpuMilliseconds;
         if(allowed){lastDispatchedOperation=requestCopy.operation;lastDispatchedCpuMilliseconds=spentCpuMilliseconds;lastDispatchedAt=GetTickCount64();}
+        lastRpcOperation=requestCopy.operation;lastRpcStatus=status;lastRpcAt=watchdogNow();lastRpcDuration=age(rpcStarted,lastRpcAt);
         InterlockedExchange(&shared->requestState,2);SetEvent(reply.value);
     }
     void run() noexcept {
@@ -182,11 +284,23 @@ struct Worker::Impl {
                 const auto since=static_cast<ULONGLONG>(InterlockedCompareExchange64(&shared->phaseSince,0,0));
                 const bool startExpired=phase==1&&watchdogExpired(since,now,options.startupTimeoutMs);
                 bool workExpired=false;
+                WorkDiagnostic expiredWork{};
                 for(auto& slot:shared->work){
                     const auto began=static_cast<ULONGLONG>(InterlockedCompareExchange64(&slot.since,0,0));
-                    if(watchdogExpired(began,now,options.callbackTimeoutMs)){workExpired=true;break;}
+                    if(watchdogExpired(began,now,options.callbackTimeoutMs)){
+                        workExpired=true;expiredWork=readWork(slot);
+                        if(!expiredWork.since)expiredWork.since=began;
+                        break;
+                    }
+                    if(age(began,now)>=1000){
+                        if(now>=nextSlowReport){
+                            const auto work=readWork(slot);
+                            if(work.since){reportWork("Mod callback slow:","callback_slow",work,now);nextSlowReport=now+30000;}
+                        }else ++suppressedSlowReports;
+                    }
                 }
                 if(startExpired||workExpired||watchdogExpired(stoppingAt,now,options.shutdownTimeoutMs)){
+                    reportWork("Mod watchdog context:",startExpired?"startup_timeout":workExpired?"callback_timeout":"stop_timeout",expiredWork,now);
                     record(startExpired?"startup timeout; quarantined":workExpired?"callback timeout; quarantined":"stop timeout; quarantined");
                     TerminateJobObject(job.value,ERROR_TIMEOUT);break;
                 }
@@ -248,6 +362,7 @@ Worker::Worker(const std::filesystem::path& executable,const std::filesystem::pa
     cpu.ControlFlags=JOB_OBJECT_CPU_RATE_CONTROL_ENABLE|JOB_OBJECT_CPU_RATE_CONTROL_HARD_CAP;
     cpu.CpuRate=options.cpuRate?options.cpuRate:std::max<DWORD>(1,10000/std::max<DWORD>(2,system.dwNumberOfProcessors));
     require(SetInformationJobObject(w.job.value,JobObjectCpuRateControlInformation,&cpu,sizeof(cpu))!=0,"Cannot bound mod CPU consumption");
+    w.options.cpuRate=cpu.CpuRate;
     STARTUPINFOEXW startup{};startup.StartupInfo.cb=sizeof(startup);startup.StartupInfo.dwFlags=STARTF_USESHOWWINDOW;startup.StartupInfo.wShowWindow=SW_HIDE;
     SIZE_T attributeSize{};InitializeProcThreadAttributeList(nullptr,1,0,&attributeSize);
     std::vector<uint8_t> attributes(attributeSize);startup.lpAttributeList=reinterpret_cast<LPPROC_THREAD_ATTRIBUTE_LIST>(attributes.data());
@@ -377,28 +492,69 @@ extern "C" int __cdecl NimbyInternal_ModHostMain(int argc,wchar_t** argv) noexce
     try{return nimby::mod_host::runChild(argc,argv);}catch(...){return NIMBY_INTERNAL_ERROR;}
 }
 extern "C" void __cdecl NimbyInternal_ModHostPulse(uint32_t phase) noexcept {
+    using namespace nimby::mod_host;
     auto& c=nimby::mod_host::client();if(!c.shared)return;
     // A short callback cannot hide another thread's blocked callback. Nested
     // work keeps the outermost start time, rather than renewing its deadline.
-    static thread_local unsigned depth=0;
-    static thread_local nimby::mod_host::WorkSlot* active=nullptr;
+    auto& trace=workTrace();
     if(phase==2){
-        if(depth++)return;
+        if(trace.depth++)return;
+        trace.began=trace.stageBegan=watchdogNow();trace.stage=trace.slowestStage=0;
+        trace.detail=trace.slowestDetail=trace.slowestMs=0;
         const auto thread=static_cast<LONG>(GetCurrentThreadId());
         for(auto& slot:c.shared->work)if(InterlockedCompareExchange(&slot.thread,thread,0)==0){
-            active=&slot;InterlockedExchange64(&slot.since,static_cast<LONG64>(nimby::mod_host::watchdogNow()));return;
+            trace.active=&slot;
+            InterlockedIncrement(&slot.revision);
+            InterlockedExchange(&slot.stage,0);InterlockedExchange64(&slot.detail,0);
+            InterlockedExchange64(&slot.stageSince,static_cast<LONG64>(trace.began));
+            InterlockedExchange64(&slot.since,static_cast<LONG64>(trace.began));
+            InterlockedIncrement(&slot.revision);return;
         }
         // More simultaneous callbacks than the host can supervise is a local
         // resource failure. Do not let unsupervised code continue in this mod.
         ExitProcess(NIMBY_RESOURCE_LIMIT);
     }
     if(phase==3){
-        if(!depth||--depth)return;
-        if(active){InterlockedExchange64(&active->since,0);InterlockedExchange(&active->thread,0);active=nullptr;}
+        if(!trace.depth||--trace.depth)return;
+        const auto now=watchdogNow();trace.finishStage(now);
+        if(trace.active){
+            InterlockedIncrement(&trace.active->revision);
+            InterlockedExchange64(&trace.active->since,0);
+            InterlockedIncrement(&trace.active->revision);
+            InterlockedExchange(&trace.active->thread,0);trace.active=nullptr;
+        }
+        const auto elapsed=age(trace.began,now);
+        if(elapsed>=1000){
+            auto next=c.nextSlowReport.load(std::memory_order_relaxed);
+            if(now>=next&&c.nextSlowReport.compare_exchange_strong(next,now+30000,std::memory_order_relaxed)){
+                const auto suppressed=c.suppressedSlowReports.exchange(0,std::memory_order_relaxed);
+                char message[512]{};
+                std::snprintf(message,sizeof message,
+                    "Mod callback completed slowly: child_tid=%lu callback_age_ms=%llu slowest_stage=%s slowest_stage_id=%u slowest_stage_ms=%llu detail=%llu suppressed=%llu",
+                    static_cast<unsigned long>(GetCurrentThreadId()),static_cast<unsigned long long>(elapsed),stageName(trace.slowestStage),
+                    trace.slowestStage,static_cast<unsigned long long>(trace.slowestMs),static_cast<unsigned long long>(trace.slowestDetail),
+                    static_cast<unsigned long long>(suppressed));
+                // Marker is retired before diagnostics; logger contention can
+                // neither hold a gameplay lock nor renew/extend this callback.
+                nimby::detail::diagnostics::write("loader","WARN",message);
+            }else c.suppressedSlowReports.fetch_add(1,std::memory_order_relaxed);
+        }
         return;
     }
     InterlockedExchange64(&c.shared->phaseSince,static_cast<LONG64>(nimby::mod_host::watchdogNow()));
     InterlockedExchange(&c.shared->phase,static_cast<LONG>(phase));
+}
+extern "C" void __cdecl NimbyInternal_ModHostStage(uint32_t stage,uint64_t detail) noexcept {
+    using namespace nimby::mod_host;
+    auto& trace=workTrace();if(!trace.active)return;
+    const auto now=watchdogNow();trace.finishStage(now);
+    trace.stage=stage;trace.detail=detail;trace.stageBegan=now;
+    auto& slot=*trace.active;
+    InterlockedIncrement(&slot.revision);
+    InterlockedExchange(&slot.stage,static_cast<LONG>(stage));
+    InterlockedExchange64(&slot.detail,static_cast<LONG64>(detail));
+    InterlockedExchange64(&slot.stageSince,static_cast<LONG64>(now));
+    InterlockedIncrement(&slot.revision);
 }
 extern "C" uint32_t __cdecl NimbyInternal_ModHostCall(uint32_t operation,uint64_t* arguments,
     const void* input,uint32_t size,void* output,uint32_t capacity,uint32_t* written) noexcept {
@@ -406,18 +562,44 @@ extern "C" uint32_t __cdecl NimbyInternal_ModHostCall(uint32_t operation,uint64_
     if(written)*written=0;
     if(!arguments||!written||(!input&&size)||(!output&&capacity)||size>payloadLimit||capacity>payloadLimit)return NIMBY_INVALID_ARGUMENT;
     try {
-        auto& c=client();std::lock_guard lock(c.mutex);
+        auto& c=client();std::unique_lock lock(c.mutex);
         if(!c.shared)return NIMBY_HOOKS_UNAVAILABLE;
         if(c.poisoned)return NIMBY_PROCESS_EXITED;
         auto& shared=*c.shared;
         shared.operation=operation;shared.inputSize=size;shared.capacity=capacity;
+        const auto started=watchdogNow();
+        InterlockedExchange(&shared.requestThread,static_cast<LONG>(GetCurrentThreadId()));
+        InterlockedExchange64(&shared.requestSince,static_cast<LONG64>(started));
         std::copy_n(arguments,8,shared.args.begin());if(size)std::memcpy(shared.data,input,size);
         ResetEvent(c.reply);InterlockedExchange(&shared.requestState,1);SetEvent(c.request);
         HANDLE waits[]{c.reply,c.game};
-        if(WaitForMultipleObjects(2,waits,FALSE,2000)!=WAIT_OBJECT_0||InterlockedCompareExchange(&shared.requestState,2,2)!=2){
-            c.poisoned=true;return NIMBY_IO_ERROR;
+        const auto waited=WaitForMultipleObjects(2,waits,FALSE,2000);
+        const auto waitError=waited==WAIT_FAILED?GetLastError():0;
+        const auto state=InterlockedCompareExchange(&shared.requestState,2,2);
+        if(waited!=WAIT_OBJECT_0||state!=2){
+            c.poisoned=true;
+            const auto& trace=workTrace();
+            const auto stage=trace.stage;const auto context=trace.detail;
+            const auto now=watchdogNow();const auto elapsed=age(started,now);
+            lock.unlock();
+            char message[640]{};
+            std::snprintf(message,sizeof message,
+                "Mod RPC channel unavailable: reason=%s target_pid=%u child_tid=%lu operation=%u status=%u wait_result=%lu win32_error=%lu "
+                "rpc_state=%ld elapsed_ms=%llu request_bytes=%u reply_capacity=%u stage=%s stage_id=%u detail=%llu",
+                waited==WAIT_TIMEOUT?"reply_timeout":waited==WAIT_OBJECT_0+1?"game_exited":waited==WAIT_FAILED?"wait_failed":"invalid_reply_state",
+                c.target,static_cast<unsigned long>(GetCurrentThreadId()),operation,NIMBY_IO_ERROR,static_cast<unsigned long>(waited),
+                static_cast<unsigned long>(waitError),static_cast<long>(state),static_cast<unsigned long long>(elapsed),size,capacity,
+                stageName(stage),stage,static_cast<unsigned long long>(context));
+            nimby::detail::diagnostics::write("loader","ERROR",message);
+            return NIMBY_IO_ERROR;
         }
-        if(shared.outputSize>capacity){c.poisoned=true;return NIMBY_INVALID_BINARY;}
+        if(shared.outputSize>capacity){
+            const auto writtenSize=shared.outputSize;c.poisoned=true;lock.unlock();
+            char message[256]{};
+            std::snprintf(message,sizeof message,"Mod RPC channel unavailable: reason=invalid_reply_size operation=%u status=%u bytes=%u reply_capacity=%u",
+                operation,NIMBY_INVALID_BINARY,writtenSize,capacity);
+            nimby::detail::diagnostics::write("loader","ERROR",message);return NIMBY_INVALID_BINARY;
+        }
         *written=shared.outputSize;std::copy(shared.args.begin(),shared.args.end(),arguments);
         if(*written)std::memcpy(output,shared.data,*written);
         return shared.result;

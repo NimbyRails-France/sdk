@@ -79,13 +79,22 @@ public:
     }
     Panel panel() const {std::lock_guard lock(mutex_);return panel_;}
     enum class SignalState { Known, Unknown, Busy };
+    enum class SignalStateReason { None, Busy, Retired, SessionMissing, ObservationsSuspended, WorldChanged, EpochChanged, SignalMissing };
+    struct SignalStateDetails {SignalStateReason reason=SignalStateReason::None;uint64_t epoch=0;};
     uint64_t observationEpoch()const{return observationEpoch_.load(std::memory_order_acquire);}
-    SignalState signalState(uint64_t signal,bool requireObserved=false,std::string_view world={},uint64_t epoch=0)const {
+    SignalState signalState(uint64_t signal,bool requireObserved=false,std::string_view world={},uint64_t epoch=0,SignalStateDetails* details=nullptr)const {
         std::unique_lock lock(mutex_,std::try_to_lock);
-        if(!lock)return SignalState::Busy;
-        return !retired_&&!sessionId_.empty()&&(!requireObserved||observed_)&&
-            (world.empty()||sessionId_==world)&&(!epoch||epoch==observationEpoch())&&signals_.contains(signal)
-            ?SignalState::Known:SignalState::Unknown;
+        if(!lock){if(details)*details={SignalStateReason::Busy,observationEpoch()};return SignalState::Busy;}
+        const auto currentEpoch=(epoch||details)?observationEpoch():0;
+        if(details)*details={SignalStateReason::None,currentEpoch};
+        const auto unknown=[&](SignalStateReason reason){if(details)details->reason=reason;return SignalState::Unknown;};
+        if(retired_)return unknown(SignalStateReason::Retired);
+        if(sessionId_.empty())return unknown(SignalStateReason::SessionMissing);
+        if(requireObserved&&!observed_)return unknown(SignalStateReason::ObservationsSuspended);
+        if(!world.empty()&&sessionId_!=world)return unknown(SignalStateReason::WorldChanged);
+        if(epoch&&epoch!=currentEpoch)return unknown(SignalStateReason::EpochChanged);
+        if(!signals_.contains(signal))return unknown(SignalStateReason::SignalMissing);
+        return SignalState::Known;
     }
     bool knowsSignal(uint64_t signal,bool requireObserved=false)const{return signalState(signal,requireObserved)==SignalState::Known;}
     // Runtime context only; this does not serialize a profile or copy all values.

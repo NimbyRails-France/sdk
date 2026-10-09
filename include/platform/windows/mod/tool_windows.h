@@ -30,15 +30,29 @@ public:
     void observe(const GameSession& game) {
         bool changed=false;
         {std::lock_guard lock(mutex_);
-            if(!game_||*game_!=game){changed=true;game_=game;events_.clear();for(auto& s:states_){s.sequence=++sequence_;s.ready=false;s.content={};++s.revision;}}
+            if(!game_||*game_!=game){changed=true;game_=game;++openEpoch_;events_.clear();pendingOpens_.clear();for(auto& s:states_){s.sequence=++sequence_;s.ready=false;s.content={};++s.revision;}}
             observed_=GetTickCount64();
         }
         if(!thread_.joinable())thread_=std::jthread([this](std::stop_token stop){run(stop);});
         if(changed)uiWake_.signal();
     }
     void invalidate(){
-        {std::lock_guard lock(mutex_);game_.reset();events_.clear();for(auto& s:states_){s.ready=false;++s.revision;}}
+        {std::lock_guard lock(mutex_);game_.reset();++openEpoch_;events_.clear();pendingOpens_.clear();for(auto& s:states_){s.ready=false;++s.revision;}}
         uiWake_.signal();
+    }
+    // The SDK's foreground-input dispatcher owns shortcuts. Its isolated
+    // worker only queues this command: window activation stays on the UI
+    // thread, and duplicate requests coalesce to at most one per window.
+    bool requestOpen(std::string_view id){
+        {
+            std::lock_guard lock(mutex_);
+            if(!freshLocked())return false;
+            const auto definition=std::find_if(definitions_.begin(),definitions_.end(),[&](const auto& value){return value.id==id;});
+            if(definition==definitions_.end())return false;
+            const auto index=size_t(definition-definitions_.begin());
+            if(std::none_of(pendingOpens_.begin(),pendingOpens_.end(),[&](const auto& value){return value.index==index;}))pendingOpens_.push_back({index,openEpoch_});
+        }
+        uiWake_.signal();return true;
     }
     void stop(){if(thread_.joinable()){thread_.request_stop();uiWake_.signal();thread_.join();}}
     std::optional<Event> poll(){
@@ -70,10 +84,12 @@ private:
         void signal()const noexcept {if(event)SetEvent(event);}
     } uiWake_;
     struct State {Content content;uint64_t sequence{},revision{};bool ready=false;};
+    struct OpenRequest {size_t index;uint64_t epoch;};
     struct View {ToolWindows* owner{};size_t index{};HWND window{},message{};std::vector<HWND> children,inputs,labels,buttons;uint64_t revision=~uint64_t{},sequence{};Content content;std::string language;int scroll{},contentHeight{};};
     std::vector<Definition> definitions_;std::vector<State> states_;std::vector<View> views_;
     std::optional<detail::Translations> translations_;
     std::mutex mutex_;std::optional<GameSession> game_;std::deque<Event> events_;
+    std::vector<OpenRequest> pendingOpens_;uint64_t openEpoch_=1;
     uint64_t sequence_=0,observed_=0;std::jthread thread_;HMODULE module_{};std::wstring className_;HWND gameWindow_{};
     DWORD gamePid_{};uint64_t languageChecked_{};std::string language_;
     // SDK-local notifier only: never execute a Kotlin callback on the UI
@@ -131,9 +147,9 @@ private:
         if(bounds.top<0)scrollTo(view,view.scroll+int(bounds.top)-8);
         else if(bounds.bottom>client.bottom)scrollTo(view,view.scroll+int(bounds.bottom-client.bottom)+8);
     }
-    bool enqueueOpen(size_t index){
+    bool enqueueOpen(size_t index,uint64_t epoch=0){
         {
-            std::lock_guard lock(mutex_);if(index>=states_.size()||!freshLocked())return false;
+            std::lock_guard lock(mutex_);if(index>=states_.size()||!freshLocked()||(epoch&&epoch!=openEpoch_))return false;
             auto& s=states_[index];s.sequence=++sequence_;s.ready=false;s.content={};++s.revision;
             std::erase_if(events_,[&](const auto& event){return event.index==index;});
             events_.push_back({index,s.sequence,*game_,"open",{}});
@@ -141,9 +157,20 @@ private:
         wake_();
         return true;
     }
-    void open(size_t index){
-        if(!enqueueOpen(index))return;
+    void open(size_t index,uint64_t epoch){
+        if(!enqueueOpen(index,epoch))return;
         ShowWindow(views_[index].window,SW_SHOWNORMAL);SetForegroundWindow(views_[index].window);
+    }
+    std::vector<OpenRequest> takeOpenRequests(){
+        std::lock_guard lock(mutex_);
+        std::vector<OpenRequest> pending;
+        if(freshLocked())pending.swap(pendingOpens_);
+        else pendingOpens_.clear();
+        return pending;
+    }
+    void dispatchOpenRequests(){
+        for(const auto& request:takeOpenRequests())
+            if(request.index<views_.size()&&acceptsForeground(GetForegroundWindow()))open(request.index,request.epoch);
     }
     void update(View& view){
         State state;bool fresh;
@@ -252,16 +279,12 @@ private:
         for(size_t i=0;i<views_.size();++i){auto& view=views_[i];view.owner=this;view.index=i;
             view.window=CreateWindowExW(WS_EX_CONTROLPARENT,className_.c_str(),L"NRF",WS_OVERLAPPED|WS_CAPTION|WS_SYSMENU|WS_VSCROLL,CW_USEDEFAULT,CW_USEDEFAULT,552,220,gameWindow_,nullptr,module_,&view);
             if(!view.window)throw std::runtime_error("Cannot create tool window");
-            const auto& key=definitions_[i].shortcut;UINT modifiers=MOD_NOREPEAT,vk{};
-            if(key.starts_with("Ctrl+Shift+")&&key.size()==12){modifiers|=MOD_CONTROL|MOD_SHIFT;vk=UINT(key.back());}
-            else if(key.starts_with("F")){const int number=std::stoi(key.substr(1));if(number>=1&&number<=12)vk=VK_F1+number-1;}
-            if(!vk||!RegisterHotKey(nullptr,int(i+1),modifiers,vk))throw std::runtime_error("Tool shortcut unavailable: "+key);
         }
         while(!stop.stop_requested()){
             MSG msg{};while(PeekMessageW(&msg,nullptr,0,0,PM_REMOVE)){
-                if(msg.message==WM_HOTKEY){if(acceptsForeground(GetForegroundWindow())&&msg.wParam>=1&&msg.wParam<=views_.size())open(size_t(msg.wParam-1));}
-                else{bool handled=false;for(auto& view:views_)if(IsWindowVisible(view.window)&&IsDialogMessageW(view.window,&msg)){showFocus(view);handled=true;break;}if(!handled){TranslateMessage(&msg);DispatchMessageW(&msg);}}
+                bool handled=false;for(auto& view:views_)if(IsWindowVisible(view.window)&&IsDialogMessageW(view.window,&msg)){showFocus(view);handled=true;break;}if(!handled){TranslateMessage(&msg);DispatchMessageW(&msg);}
             }
+            dispatchOpenRequests();
             for(auto& view:views_)update(view);
             // Worker publications can repaint immediately. The same bounded
             // timeout still checks freshness/language, and a failed event
@@ -269,7 +292,7 @@ private:
             MsgWaitForMultipleObjects(uiWake_.event?1:0,uiWake_.event?&uiWake_.event:nullptr,FALSE,50,QS_ALLINPUT);
         }
     }catch(...){detail::diagnostics::exception("mods","Tool windows");}
-        for(size_t i=0;i<views_.size();++i){UnregisterHotKey(nullptr,int(i+1));if(views_[i].window)DestroyWindow(views_[i].window);}
+        for(auto& view:views_)if(view.window)DestroyWindow(view.window);
         if(!className_.empty())UnregisterClassW(className_.c_str(),module_);
     }
 };

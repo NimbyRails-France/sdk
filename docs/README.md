@@ -2,11 +2,11 @@
 
 Les guides destinés aux créateurs de mods et d'outils sont maintenant développés
 dans le [dépôt wiki](https://github.com/NimbyRails-France/wiki), pour le site
-**https://wiki.nimbyrails-france.fr**. Ils couvrent la nouvelle API `signalMod`,
+**https://wiki-dev.nimbyrails-france.fr**. Ils couvrent la nouvelle API `signalMod`,
 le client `Nimby.connect`, les exemples et la référence Kotlin synchronisée.
 Ce dossier conserve les contrats internes, rapports et notes de maintenance.
 
-Documentation de la branche **0.9.0-alpha.1**, pour Windows x64. Les guides décrivent
+Documentation de la branche **0.9.0-alpha.2**, pour Windows x64. Les guides décrivent
 les contrats du code de cette branche ; ils ne constituent pas une annonce
 de publication.
 
@@ -25,7 +25,7 @@ de publication.
 
 ## Développer un outil Kotlin
 
-Suivre le [parcours Kotlin/JVM du wiki](https://wiki.nimbyrails-france.fr/lire/connexion). Le client public C++ et ses exemples ont été retirés.
+Suivre le [parcours Kotlin/JVM du wiki](https://wiki-dev.nimbyrails-france.fr/lire/connexion). Le client public C++ et ses exemples ont été retirés.
 Les références C++ restantes documentent les composants internes du SDK.
 
 La [construction expérimentale](construction.md) fait partie des builds alpha

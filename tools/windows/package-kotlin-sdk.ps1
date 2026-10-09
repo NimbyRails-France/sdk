@@ -57,10 +57,10 @@ Get-ChildItem -LiteralPath "$sdkRoot/docs" -Recurse -File -Filter *.md | ForEach
 $kitReadme = @'
 # NRF Kotlin SDK
 
-Create your own project with [the official Kotlin guide](https://wiki.nimbyrails-france.fr/version/{SDK_EDITION}/commencer/installation).
+Create your own project with [the official Kotlin guide](https://wiki-dev.nimbyrails-france.fr/version/{SDK_EDITION}/commencer/installation).
 Configure `NRF_KOTLIN_SDK` or `nrfSdkDir` to point at this kit.
 The kit includes the Gradle plugin, Kotlin API, native adapter and diagnostics.
-All tutorials and Kotlin API documentation live in [this SDK's wiki edition](https://wiki.nimbyrails-france.fr/version/{SDK_EDITION}).
+All tutorials and Kotlin API documentation live in [this SDK's wiki edition](https://wiki-dev.nimbyrails-france.fr/version/{SDK_EDITION}).
 '@
 $sdkEdition = ($sdkVersion.Split('-')[0].Split('.')[0..1] -join '.')
 $kitReadme.Replace('{SDK_EDITION}', $sdkEdition) | Set-Content -LiteralPath "$Destination/README.md" -Encoding UTF8

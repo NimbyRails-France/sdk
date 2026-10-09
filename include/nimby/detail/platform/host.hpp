@@ -1,5 +1,6 @@
 #pragma once
 #include <nimby/detail/sdk.h>
+#include <nimby/detail/mod_host.h>
 #include <nimby/detail/native_library.hpp>
 #include <cstdint>
 namespace nimby::detail::platform {
