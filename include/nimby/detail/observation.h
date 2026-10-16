@@ -338,6 +338,11 @@ NIMBY_API uint32_t __cdecl NimbyInternal_CaptureSignallingFor(NimbySession sessi
 // range and downstream boundary. Other catalogues still delimit native blocks.
 typedef struct NimbySignalCaptureScope { char texture_set[257]; uint32_t approach_blocks; } NimbySignalCaptureScope;
 NIMBY_API uint32_t __cdecl NimbyInternal_CaptureSignallingScope(NimbySession session,const NimbySignalCaptureScope* scopes,uint32_t count,NimbySnapshot* out,uint32_t* stage) NIMBY_NOEXCEPT;
+// SDK signalling runtime only. Fresh discovery with no selected signals may
+// omit occupations and render states (unavailable, never a Clear result).
+// Global train identities/presence remain available for the control service.
+// The existing capture entry points retain their full availability contract.
+NIMBY_API uint32_t __cdecl NimbyInternal_CaptureRuntimeSignallingScope(NimbySession session,const NimbySignalCaptureScope* scopes,uint32_t count,NimbySnapshot* out,uint32_t* stage) NIMBY_NOEXCEPT;
 // Tool heartbeat needs only world identity and the simulation clock. Geometry
 // is obtained explicitly when a tool action actually needs it.
 NIMBY_API uint32_t __cdecl NimbyInternal_CaptureSessionSnapshot(NimbySession session,NimbySnapshot* out,uint32_t* stage) NIMBY_NOEXCEPT;

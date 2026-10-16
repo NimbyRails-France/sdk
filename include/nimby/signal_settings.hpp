@@ -13,6 +13,7 @@ struct SignalCheckbox {
     std::string_view name,label,description;
     bool defaultValue=false;
     bool onlyWhenEnabled=false;
+    std::string_view visibleWhen{};
 };
 // A named optional provider handles the action. This declaration does not add
 // a loader dependency, and it never contains a callback from another mod.

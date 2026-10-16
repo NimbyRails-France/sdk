@@ -3,6 +3,9 @@
 #include <nimby/block_topology.hpp>
 #include <set>
 #include <nimby/signal_approach.hpp>
+#include <nimby/detail/signal_route_values.hpp>
+#include <nimby/route_conflict.hpp>
+#include <nimby/detail/selected_signal_route_values.hpp>
 
 namespace nimby {
 
@@ -18,6 +21,8 @@ struct LiveSignalState {
     bool trainListComplete=false;
     std::string textureSet;
     Id approachingTrain=0;
+    std::optional<RouteConflict> routeConflict={};
+    SelectedSignalRoute selectedRoute{};
 };
 struct SignalApproachScope {std::string_view textureSet;size_t blocks=1;};
 
@@ -26,7 +31,8 @@ struct SignalApproachScope {std::string_view textureSet;size_t blocks=1;};
 // remains unknown to the consumer unless separately established.
 inline std::vector<LiveSignalState> observeSignals(const Snapshot& snapshot,
     std::span<const std::string_view> textureSets, std::size_t maxSignals = 512, Milliseconds maxAge = Milliseconds{1000},
-    std::string_view settingsType = {},bool includeApproaches=false,std::span<const SignalApproachScope> approachScopes={}) {
+    std::string_view settingsType = {},bool includeApproaches=false,std::span<const SignalApproachScope> approachScopes={},
+    const detail::SignalRoutes* routes=nullptr,std::span<const std::string_view> routeCatalogues={}) {
     if (textureSets.empty() || textureSets.size()>16 || !maxSignals || maxSignals > 4096 || maxAge.count() < 0)
         throw std::invalid_argument("Invalid signal observation scope");
     std::set<std::string_view> catalogues;
@@ -53,25 +59,47 @@ inline std::vector<LiveSignalState> observeSignals(const Snapshot& snapshot,
     if (selected.empty()) return {};
     const BlockTopology topology(boundaries, snapshot.getAllTrackNodes(), snapshot.getAllTrackJunctions());
     const auto reader = observeBlocks(snapshot, maxAge);
+    std::optional<detail::SelectedRouteIndex> routeIndex;
+    if(routes&&routes->directed()&&!routeCatalogues.empty())
+        routeIndex.emplace(snapshot.getAllSignals(),snapshot.getAllSignalStates(),snapshot.getAllSignalTextures());
     size_t maxApproach=includeApproaches?1:0;
     for(const auto& scope:approachScopes){
         if(!scope.blocks||scope.blocks>16||!catalogues.contains(scope.textureSet))throw std::invalid_argument("Invalid approach scope");
         maxApproach=std::max(maxApproach,scope.blocks);
     }
-    const auto approaches=maxApproach?observeSignalApproaches(snapshot,topology.getSignalTopology(),maxAge,maxApproach):std::map<Id,SignalApproach>{};
+    const auto approaches=maxApproach?observeSignalApproaches(snapshot,topology.getSignalTopology(),maxAge,maxApproach,
+        routes?routes->rows():std::span<const NimbySignalRouteObservation>{}):std::map<Id,SignalApproach>{};
     std::vector<LiveSignalState> result;
     result.reserve(selected.size());
     for (const auto& [id,catalogue] : selected) {
-        const auto block = topology.read(id);
-        auto observation=block.observe(reader);
+        auto block = topology.read(id);
         size_t approachLimit=includeApproaches?1:0;
         for(const auto& scope:approachScopes)if(scope.textureSet==catalogue)approachLimit=scope.blocks;
         const auto approach=approaches.find(id);
         const auto train=approach!=approaches.end()&&approach->second.blocks<=approachLimit?approach->second.train:0;
+        std::optional<RouteConflict> routeConflict;
+        SelectedSignalRoute selectedRoute;
+        if(train&&routes){
+            const auto route=routes->at(id,train);const auto source=snapshot.getSignalById(id);
+            if(route&&source&&detail::SignalRoutes::sourceMatches(*route,*source)){
+                // A qualified refusal belongs to the selected source/train,
+                // even when no usable downstream section was copied. Missing
+                // block geometry must not discard a positive restrictive fact.
+                if(route->flags&NIMBY_SIGNAL_ROUTE_CROSSING_OCCUPIED)routeConflict=RouteConflict::CrossingOccupied;
+                else if(route->flags&NIMBY_SIGNAL_ROUTE_CROSSING_RESERVED)routeConflict=RouteConflict::CrossingReserved;
+                const auto next=snapshot.getSignalById(route->next_signal_id);
+                if(const auto routed=routes->block(*route,*source,next?&*next:nullptr)){
+                    block=*routed;
+                }
+                if(routeIndex&&std::find(routeCatalogues.begin(),routeCatalogues.end(),catalogue)!=routeCatalogues.end())
+                    selectedRoute=routeIndex->read(*route,*source,routes->sections(id,train),routes->annotations(id,train),reader);
+            }
+        }
+        auto observation=block.observe(reader);
         result.push_back({id, block.nextSignal, observation.occupation,
             block.hasBoundary(), !snapshot.isOlderThan(maxAge), snapshot.getSignalSettings(id,settingsType),
             std::move(observation.trains),observation.complete,catalogue,
-            train});
+            train,routeConflict,std::move(selectedRoute)});
     }
     return result;
 }

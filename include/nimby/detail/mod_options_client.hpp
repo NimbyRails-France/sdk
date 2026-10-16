@@ -2,7 +2,7 @@
 #include <nimby/detail/mod_options_bridge.h>
 #include <nimby/detail/native_library.hpp>
 #include <nimby/detail/platform/host.hpp>
-#include <nimby/detail/vendor/json.hpp>
+#include <nimby/detail/bounded_json.hpp>
 #include <array>
 #include <string>
 #include <vector>
@@ -40,7 +40,14 @@ public:
         if(written>buffer_.size()||!revision||revision<revision_||(!written&&revision!=revision_))
             throw std::runtime_error("Invalid mod options response");
         if(written){
-            const auto data=nlohmann::json::parse(buffer_.data(),buffer_.data()+written);
+            // The resident producer emits a shallow fixed schema. Reject deeper IPC
+            // before adding the next container; bounded DOM cleanup cannot
+            // allocate while unwinding memory pressure.
+            const BoundedJson data=BoundedJson::parse(buffer_.data(),buffer_.data()+written,
+                [](int depth,BoundedJson::parse_event_t,BoundedJson&){
+                    if(depth>8)throw std::runtime_error("Mod options response nesting limit exceeded");
+                    return true;
+                });
             if(!data.is_object()||(revision!=revision_&&!data.contains("values")))
                 throw std::runtime_error("Missing changed mod option values");
             if(data.contains("values")){

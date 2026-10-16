@@ -1,6 +1,8 @@
 #pragma once
 #include <nimby/detail/observation_values.hpp>
 #include <nimby/detail/construction.h>
+#include <nimby/detail/track_conflict_values.hpp>
+#include <nimby/detail/track_endpoint_values.hpp>
 
 namespace nimby::detail {
 // SDK-internal discovery for diagnostic hosts. In-game adapters pass their
@@ -40,6 +42,14 @@ public:
         return Snapshot::capture(session_, scope, textureSet);
     }
     Snapshot::Ptr captureSignalling() { return capture(SnapshotScope::Signalling); }
+    TrackConflictObservation::Ptr captureTrackConflicts(std::span<const Id> trackIds) {
+        std::lock_guard guard(mutex_);
+        return TrackConflictObservation::capture(session_,trackIds);
+    }
+    TrackEndpointObservation::Ptr captureTrackEndpoints(std::span<const Id> trackIds) {
+        std::lock_guard guard(mutex_);
+        return TrackEndpointObservation::capture(session_,trackIds);
+    }
     Snapshot::Ptr captureTrainData(uint32_t flags=NIMBY_TRAIN_DATA_ALL) {
         std::lock_guard guard(mutex_);
         return Snapshot::capture(session_,SnapshotScope::TrainData,nullptr,{},flags);
@@ -48,6 +58,13 @@ public:
         if(scopes.empty()||scopes.size()>16)throw std::invalid_argument("Invalid signalling scopes");
         std::lock_guard guard(mutex_);
         return Snapshot::capture(session_,SnapshotScope::Signalling,nullptr,scopes);
+    }
+    // Adapter opt-in, separate from every public capture contract. A selected
+    // empty network keeps global control identities but omits unrelated traffic.
+    Snapshot::Ptr captureRuntimeSignalling(std::span<const NimbySignalCaptureScope> scopes) {
+        if(scopes.empty()||scopes.size()>16)throw std::invalid_argument("Invalid signalling scopes");
+        std::lock_guard guard(mutex_);
+        return Snapshot::capture(session_,SnapshotScope::Signalling,nullptr,scopes,NIMBY_TRAIN_DATA_ALL,true);
     }
     Snapshot::Ptr captureSignalling(std::string_view textureSet) {
         if (textureSet.empty() || textureSet.size() > 256 || textureSet.find('\0') != std::string_view::npos)

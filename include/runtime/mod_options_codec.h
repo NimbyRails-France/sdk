@@ -15,7 +15,7 @@ struct Declaration {
 inline constexpr size_t maximumSavedBytes=64*1024,maximumSavedEntries=256;
 
 namespace codec {
-using Json=nlohmann::json;
+using Json=nimby::detail::BoundedJson;
 [[noreturn]] inline void invalid(const char* reason){throw std::invalid_argument(std::string("Mod options: ")+reason);}
 inline Json parse(std::string_view bytes,size_t limit){
     if(bytes.empty()||bytes.size()>limit)invalid("JSON byte limit exceeded or empty input");

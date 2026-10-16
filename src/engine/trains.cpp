@@ -10,6 +10,7 @@
 #include <cmath>
 #include <cstring>
 #include <map>
+#include <memory>
 #include <unordered_set>
 #include "engine/detail/memory_reader.h"
 #include "engine/detail/position.h"
@@ -153,7 +154,7 @@ bool decode_train_position(const void* motion,size_t size,TrainPosition& out) no
     if(!position(p+0x3a8,candidate)) return false;
     out=candidate;return true;
 }
-bool read_trains(ReadMemory read,void* context,const LiveState& state,bool recognized,std::vector<Train>& out,bool presenceOnly,TrainMetadataCatalog* metadata,bool includePaths,uint32_t dataFlags) noexcept {
+bool read_trains(ReadMemory read,void* context,const LiveState& state,bool recognized,std::vector<Train>& out,bool presenceOnly,TrainMetadataCatalog* metadata,bool includePaths,uint32_t dataFlags,bool allowPresenceBatch) noexcept {
     out.clear();if(metadata)*metadata={};if(!read||!recognized)return false;
     try {
         LiveState current;
@@ -191,6 +192,39 @@ bool read_trains(ReadMemory read,void* context,const LiveState& state,bool recog
             t.service.train_id=t.id;t.details.train_id=t.id;t.details.order_mode=t.order_mode;t.details.order_index=-1;
             model_addresses.emplace(t.id,address);trains.emplace(t.id,std::move(t));return true;
         }))return false;
+        // Copy a secondary
+        // presence prefix range once per sufficiently dense <=512-slot block.
+        // A successful copy is never retried to repair an observed mismatch.
+        constexpr size_t motionStride=0x638,presencePrefix=0x4b1,batchSlots=512,minimumBatchRows=128;
+        constexpr size_t maximumPresenceBatch=(batchSlots-1)*motionStride+presencePrefix;
+        std::unique_ptr<unsigned char[]> presenceBatch;
+        uint64_t presenceBatchBegin=0;size_t presenceBatchBytes=0;bool batchAllocationAttempted=false;
+        const auto preparePresenceBlock=[&](std::span<const unsigned char> bytes,uint64_t block){
+            presenceBatchBegin=0;presenceBatchBytes=0;
+            if(!presenceOnly||!allowPresenceBatch||state.profile!=LiveStateProfile::Windows119||
+               trains.size()<4096||bytes.size()%motionStride||bytes.size()/motionStride>batchSlots)return;
+            const auto slots=bytes.size()/motionStride;
+            size_t first=slots,last=0,known=0;
+            for(size_t slot=0;slot<slots;++slot){
+                const auto id=field<uint64_t>(bytes.data()+slot*motionStride,0);
+                if((id>>48)!=5||!trains.contains(id))continue;
+                if(!known)first=slot;
+                last=slot;++known;
+            }
+            if(known<minimumBatchRows||last-first+1>known*2)return;
+            const auto begin=block+first*motionStride;
+            const auto length=(last-first)*motionStride+presencePrefix;
+            if(begin<block||begin>0x7fffffff0000ULL-length)return;
+            // At most one bounded allocation per read_trains invocation, made lazily. Failure
+            // leaves ordinary per-row prefix reads available.
+            if(!presenceBatch){
+                if(batchAllocationAttempted)return;
+                batchAllocationAttempted=true;
+                try{presenceBatch.reset(new unsigned char[maximumPresenceBatch]);}catch(...){return;}
+            }
+            if(!read(context,begin,presenceBatch.get(),length))return;
+            presenceBatchBegin=begin;presenceBatchBytes=length;
+        };
         if(!collect(read,context,state.simulation+0xa0,5,0x638,[&](const unsigned char* p,uint64_t address){
             auto it=trains.find(field<uint64_t>(p,0));
             if(it==trains.end())return retired_motion(read,context,state,p,address);
@@ -199,8 +233,17 @@ bool read_trains(ReadMemory read,void* context,const LiveState& state,bool recog
             // Service validity is independent of speed/network availability.
             NimbyTrainService first{},second{};
             std::array<unsigned char,0x638> service_after{};
-            const bool motionRechecked=read(context,address,service_after.data(),service_after.size())&&
-                field<uint64_t>(service_after.data(),0)==t.id;
+            // Signalling consumes identity, presence flags and the Drive head
+            // only. +0x4b0 is its last byte; full service/metadata keeps the
+            // complete record. The initial pool copy and retired check stay full.
+            const auto motionReadBytes=presenceOnly?size_t(0x4b1):service_after.size();
+            bool motionCopied=false;
+            if(presenceOnly&&presenceBatchBegin&&address>=presenceBatchBegin&&
+               address-presenceBatchBegin<=presenceBatchBytes-presencePrefix){
+                std::memcpy(service_after.data(),presenceBatch.get()+size_t(address-presenceBatchBegin),presencePrefix);
+                motionCopied=true;
+            }else motionCopied=read(context,address,service_after.data(),motionReadBytes);
+            const bool motionRechecked=motionCopied&&field<uint64_t>(service_after.data(),0)==t.id;
             if(wantMetadata&&wantMetadataSources&&motionRechecked){
                 auto& source=metadataSources.at(t.id);source.motionAddress=address;
                 if(wantComposition){
@@ -236,7 +279,7 @@ bool read_trains(ReadMemory read,void* context,const LiveState& state,bool recog
                 TrainPosition firstHead{},secondHead{};
                 if(motionRechecked&&(t.service.flags&NIMBY_SERVICE_PRESENCE_VALID)&&
                    decode_train_position(p,0x638,firstHead)&&
-                   decode_train_position(service_after.data(),service_after.size(),secondHead)&&
+                   decode_train_position(service_after.data(),motionReadBytes,secondHead)&&
                    firstHead.track_id==secondHead.track_id&&firstHead.direction==secondHead.direction&&
                    (secondHead.fraction-firstHead.fraction)*firstHead.direction>=0){
                     t.position=secondHead;t.positioned=true;
@@ -327,7 +370,7 @@ bool read_trains(ReadMemory read,void* context,const LiveState& state,bool recog
             }
             if(!t.positioned&&p[0x1d0]==1){t.positioned=position(p+0xb8,t.position);}
             return true;
-        }))return false;
+        },preparePresenceBlock))return false;
         if(presenceOnly){
             if(!resolve_live_state(read,context,state.module_base,true,state.profile,current)||current!=state)return false;
             for(auto& [id,t]:trains)out.push_back(std::move(t));

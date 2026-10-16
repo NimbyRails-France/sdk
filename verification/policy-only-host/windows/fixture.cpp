@@ -139,18 +139,38 @@ extern "C" std::uint32_t __cdecl NimbyInternal_TrainEditorRegister(const char* i
     try {
         std::lock_guard guard(mutex);if(!owner)return NIMBY_INVALID_ARGUMENT;*owner=0;
         if(!declaration)return NIMBY_INVALID_ARGUMENT;
-        (void)nimby::engine::train_editor::Messages({declaration,bytes});
+        const nimby::engine::train_editor::Messages presentation({declaration,bytes});
         const auto schema=Json::parse(declaration,declaration+bytes);
         const auto catalogue=schema.at("translations").get<std::string>();
         std::optional<nimby::detail::Translations> translations;
         if(!catalogue.empty())translations.emplace(catalogue);
         std::uint64_t resolved=0;
-        for(const auto& message:schema.at("messages"))for(const auto* locale:{"fr","en"}){
-            const auto text=nimby::detail::Translations::resolve(translations?&*translations:nullptr,
-                message.get<std::string>(),locale);
-            if(text.empty()||text.starts_with("[")||nimby::detail::Translations::reference(text))return NIMBY_INVALID_ARGUMENT;
-            ++resolved;
-        }
+        const auto checkTexts=[&](const char* field,size_t offset){
+            size_t index=offset;
+            for(const auto& message:schema.at(field)){
+                for(const auto* locale:{"fr","en"}){
+                    const auto text=nimby::detail::Translations::resolve(translations?&*translations:nullptr,
+                        message.get<std::string>(),locale);
+                    if(text.empty()||text.starts_with("[")||nimby::detail::Translations::reference(text)||
+                       presentation.select(index,locale)!=text)return false;
+                    ++resolved;
+                }
+                ++index;
+            }
+            return true;
+        };
+        if(!checkTexts("messages",0))return NIMBY_INVALID_ARGUMENT;
+        if(schema.contains("lengthDisplay")){
+            if(!presentation.showsLength()||!checkTexts("lengthDisplay",3))return NIMBY_INVALID_ARGUMENT;
+            constexpr const char* expected[][3]{
+                {"Longueur actuelle","Longueur proposée","Longueur actuelle indisponible"},
+                {"Current length","Proposed length","Current length unavailable"}};
+            size_t language=0;
+            for(const auto* locale:{"fr","en"}){
+                for(size_t i=0;i<3;++i)if(presentation.select(i+3,locale)!=expected[language][i])return NIMBY_INVALID_ARGUMENT;
+                ++language;
+            }
+        }else if(presentation.showsLength())return NIMBY_INVALID_ARGUMENT;
         ++stats.editorAdds;stats.declarationBytes=bytes;stats.resolvedMessages=resolved;
         return registerLimit(id,maximum,owner);
     }catch(...){return NIMBY_INVALID_ARGUMENT;}

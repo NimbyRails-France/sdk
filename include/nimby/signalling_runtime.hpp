@@ -8,8 +8,18 @@
 #include <nimby/detail/live_texture_tracking.hpp>
 #include <nimby/detail/mod_work.hpp>
 #include <unordered_set>
+#include <type_traits>
+#include <utility>
 
 namespace nimby {
+namespace detail {
+// Live observations may own richer data than the fixed command wire format.
+// Existing rules without a separate live type keep their exact previous type.
+template<class Rules,class=void> struct RuntimeLiveSignal {using type=typename Rules::Signal;};
+template<class Rules> struct RuntimeLiveSignal<Rules,std::void_t<decltype(Rules::fromLive(std::declval<const LiveSignalState&>()))>> {
+    using type=decltype(Rules::fromLive(std::declval<const LiveSignalState&>()));
+};
+}
 // Generic command names supplied by a mod. All strings need static lifetime.
 struct SignallingCommandNames {
     const char *evaluate, *plan, *readTrainPlan, *render, *network, *occupancy, *readOccupancy;
@@ -18,6 +28,7 @@ struct SignallingCommandNames {
 // textures and the vehicle model. No national aspect/limit is defined here.
 template<class Rules> class SignallingRuntime {
 public:
+    using LiveSignal=typename detail::RuntimeLiveSignal<Rules>::type;
     struct SignalRequest {
         typename Rules::Settings settings;
         typename Rules::Observation observation;
@@ -107,22 +118,23 @@ public:
             result.signals.push_back({decision.id,image(decision.decision,request.simulationMs,request.halfPeriodMs)});
         return result;
     }
-    static LiveNetworkResult evaluateLiveNetwork(std::span<const typename Rules::Signal> input) {
+    static LiveNetworkResult evaluateLiveNetwork(std::span<const LiveSignal> input) {
         const auto decisions=networkDecisions(input,true,liveSignalLimit);
         LiveNetworkResult result;result.signals.items.reserve(decisions.size());
         for(const auto& decision:decisions)result.signals.items.push_back({decision.id,{decision.decision}});
         return result;
     }
 private:
-    static auto networkDecisions(std::span<const typename Rules::Signal> input,bool live,std::size_t limit) {
+    template<class SignalType>
+    static auto networkDecisions(std::span<const SignalType> input,bool live,std::size_t limit) {
         if(input.size()>limit)throw std::invalid_argument("Signal evaluation limit exceeded");
         if(live)detail::markModWork(NIMBY_MOD_WORK_PREPARE_NETWORK,input.size());
         const auto signals = [&] {
             if constexpr(requires { Rules::prepareNetwork(input); })return Rules::prepareNetwork(input);
             else return input;
         }();
-        if(live)detail::markModWork(NIMBY_MOD_WORK_EVALUATE_NETWORK,std::span<const typename Rules::Signal>{signals}.size());
-        return nimby::evaluateSignalsWithFallback<typename Rules::Decision>(std::span<const typename Rules::Signal>{signals},[live](const auto& signal,const auto& next) {
+        if(live)detail::markModWork(NIMBY_MOD_WORK_EVALUATE_NETWORK,std::span<const SignalType>{signals}.size());
+        return nimby::evaluateSignalsWithFallback<typename Rules::Decision>(std::span<const SignalType>{signals},[live](const auto& signal,const auto& next) {
                 if constexpr(controllable)if(live)if(auto forced=controlState().forced(signal.id))return forced;
                 return Rules::decide(signal,next);
             },
@@ -207,7 +219,7 @@ private:
             if constexpr(requires { Rules::observe(snapshot); })return Rules::observe(snapshot);
             else return observeSignals(snapshot, Rules::textureSet, liveSignalLimit);
         }();
-        std::vector<typename Rules::Signal> signals;signals.reserve(states.size());
+        std::vector<LiveSignal> signals;signals.reserve(states.size());
         std::unique_lock<std::mutex> controlLock;
         detail::markModWork(NIMBY_MOD_WORK_SIGNAL_CONTROL,states.size());
         if constexpr(controllable){controlLock=std::unique_lock(controlState().mutex);controlState().observe(snapshot,states);}

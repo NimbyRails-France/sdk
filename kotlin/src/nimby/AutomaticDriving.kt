@@ -16,7 +16,12 @@ object AutomaticDriving {
     /** Libere les consignes dont le mod a choisi une sortie sur Clear. */
     fun clear() = DrivingRule(flags = setOf(DrivingFlag.Clear))
 
-    /** Exige l'arret au panneau courant, sans autorisation de franchissement. */
+    /**
+     * Exige l'arrêt avant le panneau courant, sans autorisation de franchissement.
+     * Le SDK applique la distance choisie dans Options → NRF Hub → Interface →
+     * NRF SDK (3 mètres par défaut). La règle du mod n'a pas à gérer le freinage
+     * ni déplacer la position réelle du signal.
+     */
     fun stop() = DrivingRule(speedMps = 0.0, flags = setOf(DrivingFlag.Stop))
 
     /**

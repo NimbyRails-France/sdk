@@ -19,6 +19,9 @@ std::atomic<bool> gameSessionAvailable{false};
 std::atomic<bool> richTrainRows{false};
 std::atomic<uint32_t> lastTrainDataFlags{}, richTableCopies{};
 std::atomic<unsigned> topologyCaptures{};
+std::atomic<unsigned> publicScopeCaptures{}, runtimeScopeCaptures{};
+std::atomic<uint32_t> lastScopeCount{}, lastScopeApproach{};
+std::atomic<bool> lastScopeNameMatches{false};
 std::atomic<bool> topologyMetrics{false};
 std::atomic<double> topologySignalFraction{.5};
 std::atomic<uint32_t> nodeStatus{NIMBY_OK};
@@ -91,7 +94,16 @@ uint32_t __cdecl NimbyInternal_CaptureSignallingSnapshot(NimbySession s,NimbySna
 uint32_t __cdecl NimbyInternal_CaptureSignallingFor(NimbySession s,const char*,NimbySnapshot* out,uint32_t* stage) noexcept {
     return NimbyInternal_CaptureSnapshotDiagnostic(s,out,stage);
 }
-uint32_t __cdecl NimbyInternal_CaptureSignallingScope(NimbySession s,const NimbySignalCaptureScope*,uint32_t,NimbySnapshot* out,uint32_t* stage) noexcept {
+uint32_t __cdecl NimbyInternal_CaptureSignallingScope(NimbySession s,const NimbySignalCaptureScope* scopes,uint32_t count,NimbySnapshot* out,uint32_t* stage) noexcept {
+    ++publicScopeCaptures;
+    lastScopeCount=count;lastScopeApproach=count?scopes[0].approach_blocks:0;
+    lastScopeNameMatches=count&&std::strcmp(scopes[0].texture_set,"test")==0;
+    return NimbyInternal_CaptureSnapshotDiagnostic(s,out,stage);
+}
+uint32_t __cdecl NimbyInternal_CaptureRuntimeSignallingScope(NimbySession s,const NimbySignalCaptureScope* scopes,uint32_t count,NimbySnapshot* out,uint32_t* stage) noexcept {
+    ++runtimeScopeCaptures;
+    lastScopeCount=count;lastScopeApproach=count?scopes[0].approach_blocks:0;
+    lastScopeNameMatches=count&&std::strcmp(scopes[0].texture_set,"test")==0;
     return NimbyInternal_CaptureSnapshotDiagnostic(s,out,stage);
 }
 uint32_t __cdecl NimbyInternal_CaptureSessionSnapshot(NimbySession s,NimbySnapshot* out,uint32_t* stage) noexcept {
@@ -529,6 +541,44 @@ int main() {
             REQUIRE(!retained->getPathTrackIdsForTrain(999));
             const auto signalling=client.captureSignalling();
             REQUIRE(client.captureSignalling("test")->getAllTrains().size()==2);
+            {
+                // Diagnostic callers keep the global occupation contract. Only
+                // the adapter's explicit runtime call selects the new export.
+                std::array<NimbySignalCaptureScope,1> scopes{};
+                std::strcpy(scopes[0].texture_set,"test");scopes[0].approach_blocks=2;
+                const auto publicBefore=publicScopeCaptures.load(),runtimeBefore=runtimeScopeCaptures.load();
+                const auto diagnostic=client.captureSignalling(scopes);
+                REQUIRE(publicScopeCaptures==publicBefore+1&&runtimeScopeCaptures==runtimeBefore);
+                REQUIRE(lastScopeCount==1&&lastScopeApproach==2&&lastScopeNameMatches);
+                REQUIRE(diagnostic->getAllTrains().size()==2);
+                REQUIRE(diagnostic->getAllOccupations().has_value()&&diagnostic->getAllOccupations()->empty());
+                scopes[0].approach_blocks=8;
+                const auto runtime=client.captureRuntimeSignalling(scopes);
+                REQUIRE(publicScopeCaptures==publicBefore+1&&runtimeScopeCaptures==runtimeBefore+1);
+                REQUIRE(lastScopeCount==1&&lastScopeApproach==8&&lastScopeNameMatches);
+                REQUIRE(runtime->getAllTrains().size()==2); // This fixture supplies the same owned rows.
+                client.capture();
+                client.capture(nimby::SnapshotScope::Session);
+                client.capture(nimby::SnapshotScope::NetworkTopology);
+                client.captureTrainData(NIMBY_TRAIN_DATA_SERVICE);
+                client.captureSignalling();client.captureSignalling("test");
+                REQUIRE(publicScopeCaptures==publicBefore+1&&runtimeScopeCaptures==runtimeBefore+1);
+                for(const bool runtimeOnly:{false,true}){
+                    bool rejected=false;
+                    try{
+                        if(runtimeOnly)client.captureRuntimeSignalling(std::span<const NimbySignalCaptureScope>{});
+                        else client.captureSignalling(std::span<const NimbySignalCaptureScope>{});
+                    }catch(const std::invalid_argument&){rejected=true;}
+                    REQUIRE(rejected);
+                    std::array<NimbySignalCaptureScope,17> tooMany{};rejected=false;
+                    try{
+                        if(runtimeOnly)client.captureRuntimeSignalling(tooMany);
+                        else client.captureSignalling(tooMany);
+                    }catch(const std::invalid_argument&){rejected=true;}
+                    REQUIRE(rejected);
+                }
+                REQUIRE(publicScopeCaptures==publicBefore+1&&runtimeScopeCaptures==runtimeBefore+1);
+            }
             bool invalidScope=false;
             try{client.captureSignalling("");}catch(const std::invalid_argument&){invalidScope=true;}
             REQUIRE(invalidScope);

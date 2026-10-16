@@ -146,6 +146,7 @@ extern "C" __declspec(dllexport) uint32_t WINAPI NRFMod_StartV1(void*) {
             const auto handles=channelHandles();
             auto* shared=static_cast<nimby::mod_host::Shared*>(MapViewOfFile(handles[0],FILE_MAP_ALL_ACCESS,0,0,sizeof(nimby::mod_host::Shared)));
             if(!shared)ExitProcess(6);
+            bool quotaReported=false;
             while(!stopping){
                 pulse(2);shared->operation=100;shared->inputSize=nimby::mod_host::payloadLimit+1;shared->capacity=0;
                 ResetEvent(handles[2]);InterlockedExchange(&shared->requestState,1);SetEvent(handles[1]);
@@ -153,6 +154,15 @@ extern "C" __declspec(dllexport) uint32_t WINAPI NRFMod_StartV1(void*) {
                 if(shared->result==NIMBY_RESOURCE_LIMIT)++throttled;
                 else if(shared->result!=NIMBY_INVALID_ARGUMENT)ExitProcess(6);
                 pulse(3);
+                if(!quotaReported&&throttled.load()>10) {
+                    // Report the observed quota through an ordinary bounded RPC.
+                    // Healthy-worker progress alone does not prove this child
+                    // has consumed its own admission budget. A rejected report
+                    // is retried; the host's limits and malformed path stay intact.
+                    pulse(2);const auto status=invoke(1);pulse(3);
+                    if(status==NIMBY_OK)quotaReported=true;
+                    else if(status!=NIMBY_RESOURCE_LIMIT)ExitProcess(6);
+                }
             }
             UnmapViewOfFile(shared);return;
         }

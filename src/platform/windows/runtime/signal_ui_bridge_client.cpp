@@ -66,3 +66,18 @@ extern "C" NIMBY_API uint32_t __cdecl NimbyInternal_EnsureSignalUiBridge() noexc
         return status;
     }catch(...){ nimby::detail::diagnostics::exception("sdk", __func__); return NIMBY_INTERNAL_ERROR;}
 }
+
+// Core-only prerequisite for driving observation. A registered length policy
+// is not required: loaded saves can already contain extended compositions.
+// Keep the single native mechanics/registry instance in the pinned UI bridge.
+// Its bootstrap takes BridgeInstallation itself, so this call must precede
+// the caller's bridge installation transaction, not run inside that guard.
+extern "C" NIMBY_API uint32_t __cdecl NimbyInternal_EnsureTrainRuntimeMechanics() noexcept {
+    const auto status=NimbyInternal_EnsureSignalUiBridge();
+    if(status!=NIMBY_OK)return status;
+    const auto module=GetModuleHandleW(L"NimbySignalUiBridge-experimental-v1.dll");
+    if(!module)return NIMBY_HOOKS_UNAVAILABLE;
+    using Ensure=uint32_t(__cdecl*)() noexcept;
+    const auto ensure=std::bit_cast<Ensure>(GetProcAddress(module,"NimbyTrainRuntime_Ensure"));
+    return ensure?ensure():NIMBY_HOOKS_UNAVAILABLE;
+}

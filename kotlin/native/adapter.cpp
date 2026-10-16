@@ -1,6 +1,8 @@
 #include <nimby/detail/diagnostics.hpp>
 #include <atomic>
 #include <nimby/kotlin_mod.hpp>
+#include <nimby/detail/kotlin_observation_trains.hpp>
+#include <nimby/detail/signal_route_diagnostic.hpp>
 #include <nimby/signal_settings_store.hpp>
 #include <nimby/detail/signal_settings_runtime.hpp>
 #include <nimby/detail/native_library.hpp>
@@ -16,6 +18,7 @@
 #include <chrono>
 #include <sstream>
 #include <thread>
+#include <type_traits>
 #include "tool_context.hpp"
 
 #ifndef NIMBY_KOTLIN_LIBRARY
@@ -26,6 +29,65 @@ namespace {
 void migrateSettings(std::string_view panelId,std::map<std::string,bool,std::less<>>& values);
 using LastError=int(*)(char*,int);
 std::atomic<LastError> lastError{nullptr};
+using RouteDiagnostic=detail::SignalRouteDiagnostic;
+// Lifecycle callbacks can run on a different thread from observation. They
+// publish invalidation only; the observation worker owns all diagnostic state.
+std::array<std::atomic<uint64_t>,3> routeDiagnosticResets{};
+void resetRouteDiagnostic(RouteDiagnostic::Reset reason)noexcept {
+    routeDiagnosticResets[size_t(reason)].fetch_add(1,std::memory_order_relaxed);
+}
+void observeRouteDiagnostic(const Snapshot& snapshot,std::span<const LiveSignalState> states,
+    std::span<const NimbySignalRouteObservation> rows,std::string_view modId)noexcept {
+    try {
+        struct Worker {
+            RouteDiagnostic diagnostic;
+            std::vector<RouteDiagnostic::Source> sources;
+            std::array<uint64_t,3> resets{};
+            std::chrono::steady_clock::time_point next{};
+            Worker(){sources.reserve(RouteDiagnostic::maxSources);}
+        };
+        thread_local Worker worker;
+        for(size_t i=0;i<worker.resets.size();++i){
+            const auto serial=routeDiagnosticResets[i].load(std::memory_order_relaxed);
+            if(serial!=worker.resets[i]){
+                worker.diagnostic.reset(static_cast<RouteDiagnostic::Reset>(i));worker.resets[i]=serial;
+            }
+        }
+        worker.sources.clear();
+        // observeSignals enforces this limit. Never grow a diagnostic buffer
+        // beyond it if another caller violates that contract.
+        if(states.size()>RouteDiagnostic::maxSources)return;
+        for(const auto& state:states)worker.sources.push_back({state.id,state.approachingTrain,state.fresh,state.routeConflict});
+        const auto& session=snapshot.getGameSession();
+        const auto identity=session?std::optional<RouteDiagnostic::Session>{{session->generation,session->worldId}}:std::nullopt;
+        worker.diagnostic.observe(identity,worker.sources,rows);
+        const auto now=std::chrono::steady_clock::now();
+        const auto& pending=worker.diagnostic.pending();
+        if(pending.empty()||now<worker.next)return;
+        const auto& summary=worker.diagnostic.summary();
+        std::ostringstream out;
+        out<<"Signal route transitions: mod="<<modId<<" qualified_session="<<summary.sessionQualified
+           <<" sources="<<summary.sources<<" observed_conflicts="<<summary.observedConflicts
+           <<" historical_conflicts="<<summary.retainedHistoricalConflicts
+           <<" missing_observation_is_unknown=1 native_permissions_changed=0";
+        for(size_t i=0;i<pending.counts.size();++i)if(pending.counts[i])
+            out<<' '<<RouteDiagnostic::name(static_cast<RouteDiagnostic::Event>(i))<<'='<<pending.counts[i];
+        for(size_t i=0;i<pending.sampleCount;++i){
+            const auto& sample=pending.samples[i];
+            out<<" sample={event="<<RouteDiagnostic::name(sample.event)<<" reason="<<RouteDiagnostic::name(sample.reason)
+               <<" signal="<<sample.signal<<" generation="<<sample.generation<<" previous_generation="<<sample.previousGeneration
+               <<" previous_train="<<sample.previous.train<<" train="<<sample.current.train
+               <<" previous_route="<<sample.previous.revision<<" route="<<sample.current.revision
+               <<" previous_cause="<<(sample.previous.conflict?int(*sample.previous.conflict):0)
+               <<" cause="<<(sample.current.conflict?int(*sample.current.conflict):0)<<'}';
+        }
+        out<<" omitted_samples="<<pending.omittedSamples<<" saturated="<<pending.saturated;
+        detail::diagnostics::write("mods","INFO",out.str().c_str());
+        // The logging boundary is noexcept and does not acknowledge disk
+        // durability. Acknowledge hand-off only; never feed history into rules.
+        worker.diagnostic.acknowledge();worker.next=now+std::chrono::seconds{1};
+    }catch(...){/* Diagnostics must not change rules or delay native admission. */}
+}
 void check(int status) {
     if(status>=0)return;
     std::array<char,32768> message{};
@@ -44,7 +106,18 @@ struct Api {
     int (*decide)(int,std::int64_t,int,std::int64_t,std::int64_t,const int*,int,int,int*)=nullptr;
     int (*decideType)(int,int,std::int64_t,int,std::int64_t,std::int64_t,std::int64_t,const int*,int,int,int*)=nullptr;
     int (*prepareNetwork)(int,const int64_t*,const int*,int64_t*,int*)=nullptr;
+    int (*observesBlockTrains)(int)=nullptr;
+    bool trainsRequested=false;
+    int (*decideTypeWithTrains)(int,int,std::int64_t,int,std::int64_t,std::int64_t,std::int64_t,const int*,int,int,const int64_t*,int,int,int*)=nullptr;
+    int (*prepareNetworkWithTrains)(int,const int64_t*,const int*,const int*,const int64_t*,int,const int*,int64_t*,int*)=nullptr;
+    int (*observesRoute)(int)=nullptr;
+    bool routesRequested=false;
+    int (*decideTypeWithRoute)(int,int,std::int64_t,int,std::int64_t,std::int64_t,std::int64_t,const int*,int,int,
+        const int64_t*,int,int,const int64_t*,const int*,const int64_t*,const int*,int,const int*,const char*,int,int*)=nullptr;
+    int (*prepareNetworkWithRoute)(int,const int64_t*,const int*,const int*,const int64_t*,int,const int*,
+        const int64_t*,const int*,const int*,const int64_t*,const int*,int,const int*,const char*,int,int64_t*,int*)=nullptr;
     size_t networkLimit=Rules::maxSignals;
+    bool observationRestrictions=false;
     int (*typeMetadata)(int,int,int,char*,int)=nullptr;
     int (*migrate)(int,const char*,const int*,int,std::int64_t*)=nullptr;
     int (*texture)(int,int,std::int64_t,std::int64_t,char*,int)=nullptr;
@@ -63,7 +136,10 @@ struct Api {
     struct Type {
         std::string id,title,catalogue;
         size_t approachBlocks=0;
+        bool observeBlockTrains=false;
+        bool observeRoute=false;
         std::vector<std::array<std::string,3>> labels;
+        std::vector<std::string> visibility;
         std::vector<SignalCheckbox> boxes;
         std::vector<std::array<std::string,4>> actionLabels;
         std::vector<SignalAction> actions;
@@ -71,6 +147,7 @@ struct Api {
         std::vector<SignalNumber> numbers;
     };
     std::vector<Type> types;
+    std::vector<std::string_view> routeCatalogues;
     std::vector<SignalSettingsPanel> panels;
     bool tool=false;
     bool hasTickCallback=true; // ABI <=9 retains its existing observation loop.
@@ -87,6 +164,9 @@ struct Api {
     void (*originalStop)()=nullptr;
     void (*originalStart)()=nullptr;
     void (*originalObservationLost)()=nullptr;
+    void (*signallingStart)()=nullptr;
+    void (*signallingStop)()=nullptr;
+    void (*signallingObservationLost)()=nullptr;
     detail::ModOptionWindows optionWindows;
     std::optional<GameSession> optionsGame;
     std::vector<std::string> pendingWindows;
@@ -120,6 +200,12 @@ struct Api {
         return {buffer.data(),static_cast<std::size_t>(count)};
     }
     void prepareTrainLength(int abi) {
+        // ABI 13 adds signal checkbox metadata. A custom signalling subclass
+        // can independently declare a train policy; absence must not invent one.
+        if(abi>=13){
+            abi=symbol<int(*)()>("NRFKotlin_TrainLengthDeclarationVersion")();check(abi);
+            if(abi!=0&&abi!=11&&abi!=12)throw std::runtime_error("Invalid train length declaration version");
+        }
         if(abi<10)return;
         trainLengthMeters=symbol<decltype(trainLengthMeters)>("NRFKotlin_TrainLengthLimitMeters");
         const auto tick=symbol<int(*)()>("NRFKotlin_ToolHasTick")();check(tick);
@@ -131,17 +217,25 @@ struct Api {
         if(bytes<1||bytes>=int(option.size())||option[bytes])throw std::runtime_error("Missing train length option identifier");
         trainLengthOption.assign(option.data(),bytes);
         if(abi>=11){
-            const auto message=symbol<int(*)(int,char*,int)>("NRFKotlin_TrainEditorMessage");
-            std::array<std::string,3> messages;
-            for(int i=0;i<3;++i){
-                std::array<char,1025> buffer{};
-                const auto count=message(i,buffer.data(),int(buffer.size()));check(count);
-                if(count<1||count>=int(buffer.size())||buffer[count]||
-                   std::memchr(buffer.data(),0,static_cast<size_t>(count)))
-                    throw std::runtime_error("Invalid train editor message declaration");
-                messages[size_t(i)].assign(buffer.data(),count);
-            }
-            trainEditorDeclaration=nlohmann::json({{"messages",messages},{"translations",translationsJson}}).dump();
+            // Copy each fixed reference once. The resident SDK owns display
+            // measurements and resolves the catalogue without calling the mod.
+            const auto copyTexts=[&](const char* exportName){
+                const auto message=symbol<int(*)(int,char*,int)>(exportName);
+                std::array<std::string,3> messages;
+                for(int i=0;i<3;++i){
+                    std::array<char,1025> buffer{};
+                    const auto count=message(i,buffer.data(),int(buffer.size()));check(count);
+                    if(count<1||count>=int(buffer.size())||buffer[count]||
+                       std::memchr(buffer.data(),0,static_cast<size_t>(count)))
+                        throw std::runtime_error("Invalid train editor text declaration");
+                    messages[size_t(i)].assign(buffer.data(),count);
+                }
+                return messages;
+            };
+            nimby::detail::BoundedJson declaration={{"messages",copyTexts("NRFKotlin_TrainEditorMessage")},
+                                        {"translations",translationsJson}};
+            if(abi>=12)declaration["lengthDisplay"]=copyTexts("NRFKotlin_TrainEditorLengthLabel");
+            trainEditorDeclaration=declaration.dump();
             if(trainEditorDeclaration.size()>NIMBY_OPTIONS_SCHEMA_LIMIT)
                 throw std::runtime_error("Train editor message declaration too large");
         }
@@ -154,7 +248,7 @@ struct Api {
         return static_cast<uint32_t>(metres);
     }
     void prepareOptions(int abi) {
-        using Json=nlohmann::json;
+        using Json=nimby::detail::BoundedJson;
         auto fields=Json::array();
         if(abi>=9){
             optionCount=symbol<int(*)()>("NRFKotlin_OptionCount")();check(optionCount);
@@ -385,7 +479,7 @@ struct Api {
         if(const auto available=reinterpret_cast<int(*)(int)>(detail::native::symbol(module,"NRFKotlin_TranslationsAvailable")))
             check(available(translationsJson.empty()?0:1));
         const auto version=symbol<int(*)()>("NRFKotlin_Version");const auto abi=version();check(abi);
-        if(abi<1||abi>11)throw std::runtime_error("Unsupported Kotlin ABI");
+        if(abi<1||abi>14)throw std::runtime_error("Unsupported Kotlin ABI; update the runtime SDK and recompile with the matching kit");
         metadata=symbol<decltype(metadata)>("NRFKotlin_Metadata");
         if(abi>=3){
             const auto kind=symbol<int(*)()>("NRFKotlin_ModKind")();check(kind);
@@ -414,6 +508,25 @@ struct Api {
         }
         id=text(0);title=text(1);prepareTrainLength(abi);prepareOptions(abi);
         if(tool){diagnostic=text(3);return;}
+        if(const auto capability=reinterpret_cast<int(*)()>(detail::native::symbol(module,"NRFKotlin_ObservationRestrictionsVersion"))){
+            const auto version=capability();check(version);
+            if(version!=1)throw std::runtime_error("Unsupported Kotlin observation restrictions capability");
+            observationRestrictions=true;
+        }
+        if(const auto capability=reinterpret_cast<int(*)()>(detail::native::symbol(module,"NRFKotlin_ObservationTrainsVersion"))){
+            const auto version=capability();check(version);
+            if(version!=1)throw std::runtime_error("Unsupported Kotlin observation trains capability");
+            decideTypeWithTrains=symbol<decltype(decideTypeWithTrains)>("NRFKotlin_DecideTypeWithTrains");
+            prepareNetworkWithTrains=symbol<decltype(prepareNetworkWithTrains)>("NRFKotlin_PrepareNetworkWithTrains");
+            observesBlockTrains=symbol<decltype(observesBlockTrains)>("NRFKotlin_ObservesBlockTrains");
+        }
+        if(abi>=14){
+            const auto version=symbol<int(*)()>("NRFKotlin_ObservationRouteVersion")();check(version);
+            if(version!=1||!decideTypeWithTrains)throw std::runtime_error("Unsupported Kotlin selected route capability");
+            decideTypeWithRoute=symbol<decltype(decideTypeWithRoute)>("NRFKotlin_DecideTypeWithRoute");
+            prepareNetworkWithRoute=symbol<decltype(prepareNetworkWithRoute)>("NRFKotlin_PrepareNetworkWithRoute");
+            observesRoute=symbol<decltype(observesRoute)>("NRFKotlin_ObservesRoute");
+        }
         if(abi>=8)prepareNetwork=symbol<decltype(prepareNetwork)>("NRFKotlin_PrepareNetwork");
         if(const auto limit=reinterpret_cast<int(*)()>(detail::native::symbol(module,"NRFKotlin_NetworkLimit"))){
             const auto count=limit();check(count);
@@ -460,12 +573,31 @@ struct Api {
                 std::array<std::int64_t,4> description{};check(typeInfo(n,description.data()));
                 if(description[3]<0||description[3]>(abi>=5?16:1))throw std::runtime_error("Invalid approach observation range");
                 type.approachBlocks=size_t(description[3]);
+                if(observesBlockTrains){
+                    const auto requested=observesBlockTrains(n);check(requested);
+                    if(requested>1)throw std::runtime_error("Invalid block train observation declaration");
+                    type.observeBlockTrains=requested==1;trainsRequested|=type.observeBlockTrains;
+                }
+                if(observesRoute){
+                    const auto requested=observesRoute(n);check(requested);
+                    if(requested>1||(requested&&!type.approachBlocks))throw std::runtime_error("Invalid selected route observation declaration");
+                    type.observeRoute=requested==1;routesRequested|=type.observeRoute;
+                }
                 if(description[0]<0||description[0]>64)throw std::runtime_error("Invalid type checkbox count");
                 type.labels.reserve(description[0]);type.boxes.reserve(description[0]);
                 for(int i=0;i<description[0];++i)type.labels.push_back({typeText(n,4,i),typeText(n,5,i),typeText(n,6,i)});
+                type.visibility.resize(type.labels.size());
+                if(abi>=13){
+                    const auto visibleWhen=symbol<int(*)(int,int,char*,int)>("NRFKotlin_CheckboxVisibleWhen");
+                    for(size_t i=0;i<type.visibility.size();++i){
+                        std::array<char,129> buffer{};const auto bytes=visibleWhen(n,int(i),buffer.data(),int(buffer.size()));check(bytes);
+                        if(bytes>=int(buffer.size())||buffer[bytes])throw std::runtime_error("Invalid checkbox visibility metadata");
+                        type.visibility[i].assign(buffer.data(),bytes);
+                    }
+                }
                 for(std::size_t i=0;i<type.labels.size();++i)type.boxes.push_back({type.labels[i][0],type.labels[i][1],type.labels[i][2],
                     (std::uint64_t(description[1])&(std::uint64_t{1}<<i))!=0,
-                    (std::uint64_t(description[2])&(std::uint64_t{1}<<i))!=0});
+                    (std::uint64_t(description[2])&(std::uint64_t{1}<<i))!=0,type.visibility[i]});
                 // Validate before any UI registration. Declaration strings are
                 // owned for the DLL lifetime, including loader stop/restart.
                 if(abi>=8){
@@ -499,6 +631,7 @@ struct Api {
                 detail::diagnostics::write("mods","INFO",("Registered signal type: "+type.id+" textures="+type.catalogue+" settings="+std::to_string(type.boxes.size())).c_str());
             }
             for(const auto& type:types)panels.push_back({type.id,type.title,type.catalogue,type.boxes,migrate?migrateSettings:nullptr,type.actions,type.numbers});
+            for(const auto& type:types)if(type.observeRoute)routeCatalogues.push_back(type.catalogue);
         } else {
             // Optional exports preserve compatibility with older one-type mods.
             panels.push_back({id,title,catalogue,boxes});
@@ -523,7 +656,73 @@ void migrateSettings(std::string_view panelId,std::map<std::string,bool,std::les
         migrated.emplace(std::string(panel->checkboxes[i].name),(std::uint64_t(mask)&(std::uint64_t{1}<<i))!=0);
     values=std::move(migrated);
 }
-std::array<int,7> observation(const Observation& o) {return {int(o.block),o.fresh,o.routeKnown,o.forcedStop,o.lampFailed,o.redFlashCondition,o.next};}
+std::array<int,7> observation(const Observation& o) {
+    int restrictions=o.forcedStop?1:0;
+    if(api().observationRestrictions&&o.routeConflict){
+        if(*o.routeConflict==RouteConflict::CrossingOccupied)restrictions|=2;
+        else if(*o.routeConflict==RouteConflict::CrossingReserved)restrictions|=4;
+        else throw std::invalid_argument("Invalid route conflict observation");
+    }
+    return {int(o.block),o.fresh,o.routeKnown,restrictions,o.lampFailed,o.redFlashCondition,o.next};
+}
+// Owned, bounded arrays cross the Kotlin ABI. No native pointer, JSON document,
+// route inference or reservation claim is part of this copied transport.
+struct ObservationRoutesBatch {
+    static constexpr size_t maximumMarkers=32768,maximumCatalogueBytes=8388608;
+    std::vector<int64_t> identities,markerIds;
+    std::vector<int> fields,markerOffsets{0},markerStates,catalogueOffsets{0};
+    std::string catalogueBytes;
+    explicit ObservationRoutesBatch(size_t signals) {
+        if(signals>Rules::maxLiveSignals)throw std::invalid_argument("Too many selected routes");
+        identities.reserve(signals*2);fields.reserve(signals*3);markerOffsets.reserve(signals+1);
+    }
+    void append(const SelectedSignalRoute& route) {
+        const auto identity=[](Id id,uint64_t type){return id>>48==type&&(id&UINT64_C(0x0000ffffffffffff));};
+        const auto destination=static_cast<int>(route.destination),occupation=static_cast<int>(route.occupation);
+        if(destination<0||destination>2||occupation<0||occupation>2||route.markers.size()>128||
+           route.markers.size()>maximumMarkers-markerIds.size())throw std::invalid_argument("Invalid selected route bounds");
+        if(!route.trainId){
+            if(route.boundarySignalId||destination||occupation||route.complete||!route.markers.empty())
+                throw std::invalid_argument("Noncanonical unknown selected route");
+        }else{
+            if(!identity(route.trainId,5))throw std::invalid_argument("Invalid selected route train");
+            if(destination==0){
+                if(route.boundarySignalId||route.complete)throw std::invalid_argument("Unknown selected route has a boundary");
+            }else if(!route.complete||!identity(route.boundarySignalId,8))throw std::invalid_argument("Selected route boundary is unqualified");
+            if(occupation==static_cast<int>(BlockOccupancy::Clear)&&(!route.complete||!destination))
+                throw std::invalid_argument("Incomplete selected route cannot prove clear");
+        }
+        std::array<Id,128> seen{};size_t count=0;
+        for(const auto& marker:route.markers){
+            if(!identity(marker.id,8)||std::find(seen.begin(),seen.begin()+count,marker.id)!=seen.begin()+count||
+               marker.textureState<0||marker.textureState>255||marker.textureSet.empty()||marker.textureSet.size()>256||
+               marker.textureSet.find_first_not_of(' ')==std::string::npos||
+               std::any_of(marker.textureSet.begin(),marker.textureSet.end(),[](unsigned char c){return c<0x20||c>0x7e;})||
+               marker.textureSet.size()>maximumCatalogueBytes-catalogueBytes.size())
+                throw std::invalid_argument("Invalid selected route marker");
+            seen[count++]=marker.id;
+            markerIds.push_back(static_cast<int64_t>(marker.id));markerStates.push_back(marker.textureState);
+            catalogueBytes.append(marker.textureSet);catalogueOffsets.push_back(static_cast<int>(catalogueBytes.size()));
+        }
+        identities.push_back(static_cast<int64_t>(route.trainId));identities.push_back(static_cast<int64_t>(route.boundarySignalId));
+        fields.insert(fields.end(),{destination,occupation,route.complete?1:0});markerOffsets.push_back(static_cast<int>(markerIds.size()));
+    }
+};
+std::optional<Decision> decideWithRoute(const Signal& s,const std::optional<Decision>& next,
+    const SelectedSignalRoute& selected={},std::span<const Id> trains={},bool complete=false,int mode=-1) {
+    auto& a=api();observation_trains::validateBlockTrains(trains);
+    ObservationRoutesBatch route(1);route.append(selected);
+    auto input=observation(s.observation);std::array<int,2> output{};
+    static_assert(std::is_same_v<Id,std::make_unsigned_t<int64_t>>);
+    const auto status=a.decideTypeWithRoute(int(s.typeIndex),mode>=0?mode:s.live?2:1,
+        std::int64_t(s.settings.mask),int(s.settingsStatus),std::int64_t(s.id),std::int64_t(s.nextSignal),
+        std::int64_t(s.approachingTrain),input.data(),next?next->aspect:-1,next?next->reason:0,
+        reinterpret_cast<const int64_t*>(trains.data()),int(trains.size()),complete?1:0,
+        route.identities.data(),route.fields.data(),route.markerIds.data(),route.markerStates.data(),int(route.markerIds.size()),
+        route.catalogueOffsets.data(),route.catalogueBytes.data(),int(route.catalogueBytes.size()),output.data());
+    check(status);if(status==1)return std::nullopt;if(status!=0)throw std::runtime_error("Invalid Kotlin decision status");
+    return Decision{output[0],output[1]};
+}
 }
 Decision Rules::evaluate(const Settings& s,const Observation& o) {
     auto input=observation(o);std::array<int,2> output{};
@@ -534,6 +733,7 @@ std::optional<Decision> Rules::decide(const Signal& s,const std::optional<Decisi
     auto input=observation(s.observation);std::array<int,2> output{};
     auto& a=api();
     if(s.typeIndex>=a.panels.size())throw std::invalid_argument("Unknown signal type index");
+    if(a.decideTypeWithRoute&&a.types[s.typeIndex].observeRoute)return decideWithRoute(s,next);
     const auto status=a.decideType?
         a.decideType(int(s.typeIndex),s.live?2:1,std::int64_t(s.settings.mask),int(s.settingsStatus),std::int64_t(s.id),std::int64_t(s.nextSignal),
             std::int64_t(s.approachingTrain),input.data(),next?next->aspect:-1,next?next->reason:0,output.data()):
@@ -542,14 +742,42 @@ std::optional<Decision> Rules::decide(const Signal& s,const std::optional<Decisi
     check(status);if(status==1)return std::nullopt;if(status!=0)throw std::runtime_error("Invalid Kotlin decision status");
     return Decision{output[0],output[1]};
 }
-Signal Rules::fromLive(const LiveSignalState& state) {
-    Signal result;result.id=state.id;result.nextSignal=state.nextSignal;result.live=true;
+std::optional<Decision> Rules::decide(const LiveSignal& s,const std::optional<Decision>& next) {
+    auto& a=api();
+    if(s.typeIndex>=a.panels.size())throw std::invalid_argument("Unknown signal type index");
+    if(a.decideTypeWithRoute&&a.types[s.typeIndex].observeRoute){
+        if(a.types[s.typeIndex].observeBlockTrains)return decideWithRoute(s,next,s.selectedRoute,s.trains,s.trainListComplete);
+        return decideWithRoute(s,next,s.selectedRoute);
+    }
+    if(!a.decideTypeWithTrains||!a.trainsRequested)return decide(static_cast<const Signal&>(s),next);
+    if(s.typeIndex>=a.panels.size())throw std::invalid_argument("Unknown signal type index");
+    if(!a.types[s.typeIndex].observeBlockTrains)return decide(static_cast<const Signal&>(s),next);
+    observation_trains::validateBlockTrains(s.trains);
+    // Id and int64_t are corresponding unsigned/signed 64-bit integer types.
+    // Their aliasing is permitted; validated train IDs have no sign bit set.
+    static_assert(std::is_same_v<Id,std::make_unsigned_t<int64_t>>);
+    auto input=observation(s.observation);std::array<int,2> output{};
+    const auto status=a.decideTypeWithTrains(int(s.typeIndex),s.live?2:1,std::int64_t(s.settings.mask),
+        int(s.settingsStatus),std::int64_t(s.id),std::int64_t(s.nextSignal),std::int64_t(s.approachingTrain),
+        input.data(),next?next->aspect:-1,next?next->reason:0,reinterpret_cast<const int64_t*>(s.trains.data()),
+        int(s.trains.size()),s.trainListComplete?1:0,output.data());
+    check(status);if(status==1)return std::nullopt;if(status!=0)throw std::runtime_error("Invalid Kotlin decision status");
+    return Decision{output[0],output[1]};
+}
+LiveSignal Rules::fromLive(const LiveSignalState& state) {
+    LiveSignal result;result.id=state.id;result.nextSignal=state.nextSignal;result.live=true;
     result.approachingTrain=state.approachingTrain;
     result.observation={state.occupation,state.fresh,state.boundaryKnown};result.settingsStatus=state.settings.status;
+    result.observation.routeConflict=state.routeConflict;
     const auto& panels=api().panels;
     const auto type=std::find_if(panels.begin(),panels.end(),[&](const auto& panel){return panel.textureSet==state.textureSet;});
     if(type==panels.end())throw std::invalid_argument("Unregistered live signal catalogue");
     result.typeIndex=static_cast<std::uint32_t>(type-panels.begin());
+    if(api().decideTypeWithRoute&&api().types[result.typeIndex].observeRoute)result.selectedRoute=state.selectedRoute;
+    if(api().decideTypeWithTrains&&api().types[result.typeIndex].observeBlockTrains){
+        observation_trains::validateBlockTrains(state.trains);
+        result.trains=state.trains;result.trainListComplete=state.trainListComplete;
+    }
     if(state.settings.status==SettingsStatus::Present) {
         const auto& boxes=type->checkboxes;
         for(std::size_t i=0;i<boxes.size();++i) {
@@ -560,19 +788,45 @@ Signal Rules::fromLive(const LiveSignalState& state) {
     }
     return result;
 }
-std::vector<Signal> Rules::prepareNetwork(std::span<const Signal> input) {
-    std::vector<Signal> result(input.begin(),input.end());
-    const auto prepare=api().prepareNetwork;
-    if(!prepare||input.empty())return result;
-    if(input.size()>api().networkLimit)throw std::invalid_argument("Too many signals for this Kotlin mod");
+namespace {
+template<class SignalType> std::vector<SignalType> prepareSignals(std::span<const SignalType> input) {
+    std::vector<SignalType> result(input.begin(),input.end());
+    auto& a=api();const auto prepare=a.prepareNetwork;
+    const bool withRoutes=a.prepareNetworkWithRoute&&a.routesRequested;
+    const bool withTrains=withRoutes||(std::is_same_v<SignalType,LiveSignal>&&a.prepareNetworkWithTrains&&a.trainsRequested);
+    if((!prepare&&!withTrains&&!withRoutes)||input.empty())return result;
+    if(input.size()>a.networkLimit)throw std::invalid_argument("Too many signals for this Kotlin mod");
     std::vector<int64_t> identities(input.size()*4),masks(input.size());
     std::vector<int> fields(input.size()*9),statuses(input.size());
+    std::optional<observation_trains::ObservationTrainsBatch> trains;
+    if(withTrains)trains.emplace(input.size());
+    std::optional<ObservationRoutesBatch> routes;
+    if(withRoutes)routes.emplace(input.size());
     for(size_t i=0;i<input.size();++i){const auto& signal=input[i];
+        // Reject invalid unsigned indices before narrowing or calling Kotlin.
+        if(signal.typeIndex>=a.types.size())throw std::invalid_argument("Unknown Kotlin signal type");
         identities[i*4]=signal.id;identities[i*4+1]=signal.nextSignal;identities[i*4+2]=signal.settings.mask;identities[i*4+3]=signal.approachingTrain;
         fields[i*9]=int(signal.typeIndex);fields[i*9+1]=int(signal.settingsStatus);
         const auto values=observation(signal.observation);std::copy(values.begin(),values.end(),fields.begin()+i*9+2);
+        if(trains){
+            if constexpr(std::is_same_v<SignalType,LiveSignal>){
+                if(a.types[signal.typeIndex].observeBlockTrains)trains->append(signal.trains,signal.trainListComplete);
+                else trains->append({},false);
+            }else trains->append({},false);
+        }
+        if(routes){
+            if constexpr(std::is_same_v<SignalType,LiveSignal>)
+                routes->append(a.types[signal.typeIndex].observeRoute?signal.selectedRoute:SelectedSignalRoute{});
+            else routes->append({});
+        }
     }
-    check(prepare(int(input.size()),identities.data(),fields.data(),masks.data(),statuses.data()));
+    if(routes)check(a.prepareNetworkWithRoute(int(input.size()),identities.data(),fields.data(),trains->offsets.data(),
+        trains->trains.data(),int(trains->trains.size()),trains->completeness.data(),routes->identities.data(),routes->fields.data(),
+        routes->markerOffsets.data(),routes->markerIds.data(),routes->markerStates.data(),int(routes->markerIds.size()),
+        routes->catalogueOffsets.data(),routes->catalogueBytes.data(),int(routes->catalogueBytes.size()),masks.data(),statuses.data()));
+    else if(trains)check(a.prepareNetworkWithTrains(int(input.size()),identities.data(),fields.data(),trains->offsets.data(),
+        trains->trains.data(),int(trains->trains.size()),trains->completeness.data(),masks.data(),statuses.data()));
+    else check(prepare(int(input.size()),identities.data(),fields.data(),masks.data(),statuses.data()));
     for(size_t i=0;i<input.size();++i){
         if(statuses[i]!=int(input[i].settingsStatus)&&!(input[i].settingsStatus==SettingsStatus::Absent&&statuses[i]==int(SettingsStatus::Present)))
             throw std::runtime_error("Invalid prepared settings status");
@@ -580,13 +834,52 @@ std::vector<Signal> Rules::prepareNetwork(std::span<const Signal> input) {
     }
     return result;
 }
+}
+std::vector<Signal> Rules::prepareNetwork(std::span<const Signal> input) {return prepareSignals(input);}
+std::vector<LiveSignal> Rules::prepareNetwork(std::span<const LiveSignal> input) {return prepareSignals(input);}
 bool Rules::multipleTypes(){return api().panels.size()>1;}
 std::vector<LiveSignalState> Rules::observe(const Snapshot& snapshot) {
     std::vector<std::string_view> catalogues;
     for(const auto& panel:api().panels)catalogues.push_back(panel.textureSet);
     std::vector<SignalApproachScope> approaches;
     for(const auto& type:api().types)if(type.approachBlocks)approaches.push_back({type.catalogue,type.approachBlocks});
-    return observeSignals(snapshot,catalogues,api().networkLimit,Milliseconds{1000},{},false,approaches);
+    // All models share one route read. No model performs a separate traversal
+    // or interprets raw path membership as an itinerary.
+    thread_local detail::SignalRoutes routes;
+    size_t maxApproach=0;for(const auto& scope:approaches)maxApproach=std::max(maxApproach,scope.blocks);
+    std::vector<uint64_t> selected;
+    bool selectedRouteRequested=false;
+    if(maxApproach){
+        for(const auto& texture:snapshot.getAllSignalTextures()){
+            const auto name=texture.getTexturesIdView();
+            if(!name||std::find(catalogues.begin(),catalogues.end(),*name)==catalogues.end())continue;
+            const auto signal=snapshot.getSignalById(texture.getSignalId());
+            if(signal&&signal->getKind()==NIMBY_SIGNAL_PATH){
+                selected.push_back(signal->getId());
+                selectedRouteRequested|=std::find(api().routeCatalogues.begin(),api().routeCatalogues.end(),*name)!=api().routeCatalogues.end();
+            }
+        }
+        std::sort(selected.begin(),selected.end());selected.erase(std::unique(selected.begin(),selected.end()),selected.end());
+        // Models that opt in but are not placed must not add annotation reads
+        // to the ordinary BAL models sharing this worker.
+        const auto status=routes.capture(selected,static_cast<uint32_t>(maxApproach),selectedRouteRequested);
+        // Transition diagnostics are bounded and run on this mod's observation
+        // worker. Native callbacks never format text or wait for a log writer.
+        struct RouteDiagnostic {uint32_t status=UINT32_MAX;bool available=false;std::chrono::steady_clock::time_point next{};};
+        thread_local RouteDiagnostic diagnostic;
+        const bool available=!routes.rows().empty();const auto now=std::chrono::steady_clock::now();
+        if((status!=diagnostic.status||available!=diagnostic.available)&&now>=diagnostic.next){
+            std::ostringstream message;
+            message<<"Signal route observation: mod="<<api().id<<" status="<<status
+                   <<" requested_signals="<<selected.size()<<" blocks="<<maxApproach
+                   <<" ordered_rows="<<routes.rows().size();
+            detail::diagnostics::write("mods",status==NIMBY_OK?"INFO":"WARN",message.str().c_str());
+            diagnostic={status,available,now+std::chrono::seconds{1}};
+        }
+    }
+    auto states=observeSignals(snapshot,catalogues,api().networkLimit,Milliseconds{1000},{},false,approaches,maxApproach?&routes:nullptr,api().routeCatalogues);
+    if(maxApproach)observeRouteDiagnostic(snapshot,states,routes.rows(),api().id);
+    return states;
 }
 Decision Rules::unknownDecision(){return {api().properties[2],api().properties[3]};}
 Decision Rules::invalidNetworkDecision(){return {api().properties[4],api().properties[5]};}
@@ -642,12 +935,22 @@ void Rules::diagnose(const Snapshot& snapshot,const std::vector<LiveSignalState>
     const auto now=std::chrono::steady_clock::now();
     if(now>=nextSummary) {
         nextSummary=now+std::chrono::seconds{30};
+        std::ostringstream routes;size_t known=0,unknown=0,samples=0;
+        for(const auto& state:states){
+            if(std::find(api().routeCatalogues.begin(),api().routeCatalogues.end(),state.textureSet)==api().routeCatalogues.end())continue;
+            const auto& route=state.selectedRoute;
+            if(route.destination==RouteDestination::Unknown)++unknown;else ++known;
+            if(samples++<4)routes<<" route={signal="<<state.id<<" destination="<<int(route.destination)
+                <<" boundary="<<route.boundarySignalId<<" complete="<<route.complete
+                <<" occupation="<<int(route.occupation)<<" marker_count="<<route.markers.size()<<'}';
+        }
         detail::diagnostics::write("mods","INFO",("Mod signal heartbeat: id="+api().id+
             " signals="+std::to_string(states.size())+" faults="+std::to_string(faults)+
             " snapshotAgeMs="+std::to_string(snapshot.getAge().count())+
             " tracks="+std::to_string(snapshot.getAllTracks().size())+
             " boundaries="+std::to_string(snapshot.getAllSignals().size())+
-            " occupationsAvailable="+(snapshot.getAllOccupations().has_value()?"yes":"no")).c_str());
+            " occupationsAvailable="+(snapshot.getAllOccupations().has_value()?"yes":"no")+
+            " selected_routes_known="+std::to_string(known)+" selected_routes_unknown="+std::to_string(unknown)+routes.str()).c_str());
     }
     if(!fault){recorded=0;return;}if(recorded>=128||now<nextFault)return;
     nextFault=now+std::chrono::seconds{1};
@@ -660,7 +963,14 @@ void Rules::diagnose(const Snapshot& snapshot,const std::vector<LiveSignalState>
            <<",\"unexpected_footprints\":"<<coverage.unexpectedFootprints<<",\"signals\":[";
         for(std::size_t i=0;i<states.size();++i){if(i)out<<',';const auto& s=states[i];
             out<<"{\"id\":\""<<s.id<<"\",\"fresh\":"<<s.fresh<<",\"boundary_known\":"<<s.boundaryKnown
+               <<",\"next_signal\":\""<<s.nextSignal<<"\",\"approaching_train\":\""<<s.approachingTrain<<"\",\"train_list_complete\":"<<s.trainListComplete
                <<",\"settings_status\":"<<int(s.settings.status)<<",\"occupation\":"<<int(s.occupation)
+               <<",\"route_conflict\":"<<(s.routeConflict?int(*s.routeConflict):0)
+               <<",\"selected_route_destination\":"<<int(s.selectedRoute.destination)
+               <<",\"selected_route_boundary\":\""<<s.selectedRoute.boundarySignalId<<'"'
+               <<",\"selected_route_complete\":"<<s.selectedRoute.complete
+               <<",\"selected_route_occupation\":"<<int(s.selectedRoute.occupation)
+               <<",\"selected_route_marker_count\":"<<s.selectedRoute.markers.size()
                <<",\"reason_code\":"<<decisions[i].reason<<'}';}
         out<<"]}";
         detail::diagnostics::write("mods","WARN",out.str().c_str());
@@ -733,6 +1043,14 @@ nimby::Mod nimby::createMod() {
     }else{
         kotlin::Rules::controlId=api.id;kotlin::Rules::textureSet=api.catalogue;kotlin::Rules::maximumLineSpeed=api.properties[1]!=0;
         mod=kotlin::Runtime::createMod();mod.signalSettings=api.panels.front();
+        api.signallingStart=mod.start;api.signallingStop=mod.stop;api.signallingObservationLost=mod.observationLost;
+        mod.start=+[]{kotlin::resetRouteDiagnostic(kotlin::RouteDiagnostic::Reset::Restore);
+            if(auto callback=kotlin::api().signallingStart)callback();};
+        mod.stop=+[]{kotlin::resetRouteDiagnostic(kotlin::RouteDiagnostic::Reset::Stop);
+            if(auto callback=kotlin::api().signallingStop)callback();};
+        mod.observationLost=+[]{kotlin::resetRouteDiagnostic(kotlin::RouteDiagnostic::Reset::ObservationLost);
+            if(auto callback=kotlin::api().signallingObservationLost)callback();};
+        mod.observationRuntimeFiltered=true;
         mod.additionalSignalSettings=std::span<const SignalSettingsPanel>(api.panels).subspan(1);
         for(const auto& panel:api.panels){
             NimbySignalCaptureScope scope{};

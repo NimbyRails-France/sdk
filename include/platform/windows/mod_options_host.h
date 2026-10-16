@@ -15,6 +15,9 @@ public:
     ~Host();
     Host(const Host&)=delete;
     Host& operator=(const Host&)=delete;
+    // Explicit bootstrap for resident SDK options. Ordinary isolated test hosts
+    // remain empty until this is called; production host() calls it once.
+    runtime::mod_options::Result initializeDrivingOptions();
     runtime::mod_options::Result add(std::string_view declaration);
     runtime::mod_options::Result remove(uint64_t token);
     runtime::mod_options::Result change(uint64_t token,std::string_view field,std::string value);
@@ -27,6 +30,7 @@ public:
     // Broker-only snapshot serialization; never called from game hooks.
     uint32_t read(uint64_t token,uint64_t known,char* output,uint32_t capacity,uint32_t* written,uint64_t* revision);
 private:
+    runtime::mod_options::Result addImpl(std::string_view declaration,bool residentSdk);
     struct State;
     std::unique_ptr<State> state_;
 };

@@ -222,6 +222,7 @@ bool integration(){
     CHECK(read_trains(read,&m,state,true,trains,false,&metadata)&&metadata.trains[0].current.flags==0&&metadata.trains[0].configured.flags==255);
     // No optional metadata traffic at all in presence-only captures.
     m=fixture();CHECK(read_trains(read,&m,state,true,trains,true));const auto presenceReads=m.reads,presenceBytes=m.bytes;
+    CHECK(m.calls.at({motion,0x4b1})==1&&!m.calls.contains({motion,0x638}));
     m=fixture();m.fail=catalog;CHECK(read_trains(read,&m,state,true,trains,true,&metadata)&&m.reads==presenceReads&&m.bytes==presenceBytes);
     CHECK(metadata.trains.empty()&&metadata.lines.empty()&&metadata.tag_states.empty()&&!metadata.tags_available);
     m=fixture();CHECK(read_trains(read,&m,state,true,trains));CHECK(m.calls.find({state.database+0x420,8})==m.calls.end()&&m.calls.find({model+0x80,24})==m.calls.end());
@@ -240,6 +241,7 @@ bool selectedQueries(){
     for(const auto flags:{NIMBY_TRAIN_DATA_SERVICE,NIMBY_TRAIN_DATA_CHARACTERISTICS,NIMBY_TRAIN_DATA_TIMETABLES,
                          NIMBY_TRAIN_DATA_TAGS,NIMBY_TRAIN_DATA_PASSENGERS,NIMBY_TRAIN_DATA_LOCATIONS,NIMBY_TRAIN_DATA_LINES,NIMBY_TRAIN_DATA_COMPOSITION}){
         auto m=base();CHECK(read_trains(read,&m,state,true,trains,false,&metadata,false,flags));
+        CHECK(m.calls.at({motion,0x638})==1&&!m.calls.contains({motion,0x4b1}));
         const auto touched=[&](uint64_t address,size_t bytes){return m.calls.contains({address,bytes});};
         CHECK(!touched(path,8)&&!trains[0].path_available);
         CHECK(touched(state.database+0x420,8)==bool(flags&NIMBY_TRAIN_DATA_TAGS));

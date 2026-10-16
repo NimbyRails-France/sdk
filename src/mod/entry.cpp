@@ -8,6 +8,8 @@
 #include <cwchar>
 #include <shared_mutex>
 #include <set>
+#include <type_traits>
+#include <utility>
 #include <nimby/detail/platform/host.hpp>
 #include <nimby/detail/platform/mod_abi.hpp>
 #include <nimby/detail/platform/mod_entry.hpp>
@@ -79,7 +81,8 @@ void startObservations(const nimby::Mod& mod) {
         work.stage(signalling?NIMBY_MOD_WORK_CAPTURE_SIGNALLING:
             scope==nimby::SnapshotScope::Session?NIMBY_MOD_WORK_CAPTURE_SESSION:NIMBY_MOD_WORK_CAPTURE_COMPLETE,
             mod.observationSignals.size());
-        auto snapshot = !mod.observationSignals.empty()?(*connection)->captureSignalling(mod.observationSignals):
+        auto snapshot = !mod.observationSignals.empty()?(mod.observationRuntimeFiltered
+            ?(*connection)->captureRuntimeSignalling(mod.observationSignals):(*connection)->captureSignalling(mod.observationSignals)):
             textureSet.empty()?(*connection)->capture(scope):(*connection)->captureSignalling(textureSet);
         // Capture already retries the mutable presence/occupation pair together.
         // Repeating the entire topology capture here tripled response time when
@@ -232,7 +235,10 @@ NRF_MOD_EXPORT NRFMod_StartV1(void* reserved) noexcept {
             if (started && candidate.stop) candidate.stop();
             throw;
         }
-        callbacks = candidate;
+        // Lifecycle services are already running. Publishing their callbacks
+        // must not allocate/throw beyond the rollback boundary above.
+        static_assert(std::is_nothrow_move_assignable_v<nimby::Mod>);
+        callbacks = std::move(candidate);
         initialized = true;
         return NIMBY_OK;
     });

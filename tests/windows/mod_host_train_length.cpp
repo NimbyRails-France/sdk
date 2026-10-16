@@ -5,6 +5,7 @@
 #include <platform/windows/mod_host_releases.h>
 #include <runtime/mod_options_registry.h>
 #include <engine/train_length_policy.h>
+#include <engine/train_editor_messages.h>
 #include <windows.h>
 #include <algorithm>
 #include <atomic>
@@ -103,15 +104,24 @@ uint32_t registerPeer(Owners& owners){
     Request request;request.operation=400;request.args[0]=850;const std::string id="BC-Train-super-Long";
     append(request,id.data(),id.size());Reply reply;return dispatchTrainLength(request,reply,owners);
 }
-std::string editorDeclaration(){
+std::string editorDeclaration(bool lengthDisplay=false){
     using Json=nlohmann::json;
     const auto translations=Json({{"fallback","en"},{"languages",{
-        {"en",{{"exceeded","Train too long"},{"lengthUnavailable","Train length unavailable"},{"verificationUnavailable","Train cannot be verified"}}},
-        {"fr",{{"exceeded","Train trop long"},{"lengthUnavailable","Longueur du train indisponible"},{"verificationUnavailable","Impossible de vérifier le train"}}}}}}).dump();
+        {"en",{{"exceeded","Train too long"},{"lengthUnavailable","Train length unavailable"},{"verificationUnavailable","Train cannot be verified"},
+               {"current","Current length"},{"proposed","Proposed length"},{"currentUnavailable","Current length unavailable"}}},
+        {"fr",{{"exceeded","Train trop long"},{"lengthUnavailable","Longueur du train indisponible"},{"verificationUnavailable","Impossible de vérifier le train"},
+               {"current","Longueur actuelle"},{"proposed","Longueur proposée"},{"currentUnavailable","Longueur actuelle indisponible"}}}}}}).dump();
     auto messages=Json::array();
     for(const auto* key:{"exceeded","lengthUnavailable","verificationUnavailable"})
         messages.push_back(std::string(nimby::detail::Translations::prefix)+Json::array({key,Json::object()}).dump());
-    return Json({{"messages",messages},{"translations",translations}}).dump();
+    Json declaration={{"messages",messages},{"translations",translations}};
+    if(lengthDisplay){
+        auto labels=Json::array();
+        for(const auto* key:{"current","proposed","currentUnavailable"})
+            labels.push_back(std::string(nimby::detail::Translations::prefix)+Json::array({key,Json::object()}).dump());
+        declaration["lengthDisplay"]=std::move(labels);
+    }
+    return declaration.dump();
 }
 Request editorRequest(std::string_view id,std::string_view declaration){
     Request request;request.operation=403;request.args={850,id.size(),declaration.size()};
@@ -208,6 +218,31 @@ int main(){
     assert(NimbyInternal_TrainLengthRemove(secondOwner)==NIMBY_OK);
     channel=&first;assert(NimbyInternal_TrainLengthRemove(owner)==NIMBY_OK&&!first.trainLength&&active()==0);
 
+    // ABI 12 adds three optional labels to the same copied declaration. The
+    // wire carries facts only at registration; preference updates resend none
+    // of these texts, and caller/mod retirement cannot invalidate their copy.
+    auto displayDeclaration=editorDeclaration(true);const auto originalDisplay=displayDeclaration;
+    const auto beforeDisplayRegistrations=editorRegistrations;
+    assert(NimbyInternal_TrainEditorRegister("mod",850,displayDeclaration.data(),uint32_t(displayDeclaration.size()),&owner)==NIMBY_OK);
+    const auto displayNative=lastNativeOwner;
+    assert(owner==first.trainLength&&last.operation==403&&last.args[1]==3&&last.args[2]==displayDeclaration.size());
+    assert(record(displayNative).declaration==originalDisplay&&editorRegistrations==beforeDisplayRegistrations+1);
+    const nimby::engine::train_editor::Messages copiedDisplay(record(displayNative).declaration);
+    assert(copiedDisplay.showsLength());
+    assert(copiedDisplay.select(0,"fr")=="Train trop long"); // Existing ABI 11 slots unchanged.
+    assert(copiedDisplay.select(3,"fra")=="Longueur actuelle");
+    assert(copiedDisplay.select(4,"fr-FR")=="Longueur proposée");
+    assert(copiedDisplay.select(5,"fr")=="Longueur actuelle indisponible");
+    assert(copiedDisplay.select(3,"eng")=="Current length");
+    assert(copiedDisplay.select(4,"en-GB")=="Proposed length");
+    assert(copiedDisplay.select(5,"en")=="Current length unavailable");
+    std::fill(displayDeclaration.begin(),displayDeclaration.end(),'x');
+    assert(record(displayNative).declaration==originalDisplay);
+    assert(NimbyInternal_TrainLengthUpdate(owner,1000)==NIMBY_OK&&record(displayNative).maximum==1000);
+    assert(last.data.empty()&&record(displayNative).declaration==originalDisplay&&editorRegistrations==beforeDisplayRegistrations+1);
+    assert(NimbyInternal_TrainLengthRemove(owner)==NIMBY_OK&&active()==0);
+    assert(copiedDisplay.select(3,"fr")=="Longueur actuelle"&&copiedDisplay.select(4,"en")=="Proposed length");
+
     // Rejected descriptors cannot consume retirement/native capacity. The
     // parent parses strict JSON even if an untrusted child bypasses its facade.
     const auto beforeRejectedRegistrations=registrations;
@@ -233,6 +268,23 @@ int main(){
     invalid["messages"][0]=nested;rejected.push_back(invalid.dump());
     auto invalidUtf8=plain;invalidUtf8.insert(invalidUtf8.find("Too"),1,char(0xff));rejected.push_back(invalidUtf8);
     auto embeddedNull=plain;embeddedNull.insert(embeddedNull.find("Too"),1,'\0');rejected.push_back(embeddedNull);
+    // The optional ABI 12 field stays strict and bounded. Older valid/invalid
+    // ABI 11 descriptors above retain exactly the same acceptance semantics.
+    for(const auto& labels:{Json(),Json::object(),Json::array(),Json::array({"a","b"}),Json::array({"a","b","c","d"}),
+                            Json::array({1,"b","c"}),Json::array({"","b","c"})}){
+        invalid=Json::parse(originalDisplay);invalid["lengthDisplay"]=labels;rejected.push_back(invalid.dump());
+    }
+    for(const auto& label:{std::string(1025,'x'),std::string("x\0y",3),std::string("x\x01y",3),
+                           std::string(nimby::detail::Translations::prefix)+R"(["missing",{}])",
+                           std::string(nimby::detail::Translations::prefix)+R"(["current",{"meters":"850"}])"}){
+        invalid=Json::parse(originalDisplay);invalid["lengthDisplay"][0]=label;rejected.push_back(invalid.dump());
+    }
+    invalid=Json::parse(originalDisplay);invalid["extra"]=true;rejected.push_back(invalid.dump());
+    invalid=Json::parse(originalDisplay);auto parameterized=Json::parse(invalid["translations"].get<std::string>());
+    parameterized["languages"]["en"]["current"]="Current length {meters}";
+    parameterized["languages"]["fr"]["current"]="Longueur actuelle {meters}";
+    invalid["translations"]=parameterized.dump();rejected.push_back(invalid.dump());
+    rejected.push_back(R"({"messages":["a","b","c"],"translations":"","lengthDisplay":["a","b","c"],"lengthDisplay":["d","e","f"]})");
     for(const auto& bad:rejected){auto request=editorRequest("mod",bad);Owners rejectedOwner;
         assert(dispatchTrainLength(request,reply,rejectedOwner)==NIMBY_INVALID_ARGUMENT&&!rejectedOwner.trainLength);}
     auto badRequest=editorRequest("mod",plain);badRequest.args[3]=1;

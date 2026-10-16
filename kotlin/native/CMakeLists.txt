@@ -17,10 +17,17 @@ set_target_properties(kotlin_mod PROPERTIES PREFIX "" OUTPUT_NAME "${NRF_MODULE_
 if(MINGW)
   target_link_options(kotlin_mod PRIVATE -static-libgcc -static-libstdc++)
 endif()
-add_custom_command(TARGET kotlin_mod POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy_if_different
-  ${NimbyRailsFranceSDK_RUNTIME_FILES} "${NRF_OUTPUT_DIRECTORY}" COMMAND_EXPAND_LISTS)
+# Runtime bridges can change without recompiling the Kotlin adapter. A
+# POST_BUILD copy would then leave a reused developer kit with old SDK DLLs.
+add_custom_target(kotlin_sdk_runtime
+  COMMAND ${CMAKE_COMMAND} -E make_directory "${NRF_OUTPUT_DIRECTORY}"
+  COMMAND ${CMAKE_COMMAND} -E copy_if_different
+    ${NimbyRailsFranceSDK_RUNTIME_FILES} "${NRF_OUTPUT_DIRECTORY}"
+  COMMAND_EXPAND_LISTS)
+add_dependencies(kotlin_mod kotlin_sdk_runtime)
 enable_testing()
 add_executable(kotlin_loader_test loader_test.cpp)
+add_dependencies(kotlin_loader_test kotlin_sdk_runtime)
 target_link_libraries(kotlin_loader_test PRIVATE NimbyRailsFranceSDK::SDK)
 target_link_libraries(kotlin_loader_test PRIVATE ${CMAKE_DL_LIBS})
 target_compile_features(kotlin_loader_test PRIVATE cxx_std_20)
@@ -31,6 +38,7 @@ if(MINGW)
 endif()
 add_test(NAME kotlin_loader_lifecycle COMMAND kotlin_loader_test "$<TARGET_FILE:kotlin_mod>")
 add_executable(nrf_kotlin_inspect inspect.cpp adapter.cpp)
+add_dependencies(nrf_kotlin_inspect kotlin_sdk_runtime)
 target_link_libraries(nrf_kotlin_inspect PRIVATE NimbyRailsFranceSDK::Mod)
 if(WIN32)
   target_link_libraries(nrf_kotlin_inspect PRIVATE user32 gdi32)

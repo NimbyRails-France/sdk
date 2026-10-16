@@ -18,7 +18,7 @@ add_library(NimbyRailsFranceSDK SHARED src/main.cpp src/runtime/observation.cpp 
     src/runtime/runtime.cpp src/platform/linux/binary_identity.cpp
     src/platform/linux/observation_process.cpp src/platform/linux/lifecycle.cpp
     src/engine/live_state.cpp src/engine/network.cpp src/engine/trains.cpp src/engine/signal_texture_states.cpp src/engine/driving.cpp
-    src/engine/track_usage.cpp src/engine/signal_textures.cpp)
+    src/engine/track_usage.cpp src/engine/track_conflicts.cpp src/engine/signal_textures.cpp)
 target_compile_definitions(NimbyRailsFranceSDK PRIVATE NIMBY_SDK_BUILD)
 target_include_directories(NimbyRailsFranceSDK PUBLIC include)
 target_link_libraries(NimbyRailsFranceSDK PRIVATE nimby_linux_process ${CMAKE_DL_LIBS})

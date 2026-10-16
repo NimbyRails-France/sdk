@@ -14,6 +14,134 @@ struct TestSpeeds {
  double alternateApproachMps;
  double nativeCruiseMps;
 };
+void checkSignalStoppingMargin(){
+ using namespace nimby::engine::automatic;
+ constexpr uint64_t announcement=0x8000000000001,signal=0x8000000010001;
+ const std::vector<Ahead> direct{{signal,1000}};
+ const std::vector<NimbySignalDrivingRule> stop{{signal,0,10,0,NIMBY_DRIVING_STOP}};
+ const auto planned=[&](double head,double margin=defaultStopBeforeSignalMeters){
+  Memory memory;return plan(memory,direct,stop,head,100,100,.5,true,{},margin);
+ };
+ auto p=planned(900);
+ assert(p.signalStopDistanceM==97&&p.stopSignal==signal&&p.ceiling==envelope(0,97,.5));
+ p=planned(996.5);assert(p.signalStopDistanceM==.5&&p.ceiling>0);
+ p=planned(997);assert(p.signalStopDistanceM==0&&p.ceiling==0);
+ p=planned(999);assert(p.signalStopDistanceM==0&&p.ceiling==0);
+ p=planned(1000);assert(p.signalStopDistanceM==0&&p.ceiling==0);
+ p=planned(900,0);assert(p.signalStopDistanceM==100&&p.ceiling==envelope(0,100,.5));
+ p=planned(900,8.5);assert(p.signalStopDistanceM==91.5);
+ p=planned(900,100);assert(p.signalStopDistanceM==0);
+ for(const double invalid:{-.1,100.0001,std::numeric_limits<double>::infinity(),
+                           std::numeric_limits<double>::quiet_NaN()})
+  assert(planned(900,invalid).signalStopDistanceM==97);
+ assert(!planned(799).signalStopDistanceM); // Invisible signals do not invent stops.
+
+ Memory memory;
+ const std::vector<NimbySignalDrivingRule> speed{{signal,8,10,0,0}};
+ p=plan(memory,direct,speed,900,100,100,.5,true);
+ assert(!p.signalStopDistanceM&&p.stopSignal==0&&p.ceiling==envelope(8,100,.5));
+ const std::vector<NimbySignalDrivingRule> clear{{signal,-1,10,0,NIMBY_DRIVING_CLEAR}};
+ memory={};p=plan(memory,direct,clear,900,100,100,.5,true);
+ assert(!p.active&&!p.signalStopDistanceM);
+ memory={};p=plan(memory,direct,clear,900,100,100,.5,false);
+ assert(p.signalStopDistanceM==97&&p.ceiling==envelope(0,97,.5)); // Stale indication stops before the real signal.
+
+ const std::vector<Ahead> route{{announcement,100},{signal,1000}};
+ const std::vector<NimbySignalDrivingRule> announced{
+  {announcement,0,10,1,0},{signal,0,10,0,NIMBY_DRIVING_STOP}};
+ memory={};p=plan(memory,route,announced,0,100,100,.5,true);
+ assert(p.signalStopDistanceM==997&&p.stopSignal==signal&&memory.stops.empty());
+ crossed(memory,passages(route,announced),99,101);
+ p=plan(memory,{},announced,797,100,100,.5,true);
+ assert(p.signalStopDistanceM==200&&memory.stops.front().position==1000);
+ p=plan(memory,direct,clear,997,100,100,.5,true);
+ assert(!p.signalStopDistanceM&&memory.stops.front().position==1000);
+ crossed(memory,{},997,997);assert(memory.stops.size()==1); // A stop point is never a crossing.
+ crossed(memory,{},997,999);assert(memory.stops.size()==1);
+ crossed(memory,{},999,1000.1);assert(memory.stops.empty());
+ memory={};
+ const std::vector<Ahead> missing{{announcement,100}};
+ const std::vector<NimbySignalDrivingRule> missingRule{{announcement,0,10,2,0}};
+ p=plan(memory,missing,missingRule,0,100,100,.5,true);
+ assert(p.signalStopDistanceM==97&&p.stopSignal==announcement&&memory.stops.empty());
+
+ const NimbySignalDrivingRule permissive{signal,0,10,0,
+  NIMBY_DRIVING_STOP|NIMBY_DRIVING_ON_SIGHT|NIMBY_DRIVING_STOP_THEN_PROCEED};
+ const std::vector<NimbySignalDrivingRule> permissiveRules{permissive};
+ const SightClearance visible{true,200,0};
+ memory={};observeStop(memory,direct,permissiveRules,997,997,0,1,true);
+ assert(memory.stopped.signal==signal&&memory.stopped.position==1000);
+ assert(restrictedEntry(memory,permissive,997,visible,true));
+ p=plan(memory,direct,permissiveRules,997,100,100,.5,true,visible);
+ assert(!p.signalStopDistanceM&&p.ceiling>0); // Valid stop proof releases this fence.
+ observeStop(memory,direct,permissiveRules,997,997,0,0,true);
+ assert(memory.stopped.signal==signal); // Existing proof persists, but a pause cannot create one.
+ memory={};observeStop(memory,direct,permissiveRules,997,997,0,0,true);
+ assert(!memory.stopped.signal);
+ observeStop(memory,direct,permissiveRules,995.9,995.9,0,1,true);assert(!memory.stopped.signal);
+ observeStop(memory,direct,permissiveRules,997,997,.01,1,true);assert(!memory.stopped.signal);
+ observeStop(memory,direct,permissiveRules,1000.01,1000.01,0,1,true);assert(!memory.stopped.signal);
+ observeStop(memory,direct,permissiveRules,990,990,0,1,true,10);
+ assert(memory.stopped.position==1000&&restrictedEntry(memory,permissive,990,visible,true,10));
+ assert(!restrictedEntry(memory,permissive,990,visible,true,3));
+ observeStop(memory,direct,permissiveRules,990,990,0,1,true,3);assert(!memory.stopped.signal);
+ memory={};observeStop(memory,direct,permissiveRules,1000,1000,0,1,true,0);
+ assert(restrictedEntry(memory,permissive,1000,visible,true,0));
+ assert(!restrictedEntry(memory,permissive,1000,{true,5,0},true,100)); // Obstacle clearance stays 5 m.
+}
+void checkHeldLimitAtCurrentSignal(){
+ using namespace nimby::engine::automatic;
+ constexpr uint64_t source=0x8000000000001,next=0x8000000010001;
+ // Consumer-selected example: a retained 30 km/h ceiling starts HERE, not at
+ // a signal which may be absent beyond a manoeuvre route's native boundary.
+ constexpr double limit=30.0/3.6,vmax=160.0/3.6,length=100;
+ const std::vector<Ahead> entry{{source,1000}};
+ const std::vector<NimbySignalDrivingRule> instruction{{source,limit,0,0,
+  NIMBY_DRIVING_HOLD_TO_CLEAR|NIMBY_DRIVING_APPROACH_PASSABLE}};
+ assert(valid(instruction.front()));
+ Memory memory;
+ // A numeric passage instruction does not request physical-clearance entry
+ // in place of native admission, even when a physical view is available.
+ assert(!restrictedEntry(memory,instruction.front(),1000,{true,200,0},true));
+ auto p=plan(memory,entry,instruction,900,length,vmax,.5,true);
+ assert(p.active&&std::abs(p.ceiling-envelope(limit,100,.5))<1e-9);
+ assert(memory.held.empty()&&!memory.sight);
+ p=plan(memory,entry,instruction,1000,length,vmax,.5,true);
+ assert(p.active&&p.ceiling==limit&&memory.held.empty());
+ const auto observed=passages(entry,instruction);
+ crossed(memory,observed,999,1000);
+ crossed(memory,observed,1000,1000);
+ assert(memory.held.empty()); // Reaching the panel or staying there is not passage.
+ crossed(memory,observed,1000,1000.1);
+ assert(memory.held.size()==1&&!memory.held.front().hasEnd);
+ assert(memory.held.front().source==source&&memory.held.front().start==1000);
+ assert(memory.held.front().speed==limit&&!memory.sight&&memory.stops.empty());
+ // No next PATH signal, a truncated native scan, or a non-PATH endpoint is
+ // represented by no further driving passage. None proves a CLEAR crossing.
+ for(const double head:{1000.1,1300.0,2000.0}){
+  crossed(memory,{},head,head);
+  p=plan(memory,{}, {},head,length,vmax,.5,true);
+  assert(p.active&&p.ceiling==limit&&memory.held.size()==1);
+  assert(!memory.held.front().hasEnd&&!p.signalStopDistanceM&&!memory.sight);
+ }
+ const std::vector<Ahead> exit{{next,2500}};
+ const std::vector<NimbySignalDrivingRule> clear{{next,-1,0,0,NIMBY_DRIVING_CLEAR}};
+ for(const double head:{2300.0,2499.0,2500.0}){
+  p=plan(memory,exit,clear,head,length,vmax,.5,true);
+  assert(p.active&&p.ceiling==limit&&!memory.held.front().hasEnd);
+ }
+ crossed(memory,passages(exit,clear),2500,2500);
+ assert(!memory.held.front().hasEnd); // Seeing CLEAR or waiting on it cannot release.
+ crossed(memory,passages(exit,clear),2500,2500.1);
+ assert(memory.held.front().hasEnd&&memory.held.front().end==2500);
+ for(const double head:{2500.1,2599.0,2600.0}){
+  p=plan(memory,{}, {},head,length,vmax,.5,true);
+  assert(p.active&&p.ceiling==limit&&memory.held.size()==1);
+ }
+ p=plan(memory,{}, {},2600.1,length,vmax,.5,true);
+ assert(!p.active&&p.ceiling==vmax&&memory.held.empty()&&!memory.sight);
+ std::cout<<"PASS: current-signal 30 km/h hold survives absent downstream data; actual CLEAR passage and rear clearance release it\n";
+}
 void checkConsumerInstructions(const TestSpeeds& speeds){
  using namespace nimby::engine::automatic;
  constexpr uint64_t a=0x8000000000001,s=0x8000000010001;
@@ -27,7 +155,7 @@ void checkConsumerInstructions(const TestSpeeds& speeds){
  assert(!p.active); // Strict maximum visibility: 200 m, not the whole lookahead.
  p=plan(memory,ahead,closed,300,100,vmax,0.5,true);
  assert(p.active&&p.ceiling<vmax);
- assert(std::abs(p.ceiling*2+p.ceiling*p.ceiling/(2*0.5)-700)<1e-6);
+ assert(std::abs(p.ceiling*2+p.ceiling*p.ceiling/(2*0.5)-697)<1e-6);
  assert(memory.stops.empty()); // Merely looking ahead must not latch an approach.
  p=plan(memory,ahead,clear,400,100,vmax,0.5,true);
  assert(!p.active&&p.ceiling==vmax); // No retained limit before receiving an instruction at passage.
@@ -37,7 +165,7 @@ void checkConsumerInstructions(const TestSpeeds& speeds){
  crossed(memory,warnings,499,500);assert(memory.stops.empty());
  crossed(memory,warnings,500,501);assert(memory.stops.size()==1);
  p=plan(memory,ahead,clear,600,100,vmax,0.5,true);
- assert(std::abs(p.ceiling-envelope(0,400,.5))<1e-9); // Unseen reopening ignored.
+ assert(std::abs(p.ceiling-envelope(0,397,.5))<1e-9); // Unseen reopening ignored; default 3 m stop clearance.
  p=plan(memory,ahead,clear,999.99,100,vmax,0.5,true);
  assert(p.active&&std::abs(p.ceiling-speeds.approachMps)<1e-9); // Actual warning passed: retain approach until target passed.
  crossed(memory,passages(ahead,clear),999.99,1000.1);
@@ -58,7 +186,7 @@ void checkConsumerInstructions(const TestSpeeds& speeds){
   crossed(received,passages(route,instructions),499,501);
   instructions[1]={s,0,approach,1,NIMBY_DRIVING_FOLLOW_TARGET|NIMBY_DRIVING_APPROACH_PASSABLE};
   auto approachPlan=plan(received,route,instructions,799,100,vmax,.5,true);
-  assert(std::abs(approachPlan.ceiling-envelope(0,201,.5))<1e-9); // Reopening not visible yet.
+  assert(std::abs(approachPlan.ceiling-envelope(0,198,.5))<1e-9); // Reopening not visible yet.
   approachPlan=plan(received,route,instructions,1000,100,vmax,.5,true);
   assert(approachPlan.active&&std::abs(approachPlan.ceiling-approach)<1e-9);
   assert(received.stops.size()==1&&received.stops.front().signal==s);
@@ -88,7 +216,7 @@ void checkConsumerInstructions(const TestSpeeds& speeds){
   assert(received.stops.size()==1&&received.stops.front().signal==nextSignal);
   assert(!received.held.front().hasEnd);
   approachPlan=plan(received,route,instructions,1000.1,100,vmax,.5,true);
-  assert(std::abs(approachPlan.ceiling-envelope(0,599.9,.5))<1e-9);
+  assert(std::abs(approachPlan.ceiling-envelope(0,596.9,.5))<1e-9);
   // Release uses head passage, not rear clearance; the next stop still applies.
   assert(plan(received,route,instructions,1600,100,vmax,.5,true).ceiling==0);
  }
@@ -121,13 +249,13 @@ void checkConsumerInstructions(const TestSpeeds& speeds){
  const std::vector<Ahead> rerouted{{s,2000}};
  p=plan(memory,rerouted,clear,1001,100,vmax,.5,true);
  assert(p.active&&memory.stops.size()==1&&memory.stops.front().position==2000);
- assert(std::abs(p.ceiling-envelope(0,999,.5))<1e-9);
+ assert(std::abs(p.ceiling-envelope(0,996,.5))<1e-9);
  // Progress which remains before the target cannot release it; stale data
  // also cannot use its visible reopening to grant movement through it.
  memory={};crossed(memory,warnings,499,501);
  plan(memory,ahead,clear,990,100,vmax,.5,true);
  p=plan(memory,ahead,clear,999,100,vmax,.5,false);
- assert(p.active&&memory.stops.size()==1&&std::abs(p.ceiling-envelope(0,1,.5))<1e-9);
+ assert(p.active&&memory.stops.size()==1&&p.ceiling==0); // Already inside the 3 m stop clearance.
  p=plan(memory,ahead,clear,1000,100,vmax,.5,false);
  assert(p.active&&p.ceiling==0&&memory.stops.size()==1);
  // Reconciliation consumes a passed stop only, preserving a further stop
@@ -138,7 +266,7 @@ void checkConsumerInstructions(const TestSpeeds& speeds){
  plan(memory,ahead,clear,999,100,vmax,.5,true);
  p=plan(memory,{},clear,1001,100,vmax,.5,false);
  assert(p.active&&memory.stops.size()==1&&memory.stops.front().signal==s+0x10000);
- assert(memory.held.size()==1&&std::abs(p.ceiling-std::min(speeds.heldMps,envelope(0,599,.5)))<1e-9);
+ assert(memory.held.size()==1&&std::abs(p.ceiling-std::min(speeds.heldMps,envelope(0,596,.5)))<1e-9);
  // Invalid observations cannot overwrite the anchor; the existing backward
  // reset discards the old route rather than replaying its missing passage.
  memory={};crossed(memory,warnings,499,501);
@@ -211,7 +339,7 @@ void checkConsumerInstructions(const TestSpeeds& speeds){
         {b,0,speeds.approachMps,1,NIMBY_DRIVING_FOLLOW_TARGET},
         {s,speeds.entryMps,speeds.approachMps,0,NIMBY_DRIVING_HOLD_TO_CLEAR}};
  memory={};p=plan(memory,ahead,rules,0,100,vmax,.5,true);
- assert(std::abs(p.ceiling-envelope(0,1000,.5))<1e-9); // Numeric target not visible yet.
+ assert(std::abs(p.ceiling-envelope(0,997,.5))<1e-9); // Numeric target not visible yet.
 
  // Live regression: a two-panel announcement was retained after its immediate
  // successor reopened. Cancellation is explicit policy supplied by the mod.
@@ -318,6 +446,8 @@ void checkConsumerInstructions(const TestSpeeds& speeds){
 } // namespace
 
 int main(){
+ checkSignalStoppingMargin();
+ checkHeldLimitAtCurrentSignal();
  // Valeurs arbitraires : ni profil BAL ni valeurs par defaut du SDK.
  constexpr TestSpeeds consumers[]{
   {60.0,36.0,3.25,6.0,4.5,43.0},

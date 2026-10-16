@@ -58,12 +58,21 @@ private fun text(value: String, out: CPointer<ByteVar>?, capacity: Int): Int {
     // Newly compiled signals require an animation-aware adapter. Otherwise an
     // old adapter could silently sample a custom cadence as a static image.
     val extendedShortcuts = gameMod.windows.any { !it.shortcut.matches(Regex("Ctrl\\+Shift\\+[A-Z]|F([1-9]|1[0-2])")) }
-    if(trainLength.declaration != null) 11 else if(options.count != 0 || extendedShortcuts) 9 else if(gameMod is SignallingMod) 8 else if(gameMod.windows.isNotEmpty()) 7 else 3
+    if(gameMod is SignallingMod && types.any { it.observeRoute }) 14
+    else if(gameMod is SignallingMod && types.any { type -> type.checkboxes.any { it.visibleWhen.isNotEmpty() } }) 13
+    else if(trainLength.declaration != null) {
+        if(trainLength.hasLengthDisplay) 12 else 11
+    } else if(options.count != 0 || extendedShortcuts) 9 else if(gameMod is SignallingMod) 8 else if(gameMod.windows.isNotEmpty()) 7 else 3
 }
 // Length exports introduced in ABI 10; editor messages extend them in ABI 11.
 // Old mods retain their ABI. Copying this policy never reads the game.
 @CName("NRFKotlin_TrainLengthLimitMeters") fun trainLengthLimitMeters(): Int = guarded("TrainLengthLimitMeters") {
     trainLength.declaration?.maximumLengthMeters ?: 0
+}
+// ABI 13 can describe a signalling subclass with or without an independent
+// train-editor declaration. Keep that policy separate from checkbox metadata.
+@CName("NRFKotlin_TrainLengthDeclarationVersion") fun trainLengthDeclarationVersion(): Int = guarded("TrainLengthDeclarationVersion") {
+    if(trainLength.declaration == null) 0 else if(trainLength.hasLengthDisplay) 12 else 11
 }
 @CName("NRFKotlin_TrainLengthLimitOption") fun trainLengthLimitOption(out: CPointer<ByteVar>?, capacity: Int): Int = guarded("TrainLengthLimitOption") {
     text(trainLength.declaration?.optionId ?: "", out, capacity)
@@ -72,6 +81,11 @@ private fun text(value: String, out: CPointer<ByteVar>?, capacity: Int): Int {
 // their catalogue once, then selects a cached text in the game's language.
 @CName("NRFKotlin_TrainEditorMessage") fun trainEditorMessage(index: Int, out: CPointer<ByteVar>?, capacity: Int): Int = guarded("TrainEditorMessage") {
     text(trainLength.message(index), out, capacity)
+}
+// ABI 12 adds copied display labels only when the mod declares them. Measured
+// metres stay in the resident SDK; no train state or pointer enters this export.
+@CName("NRFKotlin_TrainEditorLengthLabel") fun trainEditorLengthLabel(index: Int, out: CPointer<ByteVar>?, capacity: Int): Int = guarded("TrainEditorLengthLabel") {
+    text(trainLength.lengthLabel(index), out, capacity)
 }
 @CName("NRFKotlin_ToolHasTick") fun toolHasTick(): Int = guarded("ToolHasTick") {
     if(trainLength.hasTickCallback) 1 else 0
@@ -156,6 +170,12 @@ private fun inTool(world: String, generation: Long, call: ToolCall?, block: (Too
 // Optional extension of ABI 1. Old single-type DLLs remain supported. New
 // adapters use these exports together, never mix layouts from two versions.
 @CName("NRFKotlin_TypeCount") fun typeCount(): Int = guarded("TypeCount") { types.size }
+// ABI 13 is requested only by declarations using this dependency. Older
+// adapters must reject those mods instead of silently displaying every box.
+@CName("NRFKotlin_CheckboxVisibleWhen") fun checkboxVisibleWhen(type: Int, index: Int,
+    out: CPointer<ByteVar>?, capacity: Int): Int = guarded("CheckboxVisibleWhen") {
+    text(types[type].checkboxes[index].visibleWhen, out, capacity)
+}
 @CName("NRFKotlin_NumberCount") fun numberCount(type: Int): Int = guarded("NumberCount") { types[type].numbers.size }
 @CName("NRFKotlin_NumberMetadata") fun numberMetadata(type: Int, index: Int, field: Int, out: CPointer<ByteVar>?, capacity: Int): Int = guarded("NumberMetadata") {
     val number = types[type].numbers[index]
@@ -254,15 +274,24 @@ private fun inTool(world: String, generation: Long, call: ToolCall?, block: (Too
 
 // Each row: id, next, mask, approaching train; type, status and seven observation integers.
 @CName("NRFKotlin_PrepareNetwork") fun prepareNetwork(count: Int, identities: CPointer<LongVar>?, fields: CPointer<IntVar>?, masks: CPointer<LongVar>?, statuses: CPointer<IntVar>?): Int = guarded("PrepareNetwork") {
+    prepareNetworkImpl(count, identities, fields, masks, statuses)
+}
+
+private fun prepareNetworkImpl(count: Int, identities: CPointer<LongVar>?, fields: CPointer<IntVar>?,
+    masks: CPointer<LongVar>?, statuses: CPointer<IntVar>?, occupants: ((Int) -> BlockTrains)? = null,
+    routes: ((Int) -> SelectedSignalRoute)? = null): Int {
     require(count in 0..maximumSignalNetworkSize)
-    if(count == 0) return@guarded 0
+    if(count == 0) return 0
     require(identities != null && fields != null && masks != null && statuses != null)
     val source = List(count) { i ->
         val declaration = types[fields[i*9]]
         val mask = identities[i*4+2]
         val settings = settingsMasks[fields[i*9]].read(mask)
+        val routeConflict = observedRouteConflict(fields[i*9+5])
         val observation = Observation(Occupancy.entries[fields[i*9+2]], fields[i*9+3]!=0, fields[i*9+4]!=0,
-            fields[i*9+5]!=0, fields[i*9+6]!=0, fields[i*9+7]!=0, fields[i*9+8], identities[i*4+3].takeIf { it!=0L })
+            (fields[i*9+5] and 1) != 0, fields[i*9+6]!=0, fields[i*9+7]!=0, fields[i*9+8], identities[i*4+3].takeIf { it!=0L }, routeConflict,
+            occupants?.invoke(i) ?: BlockTrains.Unknown,
+            if (declaration.observeRoute) routes?.invoke(i) ?: SelectedSignalRoute.Unknown else SelectedSignalRoute.Unknown)
         Signal(identities[i*4], identities[i*4+1], settings, observation, SettingsStatus.entries[fields[i*9+1]], declaration.id)
     }
     val prepared = networkSchema.prepare(mod, source)
@@ -271,24 +300,172 @@ private fun inTool(world: String, generation: Long, call: ToolCall?, block: (Too
             if(signal.settings[box.name] ?: box.defaultValue) mask or (1L shl bit) else mask }
         statuses[i] = signal.settingsStatus.ordinal
     }
-    0
+    return 0
+}
+
+// Additive private transport. Legacy exports and fixed command layouts stay
+// unchanged; old adapters supply Unknown rather than an empty complete list.
+@CName("NRFKotlin_ObservationTrainsVersion") fun observationTrainsVersion(): Int = 1
+@CName("NRFKotlin_ObservesBlockTrains") fun observesBlockTrains(type: Int): Int = guarded("ObservesBlockTrains") {
+    if (types[type].observeBlockTrains) 1 else 0
+}
+
+private fun observedBlockTrains(ids: CPointer<LongVar>?, begin: Int, count: Int, complete: Int): BlockTrains {
+    require(begin >= 0 && count in 0..4096 && complete in 0..1)
+    require(count == 0 || ids != null)
+    return BlockTrains.observed(List(count) { ids!![begin + it] }, complete == 1)
+}
+
+@CName("NRFKotlin_PrepareNetworkWithTrains") fun prepareNetworkWithTrains(count: Int,
+    identities: CPointer<LongVar>?, fields: CPointer<IntVar>?, offsets: CPointer<IntVar>?,
+    trains: CPointer<LongVar>?, trainCount: Int, completeness: CPointer<IntVar>?,
+    masks: CPointer<LongVar>?, statuses: CPointer<IntVar>?): Int = guarded("PrepareNetworkWithTrains") {
+    require(count in 0..maximumSignalNetworkSize && trainCount in 0..131072)
+    require(trainCount == 0 || trains != null)
+    if (count == 0) {
+        require(trainCount == 0)
+        return@guarded 0
+    }
+    require(offsets != null && completeness != null && offsets[0] == 0 && offsets[count] == trainCount)
+    // Check the complete table before constructing observations or invoking mod
+    // callbacks. A truncated table must not publish partial prepared settings.
+    for (i in 0 until count) {
+        require(offsets[i] in 0..trainCount && offsets[i+1] in offsets[i]..trainCount)
+        require(offsets[i+1] - offsets[i] <= 4096 && completeness[i] in 0..1)
+    }
+    prepareNetworkImpl(count, identities, fields, masks, statuses, occupants = { i ->
+        observedBlockTrains(trains, offsets[i], offsets[i+1] - offsets[i], completeness[i])
+    })
+}
+
+// ABI 14: copied selected-route facts, never native reservation ownership.
+// The fixed command schema and all previous exports retain their old layouts.
+@CName("NRFKotlin_ObservationRouteVersion") fun observationRouteVersion(): Int = 1
+@CName("NRFKotlin_ObservesRoute") fun observesRoute(type: Int): Int = guarded("ObservesRoute") {
+    if (types[type].observeRoute) 1 else 0
+}
+
+private fun observedRoutes(count: Int, identities: CPointer<LongVar>?, fields: CPointer<IntVar>?,
+    markerOffsets: CPointer<IntVar>?, markerIds: CPointer<LongVar>?, markerStates: CPointer<IntVar>?, markerCount: Int,
+    catalogueOffsets: CPointer<IntVar>?, catalogueBytes: CPointer<ByteVar>?, catalogueByteCount: Int): List<SelectedSignalRoute> {
+    require(count in 0..maximumSignalNetworkSize && markerCount in 0..32768 && catalogueByteCount in 0..8388608)
+    require(catalogueByteCount <= markerCount * 256)
+    if (count == 0) { require(markerCount == 0 && catalogueByteCount == 0); return emptyList() }
+    require(identities != null && fields != null && markerOffsets != null)
+    require(markerOffsets[0] == 0 && markerOffsets[count] == markerCount)
+    require(markerCount == 0 || markerIds != null && markerStates != null && catalogueOffsets != null && catalogueBytes != null)
+    if (markerCount == 0) require(catalogueByteCount == 0)
+    else require(catalogueOffsets!![0] == 0 && catalogueOffsets[markerCount] == catalogueByteCount)
+    for (i in 0 until count) {
+        require(markerOffsets[i] in 0..markerCount && markerOffsets[i+1] in markerOffsets[i]..markerCount)
+        require(markerOffsets[i+1] - markerOffsets[i] <= 128)
+    }
+    // Decode every bounded resource before any preparation/decision callback.
+    val markers = List(markerCount) { i ->
+        val begin = catalogueOffsets!![i]; val end = catalogueOffsets[i+1]
+        require(begin in 0..catalogueByteCount && end in begin..catalogueByteCount && end - begin in 1..256)
+        val catalogue = ByteArray(end - begin) { catalogueBytes!![begin + it] }.decodeToString(throwOnInvalidSequence = true)
+        SignalRouteMarker(markerIds!![i], catalogue, markerStates!![i])
+    }
+    return List(count) { i ->
+        val train = identities[i*2]; val boundary = identities[i*2+1]
+        val destination = fields[i*3]; val occupation = fields[i*3+1]; val complete = fields[i*3+2]
+        require(destination in 0..2 && occupation in 0..2 && complete in 0..1)
+        val begin = markerOffsets[i]; val end = markerOffsets[i+1]
+        if (train == 0L) {
+            require(boundary == 0L && destination == 0 && occupation == 0 && complete == 0 && begin == end)
+            SelectedSignalRoute.Unknown
+        } else SelectedSignalRoute.observed(train, boundary, RouteDestination.entries[destination],
+            Occupancy.entries[occupation], markers.subList(begin, end), complete == 1)
+    }
+}
+
+@CName("NRFKotlin_PrepareNetworkWithRoute") fun prepareNetworkWithRoute(count: Int,
+    identities: CPointer<LongVar>?, fields: CPointer<IntVar>?, offsets: CPointer<IntVar>?,
+    trains: CPointer<LongVar>?, trainCount: Int, completeness: CPointer<IntVar>?,
+    routeIdentities: CPointer<LongVar>?, routeFields: CPointer<IntVar>?, markerOffsets: CPointer<IntVar>?,
+    markerIds: CPointer<LongVar>?, markerStates: CPointer<IntVar>?, markerCount: Int,
+    catalogueOffsets: CPointer<IntVar>?, catalogueBytes: CPointer<ByteVar>?, catalogueByteCount: Int,
+    masks: CPointer<LongVar>?, statuses: CPointer<IntVar>?): Int = guarded("PrepareNetworkWithRoute") {
+    require(count in 0..maximumSignalNetworkSize && trainCount in 0..131072)
+    require(trainCount == 0 || trains != null)
+    if (count == 0) {
+        require(trainCount == 0)
+        observedRoutes(count, routeIdentities, routeFields, markerOffsets, markerIds, markerStates, markerCount,
+            catalogueOffsets, catalogueBytes, catalogueByteCount)
+        return@guarded 0
+    }
+    require(offsets != null && completeness != null && offsets[0] == 0 && offsets[count] == trainCount)
+    for (i in 0 until count) {
+        require(offsets[i] in 0..trainCount && offsets[i+1] in offsets[i]..trainCount)
+        require(offsets[i+1] - offsets[i] <= 4096 && completeness[i] in 0..1)
+    }
+    val copiedTrains = List(count) { i -> observedBlockTrains(trains, offsets[i], offsets[i+1] - offsets[i], completeness[i]) }
+    val copiedRoutes = observedRoutes(count, routeIdentities, routeFields, markerOffsets, markerIds, markerStates,
+        markerCount, catalogueOffsets, catalogueBytes, catalogueByteCount)
+    prepareNetworkImpl(count, identities, fields, masks, statuses,
+        occupants = { copiedTrains[it] }, routes = { copiedRoutes[it] })
 }
 
 // Optional capability: older ABI 8 DLLs retain their original 512-signal
 // bound. A new adapter must not send a larger request to those DLLs.
 @CName("NRFKotlin_NetworkLimit") fun networkLimit(): Int = maximumSignalNetworkSize
 
+// Optional additive capability: field 3 is a bitset only after this export is
+// discovered by the matching adapter. The seven-integer layout is unchanged.
+@CName("NRFKotlin_ObservationRestrictionsVersion") fun observationRestrictionsVersion(): Int = 1
+// The adapter bridge is compiled against the public API klib as a separate
+// module. Keep this transport decoder here, not an internal API-klib symbol.
+private fun observedRouteConflict(bits: Int): RouteConflict? {
+    require((bits and 7) == bits && (bits and 6) != 6)
+    return when (bits and 6) {
+        2 -> RouteConflict.CrossingOccupied
+        4 -> RouteConflict.CrossingReserved
+        else -> null
+    }
+}
+
 @CName("NRFKotlin_DecideType") fun decideType(type: Int, mode: Int, mask: Long, status: Int, id: Long, nextId: Long, approachingTrain: Long,
     observation: CPointer<IntVar>?, nextAspect: Int, nextReason: Int, out: CPointer<IntVar>?): Int = guarded("Decide") {
+    decideTypeImpl(type, mode, mask, status, id, nextId, approachingTrain, observation, nextAspect, nextReason, BlockTrains.Unknown, out)
+}
+
+@CName("NRFKotlin_DecideTypeWithTrains") fun decideTypeWithTrains(type: Int, mode: Int, mask: Long, status: Int,
+    id: Long, nextId: Long, approachingTrain: Long, observation: CPointer<IntVar>?, nextAspect: Int, nextReason: Int,
+    trains: CPointer<LongVar>?, trainCount: Int, complete: Int, out: CPointer<IntVar>?): Int = guarded("DecideWithTrains") {
+    decideTypeImpl(type, mode, mask, status, id, nextId, approachingTrain, observation, nextAspect, nextReason,
+        observedBlockTrains(trains, 0, trainCount, complete), out)
+}
+
+private fun decideTypeImpl(type: Int, mode: Int, mask: Long, status: Int, id: Long, nextId: Long, approachingTrain: Long,
+    observation: CPointer<IntVar>?, nextAspect: Int, nextReason: Int, occupants: BlockTrains, out: CPointer<IntVar>?,
+    route: SelectedSignalRoute = SelectedSignalRoute.Unknown): Int {
     require(observation != null && out != null && mode in 0..2)
     val declaration = types[type]
     val settings = settingsMasks[type].read(mask)
+    val routeConflict = observedRouteConflict(observation[3])
     val o = Observation(Occupancy.entries[observation[0]], observation[1] != 0, observation[2] != 0,
-        observation[3] != 0, observation[4] != 0, observation[5] != 0, observation[6], approachingTrain.takeIf { it != 0L })
+        (observation[3] and 1) != 0, observation[4] != 0, observation[5] != 0, observation[6], approachingTrain.takeIf { it != 0L }, routeConflict, occupants,
+        if (declaration.observeRoute) route else SelectedSignalRoute.Unknown)
     val next = if (nextAspect < 0) null else Decision(nextAspect, nextReason)
     val signal = Signal(id, nextId, settings, o, SettingsStatus.entries[status], declaration.id)
     val result = if (mode == 0) mod.evaluate(declaration.id, settings, o) else mod.decide(if (mode == 2) mod.fromLive(signal) else signal, next)
-    if (result == null) 1 else { out[0] = result.aspect; out[1] = result.reason; 0 }
+    return if (result == null) 1 else { out[0] = result.aspect; out[1] = result.reason; 0 }
+}
+
+@CName("NRFKotlin_DecideTypeWithRoute") fun decideTypeWithRoute(type: Int, mode: Int, mask: Long, status: Int,
+    id: Long, nextId: Long, approachingTrain: Long, observation: CPointer<IntVar>?, nextAspect: Int, nextReason: Int,
+    trains: CPointer<LongVar>?, trainCount: Int, complete: Int,
+    routeIdentities: CPointer<LongVar>?, routeFields: CPointer<IntVar>?, markerIds: CPointer<LongVar>?,
+    markerStates: CPointer<IntVar>?, markerCount: Int, catalogueOffsets: CPointer<IntVar>?,
+    catalogueBytes: CPointer<ByteVar>?, catalogueByteCount: Int, out: CPointer<IntVar>?): Int = guarded("DecideWithRoute") {
+    val occupants = observedBlockTrains(trains, 0, trainCount, complete)
+    val route = memScoped {
+        val offsets = allocArray<IntVar>(2); offsets[0] = 0; offsets[1] = markerCount
+        observedRoutes(1, routeIdentities, routeFields, offsets, markerIds, markerStates, markerCount,
+            catalogueOffsets, catalogueBytes, catalogueByteCount).single()
+    }
+    decideTypeImpl(type, mode, mask, status, id, nextId, approachingTrain, observation, nextAspect, nextReason, occupants, out, route)
 }
 @CName("NRFKotlin_Texture") fun texture(aspect: Int, reason: Int, time: Long, half: Long, out: CPointer<ByteVar>?, capacity: Int): Int = guarded("Texture") {
     text(mod.texture(Decision(aspect, reason), time, half), out, capacity)

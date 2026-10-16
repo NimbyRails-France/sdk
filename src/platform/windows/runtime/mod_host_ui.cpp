@@ -11,7 +11,7 @@ enum Operation : uint32_t {
     Register=100,Remove,ConditionalVisibility,Numbers,Begin,Observe,Suspend,Read,
     Export,BeginSaved,Actions,PanelContext,ProviderAdd,ProviderRemove,
     ProviderObserve,ProviderSuspend,ProviderPoll,Present,ToolPanel,ToolPanelV2,
-    ProviderPollV2,Preview,Translations,ReadBatch,SettingsRevision
+    ProviderPollV2,Preview,Translations,ReadBatch,SettingsRevision,CheckboxVisibility
 };
 constexpr uint32_t settingsLimit=16*1024*1024,signalLimit=16384,translationLimit=1024*1024;
 template<class F> uint32_t boundary(F&& fn) noexcept {
@@ -74,6 +74,7 @@ template<class T> uint32_t receive(Operation op,uint64_t owner,uint64_t id,T* ou
 uint32_t registerPanel(const NimbyUiPanelV1* p,uint64_t* out) noexcept {return add(Register,p,out);}
 uint32_t removePanel(uint64_t t) noexcept{return simple(Remove,t);}
 uint32_t visibility(uint64_t t,uint64_t mask) noexcept{return simple(ConditionalVisibility,t,mask);}
+uint32_t checkboxVisibility(uint64_t t,const NimbyUiCheckboxVisibilityV1* p,uint32_t n) noexcept{return array(CheckboxVisibility,t,0,p,n,64);}
 uint32_t numbers(uint64_t t,const NimbyUiNumberSettingV1* p,uint32_t n) noexcept{return array(Numbers,t,0,p,n,4);}
 uint32_t begin(uint64_t t,const char* id,uint32_t n,uint64_t* out) noexcept {
     if(out)*out=0;
@@ -151,7 +152,7 @@ uint32_t dispatchUi(const Request& request,Reply& reply,Owners& owners) {
         if(request.data.size()>payloadLimit)return NIMBY_RESOURCE_LIMIT;
         const bool provider=(request.operation>=ProviderRemove&&request.operation<=ProviderPoll)||
             request.operation==ToolPanel||request.operation==ToolPanelV2||request.operation==ProviderPollV2||request.operation==Preview;
-        const bool panel=(request.operation>=Remove&&request.operation<=PanelContext)||request.operation==ReadBatch||request.operation==SettingsRevision;
+        const bool panel=(request.operation>=Remove&&request.operation<=PanelContext)||request.operation==ReadBatch||request.operation==SettingsRevision||request.operation==CheckboxVisibility;
         if((panel||provider)&&!owns(owners,a[0],provider)){
             // This guard runs before the resident endpoint. Record it too so
             // an invalid channel owner cannot look like a silent preview failure.
@@ -243,6 +244,10 @@ uint32_t dispatchUi(const Request& request,Reply& reply,Owners& owners) {
         case Read: {
             NimbyUiValuesV1 value{};if(!exact(request,value))return NIMBY_INVALID_ARGUMENT;
             const auto status=call<NimbyUiReadV1>("NimbyUi_ReadV1",a[0],a[1],&value);output(reply,&value);return status;
+        }
+        case CheckboxVisibility: {
+            std::vector<NimbyUiCheckboxVisibilityV1> values;if(!rows(request,a[2],64,values))return NIMBY_INVALID_ARGUMENT;
+            return call<NimbyUiCheckboxVisibilityConfigV1>("NimbyUi_CheckboxVisibilityV1",a[0],values.data(),static_cast<uint32_t>(values.size()));
         }
         case SettingsRevision: {
             if(!request.data.empty()||!a[1])return NIMBY_INVALID_ARGUMENT;
@@ -341,6 +346,7 @@ extern "C" NIMBY_API void* __cdecl NimbyInternal_ModHostUiSymbol(const char* nam
 #define SYMBOL(exported,stub) if(std::strcmp(name,exported)==0)return std::bit_cast<void*>(&stub)
     SYMBOL("NimbyUi_RegisterV1",registerPanel);SYMBOL("NimbyUi_RemoveV1",removePanel);
     SYMBOL("NimbyUi_ConditionalVisibilityV1",visibility);SYMBOL("NimbyUi_NumberSettingsV1",numbers);
+    SYMBOL("NimbyUi_CheckboxVisibilityV1",checkboxVisibility);
     SYMBOL("NimbyUi_BeginV1",begin);SYMBOL("NimbyUi_ObserveV1",observe);SYMBOL("NimbyUi_SuspendV1",suspend);
     SYMBOL("NimbyUi_ReadV1",readValues);SYMBOL("NimbyUi_ExportV1",exportSettings);SYMBOL("NimbyUi_BeginSavedV1",beginSaved);
     SYMBOL("NimbyUi_ReadBatchV1",readBatch);

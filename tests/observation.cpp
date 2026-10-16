@@ -10,17 +10,39 @@ int main(int argc,char** argv) {
     static_assert(sizeof(NimbyTrackUsage)==32);
     NimbySession session=123;NimbySnapshot snapshot=123;uint32_t count=99;
     uint32_t stage=99;
-    NimbySignalCaptureScope scopes[2]{};std::strcpy(scopes[0].texture_set,"one");scopes[0].approach_blocks=2;
-    CHECK(NimbyInternal_CaptureSignallingScope(0,scopes,1,&snapshot,&stage)==NIMBY_INVALID_HANDLE&&snapshot==0&&stage==0);
-    CHECK(NimbyInternal_CaptureSignallingScope(0,nullptr,1,&snapshot,&stage)==NIMBY_INVALID_ARGUMENT);
-    CHECK(NimbyInternal_CaptureSignallingScope(0,scopes,0,&snapshot,&stage)==NIMBY_INVALID_ARGUMENT);
-    CHECK(NimbyInternal_CaptureSignallingScope(0,scopes,17,&snapshot,&stage)==NIMBY_INVALID_ARGUMENT);
-    scopes[0].approach_blocks=17;
-    CHECK(NimbyInternal_CaptureSignallingScope(0,scopes,1,&snapshot,&stage)==NIMBY_INVALID_ARGUMENT);
-    scopes[0].approach_blocks=2;scopes[1]=scopes[0];
-    CHECK(NimbyInternal_CaptureSignallingScope(0,scopes,2,&snapshot,&stage)==NIMBY_INVALID_ARGUMENT);
-    std::memset(scopes[0].texture_set,'x',sizeof scopes[0].texture_set);
-    CHECK(NimbyInternal_CaptureSignallingScope(0,scopes,1,&snapshot,&stage)==NIMBY_INVALID_ARGUMENT);
+    for(const auto capture:{NimbyInternal_CaptureSignallingScope,NimbyInternal_CaptureRuntimeSignallingScope}){
+        // Both exports validate exactly the same input envelope. Filtering is
+        // an adapter opt-in, never a way to weaken the native bridge guards.
+        NimbySignalCaptureScope scopes[17]{};
+        for(size_t i=0;i<16;++i){
+            std::snprintf(scopes[i].texture_set,sizeof scopes[i].texture_set,"scope-%zu",i);
+            scopes[i].approach_blocks=16;
+        }
+        snapshot=123;stage=99;
+        CHECK(capture(0,scopes,1,&snapshot,&stage)==NIMBY_INVALID_HANDLE&&snapshot==0&&stage==0);
+        CHECK(capture(0,scopes,16,&snapshot,&stage)==NIMBY_INVALID_HANDLE&&snapshot==0&&stage==0);
+        snapshot=123;stage=99;
+        CHECK(capture(0,nullptr,1,&snapshot,&stage)==NIMBY_INVALID_ARGUMENT&&snapshot==0&&stage==0);
+        CHECK(capture(0,scopes,0,&snapshot,&stage)==NIMBY_INVALID_ARGUMENT);
+        CHECK(capture(0,scopes,17,&snapshot,&stage)==NIMBY_INVALID_ARGUMENT);
+        stage=99;
+        CHECK(capture(0,scopes,1,nullptr,&stage)==NIMBY_INVALID_ARGUMENT&&stage==0);
+        snapshot=123;
+        CHECK(capture(0,scopes,1,&snapshot,nullptr)==NIMBY_INVALID_ARGUMENT&&snapshot==0);
+        CHECK(capture(0,scopes,1,nullptr,nullptr)==NIMBY_INVALID_ARGUMENT);
+        scopes[0].approach_blocks=17;
+        CHECK(capture(0,scopes,1,&snapshot,&stage)==NIMBY_INVALID_ARGUMENT);
+        scopes[0].approach_blocks=0;
+        CHECK(capture(0,scopes,1,&snapshot,&stage)==NIMBY_INVALID_HANDLE);
+        scopes[0].approach_blocks=2;scopes[1]=scopes[0];
+        CHECK(capture(0,scopes,2,&snapshot,&stage)==NIMBY_INVALID_ARGUMENT);
+        scopes[0].texture_set[0]=0;
+        CHECK(capture(0,scopes,1,&snapshot,&stage)==NIMBY_INVALID_ARGUMENT);
+        std::memset(scopes[0].texture_set,'x',sizeof scopes[0].texture_set);
+        CHECK(capture(0,scopes,1,&snapshot,&stage)==NIMBY_INVALID_ARGUMENT);
+        scopes[0].texture_set[256]=0;
+        CHECK(capture(0,scopes,1,&snapshot,&stage)==NIMBY_INVALID_HANDLE); // Maximum accepted name length.
+    }
     CHECK(NimbyInternal_CaptureSessionSnapshot(0,&snapshot,&stage)==NIMBY_INVALID_HANDLE&&snapshot==0&&stage==0);
     CHECK(NimbyInternal_CaptureSessionSnapshot(0,nullptr,&stage)==NIMBY_INVALID_ARGUMENT&&stage==0);
     CHECK(NimbyInternal_CaptureSessionSnapshot(0,&snapshot,nullptr)==NIMBY_INVALID_ARGUMENT&&snapshot==0);

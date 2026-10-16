@@ -1,5 +1,5 @@
 #pragma once
-#include <nimby/detail/vendor/json.hpp>
+#include <nimby/detail/bounded_json.hpp>
 #include <map>
 #include <set>
 #include <string>
@@ -9,7 +9,7 @@ namespace nimby::detail {
 // Immutable, owned catalogue. No mod callbacks, file reads or process pointers
 // survive registration. It may safely outlive the mod in a frozen UI frame.
 class Translations {
-    using Json=nlohmann::json;
+    using Json=nimby::detail::BoundedJson;
     using Texts=std::map<std::string,std::string,std::less<>>;
     std::map<std::string,Texts,std::less<>> languages_;
     std::string fallback_="en";

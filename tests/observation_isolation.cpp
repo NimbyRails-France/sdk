@@ -239,11 +239,14 @@ void topologyQueryContract(){
     CHECK(NimbyInternal_ReleaseSnapshot(snapshot)==NIMBY_OK);
 }
 }
+#include "observation_runtime_signalling_fixture.hpp"
+#include "observation_presence_batch_fixture.hpp"
 int main(int argc,char** argv) {
     try {
         const bool baseline=argc==2&&std::string(argv[1])=="--baseline";
         CHECK(argc==1||baseline);blockedRead(baseline);if(baseline){retainedSnapshots(true);return 0;}
         faultyLoop();retainedSnapshots();closeDuringCapture();epochOrdering(true);epochOrdering(false);trainQueryContract();foreignTextureFault();topologyQueryContract();
+        runtimeEmptySignallingContract();runtimeEmptySignallingBenchmark();presenceBatchObservationContracts();
         std::cout<<"PASS actual observation ABI: stalled/throwing/slow/flooding peers, close during capture, snapshot lifetime, epoch completion order\n";
     } catch(const std::exception& error) { std::cerr<<error.what()<<'\n';return 1; }
 }

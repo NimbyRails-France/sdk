@@ -19,6 +19,8 @@ struct Memory {
     uint64_t changing_attachment{},attachment_after_children{};
     uint64_t changing_retired_motion{},changing_retired_model{};size_t retired_flag_offset{};unsigned retired_model_reads{};
     uint64_t changing_head{};TrainPosition latest_head{};
+    uint64_t watched_motion{};unsigned short_motion_reads{},full_motion_reads{};
+    uint64_t motion_read_bytes{};size_t refused_motion_size{},corrupt_motion_offset{};uint8_t corrupt_motion_mask{};
     uint64_t changing_pool_on_track{},pool_target{};unsigned pool_track_reads{};size_t pool_target_offset{};
     uint64_t watched_table{};size_t watched_table_size{};unsigned watched_table_reads{};uint64_t watched_table_bytes{};
     uint64_t change_after_plan{},different_shared_stop{};size_t change_after_plan_offset{};
@@ -31,6 +33,11 @@ struct Memory {
 };
 bool read(void* ctx,uint64_t address,void* out,size_t size) {
     auto& m=*static_cast<Memory*>(ctx);++m.reads;
+    const bool motionRecord=size==0x638||size==0x4b1;
+    if(address==m.watched_motion&&motionRecord){
+        m.short_motion_reads+=size==0x4b1;m.full_motion_reads+=size==0x638;m.motion_read_bytes+=size;
+        if(size==m.refused_motion_size)return false;
+    }
     if(std::find(m.forbiddenAddresses.begin(),m.forbiddenAddresses.end(),address)!=m.forbiddenAddresses.end()) {++m.forbiddenReads;return false;}
     if(size==0x90)++m.metric_prefix_reads;
     if(address==m.metric_block&&size==m.metric_block_size&&++m.metric_block_reads==2&&m.fail_metric_verification)return false;
@@ -56,8 +63,8 @@ bool read(void* ctx,uint64_t address,void* out,size_t size) {
         m.regions.at(m.pool_target)[m.pool_target_offset]^=1;
     if(address==m.changing_record&&size==m.record_size&&++m.changing_record_reads==2)static_cast<unsigned char*>(out)[0]^=1;
     // The bulk Motion read and the later per-train validation can straddle a
-    // simulation tick. Change only the head in the second complete record.
-    if(address==m.changing_head && size==0x638){
+    // simulation tick. Change only the head in the verified record/prefix.
+    if(address==m.changing_head && motionRecord){
         auto* p=static_cast<unsigned char*>(out);
         std::memcpy(p+0x3a8,&m.latest_head.track_id,sizeof(uint64_t));
         std::memcpy(p+0x3b0,&m.latest_head.fraction,sizeof(double));
@@ -72,11 +79,13 @@ bool read(void* ctx,uint64_t address,void* out,size_t size) {
         if(m.changing_metric_identity>=address&&m.changing_metric_identity-address+0x90<=size)
             static_cast<unsigned char*>(out)[m.changing_metric_identity-address]^=1;
     }
-    if(address==m.changing_motion && size==0x638)static_cast<unsigned char*>(out)[0x4b0]=1;
+    if(address==m.changing_motion && motionRecord)static_cast<unsigned char*>(out)[0x4b0]=1;
     if(address==m.changing_station && size==0x28)static_cast<unsigned char*>(out)[0]^=1;
     if(address==m.changing_service && size==0x638)static_cast<unsigned char*>(out)[0x4d0]^=1;
-    if(address==m.changing_presence && size==0x638)static_cast<unsigned char*>(out)[0x1d0]^=1;
-    if(address==m.changing_identity && size==0x638)static_cast<unsigned char*>(out)[0]^=1;
+    if(address==m.changing_presence && motionRecord)static_cast<unsigned char*>(out)[0x1d0]^=1;
+    if(address==m.changing_identity && motionRecord)static_cast<unsigned char*>(out)[0]^=1;
+    if(address==m.watched_motion&&motionRecord&&m.corrupt_motion_offset<size)
+        static_cast<unsigned char*>(out)[m.corrupt_motion_offset]^=m.corrupt_motion_mask;
     if(address==m.changing_retired_motion && size==0x638)static_cast<unsigned char*>(out)[m.retired_flag_offset]=1;
     if(address==m.changing_retired_model && size==8 && ++m.retired_model_reads==2)static_cast<unsigned char*>(out)[7]=5;
     if(address==m.replace_header && ++m.header_reads==2)static_cast<unsigned char*>(out)[0]^=1;
@@ -755,6 +764,35 @@ int main() {
     if(!read_trains(read,&m,state,true,trains,true)||trains.size()!=1||
        trains[0].service.flags!=NIMBY_SERVICE_PRESENCE_VALID||trains[0].speed_available||
        !trains[0].name.empty()||trains[0].path_available||!trains[0].positioned||trains[0].position.fraction!=.25)return 210;
+    {
+        // The complete pool stride is unchanged, but signalling rechecks only
+        // bytes it consumes. Keep the final optional byte +4b0 in that prefix.
+        auto prefix=m;prefix.watched_motion=motionBlock;
+        if(!read_trains(read,&prefix,state,true,trains,true)||!trains[0].positioned||
+           prefix.short_motion_reads!=1||prefix.full_motion_reads||prefix.motion_read_bytes!=0x4b1)return 257;
+        auto full=m;full.put(trainBlock,0x20,uint64_t(1));full.watched_motion=motionBlock;
+        if(!read_trains(read,&full,state,true,trains)||full.short_motion_reads||
+           full.full_motion_reads!=1||full.motion_read_bytes!=0x638)return 258;
+        // No omitted tail bytes can make presence unavailable. Conversely a
+        // refused prefix never supplies a valid membership or a verified head.
+        prefix=m;prefix.watched_motion=motionBlock;prefix.refused_motion_size=0x638;
+        if(!read_trains(read,&prefix,state,true,trains,true)||!trains[0].positioned||
+           trains[0].service.flags!=NIMBY_SERVICE_PRESENCE_VALID||prefix.full_motion_reads)return 259;
+        prefix.refused_motion_size=0x4b1;prefix.short_motion_reads=0;prefix.motion_read_bytes=0;
+        if(!read_trains(read,&prefix,state,true,trains,true)||trains[0].positioned||
+           trains[0].service.flags||prefix.short_motion_reads!=1||prefix.motion_read_bytes!=0x4b1)return 260;
+        full.refused_motion_size=0x638;full.full_motion_reads=0;full.motion_read_bytes=0;
+        if(!read_trains(read,&full,state,true,trains)||trains[0].service.flags||
+           full.full_motion_reads!=1||full.short_motion_reads)return 261;
+        // Identity and every consumed optional still fail closed on an invalid
+        // readback, including the last byte of the reduced read request.
+        for(const auto offset:{size_t(0),size_t(0x1d0),size_t(0x218),size_t(0x4b0)}){
+            prefix=m;prefix.watched_motion=motionBlock;prefix.corrupt_motion_offset=offset;
+            prefix.corrupt_motion_mask=offset==0?1:offset==0x4b0?3:2;
+            if(!read_trains(read,&prefix,state,true,trains,true)||trains[0].positioned||
+               trains[0].service.flags||prefix.short_motion_reads!=1||prefix.full_motion_reads)return 262;
+        }
+    }
     {
         // A moving train must remain visible to two-block approach detection.
         // Formerly any changed fraction erased its head until a stable/stopped

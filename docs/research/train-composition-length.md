@@ -112,11 +112,44 @@ l'opération entière et doit rester proportionnelle au candidat, sans callback
 de mod sur le thread du jeu. Les grands ajouts natifs répétés conservent leur
 coût de recalcul ; cet audit ne prouve pas leur optimisation.
 
+Un refus d'ajout mémorise la longueur du candidat refusé pendant quinze secondes.
+La validation de la composition inchangée, même valide, ne doit pas effacer ce
+refus. En revanche, une demande de suppression avec sélection non vide retire
+le refus de cet éditeur avant l'appel natif. Une nouvelle erreur signalée durant
+cet appel reste visible. Disposition, orientation et décor ont priorité sur un
+ancien flag de suppression et ne retirent pas le message. Cette qualification
+réutilise les flags déjà lus, sans lecture supplémentaire des véhicules.
+
+La fixture `native_train_length_detours` reproduit un ajout refusé à 875 m pour
+une composition de 850 m, un retrait donnant 825 m, puis un nouvel ajout à
+850 m. Elle vérifie aussi les erreurs fraîches pendant le retrait et les refus
+d'un autre éditeur. Il s'agit d'une régression de l'état du message SDK ; elle
+ne remplace pas la vérification du panneau et du recalcul natif dans le jeu.
+
 Le panneau `0x7ed720` reçoit un émetteur UI emprunté dans R8. Le SDK peut
 y afficher un refus durant les passes de mise en page et d'interaction, sans
 boîte de dialogue Windows. La durée de vie du message et la position dans les
 groupes UI doivent être vérifiées dans le jeu. Le texte natif « trop de voitures »
 ne convient pas à une limite exprimée en mètres.
+
+Le compteur permanent est déclaré par trois libellés facultatifs du mod
+(`currentLength`, `proposedLength`, `currentLengthUnavailable`). Il conserve une
+mesure distincte du candidat refusé. Le panneau réutilise la mesure de la
+composition courante produite par `validate` dans cette passe. Une modification
+native invalide cette capture, même si le début, la fin et la capacité du vecteur
+ne changent pas. À défaut de capture valide, seule la passe Layout effectue un
+calcul borné sur cet éditeur ; la passe Interactive peint l'instantané du Layout.
+La modification devient visible au prochain Layout/affichage. Les valeurs et
+textes sont reformattés seulement quand leurs données changent ; aucun callback
+du mod, IPC, JSON ou lecture disque ne s'ajoute au rafraîchissement du compteur.
+
+Une somme partielle (modèle absent ou longueur invalide) produit le libellé
+d'indisponibilité, jamais une longueur actuelle. Les journaux de transition
+indiquent la qualité de la mesure et le modèle problématique. La fixture couvre
+ajout accepté, ajout refusé, retrait après une validation précédant la mutation,
+remplacement de modèle à pointeurs constants, composition vide, donnée illisible
+et changement de limite. Les déclarations anciennes restent sans compteur ;
+l'ABI Kotlin 12 est réservée aux déclarations qui ajoutent les trois libellés.
 
 ## Validation et préservation des attelages
 

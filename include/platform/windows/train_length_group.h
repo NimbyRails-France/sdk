@@ -9,7 +9,17 @@ namespace nimby::platform::windows::train_length::groups {
 // This immutable adapter is for the qualified Windows 1.19 mutation boundaries.
 // SimCmd receives {DB*,SimState*}; model commands receive the SimState directly.
 // No game function is called and no foreign memory is written by these checks.
-struct Context { uint64_t database{}, simulation{}; };
+struct Context {
+    uint64_t database{}, simulation{};
+    // Set only by the resident native adapter after aggregate AND ordered
+    // dynamics/hash protection have been activated. Pure clients default to
+    // the original native limit; a mod cannot opt into a partially installed
+    // aggregation mechanism by changing its length preference.
+    bool extendedAggregation=false;
+    size_t aggregationElements()const noexcept {
+        return extendedAggregation?policy::maximumElements:30;
+    }
+};
 enum class Issue { None, Unavailable, InvalidTopology, NativeAggregationLimit, CurrentCompositionLag };
 struct ModelTelemetry {
     uint64_t model{};size_t count{};
@@ -290,8 +300,8 @@ inline void preserveReduction(policy::Assessment& candidate,const policy::Assess
        candidate.totalLengthMeters<=current.totalLengthMeters)
         candidate.decision=policy::Decision::Allowed;
 }
-inline void aggregation(Check& result)noexcept {
-    if(result.members>1&&result.candidateElements>nativeAggregationElements&&
+inline void aggregation(Check& result,size_t maximum=nativeAggregationElements)noexcept {
+    if(result.members>1&&result.candidateElements>maximum&&
        result.candidateElements>result.previousElements){
         result.issue=Issue::NativeAggregationLimit;result.assessment.decision=policy::Decision::TooManyElements;
     }
@@ -342,8 +352,8 @@ inline Check hitch(nimby::engine::ReadMemory read,void* data,Context context,pol
         result.readIssue=capture.view().issue();
         // Every new attachment fits the physical policy and the retained native
         // aggregation guard. Never rely on native silently omitting a member.
-        if(conservative.candidateElements>detail::nativeAggregationElements){
-            result.issue=result.laggingMembers&&after.size()<=detail::nativeAggregationElements?
+        if(conservative.candidateElements>context.aggregationElements()){
+            result.issue=result.laggingMembers&&after.size()<=context.aggregationElements()?
                 Issue::CurrentCompositionLag:Issue::NativeAggregationLimit;
             if(result.assessment.allowed())result.assessment.decision=policy::Decision::TooManyElements;
         }
@@ -372,7 +382,7 @@ inline Check setConfig(nimby::engine::ReadMemory read,void* data,Context context
         result.planned=detail::candidate(capture,result,limit,after);
         if(!detail::measured(result.planned)){result.assessment=result.planned;result.readIssue=capture.view().issue();return result;}
         auto intended=result.planned;detail::preserveReduction(intended,plannedBefore);
-        const auto intendedAllowed=intended.allowed()&&!(members.size()>1&&after.size()>detail::nativeAggregationElements&&after.size()>before.size());
+        const auto intendedAllowed=intended.allowed()&&!(members.size()>1&&after.size()>context.aggregationElements()&&after.size()>before.size());
         if(members.size()>1){
             detail::Bounds conservative;
             if(!detail::bounds(capture,result,limit,root,before,after,slices,conservative)){
@@ -386,7 +396,7 @@ inline Check setConfig(nimby::engine::ReadMemory read,void* data,Context context
         }else{result.before=plannedBefore;result.assessment=result.planned;}
         if(!capture.stable(members))return failure();
         result.readIssue=capture.view().issue();
-        detail::preserveReduction(result.assessment,result.before);detail::aggregation(result);
+        detail::preserveReduction(result.assessment,result.before);detail::aggregation(result,context.aggregationElements());
         if(!result.allowed()&&intendedAllowed&&result.laggingMembers)result.issue=Issue::CurrentCompositionLag;
         return result;
     }catch(...){return detail::failed(result);}
@@ -432,7 +442,7 @@ inline Check recompose(nimby::engine::ReadMemory read,void* data,Context context
         result.planned=detail::candidate(capture,result,limit,after);
         if(!detail::measured(result.planned)){result.assessment=result.planned;result.readIssue=capture.view().issue();return result;}
         auto intended=result.planned;detail::preserveReduction(intended,plannedBefore);
-        const auto intendedAllowed=own.allowed()&&intended.allowed()&&!(members.size()>1&&after.size()>detail::nativeAggregationElements&&after.size()>before.size());
+        const auto intendedAllowed=own.allowed()&&intended.allowed()&&!(members.size()>1&&after.size()>context.aggregationElements()&&after.size()>before.size());
         if(members.size()>1){
             detail::Bounds conservative;
             if(!detail::bounds(capture,result,limit,root,before,after,slices,conservative)){
@@ -448,7 +458,7 @@ inline Check recompose(nimby::engine::ReadMemory read,void* data,Context context
         result.readIssue=capture.view().issue();
         detail::preserveReduction(result.assessment,result.before);
         if(!own.allowed())result.assessment=own;
-        detail::aggregation(result);
+        detail::aggregation(result,context.aggregationElements());
         if(!result.allowed()&&intendedAllowed&&result.laggingMembers)result.issue=Issue::CurrentCompositionLag;
         return result;
     }catch(...){return detail::failed(result);}

@@ -1,6 +1,7 @@
 #pragma once
 #include <nimby/detail/observation_session.hpp>
 #include <nimby/detail/track_fraction.hpp>
+#include <nimby/detail/signal_route_values.hpp>
 
 namespace nimby {
 // Ordered facing boundaries ahead of the HEAD. The first bounds the immediate
@@ -55,7 +56,7 @@ inline std::optional<Id> firstApproachedSignal(const SignalTopology& topology,Po
 struct SignalApproach {Id train=0;size_t blocks=0;};
 
 inline std::map<Id,SignalApproach> observeSignalApproaches(const Snapshot& snapshot,const SignalTopology& topology,
-    Milliseconds maxAge=Milliseconds{1000},size_t blocks=1) {
+    Milliseconds maxAge=Milliseconds{1000},size_t blocks=1,std::span<const NimbySignalRouteObservation> routes={}) {
     std::map<Id,SignalApproach> result;
     if(snapshot.isOlderThan(maxAge)||snapshot.getAllTrains().size()>4096)return result;
     for(const auto& train:snapshot.getAllTrains()) {
@@ -69,6 +70,18 @@ inline std::map<Id,SignalApproach> observeSignalApproaches(const Snapshot& snaps
             // Prefer the nearer block; stable full ID breaks ties deterministically.
             if(!inserted&&std::tie(candidate.blocks,candidate.train)<std::tie(it->second.blocks,it->second.train))it->second=candidate;
         }
+    }
+    // The native prefix crosses junctions in the exact order chosen by the
+    // train. Positive observed boundaries can enrich geometric observations;
+    // an absent/truncated prefix never excludes an unobserved itinerary.
+    for(const auto& row:routes){
+        const auto source=snapshot.getSignalById(row.signal_id);
+        if(row.blocks>blocks||!source||!detail::SignalRoutes::sourceMatches(row,*source))continue;
+        const auto service=snapshot.getTrainServiceById(row.train_id);
+        if(!snapshot.getTrainById(row.train_id)||!service||service->isOnNetwork()!=std::optional<bool>{true}||service->isHidden()!=std::optional<bool>{false})continue;
+        const SignalApproach candidate{row.train_id,row.blocks};
+        const auto [it,inserted]=result.try_emplace(row.signal_id,candidate);
+        if(!inserted&&std::tie(candidate.blocks,candidate.train)<std::tie(it->second.blocks,it->second.train))it->second=candidate;
     }
     return result;
 }

@@ -49,6 +49,9 @@ struct Mod {
     // Owned, adapter-private declarations. Multi-model signalling stays scoped
     // instead of falling back to a complete world scan every 20 ms.
     std::vector<NimbySignalCaptureScope> observationSignals{};
+    // Opt-in owned by the precompiled signalling adapter, never a mod option.
+    // Existing C++ consumers keep the public scoped-capture data contract.
+    bool observationRuntimeFiltered=false;
     // Local recipe endpoint, explicitly stopped by the adapter before unload.
     const char* controlId=nullptr;
     NimbyControlHandler control=nullptr;

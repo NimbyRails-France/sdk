@@ -9,6 +9,7 @@ struct Observation {
     BlockOccupancy block=BlockOccupancy::Unknown;
     bool fresh=false,routeKnown=false,forcedStop=false,lampFailed=false,redFlashCondition=false;
     std::int32_t next=0;
+    std::optional<RouteConflict> routeConflict={};
 };
 struct Decision { std::int32_t aspect=0,reason=0; };
 struct Signal {
@@ -16,6 +17,14 @@ struct Signal {
     SettingsStatus settingsStatus=SettingsStatus::Present; bool live=false;
     std::uint32_t typeIndex=0;
     Id approachingTrain=0;
+};
+// Live-only owned facts. This extension leaves the current build's value-only
+// command schema unchanged; owning containers never cross that copied ABI.
+// This private schema is not an ABI guarantee between different SDK headers.
+struct LiveSignal : Signal {
+    std::vector<Id> trains;
+    bool trainListComplete=false;
+    SelectedSignalRoute selectedRoute{};
 };
 struct Vehicle { double maxSpeedMps=0,maxAccelerationMps2=0,serviceBrakingMps2=0,tractiveEffortN=0,powerW=0,emptyMassKg=0,extraMassKg=0,lengthM=0; };
 struct DrivingSettings { double brakeUse=0.8,responseSeconds=2,marginM=10; };
@@ -25,6 +34,7 @@ struct Plan { bool available=false;double speedCeilingMps=0,serviceDecelerationM
 struct Rules {
     using Settings=kotlin::Settings;using Observation=kotlin::Observation;using Decision=kotlin::Decision;
     using Signal=kotlin::Signal;using Vehicle=kotlin::Vehicle;using DrivingSettings=kotlin::DrivingSettings;
+    using LiveSignal=kotlin::LiveSignal;
     using Constraint=kotlin::Constraint;using DrivingInput=kotlin::DrivingInput;using Plan=kotlin::Plan;
     static constexpr std::size_t maxSignals=512;
     static constexpr std::size_t maxLiveSignals=4096;
@@ -36,8 +46,10 @@ struct Rules {
         "nrf.kotlin.render.v1","nrf.kotlin.network.v1","nrf.kotlin.occupancy.v1","nrf.kotlin.read-occupancy.v1"};
     static Decision evaluate(const Settings&,const Observation&);
     static std::optional<Decision> decide(const Signal&,const std::optional<Decision>&);
-    static Signal fromLive(const LiveSignalState&);
+    static std::optional<Decision> decide(const LiveSignal&,const std::optional<Decision>&);
+    static LiveSignal fromLive(const LiveSignalState&);
     static std::vector<Signal> prepareNetwork(std::span<const Signal>);
+    static std::vector<LiveSignal> prepareNetwork(std::span<const LiveSignal>);
     static std::vector<LiveSignalState> observe(const Snapshot&);
     static bool multipleTypes();
     static Decision unknownDecision();

@@ -29,12 +29,23 @@ class TrainLengthLimit internal constructor(
     val lengthUnavailable: String,
     /** Refus lorsque le SDK ne peut pas vérifier la composition. */
     val verificationUnavailable: String,
+    /** Libellé de la longueur actuelle ; null désactive le compteur permanent. */
+    val currentLength: String? = null,
+    /** Libellé de la longueur proposée lors d'un ajout refusé. */
+    val proposedLength: String? = null,
+    /** Texte affiché lorsque la longueur actuelle ne peut pas être mesurée. */
+    val currentLengthUnavailable: String? = null,
 ) {
     init {
         require(option.minimum >= minimumTrainLengthMeters && option.maximum <= maximumTrainLengthMeters) {
             "La longueur des trains doit être comprise entre $minimumTrainLengthMeters et $maximumTrainLengthMeters mètres"
         }
         listOf(exceeded, lengthUnavailable, verificationUnavailable).forEach(::checkedTrainEditorMessage)
+        val lengthLabels = listOf(currentLength, proposedLength, currentLengthUnavailable)
+        require(lengthLabels.all { it == null } || lengthLabels.all { it != null }) {
+            "Déclarer ensemble currentLength, proposedLength et currentLengthUnavailable"
+        }
+        lengthLabels.filterNotNull().forEach(::checkedTrainEditorMessage)
     }
 
     /** Longueur totale maximale demandée par le joueur, en mètres. */

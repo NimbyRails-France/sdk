@@ -7,6 +7,7 @@
 #include <chrono>
 #include <condition_variable>
 #include <cstring>
+#include <functional>
 #include <map>
 #include <memory>
 #include <mutex>
@@ -21,13 +22,20 @@ struct World {
     // capture starts, never changed concurrently with an observation.
     std::map<uint64_t,std::vector<unsigned char>> regions;
     std::atomic<uint64_t> refusedAddress{0},refusedReads{0};
+    // Installed only between captures; deterministic mutation on the reading
+    // thread models replacement after discovery without a concurrent C++ race.
+    std::function<void(uint64_t,size_t)> beforeRead;
+    std::function<void(uint64_t,void*,size_t)> afterRead;
+    uint64_t refusedRangeAddress=0;size_t refusedRangeSize=0;
     template<class T>void put(uint64_t address,size_t offset,T value){
         auto& bytes=regions[address];if(bytes.size()<offset+sizeof value)bytes.resize(offset+sizeof value);
         std::memcpy(bytes.data()+offset,&value,sizeof value);
     }
 };
 struct Connection {
-    std::atomic<uint64_t> reads{0},blockAt{0};
+    std::atomic<uint64_t> reads{0},bytesRequested{0},blockAt{0};
+    std::atomic<uint64_t> occupationReads{0},renderReads{0},trainPoolReads{0};
+    std::atomic<uint64_t> motionPrefixReads{0},motionBatchReads{0};
     std::mutex mutex;
     std::condition_variable event;
     bool entered=false,released=false;
@@ -64,8 +72,19 @@ bool ObservationProcess::alive() const noexcept { return bool(impl_->world); }
 engine::LiveStateProfile ObservationProcess::profile() noexcept { return engine::LiveStateProfile::Windows119; }
 bool ObservationProcess::read(uint64_t address,void* out,size_t bytes) const noexcept {
     const auto n=++impl_->connection->reads;
+    impl_->connection->bytesRequested+=bytes;
+    if(address==fixture::simulation+engine::gameLayout(engine::LiveStateProfile::Windows119).occupations)++impl_->connection->occupationReads;
+    if(address==fixture::simulation+engine::gameLayout(engine::LiveStateProfile::Windows119).texture_query)++impl_->connection->renderReads;
+    if(address==fixture::db+0x200||address==fixture::simulation+0xa0)++impl_->connection->trainPoolReads;
+    constexpr uint64_t motionBegin=0x81000000,motionEnd=0x82000000;
+    if(address>=motionBegin&&address<motionEnd){
+        if(bytes==0x4b1)++impl_->connection->motionPrefixReads;
+        else if(bytes>0x638&&bytes%0x638==0x4b1)++impl_->connection->motionBatchReads;
+    }
+    if(impl_->world->beforeRead)impl_->world->beforeRead(address,bytes);
     bool valid=false;
-    if(address==impl_->world->refusedAddress){++impl_->world->refusedReads;}
+    if(address==impl_->world->refusedAddress||
+       (address==impl_->world->refusedRangeAddress&&bytes==impl_->world->refusedRangeSize)){++impl_->world->refusedReads;}
     else if(address==fixture::base+0xb81998)valid=fixture::copy(out,bytes,fixture::root);
     else if(address==fixture::root+0x540)valid=fixture::copy(out,bytes,fixture::db);
     else if(address==fixture::root+0x5c0)valid=fixture::copy(out,bytes,fixture::network);
@@ -91,6 +110,7 @@ bool ObservationProcess::read(uint64_t address,void* out,size_t bytes) const noe
             }
         }
     }
+    if(valid&&impl_->world->afterRead)impl_->world->afterRead(address,out,bytes);
     // Stall after copying: a complete old observation may finish after a newer
     // capture on another connection. No fake-memory lock hides that race.
     return impl_->connection->delay(n)&&valid;

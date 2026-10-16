@@ -207,16 +207,114 @@ struct SignalSettingsClientTest {
         if(!client.synchronize(game,signals)||diagnosticMessages.size()!=recovered)return false;
         return sinkUnlocked;
     }
+    inline static NimbyUiReadBatchV1 emptyOriginalBatch{};
+    inline static uint32_t emptyObserveCalls{},emptyContextCalls{},emptyBatchCalls{};
+    static uint32_t emptyObserveProbe(uint64_t owner,uint64_t session,const NimbyUiSignalV1* signals,uint32_t count){
+        ++emptyObserveCalls;return observeProbe(owner,session,signals,count);
+    }
+    static uint32_t emptyContextProbe(uint64_t owner,uint64_t session,uint64_t generation){
+        ++emptyContextCalls;return contextProbe(owner,session,generation);
+    }
+    static uint32_t emptyBatchProbe(uint64_t owner,const uint64_t* ids,uint32_t count,NimbyUiReadBatchHeaderV1* header,NimbyUiReadBatchRowV1* rows){
+        ++emptyBatchCalls;return emptyOriginalBatch(owner,ids,count,header,rows);
+    }
+    static bool emptyPanelTransitions(const GameSession& game){
+        // Exercise the actual resident Observe/Context/copy/export endpoints.
+        // The only wrappers count calls and inject the existing transport errors.
+        constexpr SignalCheckbox fields[]{{"active","Active","",true}};
+        constexpr uint64_t source=0x8000000000011,target=0x8000000000021;
+        const SignalSettingsStore::Signal selected[]{{source,"atlas"}};
+        const SignalSettingsStore::Signal copied[]{{target,"atlas"}};
+        const SignalSettingsStore::Signal foreign[]{{source,"another-atlas"}};
+        SignalSettingsClient client;
+        if(!client.connectExisting({"empty-panel-client","Empty panel client","atlas",fields}))return false;
+        CaptureDiagnostics capture(client);
+        originalObserve=client.observe_;originalContext=client.context_;emptyOriginalBatch=client.readBatch_;
+        if(!originalContext||!emptyOriginalBatch)return false;
+        struct Restore{SignalSettingsClient& client;
+            ~Restore(){client.observe_=originalObserve;client.context_=originalContext;client.readBatch_=emptyOriginalBatch;
+                observeStatus=contextStatus=NIMBY_OK;}} restore{client};
+        client.observe_=emptyObserveProbe;client.context_=emptyContextProbe;client.readBatch_=emptyBatchProbe;
+        observeStatus=contextStatus=NIMBY_OK;emptyObserveCalls=emptyContextCalls=emptyBatchCalls=0;
+        if(!client.synchronize(game,{})||!client.cached_||!client.cache_.empty()||emptyBatchCalls||
+            emptyObserveCalls!=1||emptyContextCalls!=1||client.read(source).status!=SettingsStatus::Absent)return false;
+        // A nonempty global catalogue can still contain no IDs for this panel.
+        if(!client.synchronize(game,foreign)||emptyBatchCalls||emptyObserveCalls!=2||emptyContextCalls!=2)return false;
+        if(!client.synchronize(game,selected)||emptyBatchCalls!=1||client.read(source).getBoolean("active")!=true)return false;
+        const auto copyBegin=client.resolve<NimbyUiSettingsCopyBeginV1>(client.module_,"NimbyUi_SettingsCopyBeginV1");
+        const auto copyFinish=client.resolve<NimbyUiSettingsCopyFinishV1>(client.module_,"NimbyUi_SettingsCopyFinishV1");
+        uint64_t ticket{};
+        if(!copyBegin||!copyFinish||copyBegin(source,&ticket)!=NIMBY_OK||!ticket||copyFinish(ticket,&target,1)!=NIMBY_OK)return false;
+        const auto beforeEmptyBatch=emptyBatchCalls,beforeEmptyObserve=emptyObserveCalls,beforeEmptyContext=emptyContextCalls;
+        if(!client.synchronize(game,{})||emptyBatchCalls!=beforeEmptyBatch||emptyObserveCalls!=beforeEmptyObserve+1||
+            emptyContextCalls!=beforeEmptyContext+1||!client.cached_||!client.cache_.empty()||
+            client.read(source).status!=SettingsStatus::Absent)return false;
+        // The catalogue can predate a freshly constructed target. Observe must
+        // retain that pending copy, even while the local panel cache is empty.
+        const auto pending=client.exportSettings(client.observedSession_);
+        if(!pending||pending->signals.size()!=1||pending->signals[0].id!=target||
+            !pending->signals[0].values.at("active"))return false;
+        if(!client.synchronize(game,copied)||emptyBatchCalls!=beforeEmptyBatch+1||
+            client.read(target).getBoolean("active")!=true||client.read(source).status!=SettingsStatus::Absent)return false;
+        if(!client.synchronize(game,{})||emptyBatchCalls!=beforeEmptyBatch+1||
+            client.read(target).status!=SettingsStatus::Absent)return false;
+        // Pruning still reaches persistence, rather than returning before the
+        // coordinator's checkpoint. Force its existing debounce boundary.
+        checkpoint(client);
+        const auto saved=SignalSettingsFile::load(client.profilePath_);
+        if(!saved||!saved->signals.empty())return false;
+        const auto beforeRejectedContext=emptyContextCalls;
+        observeStatus=NIMBY_RESOURCE_LIMIT;
+        if(client.synchronize(game,{})||client.cached_||emptyContextCalls!=beforeRejectedContext||
+            !hasDiagnostic("observe_rejected",NIMBY_RESOURCE_LIMIT))return false;
+        observeStatus=NIMBY_OK;contextStatus=NIMBY_HOOKS_UNAVAILABLE;
+        if(client.synchronize(game,{})||client.cached_||!hasDiagnostic("context_rejected",NIMBY_HOOKS_UNAVAILABLE))return false;
+        contextStatus=NIMBY_OK;
+        if(!client.synchronize(game,{})||!client.cached_||!hasDiagnostic("ready",NIMBY_OK)||
+            diagnosticMessages.back().find("count=0 ")==std::string::npos)return false;
+        client.suspend();
+        if(client.cached_||client.read(target).status!=SettingsStatus::Unavailable)return false;
+        if(!client.synchronize(game,{})||!client.cached_||emptyBatchCalls!=beforeEmptyBatch+1)return false;
+        const auto previousSession=client.observedSession_;
+        const GameSession next{game.generation+1,std::string(64,'d')};
+        if(!client.synchronize(next,{})||client.observedSession_==previousSession||!client.cached_||
+            emptyBatchCalls!=beforeEmptyBatch+1||client.read(target).status!=SettingsStatus::Absent)return false;
+        // The old bridge still uses individual reads; refresh does not enable
+        // a cache when the batch export is absent, even for an empty catalogue.
+        client.readBatch_=nullptr;client.cached_=false;
+        const auto legacy=client.refresh({});
+        return bool(legacy)&&!client.cached_&&legacy.count==0&&sinkUnlocked;
+    }
 };
 }
 #define CHECK(x) do {if(!(x)){std::fprintf(stderr,"Failed line %d\n",__LINE__);return 1;}}while(false)
 int main(int argc,char** argv){
-    CHECK(argc==2);
+    CHECK(argc==2||(argc==3&&std::strcmp(argv[2],"--expect-visibility-unavailable")==0));
     constexpr nimby::SignalCheckbox fields[]{{"active","Active","",true}};
     const nimby::SignalSettingsPanel panel{"client","Client","atlas",fields};
     nimby::detail::SignalSettingsClient client;
     CHECK(!client.connectExisting(panel)); // No implicit DLL search/load.
     auto dll=LoadLibraryA(argv[1]);CHECK(dll);
+    {
+        constexpr nimby::SignalCheckbox dependent[]{
+            {"mode","Mode","",false},{"force","Force","",false,false,"mode"}};
+        nimby::detail::SignalSettingsClient conditional;
+        const nimby::SignalSettingsPanel visibilityPanel{"conditional","Conditional","conditional.atlas",dependent};
+        if(argc==3){
+            bool rejected=false;
+            try{conditional.connectExisting(visibilityPanel);}catch(const std::runtime_error& error){
+                rejected=std::string_view(error.what()).find("checkbox visibility")!=std::string_view::npos;
+            }
+            CHECK(rejected&&!conditional.connected());CHECK(FreeLibrary(dll));
+            std::puts("PASS old UI bridge explicitly rejects checkbox visibility without leaving a connected client");return 0;
+        }
+        CHECK(conditional.connectExisting(visibilityPanel));
+        const auto current=conditional.beginSession("visibility-world");CHECK(current);
+        const nimby::SignalSettingsStore::Signal source[]{ {0x8000000000021,"conditional.atlas"} };
+        CHECK(conditional.observe(current,source));
+        CHECK(conditional.read(source[0].id).getBoolean("mode")==false);
+        CHECK(conditional.read(source[0].id).getBoolean("force")==false);
+    }
     CHECK(client.connectExisting(panel));
     CHECK(client.connected());
     CHECK(FreeLibrary(dll)); // Client owns a reference for every following call.
@@ -262,6 +360,7 @@ int main(int argc,char** argv){
     nimby::detail::SignalSettingsFile::save(path,profile);
     const auto before=std::filesystem::last_write_time(path);
     dll=LoadLibraryA(argv[1]);CHECK(dll);CHECK(client.connectExisting(panel));
+    CHECK(nimby::detail::SignalSettingsClientTest::emptyPanelTransitions(world));
     CHECK(nimby::detail::SignalSettingsClientTest::synchronizationDiagnostics(world,signals));
     using Probe=nimby::detail::SignalSettingsClientTest;CHECK(Probe::measure(client));
     CHECK(client.synchronize(world,signals));

@@ -246,6 +246,31 @@ int main(){
         assert(m.recompose(0,std::vector<native::Car>(31,Memory::car(7))).allowed());
     }
     {
+        Memory m;m.cars(0,std::vector<native::Car>(30,Memory::car(7)));m.cars(1,{Memory::car(7)});
+        auto context=m.context();context.extendedAggregation=true;
+        const auto before=m.data;
+        auto result=groups::hitch(Memory::read,&m,context,{850},Memory::id(0),Memory::id(1));
+        assert(result.allowed()&&result.candidateElements==31&&result.assessment.totalLengthMeters==31);
+        // Installing complete native mechanics lifts only its count limit.
+        // Length, model resolution, current composition and topology remain gates.
+        result=groups::hitch(Memory::read,&m,context,{30},Memory::id(0),Memory::id(1));
+        assert(!result.allowed()&&result.assessment.decision==policy::Decision::LimitExceeded);
+        m.record(1,{Memory::car(7)},Memory::id(0));m.current(1,{Memory::car(7)});
+        result=groups::recompose(Memory::read,&m,context,{850},Memory::id(0),
+            std::vector<native::Car>(40,Memory::car(7)));
+        assert(result.allowed()&&result.candidateElements==41&&result.assessment.totalLengthMeters==41);
+        result=groups::recompose(Memory::read,&m,m.context(),{850},Memory::id(0),
+            std::vector<native::Car>(40,Memory::car(7)));
+        assert(!result.allowed()&&result.issue==groups::Issue::NativeAggregationLimit);
+        m.cars(0,std::vector<native::Car>(30,Memory::car(7,1)));m.put(Memory::motion(0)+0x80,int32_t{2});
+        result=groups::setConfig(Memory::read,&m,context,{850},Memory::id(0),1);
+        assert(result.allowed()&&result.candidateElements==31);
+        m.current(1,{Memory::car(99)});
+        result=groups::setConfig(Memory::read,&m,context,{850},Memory::id(0),1);
+        assert(!result.allowed()&&result.assessment.decision==policy::Decision::UnknownModel);
+        assert(before!=m.data); // Only this fixture's explicit native setup changed memory.
+    }
+    {
         Memory m;std::vector<native::Car> many;
         for(uint64_t i=100;i<229;++i){m.model(i,1);many.push_back(Memory::car(i));}
         const auto result=m.recompose(0,many);

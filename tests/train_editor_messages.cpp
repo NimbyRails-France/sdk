@@ -94,6 +94,34 @@ void validationContracts() {
     rejected(std::string(editor::Messages::maximumDeclarationBytes+1,'x'));
 }
 
+void lengthDisplayContracts() {
+    auto source=Json::parse(catalogue());
+    source["languages"]["fr"]["current"]="Longueur actuelle";
+    source["languages"]["fr"]["proposed"]="Longueur proposée";
+    source["languages"]["fr"]["unknown"]="Longueur actuelle indisponible";
+    source["languages"]["en"]["current"]="Current length";
+    source["languages"]["en"]["proposed"]="Proposed length";
+    source["languages"]["en"]["unknown"]="Current length unavailable";
+    auto extended=Json::parse(translated(source.dump()));
+    extended["lengthDisplay"]=Json::array({reference("current"),reference("proposed"),reference("unknown")});
+    editor::Messages display(extended.dump());
+    CHECK(display.showsLength()&&!editor::Messages(translated()).showsLength());
+    CHECK(display.select(3,"fra")=="Longueur actuelle");
+    CHECK(display.select(4,"fra-CA")=="Longueur proposée");
+    CHECK(display.select(5,"eng")=="Current length unavailable");
+    CHECK(display.select(3,"deu")=="Current length");
+    CHECK(display.select(0,"fra")=="Ajout refusé."); // Existing rejection slots unchanged.
+    for(auto invalid:{Json::array(),Json::array({"a","b"}),Json::array({"a","b","c","d"}),
+                      Json::array({"", "b", "c"}),Json::array({1,"b","c"}),
+                      Json::array({reference("missing"),"b","c"}),
+                      Json::array({reference("current",{{"meters",850}}),"b","c"})}){
+        auto rejectedDisplay=extended;rejectedDisplay["lengthDisplay"]=std::move(invalid);rejected(rejectedDisplay.dump());
+    }
+    auto longLabel=extended;longLabel["lengthDisplay"][0]=std::string(1025,'x');rejected(longLabel.dump());
+    auto unknownField=extended;unknownField["extra"]=true;rejected(unknownField.dump());
+    bool badIndex=false;try{display.select(6,"fr");}catch(const std::invalid_argument&){badIndex=true;}CHECK(badIndex);
+}
+
 void ownershipContracts() {
     policy::Registry<editor::Messages> registry;
     CHECK(!registry.selected()&&!registry.limit().active());
@@ -169,7 +197,7 @@ void concurrentContracts() {
 
 int main() {
     try {
-        localeContracts();validationContracts();ownershipContracts();concurrentContracts();
+        localeContracts();validationContracts();lengthDisplayContracts();ownershipContracts();concurrentContracts();
         std::cout<<"PASS: resident train editor messages, ISO locales, validation bounds, immutable strictest owner and retirement\n";
     }catch(const std::exception& error){std::cerr<<error.what()<<'\n';return 1;}
 }

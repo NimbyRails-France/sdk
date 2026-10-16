@@ -59,9 +59,9 @@ int main(int argc,char** argv) {
         auto state=read();CHECK(state.optionAdds==1&&state.optionReads==1&&state.limitAdds==1);
         const auto companion=std::filesystem::path(argv[2]).stem().wstring()+L"Kotlin.dll";
         const auto kotlin=GetModuleHandleW(companion.c_str());CHECK(kotlin);
-        const auto abi=symbol<int(*)()>(kotlin,"NRFKotlin_Version")();CHECK(abi==10||abi==11);
-        CHECK(state.editorAdds==(abi==11?1u:0u));
-        if(abi==11)CHECK(state.declarationBytes>0&&state.resolvedMessages==6);
+        const auto abi=symbol<int(*)()>(kotlin,"NRFKotlin_Version")();CHECK(abi==10||abi==11||abi==12);
+        CHECK(state.editorAdds==(abi>=11?1u:0u));
+        if(abi>=11)CHECK(state.declarationBytes>0&&state.resolvedMessages==(abi==12?12u:6u));
         CHECK(state.registeredMeters==1200&&state.publishedMeters==1200&&state.limitOwner);
         CHECK(state.readSequence<state.registerSequence&&state.lastKnownRevision==0);
         const auto initialReads=state.optionReads;
@@ -88,11 +88,11 @@ int main(int argc,char** argv) {
         const auto settledReads=state.optionReads;
         std::this_thread::sleep_for(std::chrono::milliseconds{300});state=read();
         CHECK(state.optionReads==settledReads&&!state.openProcessCalls&&!state.captureCalls);
-        CHECK(state.editorAdds==(abi==11?1u:0u)); // Messages/catalogue are never resent by updates.
+        CHECK(state.editorAdds==(abi>=11?1u:0u)); // Messages/labels/catalogue are never resent by updates.
         CHECK(stop(nullptr)==0&&initialized(nullptr)==0);state=read();
         CHECK(state.limitRemoves==1&&state.optionRemoves==1&&!state.limitOwner&&!state.optionOwner);
         CHECK(start(nullptr)==0);state=read();CHECK(state.registeredMeters==1700&&state.limitAdds==2);
-        CHECK(state.editorAdds==(abi==11?2u:0u));
+        CHECK(state.editorAdds==(abi>=11?2u:0u));
         CHECK(stop(nullptr)==0);
 
         for(const auto failure:{FailPreferenceRead,FailRegistration,MissingActionWait}){
@@ -112,7 +112,8 @@ int main(int argc,char** argv) {
         CHECK(applied.PeakProcessMemoryUsed<applied.ProcessMemoryLimit);
         std::cout<<"PASS: real policy-only adapter, saved preference before Register, remote/local event Update, "
                     "unchanged value, contention retry, idle no capture/polling, stop/restart and startup rollback; ABI="<<abi<<'\n';
-        if(abi==11)std::cout<<"PASS: immutable mod-owned message declaration, three messages resolved in FR/EN, no declaration resend on Update\n";
+        if(abi>=11)std::cout<<"PASS: immutable mod-owned message declaration, three messages resolved in FR/EN, no declaration resend on Update\n";
+        if(abi==12)std::cout<<"PASS: current/proposed/unavailable length labels copied and resolved in FR/EN, idle no capture or preference polling\n";
         std::cout<<"Memory quota bytes="<<applied.ProcessMemoryLimit<<", baseline PrivateUsage="<<baseline.PrivateUsage
                  <<", final PrivateUsage="<<finalMemory.PrivateUsage<<", PeakPagefileUsage="<<finalMemory.PeakPagefileUsage
                  <<", job peak process bytes="<<applied.PeakProcessMemoryUsed<<'\n';

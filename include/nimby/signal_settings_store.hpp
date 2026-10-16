@@ -15,7 +15,7 @@ namespace nimby {
 // Session identity must come from the game/save integration, never just a PID.
 class SignalSettingsStore {
 public:
-    struct Checkbox { std::string name,label,description;bool defaultValue=false,onlyWhenEnabled=false; };
+    struct Checkbox { std::string name,label,description;bool defaultValue=false,onlyWhenEnabled=false;std::string visibleWhen; };
     struct Number {std::string name,label,visibleWhen;uint32_t bits=0,maximum=0;};
     struct Panel { std::string id,title,textureSet;std::vector<Checkbox> checkboxes; };
     struct Signal { uint64_t id;std::string textureSet; };
@@ -63,8 +63,9 @@ public:
             for(const auto& box:source.checkboxes){
                 checkText(box.name,128);checkText(box.label,256);checkText(box.description,1024,true);
                 if(!names.insert(box.name).second)throw std::invalid_argument("Duplicate checkbox name");
-                candidate.checkboxes.push_back({std::string(box.name),std::string(box.label),std::string(box.description),box.defaultValue,box.onlyWhenEnabled});
+                candidate.checkboxes.push_back({std::string(box.name),std::string(box.label),std::string(box.description),box.defaultValue,box.onlyWhenEnabled,std::string(box.visibleWhen)});
             }
+            validateCheckboxVisibility(candidate.checkboxes);
         }else if(!source.title.empty()||!source.textureSet.empty()||!source.checkboxes.empty())
             throw std::invalid_argument("Missing settings panel ID");
         std::lock_guard lock(mutex_);
@@ -113,6 +114,21 @@ public:
         if(retired_||!sessionId_.empty()||(panel_.checkboxes.size()<64&&(mask>>panel_.checkboxes.size())))return false;
         for(size_t i=0;i<panel_.checkboxes.size();++i)panel_.checkboxes[i].onlyWhenEnabled=(mask&(uint64_t{1}<<i))!=0;
         return true;
+    }
+    bool checkboxVisibility(std::span<const std::pair<std::string_view,std::string_view>> fields) {
+        std::lock_guard lock(mutex_);
+        if(retired_||!sessionId_.empty()||fields.size()>64)return false;
+        auto candidate=panel_.checkboxes;
+        for(auto& box:candidate)box.visibleWhen.clear();
+        std::set<std::string_view> names;
+        for(const auto& [name,parent]:fields){
+            if(!names.insert(name).second)throw std::invalid_argument("Duplicate checkbox visibility setting");
+            const auto box=std::find_if(candidate.begin(),candidate.end(),[&](const auto& field){return field.name==name;});
+            if(box==candidate.end())throw std::invalid_argument("Missing checkbox visibility setting");
+            box->visibleWhen=parent;
+        }
+        validateCheckboxVisibility(candidate);
+        panel_.checkboxes=std::move(candidate);return true;
     }
 
     // Explicit transitions invalidate all outstanding UI events, even reopening
@@ -230,6 +246,7 @@ private:
         }
         for(const auto& box:panel_.checkboxes){
             if(hidden.contains(box.name))continue;
+            if(!box.visibleWhen.empty()&&!valueOf(box.visibleWhen))continue;
             bool value=box.defaultValue;
             if(saved!=values_.end()){
                 const auto field=saved->second.find(box.name);
@@ -265,10 +282,21 @@ public:
         }
         return false;
     }
-    bool setBoolean(Editor editor,std::string_view name,bool value) {
+    bool setBoolean(Editor editor,std::string_view name,bool value,bool requireVisible=false) {
         std::unique_lock lock(mutex_,std::try_to_lock);if(!lock)return false;
         if(!current(editor.session)||!observed_||!editor.signal||editor!=editor_||!signals_.contains(editor.signal))return false;
         for(const auto& box:panel_.checkboxes)if(box.name==name){
+            // UI clicks recheck the current dependency, while recipe controls
+            // and saved values remain independent from presentation policy.
+            if(requireVisible){
+                const auto effective=[&](std::string_view key){
+                    if(const auto saved=values_.find(editor.signal);saved!=values_.end())
+                        if(const auto field=saved->second.find(key);field!=saved->second.end())return field->second;
+                    for(const auto& field:panel_.checkboxes)if(field.name==key)return field.defaultValue;
+                    return false;
+                };
+                if((box.onlyWhenEnabled&&!effective(box.name))||(!box.visibleWhen.empty()&&!effective(box.visibleWhen)))return false;
+            }
             if(!values_.contains(editor.signal)&&values_.size()>=16384)throw std::length_error("Settings capacity exceeded");
             if(const auto previous=values_.find(editor.signal);previous!=values_.end())
                 if(const auto field=previous->second.find(name);field!=previous->second.end()&&field->second==value)return true;
@@ -325,6 +353,19 @@ public:
     }
 private:
     static std::string numberKey(std::string_view name,uint32_t bit){return "nrf.number."+std::string(name)+"."+std::to_string(bit);}
+    static void validateCheckboxVisibility(const std::vector<Checkbox>& fields){
+        for(const auto& box:fields){
+            checkText(box.visibleWhen,128,true);
+            std::set<std::string_view> seen{box.name};
+            std::string_view parent=box.visibleWhen;
+            while(!parent.empty()){
+                if(!seen.insert(parent).second)throw std::invalid_argument("Cyclic checkbox visibility");
+                const auto found=std::find_if(fields.begin(),fields.end(),[&](const auto& field){return field.name==parent;});
+                if(found==fields.end())throw std::invalid_argument("Missing checkbox visibility parent");
+                parent=found->visibleWhen;
+            }
+        }
+    }
     void configureNumbersLocked(std::span<const SignalNumber> fields){
         if(fields.size()>4)throw std::invalid_argument("Too many numeric settings");
         std::vector<Number> candidate;std::set<std::string_view> names;

@@ -54,6 +54,10 @@ class SignalRuleContext internal constructor(
     val block: Occupancy get() = observation.block
     val fresh: Boolean get() = observation.fresh
     val routeKnown: Boolean get() = observation.routeKnown
+    /** Occupants du canton, avec distinction entre absence observée et donnée inconnue. */
+    val blockTrains: BlockTrains get() = observation.blockTrains
+    /** Parcours analysé pour le train en approche, distinct de sa réservation. */
+    val selectedRoute: SelectedSignalRoute get() = observation.selectedRoute
     /** Identifiant validé du train en approche, ou null si absent ou non frais.
      * Aucun décodage de l'identifiant n'est nécessaire dans le mod. */
     val approachingTrain: Long? get() = observation.approachingTrain.takeIf { fresh }
@@ -87,6 +91,12 @@ class SignalModelBuilder<A : Enum<A>, R : Enum<R>> internal constructor(private 
     }
     var observeApproach = base.observeApproach
     var approachBlocks = base.approachBlocks
+    var observeBlockTrains = base.observeBlockTrains
+    var observeRoute = base.observeRoute
+    /** Demande le parcours déjà observé ; activer aussi [observeApproach]. */
+    fun observeRoute() { observeRoute = true }
+    /** Demande les occupants du canton sans capture supplémentaire du jeu. */
+    fun observeBlockTrains() { observeBlockTrains = true }
     /** Active la détection dans [blocks] cantons en amont (de 1 à 16).
      * Le mod consulte ensuite trainApproaching dans rules et décide de l'ouverture. */
     fun observeApproach(blocks: Int) {
@@ -108,8 +118,8 @@ class SignalModelBuilder<A : Enum<A>, R : Enum<R>> internal constructor(private 
     internal var reasonLabel: (R) -> String = { it.name }
 
     fun checkbox(name: String, label: String, description: String = "", defaultValue: Boolean = false,
-                 onlyWhenEnabled: Boolean = false): Checkbox =
-        Checkbox(name, label, description, defaultValue, onlyWhenEnabled).also { options.add(it) }
+                 onlyWhenEnabled: Boolean = false, visibleWhen: String = ""): Checkbox =
+        Checkbox(name, label, description, defaultValue, onlyWhenEnabled, visibleWhen).also { options.add(it) }
     fun action(id: String, label: String, whenMod: String, service: String) {
         actions.add(SignalAction(id, label, whenMod, service)); validateSignalActions(actions)
     }
@@ -140,7 +150,8 @@ class SignalModelBuilder<A : Enum<A>, R : Enum<R>> internal constructor(private 
         require(numbers.map { it.name }.distinct().size == numbers.size && numbers.size <= 4)
         require(numbers.all { n -> n.visibleWhen.isEmpty() || options.any { it.name == n.visibleWhen } })
         return base.copy(checkboxes = options.toList() + numbers.flatMap { it.storage() }, numbers = numbers.toList(),
-            actions = actions.toList(), observeApproach = observeApproach, approachBlocks = approachBlocks, construction = construction)
+            actions = actions.toList(), observeApproach = observeApproach, approachBlocks = approachBlocks, construction = construction,
+            observeBlockTrains = observeBlockTrains, observeRoute = observeRoute)
     }
 }
 
@@ -179,11 +190,13 @@ class SignalModel<A : Enum<A>, R : Enum<R>> @PublishedApi internal constructor(
     }
     internal fun valid(raw: Decision) = (raw.aspect and 65535) < aspects.size && (raw.reason and 65535) < reasons.size
     internal fun fallback(tag: Int, invalid: Boolean) = encode(if (invalid) invalidNetwork else fallback, tag)
-    internal fun evaluate(settings: Map<String, Boolean>, observation: Observation, tag: Int): Decision = encode(
-        typedIsolated?.invoke(settings, observation,
-            requireNotNull(aspects.getOrNull(observation.next)) { "Indication de diagnostic inconnue : ${observation.next}" })
-            ?: isolated?.invoke(settings, observation) ?: rule(SignalRuleContext(
-                Signal(settings = settings, observation = observation, type = type.id), null, type.checkboxes, defaultSettings)) ?: fallback, tag)
+    internal fun evaluate(settings: Map<String, Boolean>, observation: Observation, tag: Int): Decision {
+        val current = observation.validatedApproach()
+        return encode(typedIsolated?.invoke(settings, current,
+            requireNotNull(aspects.getOrNull(current.next)) { "Indication de diagnostic inconnue : ${current.next}" })
+            ?: isolated?.invoke(settings, current) ?: rule(SignalRuleContext(
+                Signal(settings = settings, observation = current, type = type.id), null, type.checkboxes, defaultSettings)) ?: fallback, tag)
+    }
     internal fun decide(signal: Signal, next: SignalIndication?, tag: Int) =
         rule(SignalRuleContext(signal, next, type.checkboxes, defaultSettings))?.let { encode(it, tag) }
     internal fun forced(aspect: Int, tag: Int) = aspects.getOrNull(aspect)?.let(force)?.let { encode(it, tag) }

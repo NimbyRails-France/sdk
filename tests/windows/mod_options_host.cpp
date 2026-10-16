@@ -1,4 +1,5 @@
 #include <platform/windows/mod_options_host.h>
+#include <platform/windows/runtime/driving_preferences.h>
 #include <runtime/mod_options_codec.h>
 #include <nimby/detail/mod_options_bridge.h>
 #include <nimby/detail/observation.h>
@@ -7,6 +8,7 @@
 #include <fstream>
 #include <thread>
 #include <iostream>
+#include "allocation_fault_fixture.h"
 
 namespace service=nimby::platform::windows::mod_options;
 namespace options=nimby::runtime::mod_options;
@@ -28,6 +30,116 @@ int main(){
     // Cleanup owns only a directory this test actually created.
     assert(std::filesystem::create_directory(root));
     struct Cleanup{std::filesystem::path path;~Cleanup(){std::error_code error;std::filesystem::remove_all(path,error);}} cleanup{root};
+    {
+        // Keep UI publications changing while the real storage worker saves an
+        // older immutable snapshot. Flush must retain that snapshot's owner.
+        const auto concurrentRoot=root/"concurrent-flush";
+        {
+            service::Host host(concurrentRoot);const auto added=host.add(declaration);assert(added);
+            assert(host.change(added.token,"enabled","false"));
+            std::atomic<unsigned> accepted{};std::atomic<bool> invalid{};
+            std::jthread editor([&](std::stop_token stop){
+                unsigned value=0;
+                while(!stop.stop_requested()){
+                    const auto changed=host.change(added.token,"count",std::to_string(1+(value++%8)));
+                    if(changed)accepted.fetch_add(1,std::memory_order_relaxed);
+                    else if(changed.status!=options::Status::Busy)invalid.store(true,std::memory_order_relaxed);
+                    std::this_thread::yield();
+                }
+            });
+            bool stored=false;
+            for(unsigned attempt=0;attempt<1000&&!stored;++attempt){
+                const auto snapshot=host.registry.snapshot();assert(snapshot->mods.size()==1);
+                assert(snapshot->mods.front().values[0]=="false");
+                const auto file=std::filesystem::exists(concurrentRoot)?savedFile(concurrentRoot):std::filesystem::path{};
+                if(!file.empty())try{
+                    std::ifstream input(file);std::string data((std::istreambuf_iterator<char>(input)),{});
+                    const auto saved=options::parseSaved(data);
+                    stored=saved.at("enabled")=="false"&&saved.at("window.main")=="F8"&&
+                        std::stoi(saved.at("count"))>=1&&std::stoi(saved.at("count"))<=8&&accepted.load(std::memory_order_relaxed)>=128;
+                }catch(...){}
+                if(!stored)std::this_thread::sleep_for(std::chrono::milliseconds(1));
+            }
+            editor.request_stop();editor.join();assert(stored&&!invalid&&accepted>=128);
+            assert(host.change(added.token,"count","8"));assert(host.remove(added.token));
+        }
+        service::Host restored(concurrentRoot);assert(restored.add(declaration));
+        assert(restored.registry.snapshot()->mods.front().values==std::vector<std::string>({"false","8","F8"}));
+    }
+    {
+        using Preferences=nimby::windows::automatic::DrivingPreferences;
+        Preferences detached;
+        assert(!detached.ready()&&detached.get()==3&&!detached.set(8));
+        std::array<std::jthread,8> bootstraps;
+        for(auto& bootstrap:bootstraps)bootstrap=std::jthread([]{
+            Preferences view;(void)view.open();assert(view.get()==3);
+        });
+        for(auto& bootstrap:bootstraps)bootstrap.join();
+        // Native integration opens its cached view at bootstrap. The resident
+        // Host may arrive afterwards; both views see the same atomic value.
+        Preferences reader;assert(reader.open()&&reader.ready()&&reader.get()==3);
+        uint64_t sdkToken{};
+        {
+            service::Host host(root/"sdk-driving");
+            assert(host.registry.snapshot()->mods.empty());
+            auto forged=Json::parse(declaration);forged["id"]="nrf-sdk";
+            assert(!host.add(forged.dump())); // No public mod claims SDK preferences.
+            const auto initialized=host.initializeDrivingOptions();assert(initialized);sdkToken=initialized.token;
+            const auto repeat=host.initializeDrivingOptions();assert(repeat&&repeat.token==sdkToken);
+            const auto state=host.registry.snapshot();assert(state->mods.size()==1);
+            const auto& sdk=state->mods.front();assert(sdk.id=="nrf-sdk"&&sdk.fields.size()==1);
+            const auto& field=sdk.fields.front();
+            assert(field.id=="stopBeforeSignalMeters"&&field.kind==options::Kind::Integer);
+            assert(field.defaultValue=="3"&&field.minimum==0&&field.maximum==100&&sdk.values.front()=="3");
+            assert(host.translate(sdkToken,sdk.title,"fr")=="NRF SDK");
+            assert(host.translate(sdkToken,field.label,"fr").find("Distance d’arrêt")!=std::string::npos);
+            assert(host.translate(sdkToken,field.label,"en").find("Stopping distance")!=std::string::npos);
+            assert(host.translate(sdkToken,field.description,"fr").find("3 mètres")!=std::string::npos);
+            assert(host.translate(sdkToken,field.description,"en").find("3 metres")!=std::string::npos);
+            assert(host.change(sdkToken,field.id,"0")&&reader.get()==0);
+            assert(host.change(sdkToken,field.id,"100")&&reader.get()==100);
+            for(const auto value:{"-1","101","03","NaN"}){
+                assert(!host.change(sdkToken,field.id,value)&&reader.get()==100);
+            }
+            assert(!reader.set(-1)&&!reader.set(101)&&reader.get()==100);
+            assert(!host.change(sdkToken,"unknown","7")&&reader.get()==100);
+            assert(!host.reset(sdkToken,"unknown")&&reader.get()==100);
+            assert(host.reset(sdkToken,field.id)&&reader.get()==3);
+            assert(host.change(sdkToken,field.id,"8")&&reader.get()==8);
+            assert(host.reset(sdkToken)&&reader.get()==3);
+            assert(!host.remove(sdkToken)&&host.registry.snapshot()->mods.size()==1);
+            assert(!host.add(forged.dump()));
+            // Only this resident option updates the mapping; an unrelated mod
+            // retains the ordinary registry/storage lifecycle and isolation.
+            const auto other=host.add(declaration);assert(other);
+            assert(host.change(other.token,"count","7")&&reader.get()==3);
+            assert(host.remove(other.token)&&reader.get()==3);
+            assert(host.change(sdkToken,field.id,"9")&&reader.get()==9);
+            std::array<char,NIMBY_OPTIONS_VALUES_LIMIT> buffer{};uint32_t bytes{};uint64_t revision{};
+            assert(host.read(sdkToken,0,buffer.data(),buffer.size(),&bytes,&revision)==NIMBY_OK&&bytes);
+            assert(Json::parse(buffer.data(),buffer.data()+bytes)["values"]==Json::array({"9"}));
+            // Competing accepted edits cannot publish out of order after the
+            // registry's own try-lock was released. Contention stays bounded.
+            std::array<std::jthread,2> editors;
+            for(size_t index=0;index<editors.size();++index)editors[index]=std::jthread([&,index]{
+                for(unsigned attempt=0;attempt<100;++attempt){
+                    const auto result=host.change(sdkToken,field.id,index?"17":"5");
+                    assert(result||result.status==options::Status::Busy);
+                    const auto visible=reader.get();assert(visible==9||visible==5||visible==17);
+                }
+            });
+            for(auto& editor:editors)editor.join();
+            const auto accepted=host.registry.snapshot()->mods.front().values.front();
+            assert(reader.get()==std::stoi(accepted));
+            assert(host.change(sdkToken,field.id,"9")&&reader.get()==9);
+        }
+        {
+            service::Host reloaded(root/"sdk-driving");const auto restored=reloaded.initializeDrivingOptions();assert(restored);
+            assert(reader.get()==9&&reloaded.registry.snapshot()->mods.front().values.front()=="9");
+            assert(!reloaded.remove(restored.token));
+            assert(reloaded.reset(restored.token)&&reader.get()==3);
+        }
+    }
     uint64_t first{};
     {
         // Loader feedback uses the existing immutable catalogue; no preference
@@ -190,6 +302,42 @@ int main(){
         assert(!host.loaderMessage(true).empty());
         assert(host.translate(a.token,title,"en")=="First");
         assert(host.translate(b.token,title,"en")!="Second EN");
+    }
+    {
+        service::Host host(root/"registration-oom");
+        auto other=Json::parse(declaration);other["id"]="other-mod";
+        const auto existing=host.add(other.dump());assert(existing);
+        allocation_fault_fixture::arm(std::numeric_limits<size_t>::max(),0);
+        const auto baseline=host.add(declaration);
+        const auto allocations=allocation_fault_fixture::stop();assert(baseline&&allocations.allocations);
+        assert(host.remove(baseline.token));
+        size_t rejected=0;
+        // Target the final publication allocations, after declaration parsing.
+        // The old post-registration profile/catalogue failure followed by
+        // Registry::remove's allocation may not orphan a token. Parsing's
+        // third-party JSON destruction is outside this transaction fixture.
+        const auto first=allocations.allocations>16?allocations.allocations-16:0;
+        for(size_t at=first;at<allocations.allocations;++at){
+            options::Result added;bool failed=false;
+            allocation_fault_fixture::arm(at,2);
+            try{added=host.add(declaration);}catch(const std::bad_alloc&){failed=true;}
+            const auto fault=allocation_fault_fixture::stop();assert(fault.failures);
+            if(failed){
+                ++rejected;
+                const auto snapshot=host.registry.snapshot();
+                if(snapshot->mods.size()!=1||snapshot->mods.front().token!=existing.token){
+                    std::cerr<<"Orphaned registration after double allocation fault at "<<at<<'\n';return 1;
+                }
+                // Retry the same ID, without unloading the healthy owner.
+                added=host.add(declaration);assert(added);
+            }else assert(added);
+            assert(host.registry.snapshot()->mods.size()==2);
+            assert(host.remove(added.token));
+            const auto snapshot=host.registry.snapshot();
+            assert(snapshot->mods.size()==1&&snapshot->mods.front().token==existing.token);
+        }
+        assert(rejected&&host.remove(existing.token));
+        std::cout<<"PASS registration double OOM: "<<allocations.allocations-first<<" final publication allocation boundaries; same-ID retry and healthy owner retained\n";
     }
     std::cout<<"Mod option persistence, isolation, translated catalogues and broker snapshots: PASS\n";
 }

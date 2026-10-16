@@ -26,7 +26,10 @@ class TrainLengthLimitContractTest {
         assertSame(option, mod.options.single())
         assertTrue(mod.windows.isEmpty())
         assertTrue(mod.services.isEmpty())
-        assertFalse(TrainLengthLimitAccess(mod).hasTickCallback)
+        val access = TrainLengthLimitAccess(mod)
+        assertFalse(access.hasTickCallback)
+        assertFalse(access.hasLengthDisplay)
+        for (index in 0..2) assertEquals("", access.lengthLabel(index))
     }
 
     @Test fun declaringATickKeepsTheCallbackEvenWithNoWindowsOrServices() {
@@ -173,5 +176,89 @@ class TrainLengthLimitContractTest {
             trainEditor { maximumLength(option, longest, "Missing length", "Cannot verify") }
         }
         assertEquals(longest, TrainLengthLimitAccess(valid).message(0))
+    }
+
+    @Test fun lengthDisplayCopiesStaticLabelsWithoutCreatingCallbacks() {
+        val option = lengthOption()
+        val expected = listOf(tr("length.current"), tr("length.proposed"), tr("length.currentUnavailable"))
+        val mod = toolMod("display", "Display") {
+            options(option)
+            trainEditor {
+                maximumLength(
+                    option, "Too long", "Missing length", "Cannot verify",
+                    currentLength = expected[0], proposedLength = expected[1],
+                    currentLengthUnavailable = expected[2],
+                )
+            }
+        }
+        val limit = assertNotNull(mod.trainEditor).maximumLength
+        val access = TrainLengthLimitAccess(mod)
+        assertTrue(access.hasLengthDisplay)
+        assertEquals(expected, (0..2).map(access::lengthLabel))
+        assertEquals(expected[0], limit.currentLength)
+        assertEquals(expected[1], limit.proposedLength)
+        assertEquals(expected[2], limit.currentLengthUnavailable)
+        assertFalse(access.hasTickCallback)
+        assertTrue(mod.windows.isEmpty())
+        assertTrue(mod.services.isEmpty())
+        ModOptionsAccess(mod.options).apply("1500\u0000".encodeToByteArray(), 1)
+        assertEquals(1500, limit.maximumLengthMeters)
+        assertEquals(expected, (0..2).map(access::lengthLabel))
+        assertEquals(listOf("Too long", "Missing length", "Cannot verify"), (0..2).map(access::message))
+        for (index in listOf(-1, 3)) assertFailsWith<IllegalArgumentException> { access.lengthLabel(index) }
+        val plain = object : GameMod() { override val id = "plain"; override val title = "Plain" }
+        assertFalse(TrainLengthLimitAccess(plain).hasLengthDisplay)
+        for (index in 0..2) assertEquals("", TrainLengthLimitAccess(plain).lengthLabel(index))
+    }
+
+    @Test fun lengthDisplayRequiresAllThreeLabelsTogether() {
+        // Each partial combination must fail; the original four-argument
+        // declaration remains valid and does not opt in to the display ABI.
+        for (mask in 1..6) {
+            val option = lengthOption()
+            assertFailsWith<IllegalArgumentException> {
+                toolMod("partialDisplay", "Partial display") {
+                    options(option)
+                    trainEditor {
+                        maximumLength(
+                            option, "Too long", "Missing length", "Cannot verify",
+                            currentLength = if ((mask and 1) != 0) "Current length" else null,
+                            proposedLength = if ((mask and 2) != 0) "Proposed length" else null,
+                            currentLengthUnavailable = if ((mask and 4) != 0) "Current length unavailable" else null,
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    @Test fun lengthDisplayLabelsUseTheSameUtf8AndStaticReferenceBounds() {
+        val invalidLabels = listOf(
+            "", "   ", "bad\u0000label", "bad\u0001label", "é".repeat(513),
+            tr("length.current", "meters" to 850), "\u001eNRF:[\"length.current\",{}]trailing",
+        )
+        for (invalid in invalidLabels) for (index in 0..2) {
+            val option = lengthOption()
+            val labels = mutableListOf("Current length", "Proposed length", "Current length unavailable")
+            labels[index] = invalid
+            assertFailsWith<IllegalArgumentException> {
+                toolMod("invalidDisplay", "Invalid display") {
+                    options(option)
+                    trainEditor {
+                        maximumLength(option, "Too long", "Missing length", "Cannot verify",
+                            labels[0], labels[1], labels[2])
+                    }
+                }
+            }
+        }
+        val option = lengthOption()
+        val longest = "é".repeat(512)
+        val valid = toolMod("maxDisplay", "Maximum display") {
+            options(option)
+            trainEditor {
+                maximumLength(option, "Too long", "Missing length", "Cannot verify", longest, "Proposed", "Unavailable")
+            }
+        }
+        assertEquals(longest, TrainLengthLimitAccess(valid).lengthLabel(0))
     }
 }

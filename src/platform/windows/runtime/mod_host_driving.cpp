@@ -1,5 +1,7 @@
 #include <platform/windows/mod_host_protocol.h>
 #include <nimby/detail/automatic_driving.h>
+#include <nimby/detail/signal_routes.h>
+#include <platform/windows/runtime/route_shadow_observer.h>
 #include <windows.h>
 #include <platform/windows/mod_host_releases.h>
 
@@ -44,6 +46,45 @@ uint32_t dispatchDriving(const Request& request,Reply& reply,Owners& owners) {
         NimbyTrainConstraintStatus status{};status.size=sizeof status;
         const auto result=NimbyInternal_ReadTrainConstraint(request.args[0],&status);
         if(result==NIMBY_OK)output(reply,&status);
+        return result;
+    }
+    if(request.operation==203||request.operation==204) {
+        const bool selectedRoute=request.operation==204;
+        reply.data.clear();
+        if(!request.args[0]||request.args[0]>4096||!request.args[1]||request.args[1]>16||request.args[2]>65536||request.args[3]>131072||
+           (selectedRoute&&request.args[4]>131072)||request.data.size()!=request.args[0]*sizeof(uint64_t))return NIMBY_INVALID_ARGUMENT;
+        const uint64_t replyBytes=request.args[2]*sizeof(NimbySignalRouteObservation)+request.args[3]*sizeof(NimbySignalRouteSection)+
+            (selectedRoute?request.args[4]*sizeof(NimbySignalRouteAnnotation):0);
+        if(replyBytes>payloadLimit)return NIMBY_RESOURCE_LIMIT;
+        std::vector<uint64_t> signals(static_cast<size_t>(request.args[0]));
+        std::memcpy(signals.data(),request.data.data(),request.data.size());
+        if(selectedRoute)for(size_t i=0;i<signals.size();++i)if(signals[i]>>48!=8||!(signals[i]&0x0000ffffffffffffULL)||
+            (i&&signals[i-1]>=signals[i]))return NIMBY_INVALID_ARGUMENT;
+        std::vector<NimbySignalRouteObservation> rows(static_cast<size_t>(request.args[2]));uint32_t count=0;
+        std::vector<NimbySignalRouteSection> sections(static_cast<size_t>(request.args[3]));uint32_t sectionCount=0;
+        std::vector<NimbySignalRouteAnnotation> annotations(selectedRoute?static_cast<size_t>(request.args[4]):0);uint32_t annotationCount=0;
+        const auto result=selectedRoute?NimbyInternal_CopySignalRoutesV2(signals.data(),static_cast<uint32_t>(signals.size()),
+            static_cast<uint32_t>(request.args[1]),rows.data(),static_cast<uint32_t>(rows.size()),&count,
+            sections.data(),static_cast<uint32_t>(sections.size()),&sectionCount,annotations.data(),static_cast<uint32_t>(annotations.size()),&annotationCount):
+            NimbyInternal_CopySignalRoutes(signals.data(),static_cast<uint32_t>(signals.size()),
+            static_cast<uint32_t>(request.args[1]),rows.data(),static_cast<uint32_t>(rows.size()),&count,
+            sections.data(),static_cast<uint32_t>(sections.size()),&sectionCount);
+        if(result==NIMBY_OK){
+            if(count>rows.size()||sectionCount>sections.size()||annotationCount>annotations.size())return NIMBY_INVALID_BINARY;
+            // Opt-in observation only, after the bridge released its native
+            // train locks/publication pins. A failed comparison never changes
+            // the copied route result, native admission or native reservations.
+            // The old diagnostic expects normalized V1 ranges. V2 preserves
+            // directed endpoints and never replays a second V1 capture for it.
+            if(!selectedRoute)nimby::windows::automatic::observeShadowRoutes(
+                std::span(rows.data(),count),std::span(sections.data(),sectionCount));
+            reply.args[0]=count;reply.args[1]=sectionCount;
+            if(selectedRoute)reply.args[2]=annotationCount;
+            reply.data.resize(count*sizeof(NimbySignalRouteObservation)+sectionCount*sizeof(NimbySignalRouteSection)+annotationCount*sizeof(NimbySignalRouteAnnotation));
+            if(count)std::memcpy(reply.data.data(),rows.data(),count*sizeof(NimbySignalRouteObservation));
+            if(sectionCount)std::memcpy(reply.data.data()+count*sizeof(NimbySignalRouteObservation),sections.data(),sectionCount*sizeof(NimbySignalRouteSection));
+            if(annotationCount)std::memcpy(reply.data.data()+count*sizeof(NimbySignalRouteObservation)+sectionCount*sizeof(NimbySignalRouteSection),annotations.data(),annotationCount*sizeof(NimbySignalRouteAnnotation));
+        }
         return result;
     }
     return NIMBY_INVALID_ARGUMENT;

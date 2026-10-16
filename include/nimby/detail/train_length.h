@@ -11,6 +11,8 @@ NIMBY_API uint32_t __cdecl NimbyInternal_TrainLengthRegister(const char* mod_id,
     uint32_t maximum_meters,uint64_t* owner) NIMBY_NOEXCEPT;
 // ABI 11 copies the mod's three static messages and translation catalogue once
 // at registration. Updates retain this immutable declaration and its owner.
+// ABI 12 optionally includes three lengthDisplay labels in the same copied
+// JSON declaration; it introduces no extra operation or per-frame callback.
 NIMBY_API uint32_t __cdecl NimbyInternal_TrainEditorRegister(const char* mod_id,
     uint32_t maximum_meters,const char* declaration,uint32_t bytes,
     uint64_t* owner) NIMBY_NOEXCEPT;

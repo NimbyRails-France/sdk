@@ -39,6 +39,8 @@ struct Integration {
     double ceiling,braking,distance,target;
     bool observed=false,restricted=false;
     std::vector<Passage> encountered;
+    std::optional<double> signalStopDistanceM;
+    uint64_t stopSignal=0;
 };
 
 // Plan only: the native integrator remains responsible for actual motion.
@@ -49,8 +51,9 @@ struct Integration {
 inline Integration prepareIntegration(Train& state,std::span<const NimbySignalDrivingRule> rules,
     double head,double trainLength,double materialCeiling,double serviceBraking,
     double emptyMass,double extraMass,double brakeFactor,bool fresh,uint64_t now,
-    double ceiling,double braking,double distance,double target) {
-    Integration result{ceiling,braking,distance,target,false,false,{}};
+    double ceiling,double braking,double distance,double target,
+    double stopBeforeSignalMeters=defaultStopBeforeSignalMeters) {
+    Integration result{ceiling,braking,distance,target,false,false,{},{},0};
     if(!state.managed&&state.memory.stops.empty()&&state.memory.held.empty()&&
        state.boundary.empty()&&!state.memory.sight&&!state.controlled.instruction.revision)return result;
     result.observed=true;
@@ -59,13 +62,31 @@ inline Integration prepareIntegration(Train& state,std::span<const NimbySignalDr
     const auto clearance=state.memory.sight?state.view.at(head,now):
         state.entrySignal==state.memory.stopped.signal?state.entry.at(head,now):SightClearance{};
     const auto proposed=plan(state.memory,state.ahead,rules,head,trainLength,materialCeiling,
-                             physicalBraking,fresh,clearance);
-    if(state.memory.sight) {
+                             physicalBraking,fresh,clearance,stopBeforeSignalMeters);
+    result.signalStopDistanceM=proposed.signalStopDistanceM;result.stopSignal=proposed.stopSignal;
+    if(proposed.signalStopDistanceM){
+        const double stopDistance=*proposed.signalStopDistanceM;
+        // Preserve every closer native target, but a target at the same distance
+        // must still tighten to a full stop. The Windows adapter enforces the
+        // actual displacement fence because the native integrator may creep.
+        if(!std::isfinite(result.distance)||result.distance<0||stopDistance<=result.distance){result.distance=stopDistance;result.target=0;}
+    }
+    const auto* source=state.memory.stopped.signal?rule(rules,state.memory.stopped.signal):nullptr;
+    const bool approaching=state.memory.stopped.admitted&&state.entrySignal==state.memory.stopped.signal&&source&&
+        restrictedEntry(state.memory,*source,head,clearance,fresh,stopBeforeSignalMeters);
+    if(state.memory.sight||approaching) {
         result.restricted=true;
         const double stopDistance=fresh&&clearance.verified?std::max(0.0,clearance.distanceM-5):0;
-        if(!std::isfinite(distance)||distance<0||stopDistance<=distance){result.distance=stopDistance;result.target=0;}
+        if(!std::isfinite(result.distance)||result.distance<0||stopDistance<=result.distance){result.distance=stopDistance;result.target=0;}
     }
     if(proposed.active){result.ceiling=std::min(ceiling,proposed.ceiling);result.braking=physicalBraking/brakeFactor;}
+    if(approaching){
+        // Stop-then-proceed begins with a physically verified approach from the
+        // stopping point to the panel. Its on-sight ceiling and obstacle target
+        // already apply here, while crossing the real panel alone starts sight.
+        result.ceiling=std::min(result.ceiling,sightCeiling(clearance,source->reopened_speed_mps,physicalBraking));
+        result.braking=physicalBraking/brakeFactor;
+    }
     if(state.controlled.instruction.revision) {
         const auto view=state.view.at(head,now);
         const auto limit=state.controlled.ceiling(head,trainLength,state.ahead,physicalBraking,view,materialCeiling);
@@ -87,7 +108,8 @@ inline Integration prepareIntegration(Train& state,std::span<const NimbySignalDr
 // time with zero displacement provides the measured stop proof instead.
 inline void commitIntegration(Train& state,std::span<const Passage> encountered,
     std::span<const NimbySignalDrivingRule> rules,double before,double after,
-    double speed,int64_t elapsed,int64_t budget,bool readable,bool fresh) {
+    double speed,int64_t elapsed,int64_t budget,bool readable,bool fresh,
+    double stopBeforeSignalMeters=defaultStopBeforeSignalMeters) {
     crossed(state.memory,encountered,before,after);
     state.boundary=atBoundary(encountered,after);
     auto stoppedAhead=state.ahead;
@@ -96,7 +118,7 @@ inline void commitIntegration(Train& state,std::span<const Passage> encountered,
             stoppedAhead.push_back(p.source);
     if(readable&&elapsed>0&&elapsed<=budget) {
         const double measured=(after==before&&speed>=0&&speed<=0.010001)?0:speed;
-        observeStop(state.memory,stoppedAhead,rules,before,after,measured,elapsed,fresh);
+        observeStop(state.memory,stoppedAhead,rules,before,after,measured,elapsed,fresh,stopBeforeSignalMeters);
     }else state.memory.stopped={};
 }
 }

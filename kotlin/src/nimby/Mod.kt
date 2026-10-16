@@ -9,7 +9,10 @@ package nimby
  * La case ne change pas une règle seule : consulter enabled dans rules. */
 data class Checkbox(val name: String, val label: String, val description: String, val defaultValue: Boolean = false,
     /** Pour un avertissement importé : visible tant qu'il reste à acquitter. */
-    val onlyWhenEnabled: Boolean = false)
+    val onlyWhenEnabled: Boolean = false,
+    /** Clé d'une autre case du même type : visible seulement si sa valeur est true.
+     * Vide conserve la visibilité normale. Masquer ne change jamais la valeur. */
+    val visibleWhen: String = "")
 
 /** Un modèle constructible du mod. Les identifiants restent stables entre versions
  * pour retrouver les textures et les réglages des parties existantes.
@@ -31,7 +34,12 @@ data class SignalType(
     val approachBlocks: Int = 1,
     /** Ressources et entrée constructible, utilisées pour générer mod.txt. */
     val construction: SignalConstruction? = null,
-    val numbers: List<NumberSetting> = emptyList()
+    val numbers: List<NumberSetting> = emptyList(),
+    /** Copie les occupants déjà observés vers ce modèle, uniquement si demandée. */
+    val observeBlockTrains: Boolean = false,
+    /** Copie le parcours sélectionné déjà analysé par le jeu pour le train en
+     * approche. Exige [observeApproach] ; ce n'est pas une réservation possédée. */
+    val observeRoute: Boolean = false
 )
 /** Occupation physique : l'entrée de la tête suffit à occuper un canton et
  * l'arrière doit le dégager pour le libérer. Une portion aval observée peut
@@ -39,17 +47,40 @@ data class SignalType(
  * Le modèle de signal reste responsable de l'indication à afficher. */
 enum class Occupancy { Unknown, Clear, Occupied }
 enum class SettingsStatus { Unavailable, Absent, Present }
+/** Refus constaté sur un croisement de l'itinéraire du train en approche.
+ * Une occupation ou réservation longitudinale ne produit pas ces valeurs.
+ * Cette observation ne réserve rien et ne remplace pas les contrôles natifs. */
+enum class RouteConflict { CrossingOccupied, CrossingReserved }
 data class Observation(
     val block: Occupancy = Occupancy.Unknown, val fresh: Boolean = false,
     val routeKnown: Boolean = false, val forcedStop: Boolean = false,
     val lampFailed: Boolean = false, val redFlashCondition: Boolean = false, val next: Int = 0,
-    val approachingTrain: Long? = null
-)
+    val approachingTrain: Long? = null,
+    /** Cause croisée qualifiée pour [approachingTrain]. null signifie inconnue,
+     * jamais « itinéraire libre ». La fraîcheur reste indiquée par [fresh]. */
+    val routeConflict: RouteConflict? = null,
+    /** Données copiées par le SDK ; consulter [blockTrains], qui tient compte de [fresh]. */
+    private val observedBlockTrains: BlockTrains = BlockTrains.Unknown,
+    /** Données copiées ; consulter [selectedRoute] pour respecter fraîcheur et train. */
+    private val observedRoute: SelectedSignalRoute = SelectedSignalRoute.Unknown
+) {
+    /** Présences fraîches du canton. Une absence nécessite aussi un parcours délimité connu. */
+    val blockTrains: BlockTrains = when {
+        !fresh -> BlockTrains.Unknown
+        !routeKnown -> observedBlockTrains.incomplete()
+        else -> observedBlockTrains
+    }
+    /** Parcours du train effectivement observé en approche, jamais une réservation.
+     * Une approche disparue, différente ou périmée rend ces données inconnues. */
+    val selectedRoute: SelectedSignalRoute get() =
+        if (fresh && approachingTrain != null && approachingTrain == observedRoute.trainId) observedRoute
+        else SelectedSignalRoute.Unknown
+}
 
 // The native object tag is an SDK detail. Invalid input cannot become evidence
 // of an approaching train, including in locally constructed test observations.
 internal fun Observation.validatedApproach(): Observation =
-    if (approachingTrain != null && approachingTrain ushr 48 != 5L)
+    if (approachingTrain != null && (approachingTrain ushr 48 != 5L || (approachingTrain and 0x0000ffffffffffffL) == 0L))
         copy(fresh = false, approachingTrain = null) else this
 /** Transport opaque, propre à la déclaration du mod. Ne pas persister ces codes
  * ni les utiliser comme indices d'enum : SignallingMod.indication les décode.

@@ -35,6 +35,7 @@ int main(int argc,char** argv){
     const auto read=symbol<NimbyUiReadV1>("NimbyUi_ReadV1");
     const auto batch=symbol<NimbyUiReadBatchV1>("NimbyUi_ReadBatchV1");
     const auto revision=symbol<NimbyUiSettingsRevisionV1>("NimbyUi_SettingsRevisionV1");
+    const auto checkboxVisibility=symbol<NimbyUiCheckboxVisibilityConfigV1>("NimbyUi_CheckboxVisibilityV1");
     const auto save=symbol<NimbyUiExportV1>("NimbyUi_ExportV1");
     const auto load=symbol<NimbyUiBeginSavedV1>("NimbyUi_BeginSavedV1");
     const auto providerAdd=symbol<NimbyUiProviderAddV1>("NimbyUi_ProviderAddV1");
@@ -42,7 +43,7 @@ int main(int argc,char** argv){
     const auto providerRemove=symbol<NimbyUiProviderRemoveV1>("NimbyUi_ProviderRemoveV1");
     const auto present=symbol<NimbyUiModPresentV1>("NimbyUi_ModPresentV1");
     const auto translations=symbol<NimbyUiTranslationsV1>("NimbyUi_TranslationsV1");
-    CHECK(add&&remove&&begin&&observe&&read&&batch&&revision&&save&&load&&providerAdd&&providerObserve&&providerRemove&&present&&translations);
+    CHECK(add&&remove&&begin&&observe&&read&&batch&&revision&&checkboxVisibility&&save&&load&&providerAdd&&providerObserve&&providerRemove&&present&&translations);
     CHECK(!NimbyInternal_ModHostUiSymbol(nullptr));CHECK(!NimbyInternal_ModHostUiSymbol("NimbyUi_SettingsCopyBeginV1"));
     CHECK(!NimbyInternal_ModHostUiSymbol("NimbyUi_ProviderWakeV1")); // No child-supplied parent handle.
     CHECK(!NimbyInternal_ModHostUiSymbol("missing"));
@@ -50,6 +51,28 @@ int main(int argc,char** argv){
     std::strcpy(panel.id,"isolated-first");std::strcpy(panel.title,"First");std::strcpy(panel.texture_set,"first.atlas");
     std::strcpy(panel.checkboxes[0].name,"active");std::strcpy(panel.checkboxes[0].label,"Active");panel.checkboxes[0].default_value=1;
     uint64_t owner{},session{};CHECK(add(&panel,&owner)==NIMBY_OK&&owner&&first.panels.contains(owner));
+    {
+        auto dependent=panel;dependent.count=2;
+        std::strcpy(dependent.id,"visibility");std::strcpy(dependent.texture_set,"visibility.atlas");
+        std::strcpy(dependent.checkboxes[1].name,"force");std::strcpy(dependent.checkboxes[1].label,"Force");
+        uint64_t target{};CHECK(add(&dependent,&target)==NIMBY_OK&&target);
+        NimbyUiCheckboxVisibilityV1 declaration{};std::strcpy(declaration.name,"force");std::strcpy(declaration.visible_when,"active");
+        CHECK(checkboxVisibility(target,&declaration,1)==NIMBY_OK&&last.operation==125);
+        const auto validVisibility=last;nimby::mod_host::Reply response;
+        channel=&second;CHECK(checkboxVisibility(target,&declaration,1)==NIMBY_INVALID_HANDLE);channel=&first;
+        auto malformed=validVisibility;malformed.data.pop_back();
+        CHECK(nimby::mod_host::dispatchUi(malformed,response,first)==NIMBY_INVALID_ARGUMENT);
+        malformed=validVisibility;malformed.args[2]=65;
+        CHECK(nimby::mod_host::dispatchUi(malformed,response,first)==NIMBY_INVALID_ARGUMENT);
+        const auto before=calls;CHECK(checkboxVisibility(target,&declaration,65)==NIMBY_INVALID_ARGUMENT&&calls==before);
+        CHECK(checkboxVisibility(target,nullptr,1)==NIMBY_INVALID_ARGUMENT&&calls==before);
+        std::strcpy(declaration.visible_when,"force");CHECK(checkboxVisibility(target,&declaration,1)==NIMBY_INVALID_ARGUMENT);
+        std::strcpy(declaration.visible_when,"missing");CHECK(checkboxVisibility(target,&declaration,1)==NIMBY_INVALID_ARGUMENT);
+        std::strcpy(declaration.visible_when,"active");CHECK(checkboxVisibility(target,&declaration,1)==NIMBY_OK);
+        uint64_t activeSession{};CHECK(begin(target,"world",5,&activeSession)==NIMBY_OK);
+        CHECK(checkboxVisibility(target,&declaration,1)==NIMBY_INVALID_ARGUMENT);
+        CHECK(remove(target)==NIMBY_OK);
+    }
     CHECK(begin(owner,"test-world",10,&session)==NIMBY_OK&&session);
     uint64_t beforeRevision{};CHECK(revision(owner,session,&beforeRevision)==NIMBY_OK&&beforeRevision);
     CHECK(last.operation==124&&last.data.empty());

@@ -10,6 +10,7 @@
 #include <string>
 #include <type_traits>
 #include <vector>
+#include "windows/allocation_fault_fixture.h"
 
 namespace nimby::detail::options_test_library {
 struct Library {};
@@ -38,6 +39,9 @@ std::map<uint64_t,std::string> owners;
 std::vector<uint64_t> knownRevisions,readOwners;
 struct Response {uint64_t revision;std::string bytes;uint32_t status=NIMBY_OK;bool oversized=false;};
 std::deque<Response> replies;
+bool armReadFault=false;
+std::size_t faultOffset=std::numeric_limits<std::size_t>::max();
+unsigned faultCount=0;
 uint32_t add(const char* data,uint32_t bytes,uint64_t* owner){
     ++adds;*owner=0;
     if(addStatus!=NIMBY_OK||zeroRegistration)return addStatus;
@@ -59,7 +63,11 @@ uint32_t read(uint64_t owner,uint64_t known,char* output,uint32_t capacity,uint3
     if(reply.status!=NIMBY_OK)return reply.status;
     if(reply.oversized){*written=capacity+1;return NIMBY_OK;}
     assert(reply.bytes.size()<=capacity);
-    std::memcpy(output,reply.bytes.data(),reply.bytes.size());*written=uint32_t(reply.bytes.size());return NIMBY_OK;
+    std::memcpy(output,reply.bytes.data(),reply.bytes.size());*written=uint32_t(reply.bytes.size());
+    // Arm only after the mock broker has copied its reply. The allocation
+    // failures belong to the real decoder, not to this test's response queue.
+    if(armReadFault)allocation_fault_fixture::arm(faultOffset,faultCount);
+    return NIMBY_OK;
 }
 template<class F> bool rejects(F&& f){try{f();return false;}catch(const std::exception&){return true;}}
 void response(uint64_t revision,std::string bytes){replies.push_back({revision,std::move(bytes)});}
@@ -159,5 +167,50 @@ int main(){
     // the client must not leak its loader reference or perform double cleanup.
     assert(owners.size()==1&&!references);owners.clear();removeStatus=NIMBY_OK;
     assert(replies.empty());
-    std::puts("PASS options client: handshake, immutable revisions, event-only delivery, retry, reconnect and ownership");
+    // A production response has only arrays of text. Persistent OOM during
+    // DOM unwind must propagate without allocating in a noexcept destructor.
+    // The same registration then retries the unacknowledged values revision.
+    constexpr auto valid=R"({"values":["true","850"],"events":["window.main"]})";
+    std::size_t decoderAllocations{};
+    {
+        Client counted;assert(counted.connect(schema));response(1,valid);
+        armReadFault=true;
+        const auto initial=counted.refresh();
+        const auto countedStats=allocation_fault_fixture::stop();armReadFault=false;
+        decoderAllocations=countedStats.allocations;
+        assert(decoderAllocations&&initial.changed&&initial.values.size()==2);
+        assert(counted.close()&&owners.empty()&&!references);
+    }
+    for(const auto failures:{2u,std::numeric_limits<unsigned>::max()})
+    for(std::size_t at=0;at<decoderAllocations;++at){
+        Client pressured;assert(pressured.connect(schema));response(1,valid);
+        faultOffset=at;faultCount=failures;armReadFault=true;
+        bool exhausted=false;
+        try{(void)pressured.refresh();}catch(const std::bad_alloc&){exhausted=true;}
+        const auto fault=allocation_fault_fixture::stop();armReadFault=false;
+        assert(exhausted&&fault.failures&&knownRevisions.back()==0);
+        response(1,valid);const auto retry=pressured.refresh();
+        assert(knownRevisions.back()==0&&retry.changed&&retry.values==std::vector<std::string>({"true","850"}));
+        assert(retry.events==std::vector<std::string>{"window.main"});
+        assert(pressured.close()&&owners.empty()&&!references);
+    }
+    faultOffset=std::numeric_limits<std::size_t>::max();faultCount=0;
+
+    // Even ignored IPC properties must be depth guarded before construction.
+    // Rejecting one never commits its revision; a valid retry still succeeds.
+    {
+        Client guarded;assert(guarded.connect(schema));
+        response(1,std::string(R"({"values":["true","850"],"unused":)")+
+            std::string(10,'[')+std::string(10,']')+"}");
+        bool rejectedDepth=false;
+        try{(void)guarded.refresh();}catch(const std::runtime_error& error){
+            rejectedDepth=std::string_view(error.what()).find("nesting limit")!=std::string_view::npos;
+        }
+        assert(rejectedDepth&&knownRevisions.back()==0);
+        response(1,valid);const auto retry=guarded.refresh();
+        assert(retry.changed&&knownRevisions.back()==0&&retry.values.size()==2);
+        assert(guarded.close()&&owners.empty()&&!references);
+    }
+    assert(replies.empty());
+    std::printf("PASS options client: handshake, revisions, events, retry, ownership, depth and %zu OOM attempts\n",decoderAllocations*2);
 }

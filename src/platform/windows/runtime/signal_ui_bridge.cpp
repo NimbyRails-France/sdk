@@ -170,6 +170,7 @@ UI_EXPORT NimbyUi_SignalPreviewPublishV1(uint64_t provider,const NimbyUiSignalPr
     return result;
 }
 UI_EXPORT NimbyUi_ConditionalVisibilityV1(uint64_t owner,uint64_t mask) noexcept {return endpoint.conditionalVisibility(owner,mask);}
+UI_EXPORT NimbyUi_CheckboxVisibilityV1(uint64_t owner,const NimbyUiCheckboxVisibilityV1* fields,uint32_t count) noexcept {return endpoint.checkboxVisibility(owner,fields,count);}
 UI_EXPORT NimbyUi_BeginV1(uint64_t owner,const char* identity,uint32_t length,uint64_t* session) noexcept {return endpoint.begin(owner,identity,length,session);}
 UI_EXPORT NimbyUi_ObserveV1(uint64_t owner,uint64_t session,const NimbyUiSignalV1* signals,uint32_t count) noexcept {return endpoint.observe(owner,session,signals,count);}
 UI_EXPORT NimbyUi_SuspendV1(uint64_t owner) noexcept {return endpoint.suspend(owner);}

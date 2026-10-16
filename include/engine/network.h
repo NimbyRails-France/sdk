@@ -38,7 +38,7 @@ bool decode_train_service(const void* motion,size_t size,int32_t order_mode,Nimb
 bool read_trains(ReadMemory read, void* context, const LiveState& state,
                  bool recognized_build, std::vector<Train>& out, bool presenceOnly=false,
                  TrainMetadataCatalog* metadata=nullptr,bool includePaths=true,
-                 uint32_t dataFlags=NIMBY_TRAIN_DATA_ALL) noexcept;
+                 uint32_t dataFlags=NIMBY_TRAIN_DATA_ALL,bool allowPresenceBatch=false) noexcept;
 enum class NetworkScope { Complete, Signalling, Topology };
 // Topology retains the same validated nodes, junctions, native lengths and
 // signal positions. It omits station/platform names and signal filters.

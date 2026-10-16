@@ -2,7 +2,11 @@
 set -eu
 export LANG=C.UTF-8
 export LC_ALL=C.UTF-8
-python3 .woodpecker/check-release.py
+# Source-only validation has no release notes or publication plan. Keep every
+# build, test and consumer check below identical to the release build.
+if [ "${NRF_SOURCE_VALIDATION_ONLY:-0}" != 1 ]; then
+  python3 .woodpecker/check-release.py
+fi
 # The release image has MinGW, but the JVM client's isolated JNA test fixture
 # also needs the host C compiler. This never builds a distributable Linux SDK.
 apt-get update

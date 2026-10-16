@@ -21,6 +21,16 @@ public:
         });
     }
     SignalUiHost host;
+    uint32_t checkboxVisibility(uint64_t owner,const NimbyUiCheckboxVisibilityV1* fields,uint32_t count)noexcept {
+        return boundary([&]() -> uint32_t {
+            if(count>64||(!fields&&count))return NIMBY_INVALID_ARGUMENT;
+            auto store=host.store(owner);if(!store)return NIMBY_INVALID_HANDLE;
+            std::vector<std::pair<std::string_view,std::string_view>> definitions;
+            definitions.reserve(count);
+            for(uint32_t i=0;i<count;++i)definitions.emplace_back(text(fields[i].name),text(fields[i].visible_when));
+            return store->checkboxVisibility(definitions)?NIMBY_OK:NIMBY_INVALID_ARGUMENT;
+        });
+    }
     uint32_t add(const NimbyUiPanelV1* source,uint64_t* token) noexcept {
         if(token)*token=0;
         return boundary([&]() -> uint32_t {

@@ -2,6 +2,7 @@
 #include <nimby/detail/signal_settings_runtime.hpp>
 #include <stdexcept>
 #include <cstdio>
+#include "allocation_fault_fixture.h"
 
 extern "C" DWORD WINAPI NRFMod_StartV1(void*) noexcept;
 extern "C" DWORD WINAPI NRFMod_StopV1(void*) noexcept;
@@ -12,6 +13,7 @@ extern "C" DWORD WINAPI NRFMod_ReadTrainV1(uint64_t, NimbyDrivingObservation*) n
 extern "C" DWORD WINAPI NRFMod_InvokeV1(const char*,const void*,uint32_t,void*,uint32_t) noexcept;
 namespace {
 bool fail_start = false, fail_stop = false;
+unsigned fail_after_start = 0;
 int starts = 0, stops = 0, shows = 0, restores = 0, observations = 0;
 struct Request { int value; };
 struct Response { int value; };
@@ -24,14 +26,20 @@ constexpr std::array commands{nimby::command<Request,Response,echo>("test.echo.v
 constexpr nimby::SignalCheckbox checkboxes[]{{"active","Active","",false}};
 }
 nimby::Mod nimby::createMod() {
-    return {
+    auto mod = Mod{
         .showTexture = [](Id signal, const char*) {
             if (signal == 2) throw Exception({3, "test", "typed error"});
             if (signal == 3) throw std::runtime_error("unexpected error");
             ++shows;
         },
         .restoreTexture = [](Id) { ++restores; },
-        .start = [] { if (fail_start) throw std::runtime_error("start failed"); ++starts; },
+        .start = [] {
+            if (fail_start) throw std::runtime_error("start failed");
+            ++starts;
+            // Fail only after construction/validation and the real start side
+            // effect. A copied owned declaration used to throw outside rollback.
+            if(fail_after_start)allocation_fault_fixture::arm(0,fail_after_start);
+        },
         .stop = [] { if (fail_stop) throw std::runtime_error("stop failed"); ++stops; },
         .readTrain = [](Id id) -> std::optional<DrivingObservation> {
             if(id==0x5000000000002ULL)return std::nullopt;
@@ -43,6 +51,8 @@ nimby::Mod nimby::createMod() {
         .observe = [](const nimby::Snapshot&) { ++observations; },
         .signalSettings={"test.panel","Test","test.atlas",checkboxes}
     };
+    if(fail_after_start)mod.observationSignals.resize(1);
+    return mod;
 }
 #define CHECK(x) do { if (!(x)) { std::fprintf(stderr, "Failed line %d: %s\n", __LINE__, #x); return 1; } } while (false)
 int main() {
@@ -117,5 +127,23 @@ int main() {
     CHECK(NRFMod_StopV1(nullptr) == NIMBY_OK && stops == 1);
     CHECK(NRFMod_StartV1(nullptr) == NIMBY_OK && starts == 2);
     CHECK(NRFMod_StopV1(nullptr) == NIMBY_OK && stops == 2);
+    for(const auto failures:{1u,std::numeric_limits<unsigned>::max()}){
+        const auto previousStarts=starts,previousStops=stops;
+        fail_after_start=failures;
+        const auto status=NRFMod_StartV1(nullptr);
+        const auto fault=allocation_fault_fixture::stop();
+        fail_after_start=0;
+        std::printf("Post-start publication: injected_failures=%u status=%u allocations=%zu failures=%zu starts=%d stops=%d\n",
+            failures,static_cast<unsigned>(status),fault.allocations,fault.failures,starts,stops);
+        CHECK(status==NIMBY_OK&&fault.allocations==0&&fault.failures==0);
+        CHECK(NRFMod_IsInitializedV1(nullptr)==1&&starts==previousStarts+1&&stops==previousStops);
+        CHECK(!nimby::modObservationStatus().running&&observations==0);
+        input.value=42;output.value=0;
+        CHECK(NRFMod_InvokeV1("test.echo.v1",&input,sizeof input,&output,sizeof output)==NIMBY_OK&&output.value==42);
+        CHECK(NRFMod_StartV1(nullptr)==NIMBY_ALREADY_INITIALIZED&&starts==previousStarts+1);
+        CHECK(NRFMod_StopV1(nullptr)==NIMBY_OK&&NRFMod_IsInitializedV1(nullptr)==0&&stops==previousStops+1);
+        CHECK(NRFMod_StopV1(nullptr)==NIMBY_OK&&stops==previousStops+1);
+    }
+    std::puts("PASS actual Start publication under single/persistent OOM, no double start and balanced stop/restart");
     std::puts("PASS adapter lifecycle, command dispatch, validation and exception boundaries");
 }

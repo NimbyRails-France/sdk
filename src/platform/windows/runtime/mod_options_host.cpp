@@ -1,4 +1,5 @@
 #include <platform/windows/mod_options_host.h>
+#include <platform/windows/runtime/driving_preferences.h>
 #include <runtime/mod_options_codec.h>
 #include <nimby/detail/mod_options_bridge.h>
 #include <nimby/detail/observation.h>
@@ -12,7 +13,23 @@
 namespace nimby::platform::windows::mod_options {
 namespace options=runtime::mod_options;
 namespace {
-using Json=nlohmann::json;
+using Json=nimby::detail::BoundedJson;
+constexpr std::string_view drivingOptionsId="nrf-sdk",stopDistanceId="stopBeforeSignalMeters";
+std::string drivingDeclaration(){
+    const auto reference=[](const char* key){return std::string(nimby::detail::Translations::prefix)+Json::array({key,Json::object()}).dump();};
+    const Json catalogue={
+        {"fallback","fr"},{"languages",{
+            {"fr",{{"sdk.title","NRF SDK"},{"sdk.stopDistance","Distance d’arrêt avant le signal (m)"},
+                {"sdk.stopDistance.help","Distance entre la tête du train à l’arrêt et un signal géré par NRF. Valeur par défaut : 3 mètres."}}},
+            {"en",{{"sdk.title","NRF SDK"},{"sdk.stopDistance","Stopping distance before the signal (m)"},
+                {"sdk.stopDistance.help","Distance between the front of the stopped train and an NRF-controlled signal. Default: 3 metres."}}}
+        }}
+    };
+    return Json{{"id",drivingOptionsId},{"title",reference("sdk.title")},{"fields",Json::array({
+        {{"id",stopDistanceId},{"label",reference("sdk.stopDistance")},{"description",reference("sdk.stopDistance.help")},
+         {"kind",1},{"default","3"},{"minimum",0},{"maximum",100}}
+    })},{"translations",catalogue.dump()}}.dump();
+}
 uint32_t status(options::Result value){
     switch(value.status){
         case options::Status::Ok:case options::Status::Unchanged:return NIMBY_OK;
@@ -88,18 +105,29 @@ struct Host::State {
     std::atomic<uint64_t> catalogueRevision{0};
     std::shared_ptr<const LoaderDiagnostic> loader;
     uint64_t nextOwner=0;
+    std::mutex drivingInitialization;
+    std::atomic<uint64_t> drivingOwner{0};
+    SRWLOCK drivingEdits=SRWLOCK_INIT;
+    nimby::windows::automatic::DrivingPreferences drivingPreferences;
+    std::atomic<int32_t> drivingDiagnostic{-1};
     std::jthread writer;
     State(Host& host,std::filesystem::path path):owner(host),directory(path.empty()?userDirectory():std::move(path)),
         writer([this](std::stop_token stop){run(stop);}){}
     ~State(){writer.request_stop();wake.notify_one();if(writer.joinable())writer.join();}
-    void publish(std::shared_ptr<const LoaderDiagnostic> diagnostic){
+    std::shared_ptr<Catalogues> prepareCatalogues(const std::shared_ptr<const LoaderDiagnostic>& diagnostic){
         auto next=std::make_shared<Catalogues>();
         for(const auto& [token,p]:profiles)if(!p.retired)next->mods.emplace(token,Metadata{p.translations,p.error});
         next->loader=diagnostic;
-        // Allocate the complete replacement before changing the accepted state.
+        return next;
+    }
+    void publishPrepared(std::shared_ptr<Catalogues> next,std::shared_ptr<const LoaderDiagnostic> diagnostic)noexcept{
         loader=std::move(diagnostic);
         catalogues.store(std::move(next),std::memory_order_release);
         catalogueRevision.fetch_add(1,std::memory_order_release);
+    }
+    void publish(std::shared_ptr<const LoaderDiagnostic> diagnostic){
+        // Allocate the complete replacement before changing the accepted state.
+        auto next=prepareCatalogues(diagnostic);publishPrepared(std::move(next),std::move(diagnostic));
     }
     void publish(){publish(loader);}
     void save(const options::Entry& entry,Profile& profile){
@@ -127,7 +155,10 @@ struct Host::State {
         std::lock_guard lock(lifecycle);
         // Capture after locking: removal/re-registration cannot be overwritten
         // later by a stale snapshot taken before the lifecycle operation.
-        for(const auto& entry:owner.registry.snapshot()->mods){
+        // UI edits can replace Registry's publication without taking lifecycle.
+        // Keep its owner alive through every save, including blocking file IO.
+        const auto snapshot=owner.registry.snapshot();
+        for(const auto& entry:snapshot->mods){
             const auto it=profiles.find(entry.token);if(it!=profiles.end())save(entry,it->second);
         }
         // A transient write failure during unload retains the final values.
@@ -140,6 +171,24 @@ struct Host::State {
             }
             ++it;
         }
+        // UI edits only queue the most recent bounded value. File diagnostics
+        // run on this existing storage worker, never in a game options hook.
+        const auto distance=drivingDiagnostic.exchange(-1,std::memory_order_acq_rel);
+        if(distance>=0){char message[96]{};
+            std::snprintf(message,sizeof message,"Driving preference stopBeforeSignalMeters=%d (range 0..100)",distance);
+            nimby::detail::diagnostics::write("sdk","INFO",message);
+        }
+    }
+    void publishDriving(){
+        const auto token=drivingOwner.load(std::memory_order_acquire);
+        const auto snapshot=owner.registry.snapshot();
+        const auto found=std::find_if(snapshot->mods.begin(),snapshot->mods.end(),[&](const auto& entry){return entry.token==token;});
+        if(found==snapshot->mods.end()||found->values.size()!=1)return;
+        int32_t distance{};const auto& text=found->values.front();
+        const auto result=std::from_chars(text.data(),text.data()+text.size(),distance);
+        if(result.ec!=std::errc{}||result.ptr!=text.data()+text.size())return;
+        const auto previous=drivingPreferences.get();
+        if(drivingPreferences.set(distance)&&distance!=previous)drivingDiagnostic.store(distance,std::memory_order_release);
     }
     void run(std::stop_token stop)noexcept{
         while(!stop.stop_requested()){
@@ -153,8 +202,18 @@ Host::~Host(){
     state_->writer.request_stop();state_->wake.notify_one();if(state_->writer.joinable())state_->writer.join();
     try{state_->flush();}catch(...){nimby::detail::diagnostics::exception("sdk","final mod options flush");}
 }
-options::Result Host::add(std::string_view bytes){
+options::Result Host::initializeDrivingOptions(){
+    std::lock_guard initialization(state_->drivingInitialization);
+    if(const auto token=state_->drivingOwner.load(std::memory_order_acquire))return {options::Status::Unchanged,token};
+    if(!state_->drivingPreferences.open())return {options::Status::Busy};
+    const auto result=addImpl(drivingDeclaration(),true);if(!result)return result;
+    state_->drivingOwner.store(result.token,std::memory_order_release);
+    state_->publishDriving();state_->wake.notify_one();return result;
+}
+options::Result Host::add(std::string_view bytes){return addImpl(bytes,false);}
+options::Result Host::addImpl(std::string_view bytes,bool residentSdk){
     auto declaration=options::decodeDeclaration(bytes);
+    if((declaration.definition.id==drivingOptionsId)!=residentSdk)return {options::Status::Invalid};
     std::lock_guard lock(state_->lifecycle);
     State::Profile profile;profile.path=state_->directory/storageName(declaration.definition.id);profile.translations=std::move(declaration.translations);
     const auto pending=std::find_if(state_->profiles.begin(),state_->profiles.end(),[&](const auto& item){
@@ -185,16 +244,26 @@ options::Result Host::add(std::string_view bytes){
     }
     auto values=options::savedValues(declaration.definition,profile.saved);
     if(pending==state_->profiles.end())profile.written=values;
+    // Prepare every fallible host allocation before Registry publishes a token.
+    // Rekeying compatible map nodes and publishing the completed snapshot below
+    // do not allocate, so memory pressure cannot require a fallible rollback.
+    std::map<uint64_t,State::Profile> preparedProfile;
+    preparedProfile.emplace(0,std::move(profile));
+    auto catalogues=state_->prepareCatalogues(state_->loader);
+    const auto& prepared=preparedProfile.begin()->second;
+    catalogues->mods.emplace(0,State::Metadata{prepared.translations,prepared.error});
     const auto result=registry.add(++state_->nextOwner,std::move(declaration.definition),std::move(values));
     if(!result)return result;
-    try{
-        state_->profiles.emplace(result.token,std::move(profile));state_->publish();
-        if(pending!=state_->profiles.end())state_->profiles.erase(pending);
-    }
-    catch(...){registry.remove(result.token);state_->profiles.erase(result.token);throw;}
+    auto profileNode=preparedProfile.extract(0);profileNode.key()=result.token;
+    state_->profiles.insert(std::move(profileNode));
+    auto catalogueNode=catalogues->mods.extract(0);catalogueNode.key()=result.token;
+    catalogues->mods.insert(std::move(catalogueNode));
+    state_->publishPrepared(std::move(catalogues),state_->loader);
+    if(pending!=state_->profiles.end())state_->profiles.erase(pending);
     return result;
 }
 options::Result Host::remove(uint64_t token){
+    if(token&&token==state_->drivingOwner.load(std::memory_order_acquire))return {options::Status::Invalid,token};
     std::lock_guard lock(state_->lifecycle);options::Entry final;
     const auto result=registry.remove(token,&final);if(!result)return result;
     const auto found=state_->profiles.find(token);
@@ -206,9 +275,21 @@ options::Result Host::remove(uint64_t token){
     return result;
 }
 options::Result Host::change(uint64_t token,std::string_view field,std::string value){
+    if(token&&token==state_->drivingOwner.load(std::memory_order_acquire)){
+        if(!TryAcquireSRWLockExclusive(&state_->drivingEdits))return {options::Status::Busy,token};
+        struct Unlock{SRWLOCK* lock;~Unlock(){ReleaseSRWLockExclusive(lock);}} unlock{&state_->drivingEdits};
+        auto result=registry.change(token,field,std::move(value));
+        if(result){state_->publishDriving();state_->wake.notify_one();}return result;
+    }
     auto result=registry.change(token,field,std::move(value));if(result)state_->wake.notify_one();return result;
 }
 options::Result Host::reset(uint64_t token,std::string_view field){
+    if(token&&token==state_->drivingOwner.load(std::memory_order_acquire)){
+        if(!TryAcquireSRWLockExclusive(&state_->drivingEdits))return {options::Status::Busy,token};
+        struct Unlock{SRWLOCK* lock;~Unlock(){ReleaseSRWLockExclusive(lock);}} unlock{&state_->drivingEdits};
+        auto result=registry.reset(token,field);
+        if(result){state_->publishDriving();state_->wake.notify_one();}return result;
+    }
     auto result=registry.reset(token,field);if(result)state_->wake.notify_one();return result;
 }
 std::string Host::translate(uint64_t token,std::string_view text,std::string_view language)const{
@@ -257,10 +338,23 @@ uint32_t Host::read(uint64_t token,uint64_t known,char* output,uint32_t capacity
     }
     *revision=found->revision;return NIMBY_OK;
 }
+#ifdef NIMBY_MOD_OPTIONS_HOST_TESTING
+// This target supplies a scoped Host whose private directory/lifetime are owned
+// by its fixture. Production never exposes or invokes this test callback.
+Host& modOptionsHostForTest();
+#endif
 Host& host(){
+#ifdef NIMBY_MOD_OPTIONS_HOST_TESTING
+    return modOptionsHostForTest();
+#else
     // The bridge is pinned. Avoid joining a worker from DLL_PROCESS_DETACH
     // under the loader lock; registration/removal performs orderly flushes.
-    static auto* instance=new Host;return *instance;
+    static auto* instance=[] {
+        auto value=std::make_unique<Host>();
+        if(!value->initializeDrivingOptions())nimby::detail::diagnostics::write("sdk","WARNING","Resident driving options unavailable; stopping distance defaults to 3 metres");
+        return value.release();
+    }();return *instance;
+#endif
 }
 namespace {
 class ParentEvent final:public options::Wake{

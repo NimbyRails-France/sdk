@@ -11,12 +11,22 @@ fun validateSignalTypes(types: List<SignalType>) {
     }
     types.forEach { type ->
         require(type.approachBlocks in 1..16) { "La portée d'approche doit être comprise entre 1 et 16 cantons." }
+        require(!type.observeRoute || type.observeApproach) { "L'observation du parcours exige l'observation d'approche." }
         validateSignalActions(type.actions)
         text(type.id, 128); text(type.title, 256); text(type.textureSet, 256)
         require(type.checkboxes.size <= 64)
         require(type.checkboxes.map { it.name }.toSet().size == type.checkboxes.size)
         type.checkboxes.forEach { box ->
             text(box.name, 128); text(box.label, 256); text(box.description, 1024, empty = true)
+            text(box.visibleWhen, 128, empty = true)
+            val seen = hashSetOf(box.name)
+            var parent = box.visibleWhen
+            while (parent.isNotEmpty()) {
+                require(seen.add(parent)) { "Dépendance de visibilité cyclique." }
+                parent = requireNotNull(type.checkboxes.find { it.name == parent }) {
+                    "Case de visibilité absente : $parent"
+                }.visibleWhen
+            }
         }
         require(type.numbers.size <= 4 && type.numbers.map { it.name }.distinct().size == type.numbers.size)
         type.numbers.forEach { number ->

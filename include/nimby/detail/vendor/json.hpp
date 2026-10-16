@@ -20108,6 +20108,9 @@ The invariants are checked by member function assert_invariant().
 
 @nosubgrouping
 */
+// NRF internal bounded DOM profile. Only guarded parsers with depth <= 8
+// may select this empty base. The generic profile keeps iterative destruction.
+struct nrf_bounded_json_base {};
 NLOHMANN_BASIC_JSON_TPL_DECLARATION
 class basic_json // NOLINT(cppcoreguidelines-special-member-functions,hicpp-special-member-functions)
     : public ::nlohmann::detail::json_base_class<CustomBaseClass>
@@ -20580,6 +20583,7 @@ class basic_json // NOLINT(cppcoreguidelines-special-member-functions,hicpp-spec
                 //not initialized (e.g. due to exception in the ctor)
                 return;
             }
+            if constexpr (!std::is_same<CustomBaseClass, nrf_bounded_json_base>::value)
             if (t == value_t::array || t == value_t::object)
             {
                 // flatten the current json_value to a heap-allocated stack

@@ -43,6 +43,7 @@ add_library(NimbyRailsFranceSDK SHARED
     src/engine/network.cpp src/engine/trains.cpp src/engine/signal_texture_states.cpp
     src/engine/signal_textures.cpp
     src/engine/track_usage.cpp
+    src/engine/track_conflicts.cpp
     src/platform/windows/engine/binary_identity.cpp)
 target_compile_definitions(NimbyRailsFranceSDK PRIVATE NIMBY_SDK_BUILD)
 target_include_directories(NimbyRailsFranceSDK

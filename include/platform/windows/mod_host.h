@@ -37,16 +37,24 @@ struct LaunchOptions {
     double brokerCpuFraction=0.1; // CPU seconds per wall second for this supervisor.
 };
 // Compute fixed, equal reservations before starting any member of a batch.
-// Available memory includes the smaller of physical and commit availability.
+// Startup RAM allowance and the private-commit hard caps are separate: a Job
+// cap is not memory already resident in RAM. Neither allowance reserves pages.
 // No live worker can borrow another worker's unused CPU/RPC reservation.
 inline constexpr uint64_t minimumPrivateMemory=192ull*1024*1024;
-enum class ResourceAdmission { Accepted, InvalidCount, NoProcessors, MemoryBudget, CpuBudget };
+// Conservative admission allowance, not a measured working set or a runtime
+// ceiling. It includes margin for runtime startup beyond a lightweight mod.
+inline constexpr uint64_t startupPhysicalMemory=128ull*1024*1024;
+enum class ResourceAdmission { Accepted, InvalidCount, NoProcessors, PhysicalMemoryBudget, CommitMemoryBudget, CpuBudget };
 struct ResourcePlan {
     ResourceAdmission admission=ResourceAdmission::InvalidCount;
+    uint64_t physicalBudget=0, requiredPhysicalBudget=0, commitBudget=0, requiredCommitBudget=0;
+    // The Options V1 diagnostic accepts one pair. Use the failed bound on
+    // rejection, or the commit bound when accepted; logs retain both pairs.
     uint64_t budget=0, overheadPerMod=0, requiredBudget=0, privatePerMod=0;
 };
 bool planResources(size_t count,uint32_t processors,uint64_t totalPhysical,
-                   uint64_t availableMemory,LaunchOptions& options,ResourcePlan* report=nullptr) noexcept;
+                   uint64_t availablePhysical,uint64_t availableCommit,
+                   LaunchOptions& options,ResourcePlan* report=nullptr) noexcept;
 // The supervisor executes SDK code only. The mod's loader, static initializers,
 // Kotlin runtime and callbacks all live in the separate child process.
 class Worker {

@@ -18,6 +18,10 @@ class PhysicalRoute {
     uint64_t train_=0;
     double head_=0,covered_=0;
     bool valid_=false;
+    uint64_t headTrack_=0;
+    double headFraction_=0;
+    int8_t headDirection_=0;
+    bool endpoint_=false;
     template<class T> static T field(const auto& bytes,size_t offset){T value{};std::memcpy(&value,bytes.data()+offset,sizeof value);return value;}
     template<class Read> bool matches(Read&& read) const {
         std::array<unsigned char,0xc0> current{};uint64_t id{};uint8_t driving{};
@@ -27,7 +31,7 @@ class PhysicalRoute {
         // A path can be edited in place without reallocating its vector. Compare
         // its full IDs too; do not keep a former branch merely because the head
         // still occupies a common upstream section. Stack storage stays bounded.
-        std::array<uint64_t,64> chunk{};
+        std::array<uint64_t,512> chunk{};
         for(size_t i=0;i<pathIds_.size();i+=chunk.size()){
             const auto count=std::min(chunk.size(),pathIds_.size()-i);
             if(!read(pathBegin_+i*sizeof(uint64_t),chunk.data(),count*sizeof(uint64_t))||
@@ -36,7 +40,8 @@ class PhysicalRoute {
         return true;
     }
 public:
-    void clear(){valid_=false;sections_.clear();pathIds_.clear();}
+    void clear(){valid_=false;endpoint_=false;sections_.clear();pathIds_.clear();}
+    bool valid()const noexcept{return valid_;} // Geometry only, never occupation proof.
     template<class Read> void begin(uintptr_t motion,uint64_t train,double head,Read&& read){
         clear();motion_=motion;train_=train;head_=head;covered_=0;
         if(!std::isfinite(head)||train>>48!=5||!read(motion+0x290,path_.data(),path_.size())||path_[0x90]!=1)return;
@@ -45,6 +50,10 @@ public:
         pathBegin_=begin;pathIds_.resize((end-begin)/8);
         if(!read(begin,pathIds_.data(),end-begin)||
            std::any_of(pathIds_.begin(),pathIds_.end(),[](auto id){return id>>48!=1;}))return;
+        if(!read(motion+0x3a8,&headTrack_,sizeof headTrack_)||headTrack_>>48!=1||
+           !read(motion+0x3b0,&headFraction_,sizeof headFraction_)||!std::isfinite(headFraction_)||headFraction_<0||headFraction_>1||
+           !read(motion+0x3b8,&headDirection_,sizeof headDirection_)||(headDirection_!=1&&headDirection_!=-1))return;
+        endpoint_=(headDirection_==1&&headFraction_==1)||(headDirection_==-1&&headFraction_==0);
         valid_=true;if(!matches(read))clear();
     }
     // Append only the prefix needed for simulated visibility. The final native
@@ -77,9 +86,17 @@ public:
             const auto direction=section.to>section.from?1:-1;
             double from=section.from+direction*delta/section.metric;
             if(!located){
-                if(headTrack!=section.id||headDirection!=direction||
-                   std::abs(headFraction-from)*section.metric>.01)return {};
-                from=headFraction;located=true;
+                const bool onRange=headTrack==section.id&&headDirection==direction&&
+                    std::abs(headFraction-from)*section.metric<=.01;
+                // A zero-length native endpoint precedes the next track's
+                // positive range. It proves only the unchanged head point,
+                // never occupation or any additional covered distance.
+                const bool atEndpoint=endpoint_&&travelled==0&&section.offset==0&&headTrack==headTrack_&&
+                    headFraction==headFraction_&&headDirection==headDirection_&&headTrack!=section.id&&
+                    ((direction==1&&from==0)||(direction==-1&&from==1));
+                if(!onRange&&!atEndpoint)return {};
+                if(onRange)from=headFraction;
+                located=true;
             }
             // Rounding at an endpoint must not turn the remaining range around.
             if(from<0||from>1||(section.to-from)*direction<0)return {};
@@ -94,7 +111,10 @@ public:
             result.covered+=length;
             if(free<length||result.covered>=200)break;
         }
-        if(!located||!matches(read))return {};
+        uint64_t finalTrack{};double finalFraction{};int8_t finalDirection{};
+        if(!located||!matches(read)||!read(motion+0x3a8,&finalTrack,sizeof finalTrack)||finalTrack!=headTrack||
+           !read(motion+0x3b0,&finalFraction,sizeof finalFraction)||finalFraction!=headFraction||
+           !read(motion+0x3b8,&finalDirection,sizeof finalDirection)||finalDirection!=headDirection)return {};
         return result;
     }
 };

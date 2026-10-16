@@ -22,6 +22,10 @@ class SignalContext<A : Enum<A>, R : Enum<R>> internal constructor(
     val block: Occupancy get() = observation.block
     val fresh: Boolean get() = observation.fresh
     val routeKnown: Boolean get() = observation.routeKnown
+    /** Occupants du canton, avec distinction entre absence observée et donnée inconnue. */
+    val blockTrains: BlockTrains get() = observation.blockTrains
+    /** Parcours analysé pour le train en approche, distinct de sa réservation. */
+    val selectedRoute: SelectedSignalRoute get() = observation.selectedRoute
     /** Identifiant validé d'une approche fraîche ; null sinon. */
     val approachingTrain: Long? get() = observation.approachingTrain.takeIf { fresh }
     /** Présence d'une approche fraîche, sans décodage d'identifiant dans le mod. */
@@ -44,6 +48,12 @@ class SignalDefinition<A : Enum<A>, R : Enum<R>> internal constructor(private va
     private val actions = base.actions.toMutableList()
     var observeApproach: Boolean = base.observeApproach
     var approachBlocks: Int = base.approachBlocks
+    var observeBlockTrains: Boolean = base.observeBlockTrains
+    var observeRoute: Boolean = base.observeRoute
+    /** Demande le parcours déjà observé ; activer aussi [observeApproach]. */
+    fun observeRoute() { observeRoute = true }
+    /** Demande les occupants du canton sans capture supplémentaire du jeu. */
+    fun observeBlockTrains() { observeBlockTrains = true }
     /** Active la détection dans [blocks] cantons en amont, de 1 à 16. */
     fun observeApproach(blocks: Int) {
         require(blocks in 1..16)
@@ -56,8 +66,8 @@ class SignalDefinition<A : Enum<A>, R : Enum<R>> internal constructor(private va
     internal var forced: (A) -> Indication<A, R>? = { null }
 
     fun checkbox(name: String, label: String, description: String = "", defaultValue: Boolean = false,
-                 onlyWhenEnabled: Boolean = false): Checkbox =
-        Checkbox(name, label, description, defaultValue, onlyWhenEnabled).also { options.add(it) }
+                 onlyWhenEnabled: Boolean = false, visibleWhen: String = ""): Checkbox =
+        Checkbox(name, label, description, defaultValue, onlyWhenEnabled, visibleWhen).also { options.add(it) }
 
     fun rules(block: SignalContext<A, R>.() -> Indication<A, R>?) { rule = block }
     /** Affiché seulement si le fournisseur et son service sont disponibles.
@@ -74,7 +84,8 @@ class SignalDefinition<A : Enum<A>, R : Enum<R>> internal constructor(private va
     fun allowForcedAspect(block: (A) -> Indication<A, R>?) { forced = block }
 
     internal fun freeze(): CompiledSignal<A, R> = CompiledSignal(
-        base.copy(checkboxes = options.toList(), observeApproach = observeApproach, approachBlocks = approachBlocks, actions = actions.toList()),
+        base.copy(checkboxes = options.toList(), observeApproach = observeApproach, approachBlocks = approachBlocks, actions = actions.toList(),
+            observeBlockTrains = observeBlockTrains, observeRoute = observeRoute),
         requireNotNull(rule) { "Déclarer rules pour ${base.id}" }, isolated, migration, preparation, forced)
 }
 
@@ -173,8 +184,9 @@ internal fun <A : Enum<A>, R : Enum<R>> buildSignalMod(
         override fun evaluate(settings: Map<String, Boolean>, observation: Observation) = evaluate("", settings, observation)
         override fun evaluate(type: String, settings: Map<String, Boolean>, observation: Observation): Decision {
             val entry = definition(type) ?: return invalidNetworkDecision
-            return encode(entry.isolated?.invoke(settings, observation)
-                ?: entry.rule(SignalContext(Signal(settings = settings, observation = observation, type = entry.type.id), null, entry.type.checkboxes))
+            val current = observation.validatedApproach()
+            return encode(entry.isolated?.invoke(settings, current)
+                ?: entry.rule(SignalContext(Signal(settings = settings, observation = current, type = entry.type.id), null, entry.type.checkboxes))
                 ?: fallback)
         }
         override fun decide(signal: Signal, next: Decision?): Decision? {

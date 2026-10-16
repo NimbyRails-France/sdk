@@ -11,6 +11,7 @@
 #include <nimby/detail/diagnostics.hpp>
 #include <MinHook.h>
 #include <windows.h>
+#include <winternl.h>
 #include <atomic>
 #include <chrono>
 #include <cstdio>
@@ -36,6 +37,8 @@ SRWLOCK installationLock=SRWLOCK_INIT;
 bool installed=false;
 bool installationBroken=false;
 bool diagnosticsReady=false;
+std::atomic<bool> hashSafetyResident{false};
+std::atomic<bool> mechanicsReady{false};
 std::atomic<uint64_t> nextRequest{1};
 using Level=diagnostics::Level;
 unsigned long long hex(uint64_t value)noexcept{return static_cast<unsigned long long>(value);}
@@ -142,6 +145,7 @@ bool read(void*,uint64_t at,void* target,size_t count) {
     return ReadProcessMemory(GetCurrentProcess(),reinterpret_cast<void*>(at),target,count,&copied)&&copied==count;
 }
 using Dynamics=void(*)(uint64_t,uint64_t);
+using Aggregate=void(*)(uint64_t,uint64_t,uint64_t);
 using Hash=uint64_t(*)(const void*,uint64_t);
 using Leaf=uint64_t(*)(const void*,uint64_t,uint64_t,uint64_t,uint64_t);
 using SettingsHash=uint64_t(*)(uint8_t,uint32_t,uint64_t,uint8_t,uint8_t,uint8_t,uint8_t);
@@ -151,6 +155,7 @@ using Panel=void(*)(uint64_t,uint64_t,uint64_t,uint64_t,uint64_t,uint64_t,uint64
 using Command=uint64_t(*)(uint64_t,uint64_t,uint64_t,uint64_t);
 using SimCommand=void(*)(uint64_t,uint64_t);
 Dynamics originalDynamics{};
+Aggregate originalAggregate{};
 Hash originalHash{};
 Validate originalValidate{};
 Commit originalCommit{};
@@ -165,13 +170,37 @@ struct Failure {
     std::shared_ptr<const EditorRegistry::Selection> selection;
     std::string language;
     const std::string* message=nullptr;
-    std::array<char,96> measurements{};
+    std::array<char,EditorMessages::maximumMessageBytes+128> measurements{};
 };
 // Both composition commit and its panel belong to the native UI thread. A
 // borrowed editor address is only compared, never dereferenced after the call.
 thread_local Failure lastFailure;
 thread_local uint64_t currentEditor{};
 thread_local uint64_t currentRequest{};
+// Reuse validation of the real editor composition within this UI pass. A
+// proposed (possibly rejected) addition is never a current-length sample.
+struct PanelMeasurement {
+    uint64_t editor{},rules{};
+    PanelMeasurement* previous{};
+    std::optional<policy::Assessment> value;
+};
+thread_local PanelMeasurement* panelMeasurement{};
+struct ScopedPanelMeasurement {
+    PanelMeasurement frame;
+    ScopedPanelMeasurement(uint64_t editor,uint64_t rules):frame{editor,rules,panelMeasurement,{}}{panelMeasurement=&frame;}
+    ~ScopedPanelMeasurement(){panelMeasurement=frame.previous;}
+};
+void invalidatePanelMeasurement(uint64_t editor)noexcept {
+    if(panelMeasurement&&panelMeasurement->editor==editor)panelMeasurement->value.reset();
+}
+struct CurrentLengthDisplay {
+    uint64_t editor{},rules{},revision{};
+    policy::Assessment value;
+    bool initialized=false,layoutReady=false;
+    std::string language;
+    std::array<char,EditorMessages::maximumMessageBytes+128> line{};
+};
+thread_local CurrentLengthDisplay currentLengthDisplay;
 struct ScopedRequest {
     uint64_t previous=currentRequest;
     explicit ScopedRequest(uint64_t value){currentRequest=value;}
@@ -213,6 +242,45 @@ policy::Assessment composition(const View& view,uint64_t vector,uint64_t rules,p
     for(const auto& car:cars)models.push_back({car.model,1});
     return assess(view,rules,limit,models);
 }
+bool prepareCurrentLength(uint64_t editor,uint64_t rules,const std::shared_ptr<const EditorRegistry::Selection>& selection,
+                          const PanelMeasurement& frame,bool layout,std::string_view language) {
+    auto& display=currentLengthDisplay;
+    if(!selection||!selection->presentation||!selection->presentation->showsLength()){
+        display={};return false;
+    }
+    // The interactive pass paints the exact row measured by layout. Edits
+    // made while handling a click are reflected by the next layout/paint,
+    // without another scan or a second allocation during interaction.
+    if(!layout&&display.layoutReady&&display.editor==editor&&display.rules==rules&&
+       display.revision==selection->revision&&display.language==language){
+        display.layoutReady=false;return true;
+    }
+    auto value=unavailable(selection->limit);
+    if(frame.value&&frame.value->maximumMeters==selection->limit.maximumMeters)value=*frame.value;
+    else if(layout)value=composition(View(read),editor+0xc0,rules,selection->limit);
+    // An incomplete measurement never masquerades as a current length. If
+    // there was no matching layout or validation, display the mod's unknown
+    // state; do not reuse facts from an older editor or composition.
+    const bool changed=!display.initialized||display.editor!=editor||display.rules!=rules||
+        display.revision!=selection->revision||display.language!=language||
+        display.value.decision!=value.decision||display.value.totalLengthMeters!=value.totalLengthMeters||
+        display.value.maximumMeters!=value.maximumMeters;
+    if(changed){
+        const bool complete=value.decision==policy::Decision::Allowed||value.decision==policy::Decision::LimitExceeded;
+        const auto& label=selection->presentation->select(complete?3:5,language);
+        if(complete)std::snprintf(display.line.data(),display.line.size(),"%s: %.3f m / %.0f m",
+            label.c_str(),value.totalLengthMeters,selection->limit.maximumMeters);
+        else std::snprintf(display.line.data(),display.line.size(),"%s",label.c_str());
+        log(complete?Level::Info:Level::Warning,
+            "Train length display updated: editor=%llx rules=%llx revision=%llu currentKnown=%u measuredMeters=%.6f maximumMeters=%.6f decision=%s problematicModel=%llx",
+            hex(editor),hex(rules),hex(selection->revision),unsigned(complete),value.totalLengthMeters,
+            selection->limit.maximumMeters,decision(value.decision),hex(value.problematicModel));
+    }
+    display.editor=editor;display.rules=rules;display.revision=selection->revision;display.value=value;
+    display.initialized=true;display.layoutReady=layout;
+    if(display.language!=language)display.language=language;
+    return true;
+}
 void commit(uint64_t editor,uint64_t context,uint64_t rules) {
     const auto limit=registry.limit();
     bool nativeEntered=false;
@@ -223,7 +291,20 @@ void commit(uint64_t editor,uint64_t context,uint64_t rules) {
                 const auto sequence=nextRequest.fetch_add(1,std::memory_order_relaxed);ScopedRequest request(sequence);
                 log(Level::Info,"Train length request=%llu action=other-native-editor-operation editor=%llx selectedCars=%zu actionFlags=%x phase=delegate-unchanged",
                     hex(sequence),hex(editor),proposal.selectedElements,unsigned(proposal.actionFlags));
+                if(proposal.removalRequested&&lastFailure.editor==editor){
+                    log(Level::Info,"Train length request=%llu action=remove-requested phase=previous-refusal-retired editor=%llx previousDecision=%s previousCandidateMeters=%.6f maximumMeters=%.6f",
+                        hex(sequence),hex(editor),decision(lastFailure.assessment.decision),lastFailure.assessment.totalLengthMeters,lastFailure.assessment.maximumMeters);
+                    // Retire only this editor's old candidate BEFORE the native
+                    // operation. Its validation may report a new failure, which
+                    // must survive. Ordinary validation of the unchanged train
+                    // keeps rejected-addition notices visible.
+                    lastFailure={};
+                }
+                invalidatePanelMeasurement(editor);
                 nativeEntered=true;originalCommit(editor,context,rules);
+                // Validation inside the native operation may precede its
+                // final mutation. Re-measure only once, at the end of layout.
+                invalidatePanelMeasurement(editor);
                 log(Level::Info,"Train length request=%llu action=other-native-editor-operation phase=native-commit-returned editor=%llx",hex(sequence),hex(editor));return;
             }
             nativeEntered=true;originalCommit(editor,context,rules);return;
@@ -244,8 +325,10 @@ void commit(uint64_t editor,uint64_t context,uint64_t rules) {
         if(!value.allowed()){report(editor,value);return;}
         if(lastFailure.editor==editor)lastFailure={};
         ScopedRequest request(trace.sequence);
+        invalidatePanelMeasurement(editor);
         nativeEntered=true;
         originalCommit(editor,context,rules);
+        invalidatePanelMeasurement(editor);
         std::array<uint64_t,3> range{};const auto readable=view.get(editor+0xc0,range);
         log(Level::Info,"Train length request=%llu action=%s phase=native-commit-returned editor=%llx vectorReadable=%u begin=%llx end=%llx capacity=%llx",
             hex(trace.sequence),editName(proposal.edit),hex(editor),unsigned(readable),hex(range[0]),hex(range[1]),hex(range[2]));
@@ -260,22 +343,37 @@ void panel(uint64_t editor,uint64_t context,uint64_t emitter,uint64_t rules,uint
            uint64_t arg7,uint64_t arg8,uint64_t arg9,uint8_t arg10) {
     const auto previousEditor=currentEditor;currentEditor=editor;
     struct RestoreEditor{uint64_t previous;~RestoreEditor(){currentEditor=previous;}} restore{previousEditor};
+    ScopedPanelMeasurement measurement(editor,rules);
     originalPanel(editor,context,emitter,rules,arg5,arg6,arg7,arg8,arg9,arg10);
-    if(lastFailure.editor!=editor||!lastFailure.selection||
-       registry.selectionRevision()!=lastFailure.selection->revision||std::chrono::steady_clock::now()>=lastFailure.until)return;
+    const auto selection=registry.selected();
+    const bool notice=lastFailure.editor==editor&&lastFailure.selection&&selection&&
+        selection->revision==lastFailure.selection->revision&&std::chrono::steady_clock::now()<lastFailure.until;
+    if(!notice&&(!selection||!selection->presentation||!selection->presentation->showsLength()))return;
     try{
         auto ui=nimby::engine::SignalUi::bind(read,nullptr,base,emitter);
         if(!ui)return;
         const auto language=nimby::platform::windows::gameLanguage(read,nullptr,base).value_or("");
+        const bool current=prepareCurrentLength(editor,rules,selection,measurement.frame,
+            ui->pass()==nimby::engine::SignalUi::Pass::Layout,language);
+        // Preference changes or mod retirement can invalidate the captured
+        // wording while the original body runs. Never paint an old limit.
+        if(!selection||registry.selectionRevision()!=selection->revision)return;
+        if(current)ui->message(currentLengthDisplay.line.data());
+        if(!notice)return;
         if(!lastFailure.message||lastFailure.language!=language){
             const auto decision=lastFailure.assessment.decision;
             const size_t index=decision==policy::Decision::LimitExceeded?0:
                 decision==policy::Decision::UnknownModel||decision==policy::Decision::InvalidLength?1:2;
             lastFailure.message=&lastFailure.selection->presentation->select(index,language);
             lastFailure.language=language;
+            if(decision==policy::Decision::LimitExceeded&&lastFailure.selection->presentation->showsLength()){
+                const auto& label=lastFailure.selection->presentation->select(4,language);
+                std::snprintf(lastFailure.measurements.data(),lastFailure.measurements.size(),"%s: %.3f m / %.0f m",
+                    label.c_str(),lastFailure.assessment.totalLengthMeters,lastFailure.assessment.maximumMeters);
+            }
         }
-        // No JSON, mod callback, IPC, disk read or measurement in this panel.
-        // The translated notice and numerical facts are already owned/cached.
+        // No JSON, mod callback, IPC or disk read in this panel. Validation
+        // supplies current facts; layout alone performs a bounded fallback.
         ui->message(lastFailure.message->c_str());
         if(lastFailure.measurements[0])ui->message(lastFailure.measurements.data());
     }catch(...){log(Level::Error,"Train length action=notification phase=ui-message-exception editor=%llx emitter=%llx",hex(editor),hex(emitter));}
@@ -285,6 +383,8 @@ uint64_t validate(uint64_t train,uint64_t output,uint64_t rules,uint8_t ignoreCo
     const auto limit=registry.limit();if(!limit.active())return result;
     try{
         const View view(read);auto value=composition(view,train+0xc0,rules,limit);
+        if(panelMeasurement&&panelMeasurement->editor==train&&panelMeasurement->rules==rules)
+            panelMeasurement->value=value; // Capture BEFORE legacy reduction exceptions.
         if(value.decision==policy::Decision::LimitExceeded&&train==currentEditor){
             const auto baseline=composition(view,train+0x238,rules,limit);
             groups::detail::preserveReduction(value,baseline);
@@ -360,7 +460,7 @@ uint64_t command(uint64_t input,uint64_t output,uint64_t context,uint64_t simula
         if(purchase){value=assess(view,rules,limit,models,
             [&](uint64_t model,const std::optional<double>& meters){trace.observed(model,meters);});issue=view.issue();}
         else{
-            const auto check=groups::recompose(read,nullptr,{database,simulation},limit,train,cars);
+            const auto check=groups::recompose(read,nullptr,{database,simulation,runtimeMechanicsReady()},limit,train,cars);
             value=check.assessment;issue=check.readIssue;
             trace.group(check);
             trace.append(" groupRoot=%llx members=%zu beforeActiveCars=%zu candidateActiveCars=%zu previousMeters=%.6f ownBeforeMeters=%.6f ownCandidateMeters=%.6f groupChecked=%u",
@@ -400,6 +500,7 @@ void simCommand(uint64_t input,uint64_t context,bool hitch) {
            (hitch?!view.get(input+8,driver):!view.get(input+0x10,configuration))){
             const auto value=unavailable(limit);trace.assessment(value,view.issue());trace.emit(Level::Warning,"command-unavailable");report(0,value);return;
         }
+        captured.extendedAggregation=runtimeMechanicsReady();
         const auto check=hitch?groups::hitch(read,nullptr,captured,limit,driver,train):
             groups::setConfig(read,nullptr,captured,limit,train,configuration);
         trace.group(check);
@@ -487,7 +588,127 @@ uint64_t hash(const void* input,uint64_t bytes)noexcept {
     }
 }
 
+// Per-thread, call-scoped admission. The Windows inline TLS slot is reserved
+// before hooks activate, avoiding emulated C++ TLS's first-use allocation.
+struct AggregateFrame {
+    uint64_t object{},count{};
+    std::array<aggregation::Prefix,aggregation::maximumMembers-1> prefixes{};
+};
+static_assert(offsetof(AggregateFrame,prefixes)==16&&sizeof(aggregation::Prefix)==16);
+static_assert(offsetof(TEB,TlsSlots)==0x1480);
+DWORD aggregateTls=TLS_OUT_OF_INDEXES;
+
+// Replacement of the interior CMP+JA, with no CALL, allocation, native-vector
+// access or XMM mutation. An old/foreign native invocation has no matching TLS
+// admission and keeps CMP30. Preserve RAX/RDX in the native outgoing shadow
+// area (44CF80 has no locals in RSP..RSP+31 and no CALL runs in this gateway);
+// produce the exact unsigned CMP
+// flags, including the root-before-child reserved count, then native continues.
+// Because this is an INTERIOR JMP, unwind chains back to the native 44CF80
+// frame (not a fictitious leaf return address). RSP never changes, so the
+// zero-code noncontiguous CHAININFO has the same fixed allocation as native.
+class AggregateCountGateway {
+    uint8_t* memory_{};uint64_t accepted_{},rejected_{},module_{};DWORD slot_{};
+    std::array<RUNTIME_FUNCTION,1> table_{};bool registered_=false;
+    size_t restoreEnd_{},codeBytes_{};
+public:
+    bool build(uint64_t accepted,uint64_t rejected,DWORD slot,uint64_t module)noexcept {
+        if(!accepted||!rejected||slot>=64||!module)return false;
+        if(memory_)return registered_&&accepted_==accepted&&rejected_==rejected&&slot_==slot&&module_==module;
+        DWORD64 parentBase{},rejectBase{};
+        auto* parent=RtlLookupFunctionEntry(accepted,&parentBase,nullptr);
+        auto* rejectParent=RtlLookupFunctionEntry(rejected,&rejectBase,nullptr);
+        if(!parent||!rejectParent||parentBase!=module||rejectBase!=module||
+            std::memcmp(parent,rejectParent,sizeof(RUNTIME_FUNCTION)))return false;
+        std::array<uint8_t,4> parentHeader{};
+        if(!read(nullptr,module+parent->UnwindData,parentHeader.data(),parentHeader.size())||
+            (parentHeader[0]&7)!=1||parentHeader[3]!=0)return false;
+        const RUNTIME_FUNCTION parentCopy=*parent;
+        std::array<uint8_t,256> code{};size_t n=0;
+        const auto emit=[&](std::initializer_list<uint8_t> bytes){for(auto byte:bytes)code[n++]=byte;};
+        const auto imm=[&](uint64_t value,unsigned bytes){for(unsigned i=0;i<bytes;++i)code[n++]=uint8_t(value>>(i*8));};
+        const auto branch=[&](uint8_t op){emit({0x0f,op});const size_t at=n;imm(0,4);return at;};
+        const auto relative=[&](size_t at,size_t target){const int32_t delta=static_cast<int32_t>(target)-static_cast<int32_t>(at+4);std::memcpy(code.data()+at,&delta,4);};
+        emit({0x48,0x89,0x04,0x24,0x48,0x89,0x54,0x24,0x08});
+        emit({0x48,0xb8});imm(rejected,8);emit({0x48,0x89,0x44,0x24,0x18});
+        emit({0x48,0xb8});imm(accepted,8);emit({0x48,0x89,0x44,0x24,0x10});
+        emit({0x65,0x48,0x8b,0x04,0x25,0x30,0,0,0}); // NtCurrentTeb
+        emit({0x48,0x8b,0x80});imm(offsetof(TEB,TlsSlots)+uint64_t(slot)*8,4);
+        emit({0x48,0x85,0xc0});const auto noFrame=branch(0x84);
+        emit({0x48,0x8d,0x53,0xf8,0x48,0x39,0x10});const auto otherRoot=branch(0x85);
+        emit({0x48,0x8b,0x50,0x08,0x48,0x85,0xd2});const auto noChildren=branch(0x84);
+        emit({0x48,0x8d,0x40,0x10});const auto loop=n;
+        emit({0x4c,0x39,0x28});const auto found=branch(0x84);
+        emit({0x48,0x8d,0x40,0x10,0x48,0xff,0xca});const auto next=branch(0x85);relative(next,loop);
+        const auto fallback=n;emit({0x48,0x83,0xf9,0x1e,0xe9});const auto toRestore=n;imm(0,4);
+        const auto qualified=n;emit({0x48,0x3b,0x48,0x08});
+        const auto restore=n;
+        emit({0x48,0x8b,0x04,0x24,0x48,0x8b,0x54,0x24,0x08});
+        restoreEnd_=n;
+        // Disp8 stack-indirect JMP (ModRM.mod=01) is deliberately not an x64
+        // recognized tailcall epilogue. A RIP-indirect JMP (mod=00) would make
+        // RtlVirtualUnwind pop a fictitious leaf return instead of following
+        // CHAININFO and restoring the native frame. All four native shadow
+        // slots are free here; the branch destinations cannot outlive the JMP.
+        emit({0x76,0x04,0xff,0x64,0x24,0x18,0xff,0x64,0x24,0x10});
+        relative(noFrame,fallback);relative(otherRoot,fallback);relative(noChildren,fallback);relative(found,qualified);relative(toRestore,restore);
+        codeBytes_=n;
+        // The table shares the original native image base so CHAININFO RVAs
+        // keep their meaning. Search a bounded set of nearby allocation hints.
+        uint8_t* memory=nullptr;
+        for(size_t i=0;i<128&&!memory;++i){
+            const uint64_t hint=module+0x2000000+i*0x10000;
+            if(hint<module||hint>0x7fffffff0000ULL-4096)return false;
+            memory=static_cast<uint8_t*>(VirtualAlloc(reinterpret_cast<void*>(hint),4096,MEM_RESERVE|MEM_COMMIT,PAGE_READWRITE));
+        }
+        if(!memory)return false;
+        const uint64_t rva=reinterpret_cast<uint64_t>(memory)-module;
+        if(rva>UINT32_MAX-4096){VirtualFree(memory,0,MEM_RELEASE);return false;}
+        std::memcpy(memory,code.data(),n);
+        const std::array<uint8_t,4> chained{0x21,0,0,0};
+        std::memcpy(memory+256,chained.data(),chained.size());std::memcpy(memory+260,&parentCopy,sizeof parentCopy);
+        table_={RUNTIME_FUNCTION{DWORD(rva),DWORD(rva+n),DWORD(rva+256)}};
+        DWORD previous{};
+        if(!VirtualProtect(memory,4096,PAGE_EXECUTE_READ,&previous)||!FlushInstructionCache(GetCurrentProcess(),memory,n)||
+            !RtlAddFunctionTable(table_.data(),DWORD(table_.size()),module)){
+            VirtualFree(memory,0,MEM_RELEASE);table_={};return false;
+        }
+        memory_=memory;accepted_=accepted;rejected_=rejected;module_=module;slot_=slot;registered_=true;return true;
+    }
+    void* address()const noexcept{return registered_?memory_:nullptr;}
+    size_t restoreEnd()const noexcept{return restoreEnd_;}
+    size_t codeBytes()const noexcept{return codeBytes_;}
+    bool reset()noexcept {
+        if(registered_){if(!RtlDeleteFunctionTable(table_.data()))return false;registered_=false;}
+        if(memory_&&!VirtualFree(memory_,0,MEM_RELEASE))return false;
+        memory_=nullptr;accepted_=rejected_=module_=0;table_={};restoreEnd_=codeBytes_=0;return true;
+    }
+};
+void aggregate(uint64_t pool,uint64_t database,uint64_t object) {
+    // No mod callback/policy/UI and no SDK-owned native-vector replacement.
+    // Refused input leaves the native composition untouched. The final rear
+    // provider must independently qualify the published aggregate and scope.
+    if(!mechanicsReady.load(std::memory_order_acquire)||!hashSafetyResident.load(std::memory_order_acquire)){
+        log(Level::Error,"Native composition refused: phase=mechanics-not-ready object=%llx",hex(object));return;
+    }
+    const auto input=aggregation::admit(View(read),pool,database,object);
+    if(!input.allowed){
+        log(Level::Error,"Native composition refused: phase=aggregate-preflight train=%llx object=%llx fault=%u address=%llx rootCars=%zu totalCars=%zu members=%zu safetyBound=%zu mutation=none",
+            hex(input.train),hex(object),unsigned(input.fault),hex(input.address),input.rootElements,input.totalElements,input.members,policy::maximumElements);return;
+    }
+    if(aggregateTls>=64){log(Level::Error,"Native composition refused: phase=tls-slot-unavailable object=%llx",hex(object));return;}
+    AggregateFrame frame;frame.object=object;frame.count=input.members-1;frame.prefixes=input.prefixes;
+    auto& tls=NtCurrentTeb()->TlsSlots[aggregateTls];
+    auto* previous=tls;tls=input.extended?&frame:nullptr;
+    struct RestoreAdmission {void*& slot;void* previous;~RestoreAdmission(){slot=previous;}} restore{tls,previous};
+    // Invoke exactly once. A native exception after mutation is not retried or
+    // represented as a successful/rolled-back composition by the SDK.
+    originalAggregate(pool,database,object);
+}
+
 NativeLeafGateway hashGateway;
+AggregateCountGateway aggregateGateway;
+void* originalAggregateCompare{};
 struct Hook {uint64_t rva;void* detour;void** original;std::array<uint8_t,16> bytes;};
 }
 
@@ -519,11 +740,25 @@ uint32_t install(uint64_t module)noexcept {
         // Retire its unwind entry and allocation when a transaction rolls back.
         struct GatewayCleanup {
             ~GatewayCleanup(){
-                if(installed||installationBroken)return;
+                if(installed||installationBroken||hashSafetyResident.load(std::memory_order_acquire))return;
                 if(!hashGateway.reset())log(Level::Error,"Train length activation rollback: gateway cleanup failed win32Error=%lu",GetLastError());
+                if(!aggregateGateway.reset())log(Level::Error,"Train length activation rollback: aggregate gateway cleanup failed win32Error=%lu",GetLastError());
+                if(aggregateTls!=TLS_OUT_OF_INDEXES){TlsFree(aggregateTls);aggregateTls=TLS_OUT_OF_INDEXES;}
             }
         } gatewayCleanup;
         if(!hashGateway.build(reinterpret_cast<void*>(&hash))){log(Level::Error,"Train length activation refused: phase=build-hash-gateway win32Error=%lu",GetLastError());return NIMBY_INTERNAL_ERROR;}
+        if(aggregateTls==TLS_OUT_OF_INDEXES){
+            aggregateTls=TlsAlloc();
+            if(aggregateTls>=64){if(aggregateTls!=TLS_OUT_OF_INDEXES)TlsFree(aggregateTls);aggregateTls=TLS_OUT_OF_INDEXES;
+                log(Level::Error,"Train length activation refused: phase=reserve-inline-tls first64SlotsRequired=1");return NIMBY_RESOURCE_LIMIT;}
+            void* marker=&aggregateTls;
+            if(!TlsSetValue(aggregateTls,marker)||NtCurrentTeb()->TlsSlots[aggregateTls]!=marker||TlsGetValue(aggregateTls)!=marker||!TlsSetValue(aggregateTls,nullptr)){
+                log(Level::Error,"Train length activation refused: phase=qualify-inline-tls");return NIMBY_INTERNAL_ERROR;
+            }
+        }
+        if(!aggregateGateway.build(module+0x44d3f8,module+0x44d62a,aggregateTls,module)){
+            log(Level::Error,"Train length activation refused: phase=build-aggregate-gateway win32Error=%lu",GetLastError());return NIMBY_INTERNAL_ERROR;
+        }
         const Hook hooks[]{
             {0x3e0d90,reinterpret_cast<void*>(&dynamics),reinterpret_cast<void**>(&originalDynamics),{0x48,0x8b,0xc4,0x48,0x89,0x50,0x10,0x41,0x56,0x48,0x81,0xec,0xa0,0x01,0,0}},
             {0x2711c0,hashGateway.address(),reinterpret_cast<void**>(&originalHash),{0x40,0x53,0x56,0x57,0x48,0x83,0xec,0x40,0x48,0x8b,0xfa,0x48,0x8b,0xd9,0x48,0x8b}},
@@ -533,7 +768,9 @@ uint32_t install(uint64_t module)noexcept {
             {0x304b50,reinterpret_cast<void*>(&purchase),reinterpret_cast<void**>(&originalPurchase),{0x48,0x8b,0xc4,0x48,0x89,0x58,0x08,0x48,0x89,0x68,0x18,0x48,0x89,0x70,0x20,0x48}},
             {0x304e00,reinterpret_cast<void*>(&recompose),reinterpret_cast<void**>(&originalRecompose),{0x48,0x89,0x5c,0x24,0x08,0x48,0x89,0x6c,0x24,0x18,0x48,0x89,0x74,0x24,0x20,0x48}},
             {0x441070,reinterpret_cast<void*>(&hitch),reinterpret_cast<void**>(&originalHitch),{0x48,0x89,0x5c,0x24,0x08,0x48,0x89,0x74,0x24,0x10,0x57,0x48,0x83,0xec,0x40,0x48}},
-            {0x440f50,reinterpret_cast<void*>(&setConfig),reinterpret_cast<void**>(&originalSetConfig),{0x40,0x53,0x48,0x83,0xec,0x20,0x8b,0x59,0x10,0x48,0x8b,0xc1,0x48,0x8b,0x4a,0x08}}
+            {0x440f50,reinterpret_cast<void*>(&setConfig),reinterpret_cast<void**>(&originalSetConfig),{0x40,0x53,0x48,0x83,0xec,0x20,0x8b,0x59,0x10,0x48,0x8b,0xc1,0x48,0x8b,0x4a,0x08}},
+            {0x44cf80,reinterpret_cast<void*>(&aggregate),reinterpret_cast<void**>(&originalAggregate),{0x48,0x8b,0xc4,0x4c,0x89,0x40,0x18,0x48,0x89,0x50,0x10,0x48,0x89,0x48,0x08,0x55}},
+            {0x44d3ee,aggregateGateway.address(),&originalAggregateCompare,{0x48,0x83,0xf9,0x1e,0x0f,0x87,0x32,0x02,0,0,0x41,0x80,0xbd,0xf0,0x01,0}}
         };
         // Validate every entry before creating or enabling any hook.
         for(const auto& hook:hooks){std::array<uint8_t,16> actual{};const auto readable=read(nullptr,module+hook.rva,actual.data(),actual.size());
@@ -551,9 +788,13 @@ uint32_t install(uint64_t module)noexcept {
                 bool clean=true;
                 // QueueDisable also clears a not-yet-applied enable. A later
                 // bridge transaction cannot activate half of this group.
-                for(size_t i=0;i<count;++i)if(MH_QueueDisableHook(reinterpret_cast<void*>(base+hooks[i].rva))!=MH_OK)clean=false;
-                if(count&&MH_ApplyQueued()!=MH_OK)clean=false;
-                if(clean)for(size_t i=0;i<count;++i)if(MH_RemoveHook(reinterpret_cast<void*>(base+hooks[i].rva))!=MH_OK)clean=false;
+                const size_t first=hashSafetyResident.load(std::memory_order_acquire)?2:0;
+                for(size_t i=first;i<count;++i)if(MH_QueueDisableHook(reinterpret_cast<void*>(base+hooks[i].rva))!=MH_OK)clean=false;
+                if(count>first&&MH_ApplyQueued()!=MH_OK)clean=false;
+                if(clean)for(size_t i=first;i<count;++i)if(MH_RemoveHook(reinterpret_cast<void*>(base+hooks[i].rva))!=MH_OK)clean=false;
+                // Once native long-train safety has been published it must
+                // remain resident even when the later hooks cannot activate.
+                if(first)installationBroken=true;
                 if(!clean){installationBroken=true;
                     log(Level::Error,"Train length activation rollback incomplete: createdHooks=%zu furtherActivationRefused=1",count);
                 }
@@ -569,13 +810,22 @@ uint32_t install(uint64_t module)noexcept {
         // Existing long trains remain readable when their policy owner stops.
         HMODULE self{};
         if(!GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS|GET_MODULE_HANDLE_EX_FLAG_PIN,reinterpret_cast<LPCWSTR>(&install),&self)){log(Level::Error,"Train length activation refused: phase=pin-module win32Error=%lu",GetLastError());return NIMBY_INTERNAL_ERROR;}
-        for(const auto& hook:hooks){const auto result=MH_QueueEnableHook(reinterpret_cast<void*>(module+hook.rva));if(result!=MH_OK){log(Level::Error,"Train length activation refused: phase=enable-hook rva=%llx hookStatus=%d",hex(hook.rva),int(result));return NIMBY_INTERNAL_ERROR;}}
-        const auto applied=MH_ApplyQueued();if(applied!=MH_OK){log(Level::Error,"Train length activation refused: phase=apply-hooks hookStatus=%d",int(applied));return NIMBY_INTERNAL_ERROR;}
+        // Phase one actually activates the safe dynamics/hash pair before the
+        // aggregation count predicate can admit a longer child composition.
+        for(size_t i=0;i<2;++i){const auto& hook=hooks[i];const auto result=MH_QueueEnableHook(reinterpret_cast<void*>(module+hook.rva));
+            if(result!=MH_OK){log(Level::Error,"Train length activation refused: phase=enable-safety rva=%llx hookStatus=%d",hex(hook.rva),int(result));return NIMBY_INTERNAL_ERROR;}}
+        auto applied=MH_ApplyQueued();if(applied!=MH_OK){log(Level::Error,"Train length activation refused: phase=apply-safety hookStatus=%d",int(applied));return NIMBY_INTERNAL_ERROR;}
+        hashSafetyResident.store(true,std::memory_order_release);
+        for(size_t i=2;i<std::size(hooks);++i){const auto& hook=hooks[i];const auto result=MH_QueueEnableHook(reinterpret_cast<void*>(module+hook.rva));if(result!=MH_OK){log(Level::Error,"Train length activation refused: phase=enable-hook rva=%llx hookStatus=%d",hex(hook.rva),int(result));return NIMBY_INTERNAL_ERROR;}}
+        applied=MH_ApplyQueued();if(applied!=MH_OK){log(Level::Error,"Train length activation refused: phase=apply-hooks hookStatus=%d",int(applied));return NIMBY_INTERNAL_ERROR;}
         installed=true;
-        log(Level::Info,"Train length activation completed: hooks=%zu entrySignaturesVerified=1 longCompositionSafetyResident=1",std::size(hooks));
+        mechanicsReady.store(true,std::memory_order_release);
+        log(Level::Info,"Train length activation completed: hooks=%zu entrySignaturesVerified=1 longCompositionSafetyResident=1 aggregateWholeBound=%zu aggregateMemberBound=%zu policyRequired=0",std::size(hooks),policy::maximumElements,aggregation::maximumMembers);
         return NIMBY_OK;
     }catch(...){log(Level::Error,"Train length activation refused: phase=bootstrap-exception");return NIMBY_INTERNAL_ERROR;}
 }
+uint32_t ensureRuntimeMechanics(uint64_t module)noexcept {return install(module);}
+bool runtimeMechanicsReady()noexcept {return mechanicsReady.load(std::memory_order_acquire)&&hashSafetyResident.load(std::memory_order_acquire);}
 uint32_t status(policy::PublishResult value)noexcept {
     switch(value){
         case policy::PublishResult::Applied:return NIMBY_OK;
@@ -594,6 +844,10 @@ uint32_t registerPolicy(const char* id,uint32_t maximum,std::shared_ptr<const Ed
 }
 }
 #define TRAIN_EXPORT extern "C" __declspec(dllexport) uint32_t
+TRAIN_EXPORT NimbyTrainRuntime_Ensure()noexcept {
+    return nimby::platform::windows::train_length::ensureRuntimeMechanics(
+        reinterpret_cast<uint64_t>(GetModuleHandleW(nullptr)));
+}
 TRAIN_EXPORT NimbyTrainLength_Register(const char* id,uint32_t maximum,uint64_t* owner)noexcept {
     using namespace nimby::platform::windows::train_length;
     if(!owner)return NIMBY_INVALID_ARGUMENT;

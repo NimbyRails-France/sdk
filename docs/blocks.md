@@ -1,5 +1,54 @@
 # Cantons et liens de signaux : API haut niveau du SDK
 
+## Occupants dans les règles Kotlin
+
+La version de développement expose `context.blockTrains` dans les règles de
+signaux, ou `observation.blockTrains` à partir d'une `Observation`. Ces données
+réutilisent les emprises déjà capturées ; elles ne déclenchent aucune lecture
+supplémentaire du jeu.
+
+Déclarer `observeBlockTrains()` dans le modèle qui en a besoin. Cette demande
+est désactivée par défaut et indépendante de `observeApproach(blocks = ...)`.
+Les autres modèles ne paient pas la copie ni le décodage de cette liste et
+reçoivent `BlockTrains.Unknown`.
+
+`trainIds` fournit les identifiants complets connus dans le canton, sans
+doublons et en lecture seule. `presenceOf(trainId)` renvoie :
+
+| Résultat | Signification |
+| --- | --- |
+| `TrainPresence.Present` | Une emprise de ce train est observée ; sa tête peut avoir quitté le canton tandis que sa queue l'occupe encore. |
+| `TrainPresence.Absent` | Le train n'apparaît pas dans une liste fraîche et complète d'un canton dont la frontière est connue. |
+| `TrainPresence.Unknown` | Les données ne permettent pas de conclure, ou l'identifiant fourni est invalide. |
+
+Une liste partielle peut donc prouver une présence. Une frontière inconnue ou
+une observation périmée ne prouve jamais une absence. Une copie
+`observation.copy(fresh = false)` masque automatiquement ses anciens occupants.
+L'absence d'`approachingTrain` n'efface pas une queue encore détectée.
+
+Exemple indépendant des indications nationales :
+
+```kotlin
+fun describePresence(observation: Observation, trainId: Long): String =
+    when (observation.blockTrains.presenceOf(trainId)) {
+        TrainPresence.Present -> "Train encore présent dans le canton"
+        TrainPresence.Absent -> "Train absent de l'observation complète du canton"
+        TrainPresence.Unknown -> "Présence non déterminée"
+    }
+```
+
+Ce constat courant n'est ni une preuve d'entrée antérieure, ni un historique de
+libération d'itinéraire, ni une permission de passage. Les réservations restent
+celles du jeu. Un mod peut garder une intention associée au train, mais ne doit
+pas considérer la disparition d'une approche ou un délai comme un dégagement.
+
+Les exports Kotlin privés ajoutent une capacité : un ancien module ou adaptateur
+sans cette capacité continue de fonctionner avec des occupants inconnus. Cette
+extension ne modifie pas le format des commandes de diagnostic `v1` du build
+courant et n'y ajoute pas cette liste live. Cela ne garantit pas l'ABI brute entre
+des outils compilés avec des headers SDK de versions différentes. Le kit et le
+mod doivent être reconstruits pour bénéficier des nouvelles observations.
+
 ## Construction depuis la topologie observée
 
 `<nimby/block_topology.hpp>` fournit `BlockTopology(boundaries, nodes, junctions)`.

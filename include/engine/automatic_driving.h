@@ -34,25 +34,57 @@ inline const NimbySignalDrivingRule* rule(std::span<const NimbySignalDrivingRule
  const auto at=std::lower_bound(rules.begin(),rules.end(),id,[](const auto& r,uint64_t value){return r.signal<value;});
  return at!=rules.end()&&at->signal==id?&*at:nullptr;
 }
+inline StopProof captureStopProof(const NimbySignalDrivingRule& instruction,double signalPosition,double head,
+ double stopBeforeSignalMeters=defaultStopBeforeSignalMeters) {
+ if(!valid(instruction)||!(instruction.flags&NIMBY_DRIVING_STOP_THEN_PROCEED)||
+    !atSignalStop(head,signalPosition,stopBeforeSignalMeters))return {};
+ return {instruction.signal,signalPosition,head,instruction.speed_mps,instruction.reopened_speed_mps,
+         instruction.signals_ahead,instruction.flags,false};
+}
+inline bool sameStopInstruction(const StopProof& proof,const NimbySignalDrivingRule& instruction) {
+ return proof.signal==instruction.signal&&proof.speed==instruction.speed_mps&&
+  proof.reopenedSpeed==instruction.reopened_speed_mps&&proof.signalsAhead==instruction.signals_ahead&&proof.flags==instruction.flags;
+}
+inline bool stopProofAt(const StopProof& proof,const NimbySignalDrivingRule& instruction,double head,
+ double stopBeforeSignalMeters=defaultStopBeforeSignalMeters) {
+ return proof.signal&&valid(instruction)&&(instruction.flags&NIMBY_DRIVING_STOP_THEN_PROCEED)&&
+  sameStopInstruction(proof,instruction)&&std::isfinite(proof.head)&&head>=proof.head-1e-6&&
+  atSignalStop(head,proof.position,stopBeforeSignalMeters);
+}
+inline void refreshStopProof(Memory& memory,std::span<const Ahead> ahead,std::span<const NimbySignalDrivingRule> rules,
+ double head,bool fresh,double stopBeforeSignalMeters=defaultStopBeforeSignalMeters) {
+ if(!memory.stopped.signal)return;
+ const auto* current=rule(rules,memory.stopped.signal);
+ const auto source=std::find_if(ahead.begin(),ahead.end(),[&](const auto& row){return row.signal==memory.stopped.signal;});
+ if(!fresh||!current||source==ahead.end()||!std::isfinite(source->position)||
+    std::abs(source->position-memory.stopped.position)>stopProofPositionToleranceM||
+    !stopProofAt(memory.stopped,*current,head,stopBeforeSignalMeters)){memory.stopped={};return;}
+ memory.stopped.head=std::max(memory.stopped.head,head);
+}
 inline void observeStop(Memory& memory,std::span<const Ahead> ahead,std::span<const NimbySignalDrivingRule> rules,
- double before,double after,double speed,int64_t ticks,bool fresh) {
+ double before,double after,double speed,int64_t ticks,bool fresh,
+ double stopBeforeSignalMeters=defaultStopBeforeSignalMeters) {
  if(!fresh||!std::isfinite(before)||!std::isfinite(after)||!std::isfinite(speed)||
-    speed<0||speed>0.001||after<before||after-before>1e-6){memory.stopped={};return;}
- if(memory.stopped.signal) {
-  const auto* current=rule(rules,memory.stopped.signal);
-  if(!current||!(current->flags&NIMBY_DRIVING_STOP_THEN_PROCEED)||after>memory.stopped.position+1e-6||
-     after<memory.stopped.position-1.0)memory.stopped={};
- }
+    speed<0||after<before){memory.stopped={};return;}
+ refreshStopProof(memory,ahead,rules,after,fresh,stopBeforeSignalMeters);
+ // Movement cannot create a stop, but it must not erase the measured stop
+ // before the head reaches the real panel. Fresh physical admission remains
+ // a separate requirement at every step of that approach.
+ if(speed>0.001||after-before>1e-6)return;
+ if(memory.stopped.signal)return; // Do not turn an admitted proof back into an initial measurement.
  for(const auto& signal:ahead)if(const auto* current=rule(rules,signal.signal))
-  if((current->flags&NIMBY_DRIVING_STOP_THEN_PROCEED)&&measuredStop(before,after,speed,ticks,signal.position))
-   memory.stopped={signal.signal,signal.position};
+  if((current->flags&NIMBY_DRIVING_STOP_THEN_PROCEED)&&
+     measuredStop(before,after,speed,ticks,signal.position,stopBeforeSignalMeters)){
+   memory.stopped=captureStopProof(*current,signal.position,after,stopBeforeSignalMeters);break;
+  }
 }
 inline bool restrictedEntry(const Memory& memory,const NimbySignalDrivingRule& instruction,
- double head,const SightClearance& clearance,bool fresh) {
+ double head,const SightClearance& clearance,bool fresh,
+ double stopBeforeSignalMeters=defaultStopBeforeSignalMeters) {
  if(!fresh||!valid(instruction)||!(instruction.flags&NIMBY_DRIVING_ON_SIGHT)||
     !clearance.verified||!std::isfinite(clearance.distanceM)||clearance.distanceM<=5||!std::isfinite(head))return false;
  if(instruction.flags&NIMBY_DRIVING_STOP_THEN_PROCEED)
-  return memory.stopped.signal==instruction.signal&&head>=memory.stopped.position-1.0&&head<=memory.stopped.position+1e-6;
+  return stopProofAt(memory.stopped,instruction,head,stopBeforeSignalMeters);
  return !(instruction.flags&NIMBY_DRIVING_STOP);
 }
 // Compute the response-time envelope without changing native state.
@@ -135,9 +167,16 @@ inline double cruiseCeiling(double native,double material,bool enabled,bool targ
  if(targetActive && (!std::isfinite(targetCeiling)||targetCeiling<0))return native;
  return targetActive?std::min(material,targetCeiling):material;
 }
-struct Plan {bool active=false;double ceiling=0;};
+struct Plan {
+ bool active=false;double ceiling=0;
+ // A real signal is retained for passage/release. The stopping point is only
+ // a distance relative to the current head, never a shifted signal boundary.
+ std::optional<double> signalStopDistanceM;
+ uint64_t stopSignal=0;
+};
 inline Plan plan(Memory& memory,std::span<const Ahead> ahead,std::span<const NimbySignalDrivingRule> rules,
- double head,double length,double vmax,double braking,bool fresh,const SightClearance& clearance={}){
+ double head,double length,double vmax,double braking,bool fresh,const SightClearance& clearance={},
+ double stopBeforeSignalMeters=defaultStopBeforeSignalMeters){
  if(!std::isfinite(head)||!std::isfinite(length)||length<=0||!std::isfinite(braking)||braking<=0||!std::isfinite(vmax)||vmax<=0)return {};
  if(head+0.01<memory.lastHead)memory={};
  const double previousHead=memory.lastHead;
@@ -158,11 +197,31 @@ inline Plan plan(Memory& memory,std::span<const Ahead> ahead,std::span<const Nim
  for(auto& target:memory.stops)if(target.cancelAt.signal)
   for(const auto& signal:ahead)if(signal.signal==target.cancelAt.signal){target.cancelAt=signal;break;}
  std::erase_if(memory.stops,[&](const auto& target){return visibleClear(target.cancelAt);});
- Plan result{false,vmax};
+ Plan result{false,vmax,{},0};
+ const double margin=signalStopMargin(stopBeforeSignalMeters);
+ refreshStopProof(memory,ahead,rules,head,fresh,margin);
+ if(memory.stopped.signal){
+  const bool admission=clearance.verified&&std::isfinite(clearance.distanceM)&&clearance.distanceM>5;
+  // The native permission callback may run AFTER a stopped integrator step.
+  // Retain an initial measurement while waiting for its first physical view;
+  // after admission, lost visibility requires a new measured stop instead.
+  if(memory.stopped.admitted&&!admission)memory.stopped={};
+  else if(admission)memory.stopped.admitted=true;
+ }
+ const auto applyTarget=[&](uint64_t signal,double speed,double position){
+  double distance=position-head;
+  if(speed==0){
+   distance=std::isfinite(distance)?std::max(0.0,distance-margin):0;
+   if(!result.signalStopDistanceM||distance<*result.signalStopDistanceM){
+    result.signalStopDistanceM=distance;result.stopSignal=signal;
+   }
+  }
+  result.active=true;result.ceiling=std::min(result.ceiling,envelope(speed,distance,braking));
+ };
  for(size_t i=0;i<ahead.size();++i){
   const auto& source=ahead[i];if(!indicationVisible(source.position,head))continue;
   const auto* r=rule(rules,source.signal);if(!r)continue;
-  if(!fresh){result.active=true;result.ceiling=std::min(result.ceiling,envelope(0,source.position-head,braking));continue;}
+  if(!fresh){applyTarget(source.signal,0,source.position);continue;}
   if((r->flags&NIMBY_DRIVING_CANCEL_AT_NEXT_CLEAR)&&i+1<ahead.size()&&visibleClear(ahead[i+1]))continue;
   if(r->speed_mps<0)continue;
   // A visible numeric announcement starts an approach to its TARGET panel.
@@ -172,7 +231,7 @@ inline Plan plan(Memory& memory,std::span<const Ahead> ahead,std::span<const Nim
   // Missing targets remain restrictive without fabricating persistent memory.
   const double position=targetIndex<ahead.size()?ahead[targetIndex].position:source.position;
   double speed=targetIndex<ahead.size()?r->speed_mps:0;
-  if(restrictedEntry(memory,*r,head,clearance,fresh))
+  if(restrictedEntry(memory,*r,head,clearance,fresh,margin))
    speed=(r->flags&NIMBY_DRIVING_STOP_THEN_PROCEED)?r->reopened_speed_mps:r->speed_mps;
   if((r->flags&NIMBY_DRIVING_FOLLOW_TARGET)&&targetIndex<ahead.size()) {
    const auto* targetRule=indicationVisible(position,head)?rule(rules,ahead[targetIndex].signal):nullptr;
@@ -180,7 +239,7 @@ inline Plan plan(Memory& memory,std::span<const Ahead> ahead,std::span<const Nim
    // In particular, another announcement or missing target cannot imply clear.
    speed=targetRule&&targetRule->signals_ahead==0&&targetRule->speed_mps>=0?targetRule->speed_mps:0;
   }
-  result.active=true;result.ceiling=std::min(result.ceiling,envelope(speed,position-head,braking));
+  applyTarget(targetIndex<ahead.size()?ahead[targetIndex].signal:source.signal,speed,position);
  }
  for(auto& stop:memory.stops){
   // Refresh positions from the actual native route, rather than moving the
@@ -209,10 +268,10 @@ inline Plan plan(Memory& memory,std::span<const Ahead> ahead,std::span<const Nim
    !(current->flags&(NIMBY_DRIVING_STOP|NIMBY_DRIVING_ON_SIGHT))&&
    (current->flags&(NIMBY_DRIVING_CLEAR|NIMBY_DRIVING_APPROACH_PASSABLE));
   result.active=true;
-  const double targetSpeed=current&&restrictedEntry(memory,*current,head,clearance,fresh)?
+  const double targetSpeed=current&&restrictedEntry(memory,*current,head,clearance,fresh,margin)?
    ((current->flags&NIMBY_DRIVING_STOP_THEN_PROCEED)?current->reopened_speed_mps:current->speed_mps):open?stop.reopenedSpeed:
    fresh&&current&&stop.followTarget&&current->signals_ahead==0&&current->speed_mps>=0?current->speed_mps:stop.speed;
-  result.ceiling=std::min(result.ceiling,envelope(targetSpeed,stop.position-head,braking));
+  applyTarget(stop.signal,targetSpeed,stop.position);
  }
  // After passage, keep the same approach curve to the announced location,
  // then the numeric ceiling. The source panel is not the speed-limit location.

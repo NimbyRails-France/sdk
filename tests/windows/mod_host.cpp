@@ -13,9 +13,22 @@
 #include <stdexcept>
 #include <thread>
 #include <limits>
+#include "allocation_fault_fixture.h"
 
 void advanceHostTestWall(uint64_t milliseconds) noexcept;
 void rejectHostTestCpuControl(bool reject) noexcept;
+bool hostTestMemoryDiagnosticContract();
+std::vector<std::string> hostTestMemoryDiagnostics(uint32_t child);
+uint32_t droppedHostTestMemoryDiagnostics() noexcept;
+void resetHostTestResourceDiagnostics() noexcept;
+std::vector<std::string> hostTestResourceDiagnostics(uint32_t child);
+uint32_t droppedHostTestResourceDiagnostics() noexcept;
+void armHostTestBatchLaunchFault()noexcept;
+namespace {std::size_t channelMappings();std::size_t batchFaultMappings{};}
+void armHostTestBatchAllocationFailure()noexcept{
+    batchFaultMappings=channelMappings();
+    allocation_fault_fixture::arm(0,2);
+}
 
 using namespace std::chrono_literals;
 #define CHECK(x) do { if(!(x)) throw std::runtime_error("line " + std::to_string(__LINE__) + ": " #x); } while(false)
@@ -187,11 +200,44 @@ struct IsolatedDiagnostics {
         CHECK(matching(child,"Mod watchdog context:").empty());
         std::cout<<line<<'\n';
     }
+    void verifyMemory(uint32_t child,uint64_t limit) const {
+        // Disk diagnostics are explicitly non-waiting and may be omitted under
+        // contention (including another CTest using the same module name).
+        // Verify the exact production emissions at the fixture seam instead;
+        // missing/extra events and bounded-recorder overflow still fail.
+        CHECK(droppedHostTestMemoryDiagnostics()==0);
+        const auto lines=hostTestMemoryDiagnostics(child);CHECK(lines.size()==2);
+        bool startup=false,exit=false;
+        for(const auto& line:lines){
+            CHECK(field(line,"memory_limit_bytes=")==limit);
+            CHECK(field(line,"shared_channel_bytes=")==sizeof(nimby::mod_host::Shared));
+            CHECK(field(line,"startup_physical_allowance_bytes=")==nimby::mod_host::startupPhysicalMemory);
+            CHECK(field(line,"job_sample=")==1&&field(line,"job_peak_private_bytes=")>0);
+            if(line.find("event=startup_ready")!=std::string::npos){
+                CHECK(!startup);startup=true;
+                CHECK(field(line,"memory_sample=")==1);
+                CHECK(field(line,"child_working_set_bytes=")>0&&field(line,"child_private_bytes=")>0);
+                CHECK(field(line,"child_private_bytes=")<limit);
+            }else{
+                CHECK(line.find("event=process_exit")!=std::string::npos&&!exit);exit=true;
+                CHECK(field(line,"exit_code=")==0);
+                // Exited processes may no longer expose their working set;
+                // the retained Job peak is the independent lifetime sample.
+            }
+            std::cout<<line<<'\n';
+        }
+        CHECK(startup&&exit);
+        std::cout<<"PASS startup/exit memory diagnostics distinguish measured RAM/private commit from the configured hard cap\n";
+    }
     void verifyRejections() const {
-        std::ifstream input(directory/"loader"/"nimby_mod_host_tests_exe.log");CHECK(input.good());
+        // The production disk sink may omit a channel's first rejection under
+        // contention/burst limiting, with no second emission for 30 seconds.
+        // Verify the exact host emissions before that sink, as for memory data.
+        CHECK(droppedHostTestResourceDiagnostics()==0);
+        const auto lines=hostTestResourceDiagnostics(0);
         std::map<uint64_t,unsigned> perChild;
         bool cpu=false,calls=false,bytes=false;
-        for(std::string line;std::getline(input,line);){
+        for(const auto& line:lines){
             if(line.find("Mod RPC resource limit:")==std::string::npos)continue;
             const auto field=[&](const char* key){const auto at=line.find(key);CHECK(at!=std::string::npos);return line.substr(at+std::char_traits<char>::length(key));};
             const auto child=std::stoull(field("child_pid="));CHECK(child&&child!=GetCurrentProcessId());
@@ -234,50 +280,98 @@ size_t channelMappings() {
 }
 void resourcePlans() {
     constexpr uint64_t gib=1024ull*1024*1024;
+    constexpr uint64_t mib=1024ull*1024;
+    constexpr uint64_t granularity=64ull*1024;
     constexpr uint64_t overhead=sizeof(nimby::mod_host::Shared)+2ull*nimby::mod_host::payloadLimit;
+    using nimby::mod_host::ResourceAdmission;
+    using nimby::mod_host::ResourcePlan;
+    using nimby::mod_host::planResources;
+    ResourcePlan report;
     for(const auto processors:{2u,8u,24u,64u})for(const auto count:{1u,3u,4u,16u,32u}){
         nimby::mod_host::LaunchOptions options;
-        CHECK(nimby::mod_host::planResources(count,processors,64*gib,40*gib,options));
+        CHECK(planResources(count,processors,64*gib,40*gib,40*gib,options,&report));
         CHECK(options.cpuRate*count<=2500);
         CHECK(options.cpuRate<=10000/processors);
         CHECK(options.memoryLimit>=nimby::mod_host::minimumPrivateMemory&&options.memoryLimit<=gib);
-        CHECK((options.memoryLimit+overhead)*count<=16*gib);
+        CHECK((options.memoryLimit+overhead)*count<=report.commitBudget);
+        CHECK(report.commitBudget<=16*gib&&report.commitBudget<=40*gib/2);
+        CHECK(report.requiredPhysicalBudget<=report.physicalBudget);
+        CHECK(report.physicalBudget<=16*gib&&report.physicalBudget<=40*gib/2);
+        CHECK(options.memoryLimit%granularity==0);
         CHECK(options.rpcCallsPerSecond*count<=6000&&options.rpcCallsPerSecond<=1500);
         CHECK(options.rpcCallBurst*count<=1024);
         CHECK(options.rpcBytesPerSecond*count<=128ull*1024*1024);
         CHECK(options.brokerCpuFraction*count<=double(processors)*0.05+0.00001);
     }
     nimby::mod_host::LaunchOptions constrained;
-    CHECK(nimby::mod_host::planResources(3,24,32*gib,4*gib,constrained));
+    CHECK(planResources(3,24,32*gib,4*gib,4*gib,constrained));
     CHECK(constrained.memoryLimit<gib&&constrained.cpuRate==10000/24);
-    CHECK(!nimby::mod_host::planResources(16,24,32*gib,4*gib,constrained));
-    CHECK(!nimby::mod_host::planResources(0,24,32*gib,4*gib,constrained));
-    CHECK(!nimby::mod_host::planResources(33,24,32*gib,32*gib,constrained));
-    CHECK(!nimby::mod_host::planResources(1,24,32*gib,128*1024*1024,constrained));
-    // Reproduce the user's launch: four mods and 2305 MiB available. The old
-    // 256 MiB minimum rejected the batch even though each could receive ~240.
-    nimby::mod_host::ResourcePlan report;
-    constexpr uint64_t mib=1024ull*1024;
-    CHECK(nimby::mod_host::planResources(4,24,32*gib,2305*mib,constrained,&report));
-    CHECK(report.admission==nimby::mod_host::ResourceAdmission::Accepted);
+    CHECK(!planResources(16,24,32*gib,4*gib,4*gib,constrained));
+    CHECK(!planResources(0,24,32*gib,4*gib,4*gib,constrained,&report));
+    CHECK(report.admission==ResourceAdmission::InvalidCount);
+    CHECK(!planResources(33,24,32*gib,32*gib,32*gib,constrained));
+    // Preserve the earlier four-mod regression: equal physical/commit
+    // availability still produces the same ~240 MiB private hard cap.
+    CHECK(planResources(4,24,32*gib,2305*mib,2305*mib,constrained,&report));
+    CHECK(report.admission==ResourceAdmission::Accepted);
     CHECK(constrained.memoryLimit>=239*mib&&constrained.memoryLimit<241*mib);
     CHECK((constrained.memoryLimit+overhead)*4<=2305*mib/2);
-    CHECK(report.privatePerMod==constrained.memoryLimit&&report.budget==2305*mib/2);
-    CHECK(constrained.memoryLimit%(64*1024)==0);
-    const auto required=4*(overhead+nimby::mod_host::minimumPrivateMemory);
-    CHECK(nimby::mod_host::planResources(4,24,32*gib,2*required,constrained,&report));
+    CHECK(report.privatePerMod==constrained.memoryLimit&&report.commitBudget==2305*mib/2);
+    // Exact latest failed launch, 2026-10-09T20:38:44Z: the old plan treated
+    // each 192 MiB commit allowance as RAM already allocated. Separate
+    // startup RAM and commit checks admit this batch without lifting a cap.
+    constexpr uint64_t totalPhysical=33737986048ull;
+    constexpr uint64_t availablePhysical=1578536960ull;
+    constexpr uint64_t availableCommit=14560391168ull;
+    CHECK(planResources(4,24,totalPhysical,availablePhysical,availableCommit,constrained,&report));
+    CHECK(report.admission==ResourceAdmission::Accepted);
+    CHECK(report.physicalBudget==availablePhysical/2&&report.requiredPhysicalBudget<=report.physicalBudget);
+    CHECK(report.commitBudget==availableCommit/2&&report.requiredCommitBudget<=report.commitBudget);
+    CHECK(report.requiredCommitBudget>report.physicalBudget); // This alone is no longer a RAM rejection.
+    CHECK(constrained.memoryLimit==gib);
+    CHECK((constrained.memoryLimit+overhead)*4<=report.commitBudget);
+    CHECK(report.budget==report.commitBudget&&report.requiredBudget==report.requiredCommitBudget);
+    const auto requiredPhysical=4*(overhead+nimby::mod_host::startupPhysicalMemory);
+    const auto requiredCommit=4*(overhead+nimby::mod_host::minimumPrivateMemory);
+    CHECK(planResources(4,24,32*gib,2*requiredPhysical,2*requiredCommit,constrained,&report));
+    CHECK(report.physicalBudget==requiredPhysical&&report.commitBudget==requiredCommit);
     CHECK(constrained.memoryLimit==nimby::mod_host::minimumPrivateMemory);
     const auto previous=constrained;
-    CHECK(!nimby::mod_host::planResources(4,24,32*gib,2*required-1,constrained,&report));
-    CHECK(report.admission==nimby::mod_host::ResourceAdmission::MemoryBudget&&report.requiredBudget==required);
+    // The legacy Options report receives the actual failed pair, not the
+    // healthy sibling envelope. Rejections must not mutate launch options.
+    CHECK(!planResources(4,24,32*gib,2*requiredPhysical-1,32*gib,constrained,&report));
+    CHECK(report.admission==ResourceAdmission::PhysicalMemoryBudget);
+    CHECK(report.budget==report.physicalBudget&&report.requiredBudget==requiredPhysical);
     CHECK(constrained.memoryLimit==previous.memoryLimit&&constrained.cpuRate==previous.cpuRate);
-    CHECK(!nimby::mod_host::planResources(4,24,4*required-1,32*gib,constrained,&report));
-    CHECK(report.admission==nimby::mod_host::ResourceAdmission::MemoryBudget);
-    CHECK(!nimby::mod_host::planResources(4,0,32*gib,32*gib,constrained,&report));
-    CHECK(report.admission==nimby::mod_host::ResourceAdmission::NoProcessors);
-    CHECK(!nimby::mod_host::planResources(4,10001,32*gib,32*gib,constrained,&report));
-    CHECK(report.admission==nimby::mod_host::ResourceAdmission::CpuBudget);
-    std::cout<<"PASS resource reservations: fixed fair shares, CPU/memory/RPC aggregate bounds and low-memory admission rejection\n";
+    CHECK(!planResources(4,24,32*gib,32*gib,2*requiredCommit-1,constrained,&report));
+    CHECK(report.admission==ResourceAdmission::CommitMemoryBudget);
+    CHECK(report.budget==report.commitBudget&&report.requiredBudget==requiredCommit);
+    CHECK(constrained.memoryLimit==previous.memoryLimit&&constrained.cpuRate==previous.cpuRate);
+    CHECK(!planResources(4,24,32*gib,128*mib,32*gib,constrained,&report));
+    CHECK(report.admission==ResourceAdmission::PhysicalMemoryBudget);
+    CHECK(!planResources(4,24,32*gib,32*gib,128*mib,constrained,&report));
+    CHECK(report.admission==ResourceAdmission::CommitMemoryBudget);
+    CHECK(!planResources(4,24,4*requiredPhysical-1,32*gib,32*gib,constrained,&report));
+    CHECK(report.admission==ResourceAdmission::PhysicalMemoryBudget);
+    CHECK(!planResources(4,24,4*requiredCommit-1,32*gib,32*gib,constrained,&report));
+    CHECK(report.admission==ResourceAdmission::CommitMemoryBudget);
+    // Shares just below the next 64 KiB step round down; neither the applied
+    // private cap nor the aggregate reservation exceeds the commit budget.
+    const auto roundedBudget=requiredCommit+4*(2*granularity-1);
+    CHECK(planResources(4,24,32*gib,32*gib,2*roundedBudget,constrained,&report));
+    CHECK(constrained.memoryLimit==nimby::mod_host::minimumPrivateMemory+granularity);
+    CHECK((constrained.memoryLimit+overhead)*4<=report.commitBudget);
+    const auto largest=std::numeric_limits<uint64_t>::max();
+    CHECK(planResources(32,24,largest,largest,largest,constrained,&report));
+    CHECK(constrained.memoryLimit==gib&&report.commitBudget==largest/4);
+    CHECK(report.requiredPhysicalBudget==32*(overhead+nimby::mod_host::startupPhysicalMemory));
+    CHECK(!planResources(std::numeric_limits<size_t>::max(),24,largest,largest,largest,constrained,&report));
+    CHECK(report.admission==ResourceAdmission::InvalidCount&&report.requiredCommitBudget==0);
+    CHECK(!planResources(4,0,32*gib,32*gib,32*gib,constrained,&report));
+    CHECK(report.admission==ResourceAdmission::NoProcessors);
+    CHECK(!planResources(4,10001,32*gib,32*gib,32*gib,constrained,&report));
+    CHECK(report.admission==ResourceAdmission::CpuBudget);
+    std::cout<<"PASS separate startup RAM and private commit admission: exact four-mod launch, failed Options bound, rounding/overflow and CPU/RPC aggregate caps\n";
 }
 void rejectedBatch() {
     const auto directory=std::filesystem::temp_directory_path()/(L"nimby-host-admission-"+std::to_wstring(GetCurrentProcessId()));
@@ -318,6 +412,37 @@ void rejectedCpuControl(const std::filesystem::path& exe,const std::filesystem::
     CHECK(handlesAfter<=handlesBefore);
     CHECK(fixture::get(0).calls==0);
     std::cout<<"PASS unavailable CPU hard cap rejects mod launch and releases the unstarted channel\n";
+}
+void allocationFailedBatch(const std::filesystem::path& fixtures){
+    const auto temporary=std::filesystem::canonical(std::filesystem::temp_directory_path());
+    const auto directory=temporary/(L"nimby-host-batch-oom-"+std::to_wstring(GetCurrentProcessId()));
+    CHECK(directory.is_absolute()&&directory.parent_path()==temporary&&std::filesystem::create_directory(directory));
+    struct Cleanup{
+        std::filesystem::path path;
+        ~Cleanup(){std::error_code error;
+            for(unsigned i=0;i<2;++i){const auto child=path/std::to_string(i);
+                std::filesystem::remove(child/"host_fixture_0.dll",error);std::filesystem::remove(child/"nrf-mod.ini",error);
+                std::filesystem::remove(child,error);}
+            std::filesystem::remove(path,error);}
+    }cleanup{directory};
+    for(unsigned i=0;i<2;++i){const auto child=directory/std::to_string(i);CHECK(std::filesystem::create_directory(child));
+        CHECK(std::filesystem::copy_file(fixtures/L"host_fixture_0.dll",child/L"host_fixture_0.dll"));
+        std::ofstream manifest(child/"nrf-mod.ini");manifest<<"[NRFMod]\nlibrary=host_fixture_0.dll\n";
+    }
+    const auto before=channelMappings();unsigned cleanedBefore{};
+    {std::lock_guard lock(fixture::mutex);cleanedBefore=fixture::cleaned;}
+    armHostTestBatchLaunchFault();
+    const auto rejected=NimbyInternal_StartModHosts(directory.c_str());
+    const auto failures=allocation_fault_fixture::stop();
+    CHECK(failures.failures==2&&batchFaultMappings==before+2);
+    CHECK(rejected==NIMBY_RESOURCE_LIMIT&&channelMappings()==before);
+    {std::lock_guard lock(fixture::mutex);CHECK(fixture::cleaned==cleanedBefore+1&&fixture::active.empty());fixture::stats.erase(0);}
+    // A fresh launch must really start a child, not report a stale batch owner.
+    CHECK(std::filesystem::remove(directory/L"1"/L"nrf-mod.ini"));
+    CHECK(NimbyInternal_StartModHosts(directory.c_str())==NIMBY_OK);
+    CHECK(fixture::wait(0,4));CHECK(NimbyInternal_StopModHosts()==NIMBY_OK&&channelMappings()==before);
+    {std::lock_guard lock(fixture::mutex);CHECK(fixture::active.empty());fixture::stats.erase(0);fixture::cleaned=cleanedBefore;}
+    std::cout<<"PASS double launch/diagnostic OOM: started child/channel retired before diagnostic; real same-directory restart succeeds\n";
 }
 constexpr bool unsupportedWineCpuControl(bool wine,DWORD error) noexcept {
     return wine&&error==ERROR_INVALID_PARAMETER;
@@ -466,14 +591,18 @@ int wmain(int argc,wchar_t** argv) {
     // fixture directory. Faulty DLLs can never accidentally start in the parent.
     if(argc==8)return nimby::mod_host::runChild(argc,argv);
     try {
-        CHECK(argc==2||argc==3);IsolatedDiagnostics diagnostics;resourcePlans();rejectedBatch();const std::filesystem::path directory=argv[1];const auto exe=executable();
+        CHECK(argc==2||argc==3);CHECK(hostTestMemoryDiagnosticContract());resetHostTestResourceDiagnostics();
+        IsolatedDiagnostics diagnostics;resourcePlans();rejectedBatch();const std::filesystem::path directory=argv[1];const auto exe=executable();
         watchdogDeadlines();cpuControlSkipPolicy();rejectedCpuControl(exe,directory);
         if(argc==3&&std::wstring_view(argv[2])==L"--resource-rejection")return 0;
         if(!jobCpuControlAvailable())return 77;
         if(argc==3&&std::wstring_view(argv[2])==L"--watchdog-resume") {watchdogResume(exe,directory);return 0;}
+        allocationFailedBatch(directory);
+        if(argc==3&&std::wstring_view(argv[2])==L"--batch-oom")return 0;
         nimby::mod_host::LaunchOptions options;options.targetPid=GetCurrentProcessId();
         SYSTEM_INFO machine{};GetSystemInfo(&machine);
-        CHECK(nimby::mod_host::planResources(4,machine.dwNumberOfProcessors,32ull*1024*1024*1024,2305ull*1024*1024,options));
+        CHECK(nimby::mod_host::planResources(4,machine.dwNumberOfProcessors,32ull*1024*1024*1024,
+            2305ull*1024*1024,2305ull*1024*1024,options));
         options.startupTimeoutMs=1200;options.callbackTimeoutMs=350;options.shutdownTimeoutMs=300;
         const auto originalMappings=channelMappings();
         // An optional retained pre-change DLL exercises real legacy modules
@@ -575,15 +704,18 @@ int wmain(int argc,wchar_t** argv) {
         {
             const auto prior=fixture::get(0);
             nimby::mod_host::Worker offender(exe,directory/L"host_fixture_13.dll",options);
-            CHECK(fixture::wait(13,1));CHECK(fixture::wait(0,prior.calls+32));
+            CHECK(fixture::wait(13,1));CHECK(fixture::wait(13,2));
+            CHECK(fixture::get(13).throttled>10);
+            CHECK(fixture::wait(0,prior.calls+32));
             offender.requestStop();CHECK(waitFinished(offender));offender.join();
-            CHECK(offender.outcome()=="stopped"&&fixture::get(13).throttled>10);CHECK(!healthy.finished());
+            CHECK(offender.outcome()=="stopped");CHECK(fixture::get(13).throttled>10);CHECK(!healthy.finished());
             std::cout<<"PASS oversized malformed requests consume admission quota before validation\n";
         }
         actionWakeProcesses(exe,directory,options);
         healthy.requestStop();CHECK(waitFinished(healthy));healthy.join();checkExited(healthy.pid());
         CHECK(channelMappings()==originalMappings);
         CHECK(healthy.outcome()=="stopped");
+        diagnostics.verifyMemory(healthy.pid(),options.memoryLimit);
         {std::lock_guard lock(fixture::mutex);CHECK(fixture::active.empty()&&fixture::cleaned==19);}
         diagnostics.verifyRejections();
         std::cout<<"PASS real child processes: native crash, startup/callback/shutdown hangs, uncaught exception, RPC flood, parent/healthy progress and scoped cleanup\n";

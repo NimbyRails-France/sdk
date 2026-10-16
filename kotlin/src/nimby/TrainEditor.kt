@@ -5,7 +5,9 @@ package nimby
  * Déclarer avec [ToolModBuilder.trainEditor]. La déclaration est immuable :
  * elle ne crée ni fenêtre, ni service, ni callback périodique. Les messages
  * appartiennent au mod et suivent la langue du jeu via [tr]. Le SDK ajoute
- * séparément les longueurs mesurées et la limite aux refus de dépassement. */
+ * séparément les longueurs mesurées et la limite aux refus de dépassement.
+ * Les libellés facultatifs de [TrainEditorBuilder.maximumLength] activent
+ * aussi l'affichage permanent de la longueur actuelle dans l'éditeur. */
 class TrainEditor internal constructor(val maximumLength: TrainLengthLimit)
 
 /** Configuration exécutée une seule fois lors de la création du mod. */
@@ -18,15 +20,28 @@ class TrainEditorBuilder internal constructor() {
      * [ToolModBuilder.options]. Le mod choisit la valeur par défaut.
      * Les trois messages sont obligatoires : texte fixe ou [tr] sans paramètres.
      * Les traductions sont résolues par le SDK à l'affichage, sans appeler le mod.
-     * Une baisse de la limite ne raccourcit pas les trains existants. */
+     * Une baisse de la limite ne raccourcit pas les trains existants.
+     *
+     * [currentLength], [proposedLength] et [currentLengthUnavailable] sont
+     * facultatifs, mais doivent être déclarés ensemble. Ils affichent la longueur
+     * de la composition actuelle, distinguent celle d'un ajout refusé et expliquent
+     * une mesure indisponible. Utiliser des textes fixes ou [tr] sans paramètres :
+     * le SDK ajoute les mètres et la limite, puis actualise le compteur après les
+     * modifications, y compris les retraits. Aucun callback du mod n'est nécessaire. */
     fun maximumLength(
         meters: IntegerOption,
         exceeded: String,
         lengthUnavailable: String,
         verificationUnavailable: String,
+        currentLength: String? = null,
+        proposedLength: String? = null,
+        currentLengthUnavailable: String? = null,
     ) {
         require(declaredMaximumLength == null) { "Limite de longueur des trains déjà déclarée" }
-        declaredMaximumLength = TrainLengthLimit(meters, exceeded, lengthUnavailable, verificationUnavailable)
+        declaredMaximumLength = TrainLengthLimit(
+            meters, exceeded, lengthUnavailable, verificationUnavailable,
+            currentLength, proposedLength, currentLengthUnavailable,
+        )
     }
 
     internal fun build(): TrainEditor = TrainEditor(requireNotNull(declaredMaximumLength) {

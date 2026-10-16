@@ -4,6 +4,24 @@
 #include <span>
 
 namespace nimby::engine::automatic {
+// User preference for an SDK signal stop, in route metres. Invalid persisted
+// values use the normal 3 m clearance; this is separate from obstacle margins.
+inline constexpr double defaultStopBeforeSignalMeters=3.0;
+inline constexpr double maximumStopBeforeSignalMeters=100.0;
+// Absolute route positions are rebuilt as head + native section distances.
+// This metre tolerance accepts arithmetic rounding, never a moved panel.
+inline constexpr double stopProofPositionToleranceM=1e-6;
+inline double signalStopMargin(double metres) {
+ return std::isfinite(metres)&&metres>=0&&metres<=maximumStopBeforeSignalMeters?
+  metres:defaultStopBeforeSignalMeters;
+}
+inline bool atSignalStop(double head,double signalPosition,
+ double stopBeforeSignalMeters=defaultStopBeforeSignalMeters) {
+ // Keep accepting a train already waiting closer to the real signal. Never
+ // accept a train which passed it, or one stopped before the approach window.
+ return std::isfinite(head)&&std::isfinite(signalPosition)&&
+  head<=signalPosition+1e-6&&signalPosition-head<=signalStopMargin(stopBeforeSignalMeters)+1.0;
+}
 // Distances follow the train's established route. Fractions are only used to
 // project a physical footprint onto a section whose native metric is known.
 struct SightSection {
@@ -42,7 +60,15 @@ struct RestrictedMode {
  uint64_t source=0,endSignal=0;
  double start=0,end=0,speed=0;
 };
-struct StopProof {uint64_t signal=0;double position=0;};
+// A measured stop remains evidence during the short approach from the chosen
+// stopping point to the real signal. Bind it to the exact received instruction
+// and monotone head progress; it is not a reusable permission for another rule.
+struct StopProof {
+ uint64_t signal=0;
+ double position=0,head=0,speed=-1,reopenedSpeed=0;
+ uint32_t signalsAhead=0,flags=0;
+ bool admitted=false;
+};
 // A train already waiting when a mod starts may not call the motion integrator.
 // Observe two native waiting samples separated by actual simulation time.
 struct WaitingSample {uint64_t signal=0;double head=0;int64_t ticks=-1;};
@@ -65,10 +91,11 @@ template<class Clear> double clearPrefix(Clear&& clear) {
  }
  return low;
 }
-inline bool measuredStop(double before,double after,double speed,int64_t ticks,double signalPosition) {
+inline bool measuredStop(double before,double after,double speed,int64_t ticks,double signalPosition,
+ double stopBeforeSignalMeters=defaultStopBeforeSignalMeters) {
  return ticks>0&&std::isfinite(before)&&std::isfinite(after)&&std::isfinite(speed)&&
   std::isfinite(signalPosition)&&speed>=0&&speed<=0.001&&std::abs(after-before)<=1e-6&&
-  signalPosition>=after-1e-6&&signalPosition-after<=1.0;
+   atSignalStop(after,signalPosition,stopBeforeSignalMeters);
 }
 // A bound, not a demanded speed. Missing visibility and a train inside the
 // stopping margin both yield zero. National speed values are supplied by mods.

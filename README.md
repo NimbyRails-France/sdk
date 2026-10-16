@@ -6,8 +6,17 @@ suspendus ; les dossiers de plateforme sont conservés. Le SDK fournit les obser
 le contrat de chargement. Les règles de signalisation et les ressources restent
 dans les mods.
 
-Cette branche développe la version **0.9.0-alpha.3**. Un paquet construit localement
+Cette branche développe la version **0.9.0-alpha.4**. Un paquet construit localement
 n'est pas une release publiée.
+
+Pour essayer le travail courant avec un autre développeur :
+[tester la branche master et son kit correspondant](docs/testing-master.md).
+
+L'orientation retenue le 16 octobre conserve les réservations et les contrôles
+natifs du jeu. Le SDK fournit observations, consignes de conduite, suivi des
+passages et du dégagement arrière, ainsi que les diagnostics communs. Le projet
+de remplacement global des réservations est abandonné ; ses prototypes restent
+des travaux de recherche hors jeu. Voir [le contrat des cantons](docs/blocks.md).
 
 La documentation des créateurs de mods est désormais maintenue dans le
 [wiki officiel — édition 0.9](https://wiki-dev.nimbyrails-france.fr/version/0.9) : parcours débutant, exemples compilables,
@@ -59,6 +68,10 @@ trainEditor {
         exceeded = tr("composition.lengthExceeded"),
         lengthUnavailable = tr("composition.lengthUnavailable"),
         verificationUnavailable = tr("composition.verificationUnavailable"),
+        // Optional: declare all three labels to show the current length.
+        currentLength = tr("composition.currentLength"),
+        proposedLength = tr("composition.proposedLength"),
+        currentLengthUnavailable = tr("composition.currentLengthUnavailable"),
     )
 }
 ```
@@ -66,14 +79,27 @@ trainEditor {
 Ce code se place dans le bloc `toolMod(modInfo) { ... }`. Les trois messages
 doivent être définis dans `assets/translations.json` ; utiliser `tr("clé")`
 sans paramètres. Le mod choisit la valeur par défaut, ici 850 mètres.
-Le SDK affiche séparément la longueur proposée et la limite active.
+Les trois derniers libellés, facultatifs mais à déclarer ensemble, activent un
+compteur permanent. Le SDK affiche la longueur actuelle et la limite active ;
+un ajout refusé conserve sa longueur proposée dans une indication distincte.
+Le compteur se met à jour à l'affichage suivant après un ajout ou un retrait.
+Une composition illisible affiche le libellé d'indisponibilité, jamais une somme
+partielle. Définir aussi ces trois clés dans les traductions.
+Cette évolution locale demande un kit et un SDK d'exécution actualisés ensemble ;
+le kit 0.9.0-alpha.3 déjà publié ne contient pas ces paramètres.
 
 The mod declares its composition rule and rejection messages with `trainEditor`.
 Register the same `IntegerOption` instance in `options(...)` and `maximumLength(...)`.
 Define all three message keys in `assets/translations.json` and use `tr("key")`
 without arguments. The SDK checks changes and resolves messages in the game's
 language; the mod needs no periodic callback. The mod chooses the default limit,
-850 metres in this example, and the SDK displays measured lengths separately.
+850 metres in this example. The final three labels are optional and must be
+declared together to enable the permanent counter. Define those translation
+keys as well. Current length updates on the next repaint after an addition or
+removal; a refused candidate is shown separately. Unreadable compositions show
+the unavailable label, never a partial sum. This unpublished addition requires
+a matching updated developer kit and runtime SDK; the published alpha.3 kit does
+not include these parameters.
 
 ## Choisir le bon kit
 
@@ -95,6 +121,26 @@ déclarées explicitement. Voir la [politique de compatibilité](docs/sdk-versio
 Les captures sont immuables, mais leurs lectures ne sont pas atomiques.
 Une donnée absente ne vaut ni zéro ni voie libre. Les réservations, occupations,
 itinéraires et indications restent distincts.
+
+Le noyau expérimental d'enclenchement est testé sur des fixtures ; il ne
+remplace pas les réservations natives. Le diagnostic privé
+`NRF_INTERLOCKING_SHADOW=1`, désactivé par défaut, copie l'inventaire complet
+des trains et un corps de rame courant sous une propriété exclusive qualifiée.
+Cette photographie ne prouve ni la progression entre deux captures ni le
+dégagement d'un bail après le passage de la queue. Les hooks d'admission
+finale conservent les refus natifs et les veto des scripts ; ils n'activent
+aucune autorité centrale autonome. Ces raccordements locaux restent à
+vérifier en partie. Voir l'[état de reprise et les résultats
+locaux](docs/research/sdk-route-reservations.md).
+
+The experimental interlocking core is fixture-tested; it does not replace
+native reservations. The private `NRF_INTERLOCKING_SHADOW=1` diagnostic,
+disabled by default, copies the complete train inventory and one current
+consist body under qualified exclusive ownership. That snapshot proves
+neither progress between captures nor lease clearance after the rear passes.
+Final-admission hooks preserve native refusals and script vetoes; they do not
+activate an autonomous central authority. These local integrations still
+require live-game validation.
 
 Les interfaces sous `nimby/detail` et les transports natifs sont privés.
 Les adaptations au binaire du jeu restent expérimentales ; le SDK ne prétend

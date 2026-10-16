@@ -22,6 +22,17 @@ class TrainLengthLimitAccess(mod: GameMod) {
             else -> limit.verificationUnavailable
         }
     }
+    /** Opt-in privé à l'ABI du compteur ; les déclarations antérieures restent inchangées. */
+    val hasLengthDisplay: Boolean get() = declaration?.currentLength != null
+    fun lengthLabel(index: Int): String {
+        require(index in 0..2) { "Indice de libellé de longueur invalide" }
+        val limit = declaration ?: return ""
+        return when (index) {
+            0 -> limit.currentLength
+            1 -> limit.proposedLength
+            else -> limit.currentLengthUnavailable
+        } ?: ""
+    }
     // Explicit declaration, rather than guessing whether a lambda does work.
     // Custom subclasses keep the conservative existing callback lifecycle.
     val hasTickCallback: Boolean = (mod as? ToolMod)?.hasTickCallback ?: true

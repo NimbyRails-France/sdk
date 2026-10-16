@@ -26,7 +26,7 @@ struct Handle {
     Handle(const Handle&)=delete; Handle& operator=(const Handle&)=delete;
 };
 void require(bool condition,const char* message){if(!condition)throw std::runtime_error(message);}
-std::filesystem::path sdkDirectory(){return detail::native::modulePath(reinterpret_cast<void*>(&NimbyInternal_ModHostTarget)).parent_path();}
+[[maybe_unused]] std::filesystem::path sdkDirectory(){return detail::native::modulePath(reinterpret_cast<void*>(&NimbyInternal_ModHostTarget)).parent_path();}
 void log(std::string_view message,const char* level="INFO") noexcept {
     try {const std::string text(message);detail::diagnostics::write("loader",level,text.c_str());}catch(...){}
 }
@@ -132,27 +132,36 @@ double threadCpuMilliseconds() noexcept {
 }
 
 bool planResources(size_t count,uint32_t processors,uint64_t totalPhysical,
-                   uint64_t availableMemory,LaunchOptions& options,ResourcePlan* report) noexcept {
+                   uint64_t availablePhysical,uint64_t availableCommit,
+                   LaunchOptions& options,ResourcePlan* report) noexcept {
     ResourcePlan plan;
     const auto finish=[&](ResourceAdmission admission){plan.admission=admission;if(report)*report=plan;return admission==ResourceAdmission::Accepted;};
     if(!count||count>32)return finish(ResourceAdmission::InvalidCount);
     if(!processors)return finish(ResourceAdmission::NoProcessors);
-    // Reserve the mapped mailbox and simultaneous private request/reply copies
-    // as well as the child's commit limit. These are admission reservations,
-    // not a promise that every other SDK/game allocation fits this envelope.
+    // Count the mailbox and simultaneous private request/reply copies in both
+    // envelopes. A process's private-commit cap is not its resident RAM use:
+    // check startup RAM separately instead of rejecting all mods as though
+    // every child had already allocated its full minimum commit allowance.
     plan.overheadPerMod=sizeof(Shared)+2ull*payloadLimit;
-    plan.budget=std::min(totalPhysical/4,availableMemory/2);
-    plan.requiredBudget=count*(plan.overheadPerMod+minimumPrivateMemory);
-    if(plan.budget<plan.requiredBudget)return finish(ResourceAdmission::MemoryBudget);
-    // Keep the same aggregate envelope and per-process hard caps. A 256 MiB
-    // admission floor rejected four lightweight mods despite ~240 MiB of
-    // private allowance each. 192 MiB is the lower admission bound; the full
-    // remaining equal share is still assigned, never just that minimum.
+    plan.physicalBudget=std::min(totalPhysical/4,availablePhysical/2);
+    plan.requiredPhysicalBudget=count*(plan.overheadPerMod+startupPhysicalMemory);
+    plan.commitBudget=std::min(totalPhysical/4,availableCommit/2);
+    plan.requiredCommitBudget=count*(plan.overheadPerMod+minimumPrivateMemory);
+    plan.budget=plan.commitBudget;plan.requiredBudget=plan.requiredCommitBudget;
+    if(plan.physicalBudget<plan.requiredPhysicalBudget){
+        plan.budget=plan.physicalBudget;plan.requiredBudget=plan.requiredPhysicalBudget;
+        return finish(ResourceAdmission::PhysicalMemoryBudget);
+    }
+    if(plan.commitBudget<plan.requiredCommitBudget)return finish(ResourceAdmission::CommitMemoryBudget);
+    // Both admission envelopes leave at least half of the corresponding
+    // availability outside the plan. The private cap remains 192 MiB..1 GiB
+    // per process, within a fixed aggregate commit envelope. These are policy
+    // allowances, not reserved RAM or a guarantee against later paging.
     // Job limits are page-granular. Round down to a 64 KiB boundary (also a
     // multiple of Windows x64 pages) so the actual cap cannot exceed this
     // worker's share and querying the applied JobObject returns the same cap.
     constexpr uint64_t granularity=64ull*1024;
-    plan.privatePerMod=std::min<uint64_t>(1024ull*1024*1024,plan.budget/count-plan.overheadPerMod)/granularity*granularity;
+    plan.privatePerMod=std::min<uint64_t>(1024ull*1024*1024,plan.commitBudget/count-plan.overheadPerMod)/granularity*granularity;
     auto candidate=options;
     candidate.memoryLimit=static_cast<size_t>(plan.privatePerMod);
     candidate.cpuRate=std::min<uint32_t>(10000/std::max<uint32_t>(2,processors),2500/static_cast<uint32_t>(count));
@@ -172,6 +181,7 @@ struct Worker::Impl {
     Owners owners;
     std::thread supervisor;
     std::atomic<bool> done{false};
+    bool startupMemoryReported=false;
     mutable std::mutex stateMutex;
     std::string result="starting",name;
     DWORD childPid{};
@@ -187,6 +197,26 @@ struct Worker::Impl {
     ~Impl(){if(shared)UnmapViewOfFile(shared);}
     void record(std::string_view text) noexcept {
         try {std::lock_guard lock(stateMutex);result=text;log("Mod host "+name+": "+result);}catch(...){}
+    }
+    void reportMemory(const char* event,DWORD exitCode=STILL_ACTIVE) noexcept {
+        // One startup and one exit sample per worker, not per callback/RPC.
+        // Working set includes mapped/shared pages and must not be added to
+        // PrivateUsage as if both were independent private allocations.
+        PROCESS_MEMORY_COUNTERS_EX memory{};memory.cb=sizeof memory;
+        const bool haveMemory=K32GetProcessMemoryInfo(process.value,reinterpret_cast<PROCESS_MEMORY_COUNTERS*>(&memory),sizeof memory)!=0;
+        JOBOBJECT_EXTENDED_LIMIT_INFORMATION applied{};
+        const bool haveJob=QueryInformationJobObject(job.value,JobObjectExtendedLimitInformation,&applied,sizeof applied,nullptr)!=0;
+        char message[1024]{};
+        std::snprintf(message,sizeof message,
+            "Mod memory sample: event=%s mod=%.240s child_pid=%lu exit_code=%lu memory_sample=%u "
+            "child_working_set_bytes=%llu child_peak_working_set_bytes=%llu child_private_bytes=%llu child_peak_private_bytes=%llu "
+            "job_sample=%u job_peak_private_bytes=%llu memory_limit_bytes=%llu shared_channel_bytes=%llu startup_physical_allowance_bytes=%llu",
+            event,name.c_str(),static_cast<unsigned long>(childPid),static_cast<unsigned long>(exitCode),unsigned(haveMemory),
+            static_cast<unsigned long long>(memory.WorkingSetSize),static_cast<unsigned long long>(memory.PeakWorkingSetSize),
+            static_cast<unsigned long long>(memory.PrivateUsage),static_cast<unsigned long long>(memory.PeakPagefileUsage),unsigned(haveJob),
+            static_cast<unsigned long long>(applied.PeakProcessMemoryUsed),static_cast<unsigned long long>(options.memoryLimit),
+            static_cast<unsigned long long>(sizeof(Shared)),static_cast<unsigned long long>(startupPhysicalMemory));
+        detail::diagnostics::write("loader","INFO",message);
     }
     void reportWork(const char* prefix,const char* cause,const WorkDiagnostic& work,uint64_t now) noexcept {
         PROCESS_MEMORY_COUNTERS_EX memory{};memory.cb=sizeof memory;
@@ -308,6 +338,9 @@ struct Worker::Impl {
                 if(wait==WAIT_FAILED){record("supervision failed");TerminateJobObject(job.value,NIMBY_INTERNAL_ERROR);break;}
                 if(wait==WAIT_OBJECT_0+2&&!stoppingAt)stoppingAt=watchdogNow();
                 if(wait==WAIT_OBJECT_0+1)serve();
+                if(!startupMemoryReported&&InterlockedCompareExchange(&shared->ready,0,0)){
+                    startupMemoryReported=true;reportMemory("startup_ready");
+                }
                 const auto now=watchdogNow();
                 const auto phase=InterlockedCompareExchange(&shared->phase,0,0);
                 const auto since=static_cast<ULONGLONG>(InterlockedCompareExchange64(&shared->phaseSince,0,0));
@@ -340,6 +373,9 @@ struct Worker::Impl {
         // publishing completion; never keep the supervisor waiting forever.
         if(WaitForSingleObject(process.value,1000)!=WAIT_OBJECT_0)
             log("Mod host termination is still pending; releasing parent channel");
+        else {
+            DWORD code{};GetExitCodeProcess(process.value,&code);reportMemory("process_exit",code);
+        }
         // All cleanup is scoped to this process's opaque registration tokens.
         // Driving retirement is retained by its bounded broker queue until
         // native contention clears; it does not keep this channel allocated.
@@ -667,24 +703,30 @@ extern "C" uint32_t __cdecl NimbyInternal_StartModHosts(const wchar_t* directory
         const bool sampled=GlobalMemoryStatusEx(&memory)!=0;
         const auto memoryError=sampled?ERROR_SUCCESS:GetLastError();
         const bool admitted=sampled&&planResources(paths.size(),system.dwNumberOfProcessors,
-            memory.ullTotalPhys,std::min(memory.ullAvailPhys,memory.ullAvailPageFile),options,&plan);
+            memory.ullTotalPhys,memory.ullAvailPhys,memory.ullAvailPageFile,options,&plan);
         const auto reason=!sampled?"memory_sample_failed":plan.admission==ResourceAdmission::Accepted?"accepted":
-            plan.admission==ResourceAdmission::MemoryBudget?"memory_budget":plan.admission==ResourceAdmission::CpuBudget?"cpu_budget":
+            plan.admission==ResourceAdmission::PhysicalMemoryBudget?"physical_memory_budget":
+            plan.admission==ResourceAdmission::CommitMemoryBudget?"commit_memory_budget":plan.admission==ResourceAdmission::CpuBudget?"cpu_budget":
             plan.admission==ResourceAdmission::NoProcessors?"no_processors":"invalid_count";
         // An admission refusal is a policy decision, not proof that a Windows
         // allocation failed. Preserve both physical and commit measurements so
         // diagnostics identify which bound actually prevented the launch.
-        char reservation[1024]{};
+        char reservation[1536]{};
         std::snprintf(reservation,sizeof reservation,
             "Mod batch resource admission: reason=%s requested=%llu processors=%lu memory_sample=%u win32_error=%lu "
             "total_physical_bytes=%llu free_physical_bytes=%llu free_commit_bytes=%llu "
             "budget_bytes=%llu required_budget_bytes=%llu overhead_per_mod_bytes=%llu minimum_private_bytes=%llu "
+            "physical_budget_bytes=%llu required_physical_budget_bytes=%llu startup_physical_per_mod_bytes=%llu "
+            "commit_budget_bytes=%llu required_commit_budget_bytes=%llu "
             "private_per_mod_bytes=%llu cpu_basis_points_per_mod=%u rpc_per_mod_per_second=%u",
             reason,static_cast<unsigned long long>(paths.size()),static_cast<unsigned long>(system.dwNumberOfProcessors),
             unsigned(sampled),static_cast<unsigned long>(memoryError),static_cast<unsigned long long>(memory.ullTotalPhys),
             static_cast<unsigned long long>(memory.ullAvailPhys),static_cast<unsigned long long>(memory.ullAvailPageFile),
             static_cast<unsigned long long>(plan.budget),static_cast<unsigned long long>(plan.requiredBudget),
             static_cast<unsigned long long>(plan.overheadPerMod),static_cast<unsigned long long>(minimumPrivateMemory),
+            static_cast<unsigned long long>(plan.physicalBudget),static_cast<unsigned long long>(plan.requiredPhysicalBudget),
+            static_cast<unsigned long long>(startupPhysicalMemory),static_cast<unsigned long long>(plan.commitBudget),
+            static_cast<unsigned long long>(plan.requiredCommitBudget),
             static_cast<unsigned long long>(plan.privatePerMod),admitted?options.cpuRate:0,admitted?options.rpcCallsPerSecond:0);
         nimby::detail::diagnostics::write("loader",admitted?"INFO":"ERROR",reservation);
         if(!admitted){reportLoaderStatus(sampled?NIMBY_OPTIONS_LOADER_RESOURCE_REFUSED:NIMBY_OPTIONS_LOADER_START_FAILED,
@@ -692,12 +734,28 @@ extern "C" uint32_t __cdecl NimbyInternal_StartModHosts(const wchar_t* directory
         configureEpochTarget(GetCurrentProcessId());
         std::sort(paths.begin(),paths.end());
         for(const auto& path:paths){
-            try{workers().push_back(std::make_unique<Worker>(sdkDirectory()/L"NimbyRailsFranceModHost.exe",path,options));}
-            catch(const std::exception& e){
-                log("Cannot isolate "+path.filename().string()+": "+e.what()+"; stopping the entire mod batch", "ERROR");
+            try{
+#ifdef NIMBY_MOD_HOST_TESTING
+                // The disposable fixture executable supplies its own child
+                // entry; never replace the real host binary for a test.
+                const auto hostExecutable=nimby::detail::native::modulePath(reinterpret_cast<void*>(&NimbyInternal_ModHostTarget));
+#else
+                const auto hostExecutable=sdkDirectory()/L"NimbyRailsFranceModHost.exe";
+#endif
+                workers().push_back(std::make_unique<Worker>(hostExecutable,path,options));
+            }
+            catch(...){
+                // Cleanup precedes diagnostics: the allocation that failed a
+                // launch may also fail message/path formatting. No partial lot
+                // survives a diagnostic exception or blocks a later restart.
                 for(auto& worker:workers())worker->requestStop();
                 for(auto& worker:workers())worker->join();
                 workers().clear();reportLoaderStatus(NIMBY_OPTIONS_LOADER_START_FAILED,static_cast<uint32_t>(paths.size()),0,memory,plan);
+                try{
+                    try{throw;}catch(const std::exception& e){
+                        log("Cannot isolate "+path.filename().string()+": "+e.what()+"; entire mod batch stopped", "ERROR");
+                    }catch(...){log("Cannot isolate mod: unknown launch failure; entire mod batch stopped","ERROR");}
+                }catch(...){log("Cannot isolate mod: entire mod batch stopped; diagnostic allocation failed","ERROR");}
                 return NIMBY_RESOURCE_LIMIT;
             }
         }

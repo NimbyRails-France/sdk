@@ -1,6 +1,7 @@
 #pragma once
 #include <engine/train_length_policy.h>
 #include <engine/live_state.h>
+#include <algorithm>
 #include <array>
 #include <cstring>
 #include <optional>
@@ -70,7 +71,7 @@ public:
 enum class Edit { None, Append, Replace, Paste, Reset };
 struct Proposal {
     Edit edit=Edit::None;
-    bool readable=true,requested=false;
+    bool readable=true,requested=false,removalRequested=false;
     size_t beforeElements{},requestedElements{},selectedElements{};
     uint16_t actionFlags{};
     std::vector<policy::ModelBlock> beforeModels;
@@ -89,6 +90,12 @@ inline Proposal proposed(const View& view,uint64_t editor) {
     }
     result.selectedElements=static_cast<size_t>(selected);
     for(size_t i=0;i<flags.size();++i)if(flags[i])result.actionFlags|=uint16_t(1u<<i);
+    // Qualify the selected removal from the flags already copied above. Higher
+    // priority layout/cosmetic operations can leave a stale deletion flag;
+    // they must not retire the notice for a rejected addition. This fact never
+    // measures cars or changes which operations are delegated to the game.
+    result.removalRequested=selected&&flags[0]&&!flags[12]&&!flags[13]&&
+        std::none_of(cosmetic.begin(),cosmetic.end(),[](uint8_t value){return value!=0;});
     if(flags[12]||flags[13]||flags[0]||(selected&&(flags[1]||flags[2])))return result;
     for(auto value:cosmetic)if(value)return result;
     if(flags[4])result.edit=Edit::Append;
@@ -176,4 +183,149 @@ inline policy::Assessment assess(const View& view,uint64_t rules,policy::Limit l
     return assess(view,rules,limit,models,[](uint64_t,const std::optional<double>&){});
 }
 uint32_t install(uint64_t module)noexcept;
+// Process-resident native mechanics, independent of a mod's length/UI policy.
+// This is an internal SDK entry point, not a mod ABI or a rear-clear certificate.
+uint32_t ensureRuntimeMechanics(uint64_t module)noexcept;
+bool runtimeMechanicsReady()noexcept;
+
+namespace aggregation {
+inline constexpr size_t maximumMembers=64;
+enum class Fault { None, Read, Layout, Identity, Topology, Changed, Elements, Members };
+struct Prefix {uint64_t motion{},maximum{};};
+struct Admission {
+    bool allowed=false;
+    bool extended=false;
+    Fault fault=Fault::None;
+    uint64_t train{},address{};
+    size_t rootElements{},totalElements{},members{};
+    std::array<Prefix,maximumMembers-1> prefixes{};
+};
+// Count exactly the inputs 44CF80 consumes: root DBTrain+C0 filtered by
+// Motion+80, and each listed attached child's already-current Motion+8 vector.
+// Root is ALWAYS appended, including after negative-order children. Its cars
+// must be included in the whole bound before the native mutation starts.
+// This double-read preflight is a local observation, not universal exclusion
+// of native writers, an exhaustive parent roster, or an ownership certificate.
+inline Admission admit(const View& view,uint64_t pool,uint64_t database,uint64_t root)noexcept {
+    Admission result;result.address=root;
+    const auto fail=[&](Fault fault,uint64_t at){result.fault=fault;result.address=at;return result;};
+    struct Pool {
+        uint64_t address{};
+        std::array<uint8_t,48> bytes{};
+        uint32_t shift{},mask{};
+        uint64_t begin{},end{};
+    };
+    const auto poolRead=[&](uint64_t at,Pool& out){
+        out.address=at;
+        if(!view.get(at,out.bytes))return false;
+        uint32_t count{};
+        std::memcpy(&out.shift,out.bytes.data()+4,4);std::memcpy(&count,out.bytes.data()+8,4);
+        std::memcpy(&out.mask,out.bytes.data()+16,4);std::memcpy(&out.begin,out.bytes.data()+24,8);
+        std::memcpy(&out.end,out.bytes.data()+32,8);uint64_t cap{};std::memcpy(&cap,out.bytes.data()+40,8);
+        return out.shift>=1&&out.shift<=16&&count==(1u<<out.shift)&&out.mask==count-1&&
+            out.end>=out.begin&&cap>=out.end&&cap-out.begin<=8192&&
+            (out.end-out.begin)%8==0&&((out.end-out.begin)/8)*count<=1048576;
+    };
+    struct Slot {uint64_t address{},blockAddress{},block{},id{};};
+    const auto slot=[&](const Pool& from,uint64_t id,size_t stride,Slot& out){
+        if((id>>48)!=5)return false;
+        const uint64_t ordinal=(id>>16)&0xffffffffULL,index=ordinal>>from.shift;
+        if(index>=(from.end-from.begin)/8)return false;
+        out.id=id;out.blockAddress=from.begin+index*8;
+        if(!view.get(out.blockAddress,out.block)||out.block<0x10000||
+            out.block>0x7fffffff0000ULL-uint64_t(from.mask+1)*stride)return false;
+        out.address=out.block+(ordinal&from.mask)*stride;uint64_t observed{};
+        return view.get(out.address,observed)&&observed==id;
+    };
+    const auto vectorCount=[&](uint64_t at,std::array<uint64_t,3>& pointers,size_t& count){
+        if(!view.get(at,pointers)||pointers[1]<pointers[0]||pointers[2]<pointers[1]||
+            (pointers[1]-pointers[0])%32||(pointers[2]-pointers[0])%32||
+            (pointers[2]&&pointers[2]>0x7fffffff0000ULL)||
+            ((!pointers[0])!=(!pointers[2]))||
+            (pointers[0]&&pointers[0]<0x10000))return false;
+        count=static_cast<size_t>((pointers[1]-pointers[0])/32);return true;
+    };
+    if(database>0x7fffffff0000ULL-0x230)return fail(Fault::Layout,database);
+    Pool motions,trains;
+    if(!poolRead(pool,motions)||!poolRead(database+0x200,trains))return fail(Fault::Layout,pool);
+    if(!view.get(root,result.train))return fail(Fault::Read,root);
+    Slot rootSlot,trainSlot;
+    if(!slot(motions,result.train,0x638,rootSlot)||rootSlot.address!=root||
+        !slot(trains,result.train,0x178,trainSlot))return fail(Fault::Identity,root);
+    uint64_t parent{};uint8_t attached{};int32_t mode{};
+    if(!view.get(root+0x1d8,parent)||!view.get(root+0x1f0,attached)||!view.get(root+0x80,mode))return fail(Fault::Read,root);
+    if(attached>1)return fail(Fault::Topology,root);
+    //44EF70 schedules changed configurations for ALL Motion slots, including
+    // attached members. Their own planned composition still needs the native
+    // recalculation. Only an autonomous owner may raise child-append limits;
+    // attached/transitional/nested scopes retain the game's CMP30 predicate.
+    result.extended=!parent&&!attached;
+    // Match the native clamp; no policy or metre limit is applied here.
+    const auto selected=std::clamp(mode,0,8);
+    std::array<uint64_t,3> planned{},listed{},current{};size_t rootCount{},childCount{},oldCurrent{};
+    if(!vectorCount(trainSlot.address+0xc0,planned,rootCount)||!vectorCount(root+0x88,listed,childCount)||
+        !vectorCount(root+8,current,oldCurrent))return fail(Fault::Layout,root);
+    if(oldCurrent>policy::maximumElements)return fail(Fault::Elements,root+8);
+    if(rootCount>policy::maximumElements)return fail(Fault::Elements,trainSlot.address+0xc0);
+    if(childCount>=maximumMembers)return fail(Fault::Members,root+0x88);
+    std::array<uint8_t,policy::maximumElements*sizeof(Car)> rootCars; // only used bytes are read
+    std::array<uint8_t,(maximumMembers-1)*32> children;
+    if(!view.bytes(planned[0],rootCars.data(),rootCount*32)||!view.bytes(listed[0],children.data(),childCount*32))return fail(Fault::Read,root);
+    for(size_t i=0;i<rootCount;++i){
+        if(!selected||(rootCars[i*32+31]&(uint8_t{1}<<(selected-1))))++result.rootElements;
+    }
+    result.totalElements=result.rootElements;result.members=1;
+    struct Member {Slot slot;std::array<uint64_t,3> current{};uint64_t parent{};int64_t order{};uint8_t attached{},reverse{};};
+    std::array<Member,maximumMembers-1> members{};
+    for(size_t i=0;i<childCount;++i){
+        uint64_t id{};std::memcpy(&id,children.data()+i*32,8);
+        if(id==result.train)return fail(Fault::Topology,root+0x88);
+        for(size_t j=0;j<i;++j)if(members[j].slot.id==id)return fail(Fault::Topology,root+0x88);
+        auto& child=members[i];
+        if(!slot(motions,id,0x638,child.slot))return fail(Fault::Identity,root+0x88);
+        const auto at=child.slot.address;size_t count{};
+        if(!view.get(at+0x1d8,child.parent)||!view.get(at+0x1f0,child.attached)||
+            !view.get(at+0x1e0,child.order)||!view.get(at+0x1e8,child.reverse)||
+            !vectorCount(at+8,child.current,count))return fail(Fault::Read,at);
+        if((result.extended&&(child.parent!=result.train||child.attached!=1))||child.attached>1||child.reverse>1||
+            child.order>INT64_MAX/1000000||child.order<INT64_MIN/1000000)return fail(Fault::Topology,at);
+        if(count>policy::maximumElements-result.totalElements)return fail(Fault::Elements,at+8);
+        result.totalElements+=count;++result.members;
+        // Equal zero keys are conservatively treated as before-root: native
+        // sorting need not be stable. A refused full-prefix never supplies a
+        // complete aggregate to the independent physical/rear provider.
+        result.prefixes[i]={at,child.order>0?policy::maximumElements:policy::maximumElements-result.rootElements};
+        std::array<uint8_t,2048> readable;
+        for(size_t offset=0;offset<count*32;offset+=readable.size()){
+            if(!view.bytes(child.current[0]+offset,readable.data(),std::min(readable.size(),count*32-offset)))return fail(Fault::Read,child.current[0]+offset);
+        }
+    }
+    // Read back every count-relevant value and identity before admission. No
+    // native mutation, vector allocation, or partial admission occurs here.
+    std::array<uint8_t,2048> again;
+    for(size_t offset=0;offset<rootCount*32;offset+=again.size()){
+        const size_t bytes=std::min(again.size(),rootCount*32-offset);
+        if(!view.bytes(planned[0]+offset,again.data(),bytes)||std::memcmp(again.data(),rootCars.data()+offset,bytes))return fail(Fault::Changed,planned[0]+offset);
+    }
+    if(!view.bytes(listed[0],again.data(),childCount*32)||std::memcmp(again.data(),children.data(),childCount*32))return fail(Fault::Changed,root+0x88);
+    for(size_t i=0;i<childCount;++i){
+        const auto& expected=members[i];Member observed;observed.slot=expected.slot;
+        const auto at=expected.slot.address;
+        if(!view.get(at+8,observed.current)||!view.get(at+0x1d8,observed.parent)||
+            !view.get(at+0x1e0,observed.order)||!view.get(at+0x1e8,observed.reverse)||!view.get(at+0x1f0,observed.attached))return fail(Fault::Read,at);
+        uint64_t id{},block{};
+        if(!view.get(at,id)||!view.get(expected.slot.blockAddress,block))return fail(Fault::Read,at);
+        if(id!=expected.slot.id||block!=expected.slot.block||observed.current!=expected.current||
+            observed.parent!=expected.parent||observed.order!=expected.order||observed.reverse!=expected.reverse||observed.attached!=expected.attached)return fail(Fault::Changed,at);
+    }
+    std::array<uint64_t,3> finalPlanned{},finalListed{},finalCurrent{};uint64_t finalId{},finalParent{},trainId{},block{},trainBlock{};
+    int32_t finalMode{};uint8_t finalAttached{};std::array<uint8_t,48> finalPool{},finalTrains{};
+    if(!view.get(root,finalId)||!view.get(root+0x1d8,finalParent)||!view.get(root+0x1f0,finalAttached)||!view.get(root+0x80,finalMode)||
+        !view.get(root+0x88,finalListed)||!view.get(root+8,finalCurrent)||!view.get(trainSlot.address,trainId)||!view.get(trainSlot.address+0xc0,finalPlanned)||
+        !view.get(rootSlot.blockAddress,block)||!view.get(trainSlot.blockAddress,trainBlock)||!view.get(pool,finalPool)||!view.get(trains.address,finalTrains))return fail(Fault::Read,root);
+    if(finalId!=result.train||trainId!=result.train||finalParent!=parent||finalAttached!=attached||finalMode!=mode||
+        finalListed!=listed||finalPlanned!=planned||finalCurrent!=current||block!=rootSlot.block||trainBlock!=trainSlot.block||finalPool!=motions.bytes||finalTrains!=trains.bytes)return fail(Fault::Changed,root);
+    result.allowed=true;return result;
+}
+}
 }

@@ -8,10 +8,11 @@ namespace nimby::engine::train_editor {
 // once at registration, never from the game panel or a mod callback. Text is
 // always data: even a literal "%n" is not passed to a printf formatter.
 class Messages {
-    using Json=nlohmann::json;
-    using Texts=std::array<std::string,3>;
+    using Json=nimby::detail::BoundedJson;
+    using Texts=std::array<std::string,6>;
     std::map<std::string,Texts,std::less<>> languages_;
     std::string fallback_;
+    bool lengthDisplay_=false;
     static Json parse(std::string_view bytes) {
         if(bytes.empty()||bytes.size()>maximumDeclarationBytes)
             throw std::invalid_argument("Train editor declaration exceeds its transport bound");
@@ -38,10 +39,16 @@ public:
     static constexpr size_t maximumMessageBytes=1024;
     explicit Messages(std::string_view bytes) {
         const auto declaration=parse(bytes);
-        if(!declaration.is_object()||declaration.size()!=2||!declaration.contains("messages")||
+        if(!declaration.is_object()||!declaration.contains("messages")||
            !declaration.contains("translations")||!declaration["translations"].is_string()||
-           !declaration["messages"].is_array()||declaration["messages"].size()!=3)
+           !declaration["messages"].is_array()||declaration["messages"].size()!=3||
+           declaration.size()!=(declaration.contains("lengthDisplay")?3:2))
             throw std::invalid_argument("Train editor requires exactly three messages and a copied catalogue");
+        if(declaration.contains("lengthDisplay")){
+            if(!declaration["lengthDisplay"].is_array()||declaration["lengthDisplay"].size()!=3)
+                throw std::invalid_argument("Train length display requires current, proposed and unavailable labels");
+            lengthDisplay_=true;
+        }
         const auto catalogueBytes=declaration["translations"].get<std::string>();
         std::unique_ptr<const nimby::detail::Translations> catalogue;
         std::vector<std::string> locales;
@@ -52,10 +59,12 @@ public:
                 locales.push_back(nimby::detail::Translations::locale(code));
             fallback_=catalogue->fallback();
         }else{fallback_="en";locales.push_back(fallback_);}
+        const size_t count=lengthDisplay_?6:3;
         Texts references;
-        for(size_t i=0;i<references.size();++i){
-            if(!declaration["messages"][i].is_string())throw std::invalid_argument("Invalid train editor message type");
-            references[i]=declaration["messages"][i].get<std::string>();
+        for(size_t i=0;i<count;++i){
+            const auto& text=i<3?declaration["messages"][i]:declaration["lengthDisplay"][i-3];
+            if(!text.is_string())throw std::invalid_argument("Invalid train editor message type");
+            references[i]=text.get<std::string>();
             if(nimby::detail::Translations::reference(references[i])){
                 // Dynamic facts are displayed separately by the SDK. Reject
                 // accidental fixed substitution of a changing train length.
@@ -78,7 +87,7 @@ public:
         }
     }
     const std::string& select(size_t index,std::string_view rawLanguage)const {
-        if(index>=3)throw std::invalid_argument("Invalid train editor message index");
+        if(index>=(lengthDisplay_?6u:3u))throw std::invalid_argument("Invalid train editor message index");
         const auto exact=nimby::detail::Translations::locale(rawLanguage);
         const auto base=exact.substr(0,exact.find('-'));
         for(const auto& code:{exact,base,fallback_}){
@@ -89,6 +98,7 @@ public:
     }
     const std::string& fallback()const noexcept{return fallback_;}
     size_t languageCount()const noexcept{return languages_.size();}
+    bool showsLength()const noexcept{return lengthDisplay_;}
     // Compatibility only for privately built ABI10 mods. New declarations
     // always supply their own wording and catalogue through RegisterV2.
     static std::shared_ptr<const Messages> legacy() {

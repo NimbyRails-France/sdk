@@ -898,7 +898,7 @@ private:
     std::unordered_map<Id,std::vector<Id>> occupant_ids_,reservation_ids_;
     detail::RelationIndex signalsByTrack_,trainsByTrack_,tracksByStation_;
     detail::RelationIndex reservationsByTrain_,reservationsByTrack_,occupationsByTrain_,occupationsByTrack_;
-    static Ptr capture(NimbySession session, SnapshotScope scope,const char* textureSet=nullptr,std::span<const NimbySignalCaptureScope> signalScopes={},uint32_t trainFlags=NIMBY_TRAIN_DATA_ALL) {
+    static Ptr capture(NimbySession session, SnapshotScope scope,const char* textureSet=nullptr,std::span<const NimbySignalCaptureScope> signalScopes={},uint32_t trainFlags=NIMBY_TRAIN_DATA_ALL,bool runtimeFiltered=false) {
         // Age includes the native capture, registry contention and copy-out.
         // A slow capture must not be presented as a brand-new observation.
         const auto started=std::chrono::steady_clock::now();
@@ -907,7 +907,9 @@ private:
         const auto captureStatus=scope==SnapshotScope::Session ? NimbyInternal_CaptureSessionSnapshot(session,&native.value,&stage) :
             scope==SnapshotScope::NetworkTopology ? NimbyInternal_CaptureNetworkSnapshotDiagnostic(session,&native.value,&stage) :
             scope==SnapshotScope::TrainData ? NimbyInternal_CaptureTrainDataSnapshotWithOptions(session,trainFlags,&native.value,&stage) :
-            !signalScopes.empty() ? NimbyInternal_CaptureSignallingScope(session,signalScopes.data(),static_cast<uint32_t>(signalScopes.size()),&native.value,&stage) :
+            !signalScopes.empty() ? (runtimeFiltered
+                ? NimbyInternal_CaptureRuntimeSignallingScope(session,signalScopes.data(),static_cast<uint32_t>(signalScopes.size()),&native.value,&stage)
+                : NimbyInternal_CaptureSignallingScope(session,signalScopes.data(),static_cast<uint32_t>(signalScopes.size()),&native.value,&stage)) :
             textureSet ? NimbyInternal_CaptureSignallingFor(session,textureSet,&native.value,&stage) : scope==SnapshotScope::Signalling
             ? NimbyInternal_CaptureSignallingSnapshot(session, &native.value, &stage)
             : NimbyInternal_CaptureSnapshotDiagnostic(session, &native.value, &stage);

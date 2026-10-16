@@ -57,6 +57,11 @@ public:
         for(size_t i=0;i<panel.numbers.size();++i){const auto& field=panel.numbers[i];auto& target=numbers[i];
             copy(target.name,field.name);copy(target.label,field.label);copy(target.visible_when,field.visibleWhen);
             target.bits=field.bits;target.maximum=field.maximum;}
+        std::vector<NimbyUiCheckboxVisibilityV1> dependencies;
+        for(const auto& box:panel.checkboxes)if(!box.visibleWhen.empty()){
+            auto& dependency=dependencies.emplace_back();
+            copy(dependency.name,box.name);copy(dependency.visible_when,box.visibleWhen);
+        }
         auto module=native::existing(platform::signalUiLibrary);
         if(!module)return false;
         auto add=resolve<NimbyUiRegisterV1>(module,"NimbyUi_RegisterV1");
@@ -69,6 +74,13 @@ public:
         if(!add||!remove||!read||!suspend||!begin||!observe){native::unload(module);return false;}
         const auto result=add(wire.get(),&owner);
         if(result!=NIMBY_OK||!owner){native::unload(module);return false;}
+        if(!dependencies.empty()){
+            const auto configure=resolve<NimbyUiCheckboxVisibilityConfigV1>(module,"NimbyUi_CheckboxVisibilityV1");
+            if(!configure||configure(owner,dependencies.data(),static_cast<uint32_t>(dependencies.size()))!=NIMBY_OK){
+                remove(owner);native::unload(module);
+                throw std::runtime_error("SDK UI bridge lacks checkbox visibility; update the runtime SDK and recompile with the matching kit");
+            }
+        }
         if(!numbers.empty()){
             const auto configure=resolve<NimbyUiNumberSettingsV1>(module,"NimbyUi_NumberSettingsV1");
             if(!configure||configure(owner,numbers.data(),static_cast<uint32_t>(numbers.size()))!=NIMBY_OK){
@@ -363,6 +375,13 @@ private:
         std::vector<uint64_t> ids;
         for(const auto& signal:catalog)if(signal.textureSet==textureSet_)ids.push_back(signal.id);
         if(ids.size()>16384)return {SyncReason::BatchLimit,0,ids.size()};
+        // Observe and PanelContext already validated the complete catalogue and
+        // current session. No selected signal needs the remote schema or values.
+        // Keep an observed absence distinct from a suspended/unavailable cache.
+        if(ids.empty()){
+            cache_.clear();cached_=true;
+            return {SyncReason::Ready,0,0};
+        }
         NimbyUiReadBatchHeaderV1 header{};header.size=sizeof header;header.version=1;
         std::vector<NimbyUiReadBatchRowV1> rows(ids.size());
         const auto status=readBatch_(owner_,ids.data(),static_cast<uint32_t>(ids.size()),&header,rows.data());

@@ -7,6 +7,48 @@
 int main(){try{
     using Store=nimby::SignalSettingsStore;
     {
+        constexpr nimby::SignalCheckbox boxes[]{
+            {"mode","Semaphore mode","",false},
+            {"force","Force square","",false,false,"mode"}};
+        const nimby::SignalSettingsPanel panel{"visibility","Visibility","atlas",boxes};
+        Store store;store.configure(panel);
+        const auto session=store.beginSession("world");
+        constexpr uint64_t signal=0x8000000000021;
+        const std::array<Store::Signal,1> signals{{{signal,"atlas"}}};
+        CHECK(store.observeSignals(session,signals));const auto editor=store.selectSignal(session,signal);
+        CHECK(store.frame(editor)->controls.size()==1); // The false parent itself remains activatable.
+        CHECK(store.setBoolean(editor,"mode",true));CHECK(store.frame(editor)->controls.size()==2);
+        struct VisibilityUi {
+            std::vector<std::string> labels;bool click=false;
+            void checkbox(const char* label,const char*,uint32_t& value){
+                labels.emplace_back(label);if(click)value=labels.back()=="Semaphore mode"?0u:1u;
+            }
+        } layout,interactive;
+        nimby::detail::SignalSettingsPresentation presentation;
+        CHECK(presentation.layout(store,71,session,signal,layout));interactive.click=true;
+        CHECK(presentation.interactive(store,71,session,signal,interactive));
+        CHECK(layout.labels==interactive.labels&&layout.labels.size()==2); // One frozen layout for both passes.
+        CHECK(store.read(signal).getBoolean("mode")==false&&store.read(signal).getBoolean("force")==false);
+        CHECK(store.frame(editor)->controls.size()==1); // A stale child click cannot change the hidden value.
+        CHECK(store.setBoolean(editor,"force",true)); // Visibility does not change business values or recipe controls.
+        CHECK(store.read(signal).getBoolean("force")==true&&store.frame(editor)->controls.size()==1);
+        const auto saved=store.save(session);
+        Store restored;restored.configure(panel);const auto loaded=restored.beginSession("world",&saved);
+        CHECK(restored.observeSignals(loaded,signals));const auto selected=restored.selectSignal(loaded,signal);
+        CHECK(restored.frame(selected)->controls.size()==1&&restored.read(signal).getBoolean("force")==true);
+        CHECK(restored.setBoolean(selected,"mode",true));
+        CHECK(restored.frame(selected)->controls.size()==2&&restored.frame(selected)->controls[1].value);
+        CHECK(!restored.checkboxVisibility({})); // Layout declarations cannot change during a session.
+        for(const auto parent:{std::string_view{"force"},std::string_view{"missing"}}){
+            const nimby::SignalCheckbox invalid[]{{"mode","Mode","",false},{"force","Force","",false,false,parent}};
+            bool rejected=false;try{Store candidate;candidate.configure({"invalid","Invalid","atlas",invalid});}
+            catch(const std::invalid_argument&){rejected=true;}CHECK(rejected);
+        }
+        const nimby::SignalCheckbox cycle[]{{"mode","Mode","",false,false,"force"},{"force","Force","",false,false,"mode"}};
+        bool rejected=false;try{Store candidate;candidate.configure({"cycle","Cycle","atlas",cycle});}
+        catch(const std::invalid_argument&){rejected=true;}CHECK(rejected);
+    }
+    {
         Store revisions;constexpr nimby::SignalCheckbox boxes[]{{"active","Active","",false}};
         revisions.configure({"revision","Revision","atlas",boxes});
         CHECK(!revisions.settingsRevision(1));
@@ -171,9 +213,20 @@ int main(){try{
     CHECK(store.read(a).status==nimby::SettingsStatus::Absent);
     CHECK(store.read(recycled).getBoolean("active")==false && store.save().signals.empty());
     const auto editor=store.selectSignal(resumed,recycled);
-    auto writer=std::async(std::launch::async,[&]{for(int i=0;i<1000;++i)CHECK(store.setBoolean(editor,"active",i%2));});
+    std::promise<bool> initialWrite;auto ready=initialWrite.get_future();
+    unsigned acceptedWrites=0;
+    auto writer=std::async(std::launch::async,[&,initialWrite=std::move(initialWrite)]()mutable{
+        const bool written=store.setBoolean(editor,"active",true);initialWrite.set_value(written);CHECK(written);++acceptedWrites;
+        // setBoolean deliberately returns Busy(false) under try-lock contention.
+        // Verify coherent concurrent reads, not a promise that every UI write waits.
+        for(int i=0;i<1000;++i)if(store.setBoolean(editor,"active",i%2))++acceptedWrites;
+    });
+    CHECK(ready.get());
     for(int i=0;i<1000;++i){const auto state=store.read(recycled);CHECK(state.getBoolean("active").has_value());CHECK(state.booleans.size()==3);}
     writer.get();
+    CHECK(acceptedWrites>=1&&acceptedWrites<=1001);
+    CHECK(store.setBoolean(editor,"active",false)&&store.read(recycled).getBoolean("active")==false);
+    CHECK(store.setBoolean(editor,"active",true)&&store.read(recycled).getBoolean("active")==true);
     const auto other=store.beginSession("save-B");CHECK(store.observeSignals(other,replacement));
     CHECK(store.read(recycled).getBoolean("active")==false && !store.setBoolean(editor,"active",true));
     constexpr nimby::SignalCheckbox duplicate[]{{"same","A",""},{"same","B",""}};

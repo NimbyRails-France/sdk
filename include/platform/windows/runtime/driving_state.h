@@ -2,6 +2,7 @@
 #include <engine/automatic_controller.h>
 #include <engine/driving_publishers.h>
 #include <platform/windows/runtime/physical_route.h>
+#include <platform/windows/runtime/signal_route.h>
 #include <windows.h>
 #include <atomic>
 #include <array>
@@ -16,7 +17,14 @@ inline uint64_t lifetime(std::span<const SourceLifetime> rows,uint64_t id) noexc
  return at!=rows.end()&&at->id==id?at->value:0;
 }
 struct RuntimeTrain : Train {
+ // Experimental transactional-commit uncertainty is sticky for this native
+ // incarnation/world. A route rescan is not an acknowledgement or an undo.
+ bool integrationUnqualified=false;
  PhysicalRoute physicalRoute;
+ // Admission geometry stays separate from the scanner's unfinished route.
+ // A native lookahead can grant entry while that scanner is still appending.
+ PhysicalRoute entryPhysicalRoute;
+ SignalRoute signalRoute;
  std::vector<SourceLifetime> retainedSources;
  uint64_t constraintLifetime=0;
  uint64_t routeRevision=0;
@@ -160,7 +168,7 @@ inline void pruneReleased(RuntimeTrain& state,const Publication& publication) {
  std::erase_if(state.boundary,[&](const auto& row){return released(row.source.signal);});
  if(state.memory.sight&&released(state.memory.sight->source))state.memory.sight.reset();
  if(state.memory.stopped.signal&&released(state.memory.stopped.signal))state.memory.stopped={};
- if(state.entrySignal&&released(state.entrySignal)){state.entrySignal=0;state.entry={};}
+ if(state.entrySignal&&released(state.entrySignal)){state.entrySignal=0;state.entry={};state.entryPhysicalRoute.clear();}
  state.managed=std::any_of(state.ahead.begin(),state.ahead.end(),[&](const auto& row){return publication.rules.contains(row.signal);});
 }
 inline void rememberSources(RuntimeTrain& state,const Publication& publication) {

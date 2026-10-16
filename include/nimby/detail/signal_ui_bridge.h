@@ -27,6 +27,9 @@ typedef struct NimbyUiValuesV1 {
 typedef uint32_t (*NimbyUiRegisterV1)(const NimbyUiPanelV1*,uint64_t* owner);
 typedef uint32_t (*NimbyUiRemoveV1)(uint64_t owner);
 typedef uint32_t (*NimbyUiConditionalVisibilityV1)(uint64_t owner,uint64_t mask);
+// Additive configuration; the original panel/checkbox wire layouts stay fixed.
+typedef struct NimbyUiCheckboxVisibilityV1 {char name[129],visible_when[129];} NimbyUiCheckboxVisibilityV1;
+typedef uint32_t (*NimbyUiCheckboxVisibilityConfigV1)(uint64_t owner,const NimbyUiCheckboxVisibilityV1*,uint32_t count);
 typedef struct NimbyUiNumberSettingV1 {
     char name[129],label[257],visible_when[129];
     uint32_t bits,maximum;

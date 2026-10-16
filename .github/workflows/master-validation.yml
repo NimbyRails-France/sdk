@@ -1,0 +1,57 @@
+# Test branch only: reuse the source build without packaging or publishing.
+name: Master SDK validation
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: master-sdk-validation-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  dll-ownership:
+    if: github.ref == 'refs/heads/master'
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Verify DLL ownership and recovery with text fixtures
+        shell: powershell
+        run: ./tests/windows/proxy-ownership.ps1
+  validation:
+    needs: dll-ownership
+    if: github.ref == 'refs/heads/master'
+    runs-on: ubuntu-24.04
+    container: ubuntu:24.04
+    timeout-minutes: 90
+    env:
+      CI_REPO: ${{ github.repository }}
+      CI_COMMIT_SHA: ${{ github.sha }}
+      CI_COMMIT_BRANCH: ${{ github.ref_name }}
+      CI_COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
+      CI_PIPELINE_EVENT: push
+      NRF_SOURCE_VALIDATION_ONLY: '1'
+      WINEPREFIX: /tmp/nrf-wine
+      WINEDEBUG: '-all'
+      GRADLE_OPTS: '-Dorg.gradle.daemon=false -Dfile.encoding=UTF-8'
+    steps:
+      - name: Install checkout prerequisites
+        run: apt-get update && apt-get install -y --no-install-recommends git ca-certificates
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Prepare isolated Windows cross-compilers
+        run: sh .github/ci/bootstrap.sh "$PWD"
+      - name: Build and test the SDK and its Kotlin consumer
+        run: NRF_SOURCE_VALIDATION_ONLY=1 sh .woodpecker/build.sh
+      - name: Preserve the matching developer kit and runtime
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: nrf-sdk-master-${{ github.sha }}
+          path: build/kotlin-kit/
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 7
