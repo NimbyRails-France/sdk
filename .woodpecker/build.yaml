@@ -4,7 +4,7 @@ labels:
 concurrency: 1
 when:
   - event: [push, manual]
-    evaluate: 'CI_COMMIT_BRANCH != "master"'
+    evaluate: 'CI_COMMIT_BRANCH != "main" or CI_COMMIT_MESSAGE matches "(?i)^[[:space:]]*(release|relase)(:|[[:space:]])"'
 steps:
   - name: windows-build-and-tests
     image: univenanne-ci-nimby-release:20260918

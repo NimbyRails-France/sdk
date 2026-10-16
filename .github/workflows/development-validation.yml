@@ -1,17 +1,17 @@
-# Test branch only: reuse the source build without packaging or publishing.
-name: Master SDK validation
+# Development validation: reuse the source build without packaging or publishing.
+name: Main SDK validation
 on:
   push:
-    branches: [master]
+    branches: [main]
   workflow_dispatch:
 permissions:
   contents: read
 concurrency:
-  group: master-sdk-validation-${{ github.ref }}
+  group: main-sdk-validation-${{ github.ref }}
   cancel-in-progress: true
 jobs:
   dll-ownership:
-    if: github.ref == 'refs/heads/master'
+    if: github.ref == 'refs/heads/main'
     runs-on: windows-latest
     timeout-minutes: 10
     steps:
@@ -23,7 +23,7 @@ jobs:
         run: ./tests/windows/proxy-ownership.ps1
   validation:
     needs: dll-ownership
-    if: github.ref == 'refs/heads/master'
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
     container: ubuntu:24.04
     timeout-minutes: 90
@@ -50,7 +50,7 @@ jobs:
       - name: Preserve the matching developer kit and runtime
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: nrf-sdk-master-${{ github.sha }}
+          name: nrf-sdk-main-${{ github.sha }}
           path: build/kotlin-kit/
           include-hidden-files: true
           if-no-files-found: error

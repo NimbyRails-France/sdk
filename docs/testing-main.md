@@ -1,17 +1,18 @@
-# Tester la branche master
+# Tester la branche main
 
-`master` est une branche de travail à faire essayer par les développeurs. Elle
-ne correspond pas à une release et ne déclenche ni publication GitHub, ni
-distribution par le Hub, ni annonce de mise à jour. Les canaux `alpha`, `beta`
-et `main` conservent leur procédure de publication habituelle.
+Un commit de développement sur `main` peut être essayé par les développeurs
+sans créer une release. Il ne déclenche ni publication GitHub, ni distribution
+par le Hub, ni annonce de mise à jour. Les commits explicites de release sur
+`main`, ainsi que les branches `alpha` et `beta`, conservent leur procédure de
+publication habituelle.
 
-Après chaque push sur `master`, le workflow **Master SDK validation** compile le
+Après chaque push sur `main`, le workflow **Main SDK validation** compile le
 SDK Windows, exécute les tests disponibles et construit le kit Kotlin avec un
 mod consommateur. Les tests Wine ne remplacent pas un essai dans NIMBY Rails.
 Un échec empêche la création de l'artefact final.
 
 Dans la page Actions du commit, télécharger l'artefact
-`nrf-sdk-master-<commit>`, conservé sept jours, puis l'extraire dans un nouveau
+`nrf-sdk-main-<commit>`, conservé sept jours, puis l'extraire dans un nouveau
 dossier. Définir `NRF_KOTLIN_SDK` ou la propriété Gradle `nrfSdkDir` vers ce
 dossier. Recompiler les mods à tester avec ce kit.
 

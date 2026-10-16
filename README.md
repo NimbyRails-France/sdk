@@ -10,7 +10,7 @@ Cette branche développe la version **0.9.0-alpha.4**. Un paquet construit local
 n'est pas une release publiée.
 
 Pour essayer le travail courant avec un autre développeur :
-[tester la branche master et son kit correspondant](docs/testing-master.md).
+[tester la branche main et son kit correspondant](docs/testing-main.md).
 
 L'orientation retenue le 16 octobre conserve les réservations et les contrôles
 natifs du jeu. Le SDK fournit observations, consignes de conduite, suivi des
