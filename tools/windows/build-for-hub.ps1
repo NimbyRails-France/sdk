@@ -10,7 +10,9 @@ $OutputEncoding = [Console]::OutputEncoding
 $root=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../..'))
 $version=(Get-Content -LiteralPath "$root/VERSION" -Raw).Trim()
 if($version -notmatch '^\d+\.\d+\.\d+(?:-(?:alpha|beta)\.[1-9]\d*)?$'){throw 'Invalid VERSION'}
-if(!$ClionHome){$ClionHome="$env:LOCALAPPDATA/Programs/CLion"}
+. (Join-Path $PSScriptRoot 'resolve-clion.ps1')
+$ClionHome=Resolve-NrfClionHome -PreferredHome $ClionHome
+Write-Output "CLion toolchain selected: $ClionHome"
 if(!$KotlinHome){$KotlinHome="$env:USERPROFILE/.konan/kotlin-native-prebuilt-windows-x86_64-2.2.20"}
 if(!$JavaHome){$JavaHome=$env:JAVA_HOME}
 if(!$JavaHome -or !(Test-Path -LiteralPath "$JavaHome/bin/javac.exe")){
@@ -19,7 +21,7 @@ if(!$JavaHome -or !(Test-Path -LiteralPath "$JavaHome/bin/javac.exe")){
 }
 $cmake="$ClionHome/bin/cmake/win/x64/bin/cmake.exe"
 $ctest="$ClionHome/bin/cmake/win/x64/bin/ctest.exe"
-foreach($tool in @($cmake,$ctest,"$ClionHome/bin/mingw/bin/g++.exe","$ClionHome/bin/ninja/win/x64/ninja.exe","$KotlinHome/bin/konanc.bat","$JavaHome/bin/javac.exe")){
+foreach($tool in @($cmake,$ctest,"$ClionHome/bin/mingw/bin/gcc.exe","$ClionHome/bin/mingw/bin/g++.exe","$ClionHome/bin/ninja/win/x64/ninja.exe","$KotlinHome/bin/konanc.bat","$JavaHome/bin/javac.exe")){
     if(!(Test-Path -LiteralPath $tool -PathType Leaf)){throw "Missing build tool: $tool. Configure NRF_CLION_HOME, NRF_KOTLIN_HOME or NRF_JAVA_HOME."}
 }
 $env:JAVA_HOME=$JavaHome

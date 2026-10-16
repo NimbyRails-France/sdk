@@ -1,6 +1,13 @@
 # Windows execution tests plus common contracts exercised on Windows.
 # All assertions must execute in Release too; NDEBUG must never disable a test.
 if(BUILD_TESTING)
+    if(CMAKE_HOST_WIN32)
+        find_program(NIMBY_POWERSHELL_EXECUTABLE NAMES powershell.exe)
+        if(NIMBY_POWERSHELL_EXECUTABLE)
+            add_test(NAME clion_toolchain_detection COMMAND "${NIMBY_POWERSHELL_EXECUTABLE}"
+                -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "${CMAKE_CURRENT_SOURCE_DIR}/tests/windows/clion-toolchain.ps1")
+        endif()
+    endif()
     add_executable(nimby_game_keybindings_tests tests/windows/game_keybindings.cpp)
     target_include_directories(nimby_game_keybindings_tests PRIVATE include)
     target_link_libraries(nimby_game_keybindings_tests PRIVATE nimby_build)

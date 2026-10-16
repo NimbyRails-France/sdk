@@ -21,6 +21,9 @@ jobs:
       - name: Verify DLL ownership and recovery with text fixtures
         shell: powershell
         run: ./tests/windows/proxy-ownership.ps1
+      - name: Verify CLion discovery with isolated toolchain fixtures
+        shell: powershell
+        run: ./tests/windows/clion-toolchain.ps1
   validation:
     needs: dll-ownership
     if: github.ref == 'refs/heads/main'
